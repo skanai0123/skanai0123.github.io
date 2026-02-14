@@ -131,7 +131,8 @@
       // spawnCellMinCount, spawnSampleMax, spawnMassBase, spawnMassPerRho,
       // spawnMinDistance, spawnCheckEveryNFrames, bhR0, bhAbsorbRatio,
       // bhMassGainPerAbsorb, bhPullPerAbsorb, bhPullMax, bhGlobalPull,
-      // bhGlobalSoftening, bhMergeK, bigBangMinSpeed, bigBangMaxSpeed
+      // bhGlobalSoftening, bhMergeK, bigBangMinSpeed, bigBangMaxSpeed,
+      // velReturnMin, velReturnMax
       const PARAM = {
         particleCount: 15000,
         attractR: 180,
@@ -141,6 +142,8 @@
         maxSpeed: 8.5,
         waveAmp: 0,
         velReturn: 0.045,
+        velReturnMin: 0.01,
+        velReturnMax: 0.09,
         lifeJitter: 0.03,
         lifeMin: 0.15,
         lifeMax: 1.0,
@@ -179,6 +182,7 @@
       let raf = 0;
       let t = 0;
       let isPaused = false;
+      let currentVelReturn = PARAM.velReturn;
       const mouse = {
         x: 0,
         y: 0,
@@ -238,10 +242,17 @@
         particles.pop();
       }
 
+      function randomVelReturn() {
+        const lo = Math.min(PARAM.velReturnMin, PARAM.velReturnMax);
+        const hi = Math.max(PARAM.velReturnMin, PARAM.velReturnMax);
+        return lo + Math.random() * (hi - lo);
+      }
+
       function triggerBigBang(cx, cy) {
         blackHoles.length = 0;
         bhSpawnCooldown = PARAM.spawnCooldownFrames;
         particles.length = 0;
+        currentVelReturn = randomVelReturn();
 
         const maxR = Math.sqrt((w * w) + (h * h)) * 0.7;
         for (let i = 0; i < PARAM.particleCount; i += 1) {
@@ -261,8 +272,8 @@
             y: py,
             vx,
             vy,
-            baseVx: vx,
-            baseVy: vy,
+            baseVx: 0,
+            baseVy: 0,
             r: Math.random() * 1.8 + 0.6,
             life: Math.random() * 0.7 + 0.3,
             color: c
@@ -514,8 +525,8 @@
           const p = particles[i];
           const prevX = p.x;
           const prevY = p.y;
-          p.vx += (p.baseVx - p.vx) * PARAM.velReturn;
-          p.vy += (p.baseVy - p.vy) * PARAM.velReturn;
+          p.vx += (p.baseVx - p.vx) * currentVelReturn;
+          p.vy += (p.baseVy - p.vy) * currentVelReturn;
 
           if (mouse.active) {
             const dx = mouse.x - p.x;
