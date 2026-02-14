@@ -229,7 +229,6 @@
       let bhSpawnCooldown = 0;
       let bhEnabled = true;
       let frameTick = 0;
-      let homeHeld = false;
       const rRho2 = PARAM.rRho * PARAM.rRho;
       const dragBh = {
         target: null,
@@ -805,22 +804,6 @@
       window.addEventListener('pointercancel', () => {
         dragBh.target = null;
       }, { passive: true });
-
-      window.addEventListener('keydown', (e) => {
-        if (e.code === 'Home') {
-          homeHeld = true;
-          return;
-        }
-        if (!e.repeat && homeHeld && (e.key === 'b' || e.key === 'B')) {
-          const cx = mouse.active ? mouse.x : (w * 0.5);
-          const cy = mouse.active ? mouse.y : (h * 0.5);
-          triggerBigBang(cx, cy, 'home_plus_b');
-        }
-      });
-
-      window.addEventListener('keyup', (e) => {
-        if (e.code === 'Home') homeHeld = false;
-      });
 
       timeToggleBtn.addEventListener('click', () => {
         isPaused = !isPaused;
