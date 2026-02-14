@@ -140,7 +140,7 @@
         blastImpulse: 5.2,
         maxSpeed: 8.5,
         waveAmp: 0,
-        velReturn: 0.003,
+        velReturn: 0.045,
         lifeJitter: 0.03,
         lifeMin: 0.15,
         lifeMax: 1.0,
@@ -155,16 +155,16 @@
         spawnMassPerRho: 0.1,
         spawnMinDistance: 220,
         spawnCheckEveryNFrames: 20,
-        bhR0: 0.9,
+        bhR0: 1.8,
         bhAbsorbRatio: 1.0,
         bhMassGainPerAbsorb: 0.16,
         bhPullPerAbsorb: 0.22,
         bhPullMax: 0.2,
-        bhGlobalPull: 0.8,
+        bhGlobalPull: 0.08,
         bhGlobalSoftening: 60,
         bhMergeK: 1.18,
-        bigBangMinSpeed: 0.06,
-        bigBangMaxSpeed: 3.8
+        bigBangMinSpeed: 0.0,
+        bigBangMaxSpeed: 8.5
       };
 
       const canvas = document.getElementById('heroFx');
@@ -251,16 +251,18 @@
           const ny = Math.sin(ang);
           const rNorm = Math.min(1, rr / maxR);
           const speed = PARAM.bigBangMinSpeed + (1 - rNorm) * (PARAM.bigBangMaxSpeed - PARAM.bigBangMinSpeed);
+          const vx = nx * speed;
+          const vy = ny * speed;
           const px = clamp(cx + nx * rr, -20, w + 20);
           const py = clamp(cy + ny * rr, -10, h + 10);
           const c = gradientColor(Math.random());
           particles.push({
             x: px,
             y: py,
-            vx: nx * speed + (Math.random() * 0.2 - 0.1),
-            vy: ny * speed + (Math.random() * 0.2 - 0.1),
-            baseVx: (Math.random() * 0.55 + 0.18) * (Math.random() > 0.5 ? 1 : -1),
-            baseVy: (Math.random() * 0.24 - 0.12),
+            vx,
+            vy,
+            baseVx: vx,
+            baseVy: vy,
             r: Math.random() * 1.8 + 0.6,
             life: Math.random() * 0.7 + 0.3,
             color: c
