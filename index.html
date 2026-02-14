@@ -246,6 +246,14 @@
         particles.pop();
       }
 
+      function markSinglePinkStar() {
+        if (particles.length === 0) return;
+        const p = particles[0];
+        p.color = '255,120,210';
+        p.r = Math.max(p.r, 1.8);
+        p.life = 1;
+      }
+
       function randomVelReturn() {
         const lo = Math.min(PARAM.velReturnMin, PARAM.velReturnMax);
         const hi = Math.max(PARAM.velReturnMin, PARAM.velReturnMax);
@@ -284,6 +292,7 @@
             color: c
           });
         }
+        markSinglePinkStar();
       }
 
       function maybeTriggerBigBang() {
@@ -502,6 +511,7 @@
             color: c
           });
         }
+        markSinglePinkStar();
       }
 
       function step() {
