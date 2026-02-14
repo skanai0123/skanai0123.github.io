@@ -85,6 +85,28 @@
       border-color: var(--accent);
     }
 
+    .time-toggle {
+      position: fixed;
+      top: 12px;
+      right: 12px;
+      z-index: 3;
+      width: 34px;
+      height: 34px;
+      border: 1px solid #2a4667;
+      border-radius: 9px;
+      background: rgba(7, 20, 40, 0.74);
+      color: rgba(234, 241, 255, 0.88);
+      font-size: 16px;
+      line-height: 1;
+      cursor: pointer;
+      backdrop-filter: blur(2px);
+    }
+
+    .time-toggle:hover {
+      border-color: var(--accent);
+      color: #ffffff;
+    }
+
     @media (max-width: 720px) {
       .wrap { width: calc(100% - 24px); margin-top: 20px; padding: 12px; }
       .card { min-height: 100px; font-size: clamp(24px, 9vw, 34px); }
@@ -93,6 +115,7 @@
 </head>
 <body>
   <canvas id="heroFx" aria-hidden="true"></canvas>
+  <button id="timeToggleBtn" class="time-toggle" type="button" aria-label="Pause time" title="Pause">II</button>
 
   <main class="wrap">
     <section class="cards">
@@ -106,9 +129,9 @@
       // Added parameters for black-hole gimmick:
       // cellSize, rRho, rhoThreshold, spawnCooldownFrames, maxBlackHoles,
       // spawnCellMinCount, spawnSampleMax, spawnMassBase, spawnMassPerRho,
-      // spawnMinDistance, bhR0, bhAbsorbRatio, bhG, bhEps, bhMassGainPerAbsorb,
-      // bhEvaporationPerFrame, bhMinMass, bhMinLifeFrames, bhMergeK, bhStarsPerMass,
-      // bhEvaporationSpawnMaxPerFrame, bhEvapLaunchSpeedMin, bhEvapLaunchSpeedMax
+      // spawnMinDistance, spawnCheckEveryNFrames, bhR0, bhAbsorbRatio,
+      // bhMassGainPerAbsorb, bhPullPerAbsorb, bhPullMax, bhGlobalPull,
+      // bhGlobalSoftening, bhMergeK, bigBangMinSpeed, bigBangMaxSpeed
       const PARAM = {
         particleCount: 15000,
         attractR: 180,
@@ -116,7 +139,7 @@
         blastR: 260,
         blastImpulse: 5.2,
         maxSpeed: 8.5,
-        waveAmp: 0.18,
+        waveAmp: 0,
         velReturn: 0.003,
         lifeJitter: 0.03,
         lifeMin: 0.15,
@@ -131,30 +154,31 @@
         spawnMassBase: 7,
         spawnMassPerRho: 0.1,
         spawnMinDistance: 220,
-        bhR0: 0.8,
-        bhAbsorbRatio: 0.6,
-        bhG: 24,
-        bhEps: 22,
+        spawnCheckEveryNFrames: 20,
+        bhR0: 0.9,
+        bhAbsorbRatio: 1.0,
         bhMassGainPerAbsorb: 0.16,
-        bhEvaporationPerFrame: 0.9985,
-        bhMinMass: 3.2,
-        bhMinLifeFrames: 240,
+        bhPullPerAbsorb: 0.22,
+        bhPullMax: 0.2,
+        bhGlobalPull: 0.8,
+        bhGlobalSoftening: 60,
         bhMergeK: 1.18,
-        bhStarsPerMass: 12,
-        bhEvaporationSpawnMaxPerFrame: 42,
-        bhEvapLaunchSpeedMin: 1.2,
-        bhEvapLaunchSpeedMax: 9.0
+        bigBangMinSpeed: 0.06,
+        bigBangMaxSpeed: 3.8
       };
 
       const canvas = document.getElementById('heroFx');
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
+      const timeToggleBtn = document.getElementById('timeToggleBtn');
+      if (!timeToggleBtn) return;
       let dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
       let w = 0;
       let h = 0;
       let raf = 0;
       let t = 0;
+      let isPaused = false;
       const mouse = {
         x: 0,
         y: 0,
@@ -170,6 +194,7 @@
       ];
       let bhSpawnCooldown = 0;
       let bhEnabled = true;
+      let frameTick = 0;
       const rRho2 = PARAM.rRho * PARAM.rRho;
       const dragBh = {
         target: null,
@@ -213,46 +238,57 @@
         particles.pop();
       }
 
-      function spawnParticleAt(x, y, spread, speedMin, speedMax) {
-        const c = gradientColor(Math.random());
-        const a = Math.random() * Math.PI * 2;
-        const s = speedMin + Math.random() * Math.max(0, speedMax - speedMin);
-        const px = x + (Math.random() * 2 - 1) * spread;
-        const py = y + (Math.random() * 2 - 1) * spread;
-        particles.push({
-          x: Math.max(-20, Math.min(w + 20, px)),
-          y: Math.max(-10, Math.min(h + 10, py)),
-          vx: Math.cos(a) * s,
-          vy: Math.sin(a) * s,
-          baseVx: (Math.random() * 0.55 + 0.18) * (Math.random() > 0.5 ? 1 : -1),
-          baseVy: (Math.random() * 0.24 - 0.12),
-          r: Math.random() * 1.8 + 0.6,
-          life: 1,
-          color: c
-        });
+      function triggerBigBang(cx, cy) {
+        blackHoles.length = 0;
+        bhSpawnCooldown = PARAM.spawnCooldownFrames;
+        particles.length = 0;
+
+        const maxR = Math.sqrt((w * w) + (h * h)) * 0.7;
+        for (let i = 0; i < PARAM.particleCount; i += 1) {
+          const ang = Math.random() * Math.PI * 2;
+          const rr = Math.pow(Math.random(), 0.72) * maxR;
+          const nx = Math.cos(ang);
+          const ny = Math.sin(ang);
+          const rNorm = Math.min(1, rr / maxR);
+          const speed = PARAM.bigBangMinSpeed + (1 - rNorm) * (PARAM.bigBangMaxSpeed - PARAM.bigBangMinSpeed);
+          const px = clamp(cx + nx * rr, -20, w + 20);
+          const py = clamp(cy + ny * rr, -10, h + 10);
+          const c = gradientColor(Math.random());
+          particles.push({
+            x: px,
+            y: py,
+            vx: nx * speed + (Math.random() * 0.2 - 0.1),
+            vy: ny * speed + (Math.random() * 0.2 - 0.1),
+            baseVx: (Math.random() * 0.55 + 0.18) * (Math.random() > 0.5 ? 1 : -1),
+            baseVy: (Math.random() * 0.24 - 0.12),
+            r: Math.random() * 1.8 + 0.6,
+            life: Math.random() * 0.7 + 0.3,
+            color: c
+          });
+        }
       }
 
-      function emitFromMassLoss(bh, lostMass) {
-        if (lostMass <= 0) return;
-        const capacity = PARAM.particleCount - particles.length;
-        if (capacity <= 0) return;
+      function maybeTriggerBigBang() {
+        if (particles.length !== 0) return;
+        if (!bhEnabled || blackHoles.length === 0) return;
 
-        bh.emitAcc += lostMass * PARAM.bhStarsPerMass;
-        const want = Math.floor(bh.emitAcc);
-        if (want <= 0) return;
-
-        const n = Math.min(capacity, PARAM.bhEvaporationSpawnMaxPerFrame, want);
-        bh.emitAcc -= n;
-        const spread = Math.max(2, bh.R * 0.15);
-        for (let i = 0; i < n; i += 1) {
-          spawnParticleAt(
-            bh.x,
-            bh.y,
-            spread,
-            PARAM.bhEvapLaunchSpeedMin,
-            PARAM.bhEvapLaunchSpeedMax
-          );
+        let cx = blackHoles[0].x;
+        let cy = blackHoles[0].y;
+        if (blackHoles.length > 1) {
+          let msum = 0;
+          let sx = 0;
+          let sy = 0;
+          for (let i = 0; i < blackHoles.length; i += 1) {
+            const b = blackHoles[i];
+            const m = Math.max(0.0001, b.mass || 0);
+            msum += m;
+            sx += b.x * m;
+            sy += b.y * m;
+          }
+          cx = sx / msum;
+          cy = sy / msum;
         }
+        triggerBigBang(cx, cy);
       }
 
       function gridKey(cx, cy) {
@@ -263,13 +299,30 @@
         return Math.max(lo, Math.min(hi, v));
       }
 
+      function segmentIntersectsCircle(x0, y0, x1, y1, cx, cy, r2) {
+        const dx = x1 - x0;
+        const dy = y1 - y0;
+        const fx = x0 - cx;
+        const fy = y0 - cy;
+        const a = dx * dx + dy * dy;
+        if (a <= 1e-9) return (fx * fx + fy * fy) <= r2;
+        let t = -((fx * dx) + (fy * dy)) / a;
+        if (t < 0) t = 0;
+        if (t > 1) t = 1;
+        const px = x0 + dx * t;
+        const py = y0 + dy * t;
+        const qx = px - cx;
+        const qy = py - cy;
+        return (qx * qx + qy * qy) <= r2;
+      }
+
       function pickBlackHole(x, y) {
         if (!bhEnabled || blackHoles.length === 0) return null;
         for (let i = blackHoles.length - 1; i >= 0; i -= 1) {
           const b = blackHoles[i];
           const dx = x - b.x;
           const dy = y - b.y;
-          const r = b.R * 1.6;
+          const r = Math.max(8, b.R * 1.6);
           if (dx * dx + dy * dy <= r * r) return b;
         }
         return null;
@@ -312,12 +365,7 @@
       }
 
       function trySpawnBlackHole() {
-        if (!bhEnabled) return;
-        if (bhSpawnCooldown > 0) {
-          bhSpawnCooldown -= 1;
-          return;
-        }
-        if (blackHoles.length >= PARAM.maxBlackHoles) return;
+        if (!bhEnabled || blackHoles.length >= PARAM.maxBlackHoles || bhSpawnCooldown > 0) return;
 
         let bestCell = null;
         let bestCount = PARAM.spawnCellMinCount - 1;
@@ -361,9 +409,7 @@
           mass,
           R: radius,
           Rabs: radius * PARAM.bhAbsorbRatio,
-          flash: 1,
-          emitAcc: 0,
-          age: 0
+          absorbedCount: 0
         });
         bhSpawnCooldown = PARAM.spawnCooldownFrames;
       }
@@ -371,22 +417,8 @@
       function updateBlackHoles() {
         if (!bhEnabled) return;
 
-        for (let i = blackHoles.length - 1; i >= 0; i -= 1) {
+        for (let i = 0; i < blackHoles.length; i += 1) {
           const b = blackHoles[i];
-          const massBefore = b.mass;
-          b.age += 1;
-          if (b.age >= PARAM.bhMinLifeFrames) {
-            b.mass *= PARAM.bhEvaporationPerFrame;
-          }
-          b.flash *= 0.88;
-          let lostMass = Math.max(0, massBefore - b.mass);
-          if (b.mass < PARAM.bhMinMass) {
-            lostMass += b.mass;
-            emitFromMassLoss(b, lostMass);
-            blackHoles.splice(i, 1);
-            continue;
-          }
-          emitFromMassLoss(b, lostMass);
           b.R = calcRadius(b.mass);
           b.Rabs = b.R * PARAM.bhAbsorbRatio;
         }
@@ -408,9 +440,7 @@
             a.mass = mass;
             a.R = calcRadius(mass);
             a.Rabs = a.R * PARAM.bhAbsorbRatio;
-            a.flash = Math.max(a.flash, b.flash, 0.9);
-            a.emitAcc = (a.emitAcc || 0) + (b.emitAcc || 0);
-            a.age = Math.max(a.age || 0, b.age || 0);
+            a.absorbedCount = (a.absorbedCount || 0) + (b.absorbedCount || 0);
             blackHoles.splice(j, 1);
             j -= 1;
           }
@@ -457,15 +487,31 @@
       }
 
       function step() {
+        if (isPaused) {
+          raf = requestAnimationFrame(step);
+          return;
+        }
+
         t += 0.015;
+        frameTick += 1;
         ctx.clearRect(0, 0, w, h);
         const attractR2 = PARAM.attractR * PARAM.attractR;
 
-        buildSpatialGrid();
-        trySpawnBlackHole();
+        if (bhSpawnCooldown > 0) bhSpawnCooldown -= 1;
+        if (
+          bhEnabled &&
+          blackHoles.length < PARAM.maxBlackHoles &&
+          bhSpawnCooldown === 0 &&
+          (frameTick % PARAM.spawnCheckEveryNFrames === 0)
+        ) {
+          buildSpatialGrid();
+          trySpawnBlackHole();
+        }
 
         for (let i = 0; i < particles.length; i += 1) {
           const p = particles[i];
+          const prevX = p.x;
+          const prevY = p.y;
           p.vx += (p.baseVx - p.vx) * PARAM.velReturn;
           p.vy += (p.baseVy - p.vy) * PARAM.velReturn;
 
@@ -490,14 +536,17 @@
               const d2 = dx * dx + dy * dy;
               if (d2 < b.Rabs * b.Rabs) {
                 b.mass += PARAM.bhMassGainPerAbsorb;
-                b.flash = 1;
+                b.absorbedCount = (b.absorbedCount || 0) + 1;
                 removeParticleAt(i);
                 absorbed = true;
                 break;
               }
-              if (d2 > 1 && d2 < attractR2) {
+              if (d2 > 1) {
                 const d = Math.sqrt(d2);
-                const pull = (1 - d / PARAM.attractR) * PARAM.attractStrength;
+                const absorbed = b.absorbedCount || 0;
+                const pullScale = 1 + Math.sqrt(absorbed) * PARAM.bhPullPerAbsorb;
+                let pull = (PARAM.bhGlobalPull * pullScale) / (d + PARAM.bhGlobalSoftening);
+                if (pull > PARAM.bhPullMax) pull = PARAM.bhPullMax;
                 p.vx += (dx / d) * pull;
                 p.vy += (dy / d) * pull;
               }
@@ -518,6 +567,29 @@
           const wave = Math.sin((p.x * 0.01) + t) * PARAM.waveAmp;
           p.x += p.vx;
           p.y += p.vy + wave;
+
+          // Robust horizon check (endpoint + segment-crossing) to prevent tunneling leaks.
+          if (bhEnabled && blackHoles.length > 0) {
+            for (let bIdx = 0; bIdx < blackHoles.length; bIdx += 1) {
+              const b = blackHoles[bIdx];
+              const r2 = b.Rabs * b.Rabs;
+              const dx = b.x - p.x;
+              const dy = b.y - p.y;
+              const insideNow = (dx * dx + dy * dy) < r2;
+              const crossed = segmentIntersectsCircle(prevX, prevY, p.x, p.y, b.x, b.y, r2);
+              if (insideNow || crossed) {
+                b.mass += PARAM.bhMassGainPerAbsorb;
+                removeParticleAt(i);
+                absorbed = true;
+                break;
+              }
+            }
+          }
+          if (absorbed) {
+            i -= 1;
+            continue;
+          }
+
           p.life += (Math.random() - 0.5) * PARAM.lifeJitter;
           if (p.life < PARAM.lifeMin) p.life = PARAM.lifeMin;
           if (p.life > PARAM.lifeMax) p.life = PARAM.lifeMax;
@@ -532,6 +604,7 @@
         }
 
         updateBlackHoles();
+        maybeTriggerBigBang();
         drawBlackHoles();
 
         raf = requestAnimationFrame(step);
@@ -603,6 +676,22 @@
         if (e.key === 'b' || e.key === 'B') {
           bhEnabled = !bhEnabled;
         }
+      });
+
+      timeToggleBtn.addEventListener('click', () => {
+        isPaused = !isPaused;
+        if (isPaused) {
+          timeToggleBtn.textContent = '>';
+          timeToggleBtn.title = 'Resume';
+          timeToggleBtn.setAttribute('aria-label', 'Resume time');
+        } else {
+          timeToggleBtn.textContent = 'II';
+          timeToggleBtn.title = 'Pause';
+          timeToggleBtn.setAttribute('aria-label', 'Pause time');
+        }
+      });
+      timeToggleBtn.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
       });
 
       window.addEventListener('resize', init, { passive: true });
