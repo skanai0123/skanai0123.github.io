@@ -32,7 +32,7 @@
       margin: 0;
       min-height: 100vh;
       font-family: "Noto Sans JP", system-ui, sans-serif;
-      color: var(--text);
+      color: rgba(234, 241, 255, 0.3);
       background: #070F1A;
     }
 
@@ -108,7 +108,9 @@
       // spawnCellMinCount, spawnSampleMax, spawnMassBase, spawnMassPerRho,
       // spawnMinDistance, bhR0, bhAbsorbRatio, bhG, bhEps, bhMassGainPerAbsorb,
       // bhEvaporationPerFrame, bhMinMass, bhMinLifeFrames, bhMergeK, bhStarsPerMass,
-      // bhEvaporationSpawnMaxPerFrame, bhEvapLaunchSpeedMin, bhEvapLaunchSpeedMax
+      // bhEvaporationSpawnMaxPerFrame, bhEvapLaunchSpeedMin, bhEvapLaunchSpeedMax,
+      // nearGravityEnabled, nearGravityG, nearGravityCutoff, nearGravitySoftening,
+      // nearGravityEveryNFrames
       const PARAM = {
         particleCount: 15000,
         attractR: 180,
@@ -117,25 +119,25 @@
         blastImpulse: 5.2,
         maxSpeed: 8.5,
         waveAmp: 0.18,
-        velReturn: 0.014,
+        velReturn: 0.003,
         lifeJitter: 0.03,
         lifeMin: 0.15,
         lifeMax: 1.0,
         cellSize: 52,
         rRho: 45,
-        rhoThreshold: 42,
-        spawnCooldownFrames: 20,
-        maxBlackHoles: 10,
-        spawnCellMinCount: 8,
-        spawnSampleMax: 24,
-        spawnMassBase: 10,
-        spawnMassPerRho: 0.22,
-        spawnMinDistance: 50,
-        bhR0: 1.6,
-        bhAbsorbRatio: 0.7,
-        bhG: 35,
+        rhoThreshold: 1500,
+        spawnCooldownFrames: 600,
+        maxBlackHoles: 3,
+        spawnCellMinCount: 80,
+        spawnSampleMax: 8,
+        spawnMassBase: 7,
+        spawnMassPerRho: 0.1,
+        spawnMinDistance: 220,
+        bhR0: 0.8,
+        bhAbsorbRatio: 0.6,
+        bhG: 24,
         bhEps: 22,
-        bhMassGainPerAbsorb: 0.24,
+        bhMassGainPerAbsorb: 0.16,
         bhEvaporationPerFrame: 0.9985,
         bhMinMass: 3.2,
         bhMinLifeFrames: 240,
@@ -143,7 +145,12 @@
         bhStarsPerMass: 12,
         bhEvaporationSpawnMaxPerFrame: 42,
         bhEvapLaunchSpeedMin: 1.2,
-        bhEvapLaunchSpeedMax: 9.0
+        bhEvapLaunchSpeedMax: 9.0,
+        nearGravityEnabled: true,
+        nearGravityG: 8,
+        nearGravityCutoff: 12,
+        nearGravitySoftening: 28,
+        nearGravityEveryNFrames: 12
       };
 
       const canvas = document.getElementById('heroFx');
@@ -170,6 +177,7 @@
       ];
       let bhSpawnCooldown = 0;
       let bhEnabled = true;
+      let frameCount = 0;
       const rRho2 = PARAM.rRho * PARAM.rRho;
       const dragBh = {
         target: null,
@@ -458,8 +466,15 @@
 
       function step() {
         t += 0.015;
+        frameCount += 1;
         ctx.clearRect(0, 0, w, h);
         const attractR2 = PARAM.attractR * PARAM.attractR;
+        const applyNearGravityThisFrame =
+          PARAM.nearGravityEnabled &&
+          PARAM.nearGravityEveryNFrames > 0 &&
+          (frameCount % PARAM.nearGravityEveryNFrames === 0);
+        const nearCut2 = PARAM.nearGravityCutoff * PARAM.nearGravityCutoff;
+        const nearSoft2 = PARAM.nearGravitySoftening * PARAM.nearGravitySoftening;
 
         buildSpatialGrid();
         trySpawnBlackHole();
@@ -479,6 +494,33 @@
               p.vx += (dx / d) * pull;
               p.vy += (dy / d) * pull;
             }
+          }
+
+          if (applyNearGravityThisFrame) {
+            const cx = Math.floor(p.x / PARAM.cellSize);
+            const cy = Math.floor(p.y / PARAM.cellSize);
+            let ax = 0;
+            let ay = 0;
+            for (let n = 0; n < neighborOffsets.length; n += 1) {
+              const o = neighborOffsets[n];
+              const arr = grid.get(gridKey(cx + o[0], cy + o[1]));
+              if (!arr) continue;
+              for (let k = 0; k < arr.length; k += 1) {
+                const j = arr[k];
+                if (j === i || j < 0 || j >= particles.length) continue;
+                const q = particles[j];
+                if (!q) continue;
+                const dx = q.x - p.x;
+                const dy = q.y - p.y;
+                const d2 = dx * dx + dy * dy;
+                if (d2 < 1 || d2 > nearCut2) continue;
+                const inv = 1 / Math.pow(d2 + nearSoft2, 1.5);
+                ax += dx * inv;
+                ay += dy * inv;
+              }
+            }
+            p.vx += PARAM.nearGravityG * ax;
+            p.vy += PARAM.nearGravityG * ay;
           }
 
           let absorbed = false;
