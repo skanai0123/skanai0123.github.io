@@ -87,10 +87,9 @@
       border-color: var(--accent);
     }
 
-    .time-toggle {
+    .tool-btn {
       position: fixed;
       top: 12px;
-      right: 12px;
       z-index: 3;
       width: 34px;
       height: 34px;
@@ -104,10 +103,13 @@
       backdrop-filter: blur(2px);
     }
 
-    .time-toggle:hover {
+    .tool-btn:hover {
       border-color: var(--accent);
       color: #ffffff;
     }
+
+    .time-toggle { right: 12px; }
+    .fullscreen-toggle { right: 52px; font-size: 14px; }
 
     @media (max-width: 720px) {
       .wrap { width: calc(100% - 24px); margin-top: 20px; padding: 12px; }
@@ -117,7 +119,8 @@
 </head>
 <body>
   <canvas id="heroFx" aria-hidden="true"></canvas>
-  <button id="timeToggleBtn" class="time-toggle" type="button" aria-label="Pause time" title="Pause">II</button>
+  <button id="fullscreenToggleBtn" class="tool-btn fullscreen-toggle" type="button" aria-label="Enter fullscreen" title="Fullscreen">[ ]</button>
+  <button id="timeToggleBtn" class="tool-btn time-toggle" type="button" aria-label="Pause time" title="Pause">II</button>
 
   <main class="wrap">
     <section class="cards">
@@ -141,8 +144,13 @@
       // maxSpeedMin, maxSpeedMax, bigBangFlowSpeedMin, bigBangFlowSpeedMax
       const PARAM = {
         particleCount: 15000,
+        baseViewWidth: 1920,
+        baseViewHeight: 1080,
+        minParticleCount: 1200,
         attractR: 180,
         attractStrength: 0.06,
+        bbMouseAttractMultiplier: 0.9,
+        bbBhPullMultiplier: 0.9,
         blastR: 260,
         blastImpulse: 5.2,
         maxSpeed: 320,
@@ -196,6 +204,8 @@
       if (!ctx) return;
       const bodyEl = document.body;
       if (!bodyEl) return;
+      const fullscreenToggleBtn = document.getElementById('fullscreenToggleBtn');
+      if (!fullscreenToggleBtn) return;
       const timeToggleBtn = document.getElementById('timeToggleBtn');
       if (!timeToggleBtn) return;
       let dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
@@ -205,7 +215,11 @@
       let t = 0;
       let isPaused = false;
       let currentVelReturn = PARAM.velReturn;
+      let currentAttractStrength = PARAM.attractStrength;
+      let currentAttractR = PARAM.attractR;
+      let currentBlastR = PARAM.blastR;
       let currentBhGlobalPull = PARAM.bhGlobalPull;
+      let currentBhPullMax = PARAM.bhPullMax;
       let currentBhGlobalSoftening = PARAM.bhGlobalSoftening;
       let currentBhPullPerAbsorb = PARAM.bhPullPerAbsorb;
       let currentBigBangMaxSpeed = PARAM.bigBangMaxSpeed;
@@ -229,6 +243,9 @@
       let bhSpawnCooldown = 0;
       let bhEnabled = true;
       let frameTick = 0;
+      let bbMousePullScale = 1;
+      let bbBhPullScale = 1;
+      let currentParticleTarget = PARAM.particleCount;
       const rRho2 = PARAM.rRho * PARAM.rRho;
       const dragBh = {
         target: null,
@@ -293,7 +310,7 @@
       }
 
       function updateBackgroundBrightness() {
-        const ratio = Math.max(0, Math.min(1, particles.length / Math.max(1, PARAM.particleCount)));
+        const ratio = Math.max(0, Math.min(1, particles.length / Math.max(1, currentParticleTarget)));
         // Few stars -> darker, many stars -> slightly brighter.
         const level = Math.round(6 + ratio * 12); // 6..18
         if (level === lastBgLevel) return;
@@ -315,8 +332,12 @@
         blackHoles.length = 0;
         bhSpawnCooldown = PARAM.spawnCooldownFrames;
         particles.length = 0;
+        bbMousePullScale *= PARAM.bbMouseAttractMultiplier;
+        bbBhPullScale *= PARAM.bbBhPullMultiplier;
+        currentAttractStrength = PARAM.attractStrength * bbMousePullScale;
         currentVelReturn = randomVelReturn();
-        currentBhGlobalPull = randomInRange(PARAM.bhGlobalPullMin, PARAM.bhGlobalPullMax);
+        currentBhGlobalPull = randomInRange(PARAM.bhGlobalPullMin, PARAM.bhGlobalPullMax) * bbBhPullScale;
+        currentBhPullMax = PARAM.bhPullMax * bbBhPullScale;
         currentBhGlobalSoftening = randomInRange(PARAM.bhGlobalSofteningMin, PARAM.bhGlobalSofteningMax);
         currentBhPullPerAbsorb = randomInRange(PARAM.bhPullPerAbsorbMin, PARAM.bhPullPerAbsorbMax);
         currentBigBangMaxSpeed = randomInRange(PARAM.bigBangMaxSpeedMin, PARAM.bigBangMaxSpeedMax);
@@ -327,7 +348,7 @@
         currentFlowY = Math.sin(flowA) * flowS;
 
         const maxR = Math.sqrt((w * w) + (h * h)) * 0.7;
-        for (let i = 0; i < PARAM.particleCount; i += 1) {
+        for (let i = 0; i < currentParticleTarget; i += 1) {
           const ang = Math.random() * Math.PI * 2;
           const rr = Math.pow(Math.random(), 0.72) * maxR;
           const nx = Math.cos(ang);
@@ -576,7 +597,17 @@
         canvas.height = Math.floor(h * dpr);
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-        const target = PARAM.particleCount;
+        const baseArea = Math.max(1, PARAM.baseViewWidth * PARAM.baseViewHeight);
+        const areaScale = (w * h) / baseArea;
+        currentParticleTarget = Math.max(
+          PARAM.minParticleCount,
+          Math.round(PARAM.particleCount * areaScale)
+        );
+        const lenScale = Math.sqrt(Math.max(0.0001, areaScale));
+        currentAttractR = PARAM.attractR * lenScale;
+        currentBlastR = PARAM.blastR * lenScale;
+
+        const target = currentParticleTarget;
         particles.length = 0;
         blackHoles.length = 0;
         bhSpawnCooldown = 0;
@@ -609,7 +640,7 @@
         t += 0.015;
         frameTick += 1;
         ctx.clearRect(0, 0, w, h);
-        const attractR2 = PARAM.attractR * PARAM.attractR;
+        const attractR2 = currentAttractR * currentAttractR;
         const wrapW = w + 40;
         const wrapH = h + 20;
 
@@ -651,7 +682,7 @@
             const d2 = dx * dx + dy * dy;
             if (d2 > 1 && d2 < attractR2) {
               const d = Math.sqrt(d2);
-              const pull = (1 - d / PARAM.attractR) * PARAM.attractStrength;
+              const pull = (1 - d / currentAttractR) * currentAttractStrength;
               p.vx += (dx / d) * pull;
               p.vy += (dy / d) * pull;
             }
@@ -676,7 +707,7 @@
                 const absorbed = b.absorbedCount || 0;
                 const pullScale = 1 + Math.sqrt(absorbed) * currentBhPullPerAbsorb;
                 let pull = (currentBhGlobalPull * pullScale) / (d + currentBhGlobalSoftening);
-                if (pull > PARAM.bhPullMax) pull = PARAM.bhPullMax;
+                if (pull > currentBhPullMax) pull = currentBhPullMax;
                 p.vx += (dx / d) * pull;
                 p.vy += (dy / d) * pull;
               }
@@ -750,7 +781,7 @@
       }
 
       function explode(x, y) {
-        const blastR2 = PARAM.blastR * PARAM.blastR;
+        const blastR2 = currentBlastR * currentBlastR;
         for (let i = 0; i < particles.length; i += 1) {
           const p = particles[i];
           const dx = p.x - x;
@@ -758,7 +789,7 @@
           const d2 = dx * dx + dy * dy;
           if (d2 < 1 || d2 > blastR2) continue;
           const d = Math.sqrt(d2);
-          const u = 1 - (d / PARAM.blastR);
+          const u = 1 - (d / currentBlastR);
           const impulse = PARAM.blastImpulse * u;
           p.vx += (dx / d) * impulse;
           p.vy += (dy / d) * impulse;
@@ -819,6 +850,26 @@
       });
       timeToggleBtn.addEventListener('pointerdown', (e) => {
         e.stopPropagation();
+      });
+      fullscreenToggleBtn.addEventListener('click', async () => {
+        try {
+          if (!document.fullscreenElement) {
+            await document.documentElement.requestFullscreen();
+          } else {
+            await document.exitFullscreen();
+          }
+        } catch (_err) {
+          // Ignore fullscreen errors from browser policy/user gesture constraints.
+        }
+      });
+      fullscreenToggleBtn.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+      });
+      document.addEventListener('fullscreenchange', () => {
+        const active = !!document.fullscreenElement;
+        fullscreenToggleBtn.textContent = active ? 'x' : '[ ]';
+        fullscreenToggleBtn.title = active ? 'Exit fullscreen' : 'Fullscreen';
+        fullscreenToggleBtn.setAttribute('aria-label', active ? 'Exit fullscreen' : 'Enter fullscreen');
       });
 
       window.addEventListener('resize', init, { passive: true });
