@@ -204,6 +204,8 @@
       if (!ctx) return;
       const bodyEl = document.body;
       if (!bodyEl) return;
+      const wrapEl = document.querySelector('.wrap');
+      if (!wrapEl) return;
       const fullscreenToggleBtn = document.getElementById('fullscreenToggleBtn');
       if (!fullscreenToggleBtn) return;
       const timeToggleBtn = document.getElementById('timeToggleBtn');
@@ -867,6 +869,7 @@
       });
       document.addEventListener('fullscreenchange', () => {
         const active = !!document.fullscreenElement;
+        wrapEl.style.display = active ? 'none' : '';
         fullscreenToggleBtn.textContent = active ? 'x' : '[ ]';
         fullscreenToggleBtn.title = active ? 'Exit fullscreen' : 'Fullscreen';
         fullscreenToggleBtn.setAttribute('aria-label', active ? 'Exit fullscreen' : 'Enter fullscreen');
