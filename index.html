@@ -134,6 +134,7 @@
       // spawnMinDistance, spawnCheckEveryNFrames, bhR0, bhAbsorbRatio,
       // bhMassGainPerAbsorb, bhPullPerAbsorb, bhPullMax, bhGlobalPull,
       // bhGlobalSoftening, bhMergeK, bigBangMinSpeed, bigBangMaxSpeed,
+      // bigBangSpeedCurveA, bigBangLaunchA,
       // velReturnMin, velReturnMax, bhGlobalPullMin, bhGlobalPullMax,
       // bhGlobalSofteningMin, bhGlobalSofteningMax, bhPullPerAbsorbMin,
       // bhPullPerAbsorbMax, bigBangMaxSpeedMin, bigBangMaxSpeedMax,
@@ -146,7 +147,7 @@
         blastImpulse: 5.2,
         maxSpeed: 320,
         waveAmp: 0,
-        velReturn: 0.001,
+        velReturn: 0.02,
         velReturnMin: 0.01,
         velReturnMax: 0.09,
         lifeJitter: 0.03,
@@ -173,6 +174,8 @@
         bhMergeK: 1.18,
         bigBangMinSpeed: 0.0,
         bigBangMaxSpeed: 24000,
+        bigBangSpeedCurveA: 4.0,
+        bigBangLaunchA: 0.01,
         bhGlobalPullMin: 0.08,
         bhGlobalPullMax: 0.5,
         bhGlobalSofteningMin: 30,
@@ -226,6 +229,7 @@
       let bhSpawnCooldown = 0;
       let bhEnabled = true;
       let frameTick = 0;
+      let homeHeld = false;
       const rRho2 = PARAM.rRho * PARAM.rRho;
       const dragBh = {
         target: null,
@@ -292,13 +296,23 @@
       function updateBackgroundBrightness() {
         const ratio = Math.max(0, Math.min(1, particles.length / Math.max(1, PARAM.particleCount)));
         // Few stars -> darker, many stars -> slightly brighter.
-        const level = Math.round(12 + ratio * 18); // 12..30
+        const level = Math.round(6 + ratio * 12); // 6..18
         if (level === lastBgLevel) return;
         lastBgLevel = level;
         bodyEl.style.background = 'rgb(' + level + ',' + (level + 4) + ',' + (level + 10) + ')';
       }
 
-      function triggerBigBang(cx, cy) {
+      function triggerBigBang(cx, cy, source) {
+        const src = source || 'unknown';
+        if (typeof gtag === 'function') {
+          gtag('event', 'big_bang', {
+            event_category: 'simulation',
+            source: src,
+            particles_before: particles.length,
+            black_holes_before: blackHoles.length
+          });
+        }
+
         blackHoles.length = 0;
         bhSpawnCooldown = PARAM.spawnCooldownFrames;
         particles.length = 0;
@@ -320,7 +334,10 @@
           const nx = Math.cos(ang);
           const ny = Math.sin(ang);
           const rNorm = Math.min(1, rr / maxR);
-          const speed = PARAM.bigBangMinSpeed + (1 - rNorm) * (currentBigBangMaxSpeed - PARAM.bigBangMinSpeed);
+          const u = 1 - rNorm;
+          const a = Math.max(0.0001, PARAM.bigBangSpeedCurveA);
+          const curve = (1 - Math.exp(-a * u)) / (1 - Math.exp(-a));
+          const speed = PARAM.bigBangMinSpeed + curve * (currentBigBangMaxSpeed - PARAM.bigBangMinSpeed);
           const vx = nx * speed;
           const vy = ny * speed;
           const baseA = Math.random() * Math.PI * 2;
@@ -333,10 +350,13 @@
           particles.push({
             x: px,
             y: py,
-            vx: vx + baseVx + currentFlowX,
-            vy: vy + baseVy + currentFlowY,
+            vx: baseVx + currentFlowX,
+            vy: baseVy + currentFlowY,
             baseVx: baseVx + currentFlowX,
             baseVy: baseVy + currentFlowY,
+            launchVxTarget: vx,
+            launchVyTarget: vy,
+            launchTime: 0,
             r: Math.random() * 1.8 + 0.6,
             life: Math.random() * 0.7 + 0.3,
             color: c
@@ -365,7 +385,7 @@
           cx = sx / msum;
           cy = sy / msum;
         }
-        triggerBigBang(cx, cy);
+        triggerBigBang(cx, cy, 'auto');
       }
 
       function gridKey(cx, cy) {
@@ -570,6 +590,9 @@
             vy: (Math.random() * 0.24 - 0.12),
             baseVx: Math.cos(Math.random() * Math.PI * 2) * (Math.random() * 0.55 + 0.18),
             baseVy: Math.sin(Math.random() * Math.PI * 2) * (Math.random() * 0.55 + 0.18),
+            launchVxTarget: 0,
+            launchVyTarget: 0,
+            launchTime: -1,
             r: Math.random() * 1.8 + 0.6,
             life: Math.random() * 0.7 + 0.3,
             color: c
@@ -608,6 +631,20 @@
           const prevY = p.y;
           p.vx += (p.baseVx - p.vx) * currentVelReturn;
           p.vy += (p.baseVy - p.vy) * currentVelReturn;
+
+          if (p.launchTime >= 0) {
+            const a = Math.max(0.000001, PARAM.bigBangLaunchA);
+            const prevPhase = 1 - Math.exp(-a * p.launchTime);
+            p.launchTime += 1;
+            const nextPhase = 1 - Math.exp(-a * p.launchTime);
+            const dPhase = nextPhase - prevPhase;
+            if (dPhase > 0.000001) {
+              p.vx += p.launchVxTarget * dPhase;
+              p.vy += p.launchVyTarget * dPhase;
+            } else {
+              p.launchTime = -1;
+            }
+          }
 
           if (mouse.active) {
             const dx = mouse.x - p.x;
@@ -770,11 +807,19 @@
       }, { passive: true });
 
       window.addEventListener('keydown', (e) => {
-        if (e.key === 'b' || e.key === 'B') {
+        if (e.code === 'Home') {
+          homeHeld = true;
+          return;
+        }
+        if (!e.repeat && homeHeld && (e.key === 'b' || e.key === 'B')) {
           const cx = mouse.active ? mouse.x : (w * 0.5);
           const cy = mouse.active ? mouse.y : (h * 0.5);
-          triggerBigBang(cx, cy);
+          triggerBigBang(cx, cy, 'home_plus_b');
         }
+      });
+
+      window.addEventListener('keyup', (e) => {
+        if (e.code === 'Home') homeHeld = false;
       });
 
       timeToggleBtn.addEventListener('click', () => {
