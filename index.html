@@ -1,21 +1,28 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Playground Gate</title>
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-118J91MG59"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-118J91MG59');
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;800&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg-start: #fff6e8;
-      --bg-end: #e8f3ff;
-      --panel: #fffdf7;
-      --line: #d8d8d8;
-      --text: #1f2530;
-      --muted: #6e7685;
-      --accent: #0051a8;
-      --accent-soft: #d5e8ff;
-      --shadow: 0 18px 40px rgba(31, 37, 48, 0.14);
-      --radius: 18px;
+      --bg-0: #070F1A;
+      --bg-1: #070F1A;
+      --line: #1f3857;
+      --panel: #0a1d36;
+      --panel-2: #102947;
+      --text: #eaf1ff;
+      --accent: #86c8ff;
     }
 
     * { box-sizing: border-box; }
@@ -23,192 +30,238 @@
     body {
       margin: 0;
       min-height: 100vh;
-      font-family: "Yu Mincho", "Hiragino Mincho ProN", serif;
+      font-family: "Noto Sans JP", system-ui, sans-serif;
       color: var(--text);
-      background:
-        radial-gradient(circle at 0% 0%, #ffe7c4 0%, transparent 34%),
-        radial-gradient(circle at 100% 10%, #d3ebff 0%, transparent 36%),
-        linear-gradient(130deg, var(--bg-start), var(--bg-end));
-      display: grid;
-      place-items: center;
-      padding: 24px;
+      background: #070F1A;
     }
 
-    .gate {
-      width: min(980px, 100%);
+    #heroFx {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      display: block;
+      z-index: 0;
+      pointer-events: none;
+      filter: saturate(1.1);
+    }
+
+    .wrap {
+      position: relative;
+      z-index: 1;
+      width: min(920px, 100% - 40px);
+      margin: 34px auto;
       border: 1px solid var(--line);
-      border-radius: var(--radius);
-      background: linear-gradient(160deg, rgba(255, 255, 255, 0.92), rgba(255, 252, 245, 0.94));
-      box-shadow: var(--shadow);
-      overflow: hidden;
-      animation: rise 600ms ease;
-    }
-
-    .head {
-      padding: 28px 24px 20px;
-      border-bottom: 1px solid var(--line);
-      background: linear-gradient(90deg, #fffaf1, #f2f8ff);
-    }
-
-    h1 {
-      margin: 0;
-      font-size: clamp(28px, 4vw, 42px);
-      letter-spacing: 0.04em;
-    }
-
-    .lead {
-      margin: 8px 0 0;
-      color: var(--muted);
-      font-size: 15px;
-      line-height: 1.6;
+      background: rgba(5, 18, 38, 0.82);
+      box-shadow: 0 20px 42px rgba(0, 0, 0, 0.35);
+      padding: 18px;
     }
 
     .cards {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
       gap: 14px;
-      padding: 20px;
     }
 
     .card {
-      border: 1px solid var(--line);
-      border-radius: 14px;
-      background: var(--panel);
-      padding: 16px;
+      min-height: 116px;
       display: grid;
-      gap: 8px;
+      place-items: center;
+      border: 1px solid #274a71;
+      background: linear-gradient(145deg, var(--panel), var(--panel-2));
+      color: var(--text);
       text-decoration: none;
-      color: inherit;
-      transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
+      font-size: clamp(30px, 3.4vw, 42px);
+      font-weight: 800;
+      letter-spacing: 0.01em;
+      text-align: center;
+      padding: 10px;
+      transition: transform 140ms ease, border-color 140ms ease;
     }
 
     .card:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 10px 20px rgba(31, 37, 48, 0.1);
-      border-color: #9fc4f6;
+      transform: translateY(-2px);
+      border-color: var(--accent);
     }
 
-    .card .tag {
-      display: inline-block;
-      width: fit-content;
-      border-radius: 999px;
-      padding: 3px 10px;
-      font-size: 12px;
-      background: var(--accent-soft);
-      color: var(--accent);
-    }
-
-    .card h2 {
-      margin: 0;
-      font-size: 22px;
-    }
-
-    .card p {
-      margin: 0;
-      color: var(--muted);
-      line-height: 1.6;
-      font-size: 14px;
-    }
-
-    .card code {
-      display: inline-block;
-      margin-top: 2px;
-      font-size: 13px;
-      color: #344563;
-      background: #f5f9ff;
-      border: 1px solid #d8e8ff;
-      border-radius: 6px;
-      padding: 2px 6px;
-    }
-
-    .files {
-      padding: 0 20px 20px;
-    }
-
-    .files h3 {
-      margin: 0 0 10px;
-      font-size: 15px;
-      color: #36425a;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-    }
-
-    .list {
-      margin: 0;
-      padding: 0;
-      list-style: none;
-      display: grid;
-      gap: 8px;
-    }
-
-    .list a {
-      color: #23406d;
-      text-decoration: none;
-      border: 1px solid #dce6f4;
-      background: #fcfdff;
-      border-radius: 8px;
-      display: block;
-      padding: 8px 10px;
-      font-size: 14px;
-      transition: background 120ms ease, border-color 120ms ease;
-    }
-
-    .list a:hover {
-      background: #f1f7ff;
-      border-color: #bcd4f7;
-    }
-
-    .foot {
-      border-top: 1px solid var(--line);
-      padding: 12px 20px 16px;
-      color: var(--muted);
-      font-size: 13px;
-    }
-
-    @keyframes rise {
-      from { opacity: 0; transform: translateY(12px); }
-      to { opacity: 1; transform: translateY(0); }
+    @media (max-width: 720px) {
+      .wrap { width: calc(100% - 24px); margin-top: 20px; padding: 12px; }
+      .card { min-height: 100px; font-size: clamp(24px, 9vw, 34px); }
     }
   </style>
 </head>
 <body>
-  <main class="gate">
-    <section class="head">
-      <h1>Playground Gate</h1>
-      <p class="lead">縺薙％縺ｯ繝励Ο繧ｸ繧ｧ繧ｯ繝亥・菴薙∈縺ｮ謇峨〒縺吶ゆｸ九・繧ｫ繝ｼ繝峨°繧牙推繝壹・繧ｸ縺ｫ蜈･繧後∪縺吶・/p>
-    </section>
+  <canvas id="heroFx" aria-hidden="true"></canvas>
 
+  <main class="wrap">
     <section class="cards">
-      <a class="card" href="../LLGPlayground/index.html">
-        <span class="tag">Main Entry</span>
-        <h2>LLG Playground</h2>
-        <p>LLG繧ｷ繝溘Η繝ｬ繝ｼ繧ｷ繝ｧ繝ｳ逕ｨ縺ｮ繝励Ξ繧､繧ｰ繝ｩ繧ｦ繝ｳ繝峨・/p>
-        <code>LLGPlayground/index.html</code>
-      </a>
-
-      <a class="card" href="../T2Playground/index.html">
-        <span class="tag">Sub Entry</span>
-        <h2>T2 Playground</h2>
-        <p>T2蛛ｴ縺ｮ螳滄ｨ鍋畑繝壹・繧ｸ縲・/p>
-        <code>T2Playground/index.html</code>
-      </a>
+      <a class="card" href="./LLGPlayground/index.html">LLG Playground</a>
+      <a class="card" href="./T2Playground/index.html">T2 Playground</a>
     </section>
-
-    <section class="files">
-      <h3>Quick File Links</h3>
-      <ul class="list">
-        <li><a href="../T2Playground/script.js">T2Playground/script.js</a></li>
-        <li><a href="../T2Playground/styles.css">T2Playground/styles.css</a></li>
-        <li><a href="../T2Playground/Hello.txt">T2Playground/Hello.txt</a></li>
-        <li><a href="../T2Playground/mp-66.json">T2Playground/mp-66.json</a></li>
-        <li><a href="../T2Playground/mp-267.json">T2Playground/mp-267.json</a></li>
-        <li><a href="../T2Playground/mp-8062.json">T2Playground/mp-8062.json</a></li>
-      </ul>
-    </section>
-
-    <section class="foot">
-      GitHub Pages縺ｧ繝医ャ繝怜・髢九☆繧句ｴ蜷医・縲√％縺ｮ蜀・ｮｹ繧偵Ν繝ｼ繝医・ <code>index.html</code> 縺ｨ縺励※驟咲ｽｮ縺励※縺上□縺輔＞縲・    </section>
   </main>
+
+  <script>
+    (function () {
+      const canvas = document.getElementById('heroFx');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      let dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+      let w = 0;
+      let h = 0;
+      let raf = 0;
+      let t = 0;
+      const mouse = {
+        x: 0,
+        y: 0,
+        active: false
+      };
+
+      const particles = [];
+
+      function lerp(a, b, t) {
+        return a + (b - a) * t;
+      }
+
+      function gradientColor(t) {
+        const stops = [
+          [170, 191, 255],  // O: blue
+          [202, 215, 255],  // B: blue-white
+          [248, 247, 255],  // A: white
+          [255, 244, 234],  // F/G: warm white
+          [255, 210, 161],  // K: orange
+          [255, 167, 82]    // M: red-orange
+        ];
+        const n = stops.length - 1;
+        const x = Math.max(0, Math.min(0.9999, t)) * n;
+        const i = Math.floor(x);
+        const u = x - i;
+        const a = stops[i];
+        const b = stops[i + 1];
+        const r = Math.round(lerp(a[0], b[0], u));
+        const g = Math.round(lerp(a[1], b[1], u));
+        const bch = Math.round(lerp(a[2], b[2], u));
+        return r + ',' + g + ',' + bch;
+      }
+
+      function resize() {
+        const rect = canvas.getBoundingClientRect();
+        w = Math.max(1, Math.floor(rect.width));
+        h = Math.max(1, Math.floor(rect.height));
+        canvas.width = Math.floor(w * dpr);
+        canvas.height = Math.floor(h * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        const target = 15000;
+        particles.length = 0;
+        for (let i = 0; i < target; i += 1) {
+          const c = gradientColor(Math.random());
+          particles.push({
+            x: Math.random() * w,
+            y: Math.random() * h,
+            vx: (Math.random() * 0.55 + 0.18) * (Math.random() > 0.5 ? 1 : -1),
+            vy: (Math.random() * 0.24 - 0.12),
+            baseVx: (Math.random() * 0.55 + 0.18) * (Math.random() > 0.5 ? 1 : -1),
+            baseVy: (Math.random() * 0.24 - 0.12),
+            r: Math.random() * 1.8 + 0.6,
+            life: Math.random() * 0.7 + 0.3,
+            color: c
+          });
+        }
+      }
+
+      function step() {
+        t += 0.015;
+        ctx.clearRect(0, 0, w, h);
+        const attractR = 180;
+        const attractR2 = attractR * attractR;
+
+        for (let i = 0; i < particles.length; i += 1) {
+          const p = particles[i];
+          p.vx += (p.baseVx - p.vx) * 0.014;
+          p.vy += (p.baseVy - p.vy) * 0.014;
+
+          if (mouse.active) {
+            const dx = mouse.x - p.x;
+            const dy = mouse.y - p.y;
+            const d2 = dx * dx + dy * dy;
+            if (d2 > 1 && d2 < attractR2) {
+              const d = Math.sqrt(d2);
+              const pull = (1 - d / attractR) * 0.06;
+              p.vx += (dx / d) * pull;
+              p.vy += (dy / d) * pull;
+            }
+          }
+
+          const sp2 = p.vx * p.vx + p.vy * p.vy;
+          const maxSp = 1.45;
+          if (sp2 > maxSp * maxSp) {
+            const s = maxSp / Math.sqrt(sp2);
+            p.vx *= s;
+            p.vy *= s;
+          }
+
+          const wave = Math.sin((p.x * 0.01) + t) * 0.18;
+          p.x += p.vx;
+          p.y += p.vy + wave;
+          p.life += (Math.random() - 0.5) * 0.03;
+          if (p.life < 0.15) p.life = 0.15;
+          if (p.life > 1.0) p.life = 1.0;
+
+          if (p.x < -20) p.x = w + 20;
+          if (p.x > w + 20) p.x = -20;
+          if (p.y < -10) p.y = h + 10;
+          if (p.y > h + 10) p.y = -10;
+
+          ctx.fillStyle = 'rgba(' + p.color + ',' + (0.72 * p.life).toFixed(3) + ')';
+          ctx.fillRect(p.x, p.y, p.r, p.r);
+        }
+
+        raf = requestAnimationFrame(step);
+      }
+
+      function init() {
+        resize();
+        if (raf) cancelAnimationFrame(raf);
+        step();
+      }
+
+      function explode(x, y) {
+        const blastR = 260;
+        const blastR2 = blastR * blastR;
+        for (let i = 0; i < particles.length; i += 1) {
+          const p = particles[i];
+          const dx = p.x - x;
+          const dy = p.y - y;
+          const d2 = dx * dx + dy * dy;
+          if (d2 < 1 || d2 > blastR2) continue;
+          const d = Math.sqrt(d2);
+          const u = 1 - (d / blastR);
+          const impulse = 5.2 * u;
+          p.vx += (dx / d) * impulse;
+          p.vy += (dy / d) * impulse;
+          p.life = Math.min(1, p.life + 0.2);
+        }
+      }
+
+      window.addEventListener('pointermove', (e) => {
+        mouse.x = e.clientX;
+        mouse.y = e.clientY;
+        mouse.active = true;
+      }, { passive: true });
+
+      window.addEventListener('pointerleave', () => {
+        mouse.active = false;
+      }, { passive: true });
+
+      window.addEventListener('pointerdown', (e) => {
+        explode(e.clientX, e.clientY);
+      }, { passive: true });
+
+      window.addEventListener('resize', init, { passive: true });
+      init();
+    })();
+  </script>
 </body>
 </html>
 
