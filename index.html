@@ -202,8 +202,6 @@
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
-      const bodyEl = document.body;
-      if (!bodyEl) return;
       const wrapEl = document.querySelector('.wrap');
       if (!wrapEl) return;
       const fullscreenToggleBtn = document.getElementById('fullscreenToggleBtn');
@@ -228,7 +226,6 @@
       let currentMaxSpeed = PARAM.maxSpeed;
       let currentFlowX = 0;
       let currentFlowY = 0;
-      let lastBgLevel = -1;
       const mouse = {
         x: 0,
         y: 0,
@@ -309,15 +306,6 @@
         const lo = Math.min(minV, maxV);
         const hi = Math.max(minV, maxV);
         return lo + Math.random() * (hi - lo);
-      }
-
-      function updateBackgroundBrightness() {
-        const ratio = Math.max(0, Math.min(1, particles.length / Math.max(1, currentParticleTarget)));
-        // Few stars -> darker, many stars -> slightly brighter.
-        const level = Math.round(6 + ratio * 12); // 6..18
-        if (level === lastBgLevel) return;
-        lastBgLevel = level;
-        bodyEl.style.background = 'rgb(' + level + ',' + (level + 4) + ',' + (level + 10) + ')';
       }
 
       function triggerBigBang(cx, cy, source) {
@@ -608,7 +596,6 @@
         const lenScale = Math.sqrt(Math.max(0.0001, areaScale));
         currentAttractR = PARAM.attractR * lenScale;
         currentBlastR = PARAM.blastR * lenScale;
-
         const target = currentParticleTarget;
         particles.length = 0;
         blackHoles.length = 0;
@@ -771,7 +758,6 @@
         updateBlackHoles();
         maybeTriggerBigBang();
         drawBlackHoles();
-        updateBackgroundBrightness();
 
         raf = requestAnimationFrame(step);
       }
