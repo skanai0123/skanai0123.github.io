@@ -166,7 +166,7 @@
         bhMassGainPerAbsorb: 0.16,
         bhPullPerAbsorb: 0.22,
         bhPullMax: 0.2,
-        bhGlobalPull: 240,
+        bhGlobalPull: 0.24,
         bhGlobalSoftening: 60,
         bhMergeK: 1.18,
         bigBangMinSpeed: 0.0,
@@ -702,7 +702,9 @@
 
       window.addEventListener('keydown', (e) => {
         if (e.key === 'b' || e.key === 'B') {
-          bhEnabled = !bhEnabled;
+          const cx = mouse.active ? mouse.x : (w * 0.5);
+          const cy = mouse.active ? mouse.y : (h * 0.5);
+          triggerBigBang(cx, cy);
         }
       });
 
