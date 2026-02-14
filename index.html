@@ -108,9 +108,7 @@
       // spawnCellMinCount, spawnSampleMax, spawnMassBase, spawnMassPerRho,
       // spawnMinDistance, bhR0, bhAbsorbRatio, bhG, bhEps, bhMassGainPerAbsorb,
       // bhEvaporationPerFrame, bhMinMass, bhMinLifeFrames, bhMergeK, bhStarsPerMass,
-      // bhEvaporationSpawnMaxPerFrame, bhEvapLaunchSpeedMin, bhEvapLaunchSpeedMax,
-      // nearGravityEnabled, nearGravityG, nearGravityCutoff, nearGravitySoftening,
-      // nearGravityEveryNFrames
+      // bhEvaporationSpawnMaxPerFrame, bhEvapLaunchSpeedMin, bhEvapLaunchSpeedMax
       const PARAM = {
         particleCount: 15000,
         attractR: 180,
@@ -145,12 +143,7 @@
         bhStarsPerMass: 12,
         bhEvaporationSpawnMaxPerFrame: 42,
         bhEvapLaunchSpeedMin: 1.2,
-        bhEvapLaunchSpeedMax: 9.0,
-        nearGravityEnabled: false,
-        nearGravityG: 8,
-        nearGravityCutoff: 12,
-        nearGravitySoftening: 28,
-        nearGravityEveryNFrames: 12
+        bhEvapLaunchSpeedMax: 9.0
       };
 
       const canvas = document.getElementById('heroFx');
@@ -177,7 +170,6 @@
       ];
       let bhSpawnCooldown = 0;
       let bhEnabled = true;
-      let frameCount = 0;
       const rRho2 = PARAM.rRho * PARAM.rRho;
       const dragBh = {
         target: null,
@@ -466,15 +458,8 @@
 
       function step() {
         t += 0.015;
-        frameCount += 1;
         ctx.clearRect(0, 0, w, h);
         const attractR2 = PARAM.attractR * PARAM.attractR;
-        const applyNearGravityThisFrame =
-          PARAM.nearGravityEnabled &&
-          PARAM.nearGravityEveryNFrames > 0 &&
-          (frameCount % PARAM.nearGravityEveryNFrames === 0);
-        const nearCut2 = PARAM.nearGravityCutoff * PARAM.nearGravityCutoff;
-        const nearSoft2 = PARAM.nearGravitySoftening * PARAM.nearGravitySoftening;
 
         buildSpatialGrid();
         trySpawnBlackHole();
@@ -496,33 +481,6 @@
             }
           }
 
-          if (applyNearGravityThisFrame) {
-            const cx = Math.floor(p.x / PARAM.cellSize);
-            const cy = Math.floor(p.y / PARAM.cellSize);
-            let ax = 0;
-            let ay = 0;
-            for (let n = 0; n < neighborOffsets.length; n += 1) {
-              const o = neighborOffsets[n];
-              const arr = grid.get(gridKey(cx + o[0], cy + o[1]));
-              if (!arr) continue;
-              for (let k = 0; k < arr.length; k += 1) {
-                const j = arr[k];
-                if (j === i || j < 0 || j >= particles.length) continue;
-                const q = particles[j];
-                if (!q) continue;
-                const dx = q.x - p.x;
-                const dy = q.y - p.y;
-                const d2 = dx * dx + dy * dy;
-                if (d2 < 1 || d2 > nearCut2) continue;
-                const inv = 1 / Math.pow(d2 + nearSoft2, 1.5);
-                ax += dx * inv;
-                ay += dy * inv;
-              }
-            }
-            p.vx += PARAM.nearGravityG * ax;
-            p.vy += PARAM.nearGravityG * ay;
-          }
-
           let absorbed = false;
           if (bhEnabled && blackHoles.length > 0) {
             for (let bIdx = 0; bIdx < blackHoles.length; bIdx += 1) {
@@ -537,12 +495,12 @@
                 absorbed = true;
                 break;
               }
-
-              const softR2 = d2 + PARAM.bhEps;
-              const inv = 1 / Math.pow(softR2, 1.5);
-              const a = PARAM.bhG * b.mass;
-              p.vx += a * dx * inv;
-              p.vy += a * dy * inv;
+              if (d2 > 1 && d2 < attractR2) {
+                const d = Math.sqrt(d2);
+                const pull = (1 - d / PARAM.attractR) * PARAM.attractStrength;
+                p.vx += (dx / d) * pull;
+                p.vy += (dy / d) * pull;
+              }
             }
           }
           if (absorbed) {
