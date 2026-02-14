@@ -34,6 +34,8 @@
       font-family: "Noto Sans JP", system-ui, sans-serif;
       color: rgba(234, 241, 255, 0.3);
       background: #070F1A;
+      user-select: none;
+      -webkit-user-select: none;
     }
 
     #heroFx {
@@ -264,8 +266,9 @@
           const ny = Math.sin(ang);
           const rNorm = Math.min(1, rr / maxR);
           const speed = PARAM.bigBangMinSpeed + (1 - rNorm) * (PARAM.bigBangMaxSpeed - PARAM.bigBangMinSpeed);
-          const vx = nx * speed;
-          const vy = ny * speed;
+          // Signed velocity distribution centered at 0.
+          const vx = (Math.random() * 2 - 1) * speed;
+          const vy = (Math.random() * 2 - 1) * speed;
           const px = clamp(cx + nx * rr, -20, w + 20);
           const py = clamp(cy + ny * rr, -10, h + 10);
           const c = gradientColor(Math.random());
