@@ -134,17 +134,19 @@
       // spawnMinDistance, spawnCheckEveryNFrames, bhR0, bhAbsorbRatio,
       // bhMassGainPerAbsorb, bhPullPerAbsorb, bhPullMax, bhGlobalPull,
       // bhGlobalSoftening, bhMergeK, bigBangMinSpeed, bigBangMaxSpeed,
-      // bigBangBaseVelocityFactor,
-      // velReturnMin, velReturnMax
+      // velReturnMin, velReturnMax, bhGlobalPullMin, bhGlobalPullMax,
+      // bhGlobalSofteningMin, bhGlobalSofteningMax, bhPullPerAbsorbMin,
+      // bhPullPerAbsorbMax, bigBangMaxSpeedMin, bigBangMaxSpeedMax,
+      // maxSpeedMin, maxSpeedMax, bigBangFlowSpeedMin, bigBangFlowSpeedMax
       const PARAM = {
         particleCount: 15000,
         attractR: 180,
         attractStrength: 0.06,
         blastR: 260,
         blastImpulse: 5.2,
-        maxSpeed: 8.5,
+        maxSpeed: 320,
         waveAmp: 0,
-        velReturn: 0.045,
+        velReturn: 0.001,
         velReturnMin: 0.01,
         velReturnMax: 0.09,
         lifeJitter: 0.03,
@@ -170,14 +172,27 @@
         bhGlobalSoftening: 60,
         bhMergeK: 1.18,
         bigBangMinSpeed: 0.0,
-        bigBangMaxSpeed: 0.425,
-        bigBangBaseVelocityFactor: 0.5
+        bigBangMaxSpeed: 24000,
+        bhGlobalPullMin: 0.08,
+        bhGlobalPullMax: 0.5,
+        bhGlobalSofteningMin: 30,
+        bhGlobalSofteningMax: 120,
+        bhPullPerAbsorbMin: 0.08,
+        bhPullPerAbsorbMax: 0.4,
+        bigBangMaxSpeedMin: 24000,
+        bigBangMaxSpeedMax: 24000,
+        maxSpeedMin: 200,
+        maxSpeedMax: 480,
+        bigBangFlowSpeedMin: 0.0,
+        bigBangFlowSpeedMax: 0.35
       };
 
       const canvas = document.getElementById('heroFx');
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
+      const bodyEl = document.body;
+      if (!bodyEl) return;
       const timeToggleBtn = document.getElementById('timeToggleBtn');
       if (!timeToggleBtn) return;
       let dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
@@ -187,6 +202,14 @@
       let t = 0;
       let isPaused = false;
       let currentVelReturn = PARAM.velReturn;
+      let currentBhGlobalPull = PARAM.bhGlobalPull;
+      let currentBhGlobalSoftening = PARAM.bhGlobalSoftening;
+      let currentBhPullPerAbsorb = PARAM.bhPullPerAbsorb;
+      let currentBigBangMaxSpeed = PARAM.bigBangMaxSpeed;
+      let currentMaxSpeed = PARAM.maxSpeed;
+      let currentFlowX = 0;
+      let currentFlowY = 0;
+      let lastBgLevel = -1;
       const mouse = {
         x: 0,
         y: 0,
@@ -260,11 +283,35 @@
         return lo + Math.random() * (hi - lo);
       }
 
+      function randomInRange(minV, maxV) {
+        const lo = Math.min(minV, maxV);
+        const hi = Math.max(minV, maxV);
+        return lo + Math.random() * (hi - lo);
+      }
+
+      function updateBackgroundBrightness() {
+        const ratio = Math.max(0, Math.min(1, particles.length / Math.max(1, PARAM.particleCount)));
+        // Few stars -> darker, many stars -> slightly brighter.
+        const level = Math.round(12 + ratio * 18); // 12..30
+        if (level === lastBgLevel) return;
+        lastBgLevel = level;
+        bodyEl.style.background = 'rgb(' + level + ',' + (level + 4) + ',' + (level + 10) + ')';
+      }
+
       function triggerBigBang(cx, cy) {
         blackHoles.length = 0;
         bhSpawnCooldown = PARAM.spawnCooldownFrames;
         particles.length = 0;
         currentVelReturn = randomVelReturn();
+        currentBhGlobalPull = randomInRange(PARAM.bhGlobalPullMin, PARAM.bhGlobalPullMax);
+        currentBhGlobalSoftening = randomInRange(PARAM.bhGlobalSofteningMin, PARAM.bhGlobalSofteningMax);
+        currentBhPullPerAbsorb = randomInRange(PARAM.bhPullPerAbsorbMin, PARAM.bhPullPerAbsorbMax);
+        currentBigBangMaxSpeed = randomInRange(PARAM.bigBangMaxSpeedMin, PARAM.bigBangMaxSpeedMax);
+        currentMaxSpeed = randomInRange(PARAM.maxSpeedMin, PARAM.maxSpeedMax);
+        const flowA = Math.random() * Math.PI * 2;
+        const flowS = randomInRange(PARAM.bigBangFlowSpeedMin, PARAM.bigBangFlowSpeedMax);
+        currentFlowX = Math.cos(flowA) * flowS;
+        currentFlowY = Math.sin(flowA) * flowS;
 
         const maxR = Math.sqrt((w * w) + (h * h)) * 0.7;
         for (let i = 0; i < PARAM.particleCount; i += 1) {
@@ -273,20 +320,23 @@
           const nx = Math.cos(ang);
           const ny = Math.sin(ang);
           const rNorm = Math.min(1, rr / maxR);
-          const speed = PARAM.bigBangMinSpeed + (1 - rNorm) * (PARAM.bigBangMaxSpeed - PARAM.bigBangMinSpeed);
-          // Signed velocity distribution centered at 0.
-          const vx = (Math.random() * 2 - 1) * speed;
-          const vy = (Math.random() * 2 - 1) * speed;
-          const px = clamp(cx + nx * rr, -20, w + 20);
-          const py = clamp(cy + ny * rr, -10, h + 10);
+          const speed = PARAM.bigBangMinSpeed + (1 - rNorm) * (currentBigBangMaxSpeed - PARAM.bigBangMinSpeed);
+          const vx = nx * speed;
+          const vy = ny * speed;
+          const baseA = Math.random() * Math.PI * 2;
+          const baseS = Math.random() * 0.55 + 0.18;
+          const baseVx = Math.cos(baseA) * baseS;
+          const baseVy = Math.sin(baseA) * baseS;
+          const px = clamp(cx, -20, w + 20);
+          const py = clamp(cy, -10, h + 10);
           const c = gradientColor(Math.random());
           particles.push({
             x: px,
             y: py,
-            vx,
-            vy,
-            baseVx: vx * PARAM.bigBangBaseVelocityFactor,
-            baseVy: vy * PARAM.bigBangBaseVelocityFactor,
+            vx: vx + baseVx + currentFlowX,
+            vy: vy + baseVy + currentFlowY,
+            baseVx: baseVx + currentFlowX,
+            baseVy: baseVy + currentFlowY,
             r: Math.random() * 1.8 + 0.6,
             life: Math.random() * 0.7 + 0.3,
             color: c
@@ -324,6 +374,20 @@
 
       function clamp(v, lo, hi) {
         return Math.max(lo, Math.min(hi, v));
+      }
+
+      function shortestWrappedDelta(a, b, period) {
+        let d = a - b;
+        if (d > period * 0.5) d -= period;
+        if (d < -period * 0.5) d += period;
+        return d;
+      }
+
+      function torusRelativePoint(x, y, cx, cy, periodX, periodY) {
+        return {
+          x: cx + shortestWrappedDelta(x, cx, periodX),
+          y: cy + shortestWrappedDelta(y, cy, periodY)
+        };
       }
 
       function segmentIntersectsCircle(x0, y0, x1, y1, cx, cy, r2) {
@@ -504,8 +568,8 @@
             y: Math.random() * h,
             vx: (Math.random() * 0.55 + 0.18) * (Math.random() > 0.5 ? 1 : -1),
             vy: (Math.random() * 0.24 - 0.12),
-            baseVx: (Math.random() * 0.55 + 0.18) * (Math.random() > 0.5 ? 1 : -1),
-            baseVy: (Math.random() * 0.24 - 0.12),
+            baseVx: Math.cos(Math.random() * Math.PI * 2) * (Math.random() * 0.55 + 0.18),
+            baseVy: Math.sin(Math.random() * Math.PI * 2) * (Math.random() * 0.55 + 0.18),
             r: Math.random() * 1.8 + 0.6,
             life: Math.random() * 0.7 + 0.3,
             color: c
@@ -524,6 +588,8 @@
         frameTick += 1;
         ctx.clearRect(0, 0, w, h);
         const attractR2 = PARAM.attractR * PARAM.attractR;
+        const wrapW = w + 40;
+        const wrapH = h + 20;
 
         if (bhSpawnCooldown > 0) bhSpawnCooldown -= 1;
         if (
@@ -559,8 +625,8 @@
           if (bhEnabled && blackHoles.length > 0) {
             for (let bIdx = 0; bIdx < blackHoles.length; bIdx += 1) {
               const b = blackHoles[bIdx];
-              const dx = b.x - p.x;
-              const dy = b.y - p.y;
+              const dx = shortestWrappedDelta(b.x, p.x, wrapW);
+              const dy = shortestWrappedDelta(b.y, p.y, wrapH);
               const d2 = dx * dx + dy * dy;
               if (d2 < b.Rabs * b.Rabs) {
                 b.mass += PARAM.bhMassGainPerAbsorb;
@@ -572,8 +638,8 @@
               if (d2 > 1) {
                 const d = Math.sqrt(d2);
                 const absorbed = b.absorbedCount || 0;
-                const pullScale = 1 + Math.sqrt(absorbed) * PARAM.bhPullPerAbsorb;
-                let pull = (PARAM.bhGlobalPull * pullScale) / (d + PARAM.bhGlobalSoftening);
+                const pullScale = 1 + Math.sqrt(absorbed) * currentBhPullPerAbsorb;
+                let pull = (currentBhGlobalPull * pullScale) / (d + currentBhGlobalSoftening);
                 if (pull > PARAM.bhPullMax) pull = PARAM.bhPullMax;
                 p.vx += (dx / d) * pull;
                 p.vy += (dy / d) * pull;
@@ -586,8 +652,8 @@
           }
 
           const sp2 = p.vx * p.vx + p.vy * p.vy;
-          if (sp2 > PARAM.maxSpeed * PARAM.maxSpeed) {
-            const s = PARAM.maxSpeed / Math.sqrt(sp2);
+          if (sp2 > currentMaxSpeed * currentMaxSpeed) {
+            const s = currentMaxSpeed / Math.sqrt(sp2);
             p.vx *= s;
             p.vy *= s;
           }
@@ -601,10 +667,12 @@
             for (let bIdx = 0; bIdx < blackHoles.length; bIdx += 1) {
               const b = blackHoles[bIdx];
               const r2 = b.Rabs * b.Rabs;
-              const dx = b.x - p.x;
-              const dy = b.y - p.y;
+              const dx = shortestWrappedDelta(b.x, p.x, wrapW);
+              const dy = shortestWrappedDelta(b.y, p.y, wrapH);
               const insideNow = (dx * dx + dy * dy) < r2;
-              const crossed = segmentIntersectsCircle(prevX, prevY, p.x, p.y, b.x, b.y, r2);
+              const prevNear = torusRelativePoint(prevX, prevY, b.x, b.y, wrapW, wrapH);
+              const currNear = torusRelativePoint(p.x, p.y, b.x, b.y, wrapW, wrapH);
+              const crossed = segmentIntersectsCircle(prevNear.x, prevNear.y, currNear.x, currNear.y, b.x, b.y, r2);
               if (insideNow || crossed) {
                 b.mass += PARAM.bhMassGainPerAbsorb;
                 removeParticleAt(i);
@@ -627,13 +695,14 @@
           if (p.y < -10) p.y = h + 10;
           if (p.y > h + 10) p.y = -10;
 
-          ctx.fillStyle = 'rgba(' + p.color + ',' + (0.72 * p.life).toFixed(3) + ')';
+          ctx.fillStyle = 'rgba(' + p.color + ',' + (0.9 * p.life).toFixed(3) + ')';
           ctx.fillRect(p.x, p.y, p.r, p.r);
         }
 
         updateBlackHoles();
         maybeTriggerBigBang();
         drawBlackHoles();
+        updateBackgroundBrightness();
 
         raf = requestAnimationFrame(step);
       }
