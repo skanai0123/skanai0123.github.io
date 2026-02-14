@@ -132,6 +132,7 @@
       // spawnMinDistance, spawnCheckEveryNFrames, bhR0, bhAbsorbRatio,
       // bhMassGainPerAbsorb, bhPullPerAbsorb, bhPullMax, bhGlobalPull,
       // bhGlobalSoftening, bhMergeK, bigBangMinSpeed, bigBangMaxSpeed,
+      // bigBangBaseVelocityFactor,
       // velReturnMin, velReturnMax
       const PARAM = {
         particleCount: 15000,
@@ -163,11 +164,12 @@
         bhMassGainPerAbsorb: 0.16,
         bhPullPerAbsorb: 0.22,
         bhPullMax: 0.2,
-        bhGlobalPull: 0.24,
+        bhGlobalPull: 240,
         bhGlobalSoftening: 60,
         bhMergeK: 1.18,
         bigBangMinSpeed: 0.0,
-        bigBangMaxSpeed: 8.5
+        bigBangMaxSpeed: 8.5,
+        bigBangBaseVelocityFactor: 0.14
       };
 
       const canvas = document.getElementById('heroFx');
@@ -272,8 +274,8 @@
             y: py,
             vx,
             vy,
-            baseVx: 0,
-            baseVy: 0,
+            baseVx: vx * PARAM.bigBangBaseVelocityFactor,
+            baseVy: vy * PARAM.bigBangBaseVelocityFactor,
             r: Math.random() * 1.8 + 0.6,
             life: Math.random() * 0.7 + 0.3,
             color: c
