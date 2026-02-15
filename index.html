@@ -1713,12 +1713,6 @@
         }
         if (e.repeat) return;
         const key = String(e.key || '').toLowerCase();
-        if (key === 'b') {
-          const cx = mouse.active ? mouse.x : w * 0.5;
-          const cy = mouse.active ? mouse.y : h * 0.5;
-          triggerBigBang(cx, cy, 'debug_key');
-          return;
-        }
         if (key === 'c') {
           collisionModeEnabled = !collisionModeEnabled;
           syncCollisionToggle();
