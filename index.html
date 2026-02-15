@@ -275,7 +275,7 @@
 
   <script>
     (function () {
-      const HUB_VERSION = 'hub-beta-0.2.1';
+      const HUB_VERSION = 'hub-beta-0.2.2';
       // Added parameters for black-hole gimmick:
       // cellSize, rRho, rhoThreshold, spawnCooldownFrames, maxBlackHoles,
       // spawnCellMinCount, spawnSampleMax, spawnMassBase, spawnMassPerRho,
@@ -495,6 +495,7 @@
       let t = 0;
       let isPaused = false;
       let currentVelReturn = PARAM.velReturn;
+      let currentPpLinearDamping = PARAM.ppLinearDamping;
       let currentAttractStrength = PARAM.attractStrength * PARAM.initialGravityScale;
       let currentAttractR = PARAM.attractR;
       let currentBlastR = PARAM.blastR;
@@ -983,6 +984,7 @@
         bbMousePullScale = 1;
         bbBhPullScale = 1;
         currentVelReturn = randomVelReturn();
+        currentPpLinearDamping = randomVelReturn();
         currentBhGlobalSoftening = randomInRange(PARAM.bhGlobalSofteningMin, PARAM.bhGlobalSofteningMax);
         applyGravityScale(randomInRange(PARAM.bbGravityScaleMin, PARAM.bbGravityScaleMax));
         currentBigBangMaxSpeed = randomInRange(PARAM.bigBangMaxSpeedMin, PARAM.bigBangMaxSpeedMax);
@@ -1059,7 +1061,7 @@
         const gRatio = PARAM.attractStrength !== 0 ? (currentAttractStrength / PARAM.attractStrength) : 0;
         const resValue = noFrictionModeEnabled
           ? 0
-          : (particleGravityEnabled ? clamp(PARAM.ppLinearDamping, 0, 0.5) : currentVelReturn);
+          : (particleGravityEnabled ? clamp(currentPpLinearDamping, 0, 0.5) : currentVelReturn);
         hudGravityGEl.innerHTML = 'G: ' + gRatio.toFixed(1) + ' <i>G</i><sub>0</sub>';
         hudResistanceEl.textContent = 'Res: ' + resValue.toFixed(3);
       }
@@ -1822,7 +1824,7 @@
               p.vx += (targetVx - p.vx) * currentVelReturn;
               p.vy += (targetVy - p.vy) * currentVelReturn;
             } else {
-              const drag = clamp(PARAM.ppLinearDamping, 0, 0.5);
+              const drag = clamp(currentPpLinearDamping, 0, 0.5);
               p.vx *= (1 - drag);
               p.vy *= (1 - drag);
             }
