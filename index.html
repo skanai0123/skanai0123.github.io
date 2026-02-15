@@ -2128,8 +2128,8 @@
       }
 
       async function applyPreset(id) {
-        if (id === 1 || id === 3 || id === 4 || id === 5) {
-          // Preset 1 baseline. 3-5 are currently mapped to baseline until their specs are defined.
+        if (id === 1 || id === 4 || id === 5) {
+          // Preset 1 baseline. 4-5 are currently mapped to baseline until their specs are defined.
           collisionModeEnabled = false;      // c
           particleGravityEnabled = false;    // g
           setFlowMode(true);                 // H
@@ -2153,6 +2153,17 @@
           clockDateVisible = false;          // d
           setPauseState(false);              // ||
           await ensureFullscreenOff();       // f
+        } else if (id === 3) {
+          collisionModeEnabled = false;      // c
+          particleGravityEnabled = true;     // G
+          setFlowMode(false);                // h
+          hudVisible = false;                // i
+          linksHidden = true;                // l
+          mouseGravityEnabled = false;       // m
+          noFrictionModeEnabled = false;     // n
+          bhArrowEnabled = false;            // b
+          clockVisible = true;               // T
+          clockDateVisible = true;           // D
         } else {
           return;
         }
