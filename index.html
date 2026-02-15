@@ -118,11 +118,11 @@
     .collision-toggle { right: 12px; top: 12px; font-size: 12px; }      /* c */
     .fullscreen-toggle { right: 12px; top: 52px; font-size: 14px; }      /* f */
     .particle-gravity-toggle { right: 12px; top: 92px; font-size: 12px; }/* g */
-    .links-toggle { right: 12px; top: 132px; font-size: 13px; }          /* l */
-    .mouse-gravity-toggle { right: 12px; top: 172px; font-size: 12px; }  /* m */
-    .friction-toggle { right: 12px; top: 212px; font-size: 12px; }       /* n */
-    .reset-layout-btn { right: 12px; top: 252px; font-size: 12px; }      /* r */
-    .twinkle-toggle { right: 12px; top: 292px; font-size: 12px; }        /* t */
+    .flow-toggle { right: 12px; top: 132px; font-size: 12px; }           /* h */
+    .links-toggle { right: 12px; top: 172px; font-size: 13px; }          /* l */
+    .mouse-gravity-toggle { right: 12px; top: 212px; font-size: 12px; }  /* m */
+    .friction-toggle { right: 12px; top: 252px; font-size: 12px; }       /* n */
+    .reset-layout-btn { right: 12px; top: 292px; font-size: 12px; }      /* r */
     .time-toggle { right: 12px; top: 332px; }                             /* space */
 
     @media (max-width: 720px) {
@@ -135,8 +135,8 @@
   <canvas id="heroFx" aria-hidden="true"></canvas>
   <button id="frictionToggleBtn" class="tool-btn friction-toggle" type="button" aria-label="Disable friction" title="Disable friction">n</button>
   <button id="collisionToggleBtn" class="tool-btn collision-toggle" type="button" aria-label="Enable collisions" title="Enable collisions">c</button>
-  <button id="twinkleToggleBtn" class="tool-btn twinkle-toggle" type="button" aria-label="Disable twinkle" title="Disable twinkle">T</button>
   <button id="resetLayoutBtn" class="tool-btn reset-layout-btn" type="button" aria-label="Reset layout" title="Reset layout">R</button>
+  <button id="flowToggleBtn" class="tool-btn flow-toggle" type="button" aria-label="Enable flow mode" title="Enable flow mode">h</button>
   <button id="mouseGravityToggleBtn" class="tool-btn mouse-gravity-toggle" type="button" aria-label="Disable mouse gravity" title="Disable mouse gravity">M</button>
   <button id="particleGravityToggleBtn" class="tool-btn particle-gravity-toggle" type="button" aria-label="Enable particle gravity" title="Enable particle gravity">g</button>
   <button id="linksToggleBtn" class="tool-btn links-toggle" type="button" aria-label="Hide links" title="Hide links">L</button>
@@ -170,13 +170,14 @@
         minParticleCount: 1200,
         attractR: 180,
         attractStrength: 0.06,
+        bhMouseAttractScale: 0.42,
         initialGravityScale: 3.0,
         initialBhGravityScale: 1 / 3,
         bbMouseAttractMultiplier: 0.9,
         bbBhPullMultiplier: 0.9,
         blastR: 260,
         blastImpulse: 5.2,
-        maxSpeed: 320,
+        maxSpeed: 420,
         particleRadiusMin: 1.2,
         particleRadiusMax: 2.4,
         largeStarCircleThreshold: 2.0,
@@ -192,48 +193,54 @@
         lifeMax: 1.0,
         cellSize: 52,
         rRho: 45,
-        rhoThreshold: 1500,
-        spawnCooldownFrames: 600,
+        rhoThreshold: 150,
+        spawnCooldownFrames: 320,
         maxBlackHoles: 3,
-        spawnCellMinCount: 80,
+        spawnCellMinCount: 48,
         spawnSampleMax: 8,
         spawnMassBase: 7,
         spawnMassPerRho: 0.1,
         spawnMinDistance: 220,
-        spawnCheckEveryNFrames: 20,
+        spawnCheckEveryNFrames: 10,
         bbNoBhLockFrames: 900,
-        bhR0: 0.7,
+        bhR0: 0.24,
         bhAbsorbRatio: 1.0,
+        bhCenterHitRadius: 0.08,
+        bhCaptureRadiusMin: 0.24,
+        bhCaptureRadiusScale: 1.7,
         bhMassGainPerAbsorb: 0.16,
-        bhPullPerAbsorb: 0.3,
-        bhPullMax: 0.45,
-        bhGlobalPull: 0.8,
+        bhPullPerAbsorb: 0.6,
+        bhPullMax: 1.4,
+        bhGlobalPull: 1.6,
         bhGlobalSoftening: 22,
         bhVelocityDamping: 0.992,
-        bhMaxSpeed: 12,
+        bhMaxSpeed: 18,
         bhMutualGravityStrength: 0.09,
         bhMutualSoftening: 22,
+        bhAbsorbFlashGain: 0.72,
+        bhCollapseFlashGain: 3.2,
+        bhAbsorbFlashDecay: 0.965,
         bhMergeK: 1.18,
         bigBangMinSpeed: 0.0,
         bigBangMaxSpeed: 24000,
         bigBangSpeedCurveA: 4.0,
         bigBangLaunchA: 0.01,
-        bhGlobalPullMin: 0.3,
-        bhGlobalPullMax: 1.8,
+        bhGlobalPullMin: 0.6,
+        bhGlobalPullMax: 3.6,
         bhGlobalSofteningMin: 8,
         bhGlobalSofteningMax: 40,
-        bhPullPerAbsorbMin: 0.12,
-        bhPullPerAbsorbMax: 0.55,
+        bhPullPerAbsorbMin: 0.24,
+        bhPullPerAbsorbMax: 1.1,
         bigBangMaxSpeedMin: 24000,
         bigBangMaxSpeedMax: 24000,
-        maxSpeedMin: 200,
-        maxSpeedMax: 480,
+        maxSpeedMin: 280,
+        maxSpeedMax: 720,
         bigBangFlowSpeedMin: 0.0,
         bigBangFlowSpeedMax: 0.35,
-        bgLumaMin: 8,
-        bgLumaMax: 28,
-        bgEnergyGain: 0.00018,
-        bgResponseGamma: 1.35,
+        bgLumaMin: 4,
+        bgLumaMax: 18,
+        bgEnergyGain: 0.00014,
+        bgResponseGamma: 1.55,
         bgSpeedPower: 1.0,
         bbGravityScaleMin: -15.0,
         bbGravityScaleMax: 15.0,
@@ -252,27 +259,45 @@
         bbWhiteFlashMax: 220,
         holdGravityImpulseScale: 0.18,
         ppGravityCellSize: 52,
-        ppGravityRange: 84,
+        ppGravityRange: 72,
         ppGravityStrength: 0.95,
         ppGravitySoftening: 6,
-        ppGravityMaxInteractions: 18,
+        ppGravityMaxInteractions: 12,
         ppLinearDamping: 0.012,
         ppMassPower: 3.0,
         ppInertiaPower: 0.65,
         // Physically inspired collapse gate: around 3 solar masses (TOV-scale order).
-        collapseMassThreshold: 8.0,
+        collapseMassThreshold: 10.0,
+        collapseCollisionThreshold: 10,
         collapseRequireCollisionMode: true,
-        collisionDistanceFactor: 0.6,
+        collapseRepulseRadius: 86,
+        collapseRepulseImpulse: 2.6,
+        collisionDistanceFactor: 0.65,
         collisionMaxMergesPerFrame: 220,
         ppGridPhaseJitter: false,
-        proximityBrightnessEnabled: false,
         proximityBrightnessRange: 12,
-        proximityBrightnessMaxOffset: 0.9,
-        proximityBrightnessCurve: 5.5,
+        proximityBrightnessMaxOffset: 1.4,
+        proximityBrightnessCurve: 4.2,
         proximityUltraRange: 2.2,
         proximityUltraBoost: 10.0,
-        proximityUltraCurve: 3.4,
+        proximityUltraCurve: 3.0,
         proximityNeighborCap: 24,
+        collisionFlashGain: 0.58,
+        collisionFlashDecay: 0.965,
+        collisionFlashMax: 2.8,
+        collisionHeatGain: 0.42,
+        collisionHeatDecay: 0.985,
+        preCollapseHeatGain: 0.02,
+        hotColorR: 214,
+        hotColorG: 232,
+        hotColorB: 255,
+        initialHotStarChance: 0.04,
+        initialHotStarHeatMin: 0.55,
+        initialHotStarHeatMax: 1.0,
+        preCollapseMassRatio: 0.88,
+        preCollapseCollisionLead: 2,
+        preCollapseFlashGain: 0.12,
+        preCollapseFlashMax: 3.4,
         cleanHintHoldMs: 60000,
         cleanHintShowMs: 6200,
         cleanHintFadeInMs: 1200,
@@ -293,12 +318,12 @@
       if (!frictionToggleBtn) return;
       const collisionToggleBtn = document.getElementById('collisionToggleBtn');
       if (!collisionToggleBtn) return;
-      const twinkleToggleBtn = document.getElementById('twinkleToggleBtn');
-      if (!twinkleToggleBtn) return;
       const mouseGravityToggleBtn = document.getElementById('mouseGravityToggleBtn');
       if (!mouseGravityToggleBtn) return;
       const resetLayoutBtn = document.getElementById('resetLayoutBtn');
       if (!resetLayoutBtn) return;
+      const flowToggleBtn = document.getElementById('flowToggleBtn');
+      if (!flowToggleBtn) return;
       const particleGravityToggleBtn = document.getElementById('particleGravityToggleBtn');
       if (!particleGravityToggleBtn) return;
       const fullscreenToggleBtn = document.getElementById('fullscreenToggleBtn');
@@ -338,7 +363,7 @@
       let particleGravityEnabled = false;
       let noFrictionModeEnabled = false;
       let collisionModeEnabled = false;
-      let twinkleEnabled = PARAM.proximityBrightnessEnabled;
+      let flowModeEnabled = true;
       const mouse = {
         x: 0,
         y: 0,
@@ -397,7 +422,15 @@
       }
 
       function calcRadius(mass) {
-        return PARAM.bhR0 * Math.sqrt(Math.max(0.01, mass));
+        return PARAM.bhR0 * Math.cbrt(Math.max(0.01, mass));
+      }
+
+      function calcAbsorbRadius(visualRadius) {
+        return Math.max(
+          PARAM.bhCenterHitRadius,
+          PARAM.bhCaptureRadiusMin,
+          visualRadius * PARAM.bhCaptureRadiusScale
+        );
       }
 
       function particleMassFromRadius(r) {
@@ -406,6 +439,8 @@
 
       function tryCollapseParticleToBlackHole(p) {
         if (bhCreationLockFrames > 0) return false;
+        const collisionCount = p.collisionCount || 0;
+        if (collisionCount < PARAM.collapseCollisionThreshold) return false;
         const m = particleMassFromRadius(p.r);
         if (m < PARAM.collapseMassThreshold) return false;
         const radius = calcRadius(m);
@@ -416,10 +451,33 @@
           vy: p.vy || 0,
           mass: m,
           R: radius,
-          Rabs: radius * PARAM.bhAbsorbRatio,
-          absorbedCount: 0
+          Rabs: calcAbsorbRadius(radius),
+          absorbedCount: 0,
+          flash: PARAM.bhCollapseFlashGain
         });
+        emitCollapseRepulse(p.x, p.y);
         return true;
+      }
+
+      function emitCollapseRepulse(cx, cy) {
+        const r = Math.max(1, PARAM.collapseRepulseRadius);
+        const r2 = r * r;
+        const wx = w + 40;
+        const wy = h + 20;
+        for (let i = 0; i < particles.length; i += 1) {
+          const p = particles[i];
+          if (!p) continue;
+          const dx = shortestWrappedDelta(p.x, cx, wx);
+          const dy = shortestWrappedDelta(p.y, cy, wy);
+          const d2 = dx * dx + dy * dy;
+          if (d2 < 1 || d2 > r2) continue;
+          const d = Math.sqrt(d2);
+          const u = 1 - (d / r);
+          const kick = PARAM.collapseRepulseImpulse * u;
+          p.vx += (dx / d) * kick;
+          p.vy += (dy / d) * kick;
+          p.flash = Math.min(PARAM.collisionFlashMax, (p.flash || 0) + 0.22 * u);
+        }
       }
 
       function absorbParticleIntoBlackHole(b, p) {
@@ -432,6 +490,7 @@
         b.vy = (vby * mb + p.vy * dm) / newM;
         b.mass = newM;
         b.absorbedCount = (b.absorbedCount || 0) + 1;
+        b.flash = (b.flash || 0) + PARAM.bhAbsorbFlashGain;
       }
 
       function removeParticleAt(index) {
@@ -444,7 +503,7 @@
       function markSinglePinkStar() {
         if (particles.length === 0) return;
         const p = particles[0];
-        p.color = '255,120,210';
+        setParticleColor(p, '255,120,210');
         p.r = Math.max(p.r, 1.8);
         p.life = 1;
       }
@@ -465,11 +524,26 @@
         return randomInRange(PARAM.particleRadiusMin, PARAM.particleRadiusMax);
       }
 
+      function randomInitialHeat() {
+        if (Math.random() >= PARAM.initialHotStarChance) return 0;
+        return randomInRange(PARAM.initialHotStarHeatMin, PARAM.initialHotStarHeatMax);
+      }
+
+      function setParticleColor(p, csv) {
+        p.color = csv;
+        const s = String(csv || '255,255,255').split(',');
+        p.cr = Number(s[0]) || 255;
+        p.cg = Number(s[1]) || 255;
+        p.cb = Number(s[2]) || 255;
+      }
+
       function particleColorFromRadius(r) {
         if (!PARAM.useRadiusBasedColor) return gradientColor(Math.random());
         const span = Math.max(0.0001, PARAM.particleRadiusMax - PARAM.particleRadiusMin);
         const t = clamp((r - PARAM.particleRadiusMin) / span, 0, 1);
-        return gradientColor(1 - t);
+        // Bias toward cooler blue tones; keep warm colors rarer.
+        const u = Math.pow(t, 1.7);
+        return gradientColor(clamp(0.0 + u * 0.62, 0, 1));
       }
 
       function applyGravityScale(scale) {
@@ -554,16 +628,16 @@
         mouseGravityToggleBtn.setAttribute('aria-label', mouseGravityEnabled ? 'Disable mouse gravity' : 'Enable mouse gravity');
       }
 
-      function syncTwinkleToggle() {
-        twinkleToggleBtn.textContent = twinkleEnabled ? 'T' : 't';
-        twinkleToggleBtn.title = twinkleEnabled ? 'Disable twinkle' : 'Enable twinkle';
-        twinkleToggleBtn.setAttribute('aria-label', twinkleEnabled ? 'Disable twinkle' : 'Enable twinkle');
-      }
-
       function syncCollisionToggle() {
         collisionToggleBtn.textContent = collisionModeEnabled ? 'C' : 'c';
         collisionToggleBtn.title = collisionModeEnabled ? 'Disable collisions' : 'Enable collisions';
         collisionToggleBtn.setAttribute('aria-label', collisionModeEnabled ? 'Disable collisions' : 'Enable collisions');
+      }
+
+      function syncFlowToggle() {
+        flowToggleBtn.textContent = flowModeEnabled ? 'H' : 'h';
+        flowToggleBtn.title = flowModeEnabled ? 'Disable flow mode' : 'Enable flow mode';
+        flowToggleBtn.setAttribute('aria-label', flowModeEnabled ? 'Disable flow mode' : 'Enable flow mode');
       }
 
       function syncFrictionToggle() {
@@ -650,7 +724,8 @@
           const py = clamp(cy, -10, h + 10);
           const r = randomParticleRadius();
           const c = particleColorFromRadius(r);
-          particles.push({
+          const heat0 = randomInitialHeat();
+          const p = {
             x: px,
             y: py,
             vx: baseVx + currentFlowX,
@@ -661,9 +736,17 @@
             launchVyTarget: vy,
             launchTime: 0,
             r,
+            collisionCount: 0,
+            flash: 0,
+            heat: heat0,
             life: Math.random() * 0.7 + 0.3,
-            color: c
-          });
+            color: c,
+            cr: 255,
+            cg: 255,
+            cb: 255
+          };
+          setParticleColor(p, c);
+          particles.push(p);
         }
         markSinglePinkStar();
       }
@@ -791,40 +874,92 @@
         }
       }
 
-      function applyParticleGravitySymmetric(wrapW, wrapH) {
+      function applyParticleGravitySymmetric(wrapW, wrapH, gravityEnabled, collisionEnabled) {
         const n = particles.length;
-        if (n <= 1) return;
+        if (n <= 1) return false;
         const s = PARAM.ppGravityCellSize;
         const r2max = PARAM.ppGravityRange * PARAM.ppGravityRange;
         const soften2 = PARAM.ppGravitySoftening * PARAM.ppGravitySoftening;
-        const cellRadius = Math.max(1, Math.ceil(PARAM.ppGravityRange / s));
+        const halfW = wrapW * 0.5;
+        const halfH = wrapH * 0.5;
         const maxInteractions = Math.max(1, Math.floor(PARAM.ppGravityMaxInteractions));
         const interactionCounts = new Uint16Array(n);
         const massPower = Math.max(0.1, PARAM.ppMassPower);
         const inertiaPower = Math.max(0, PARAM.ppInertiaPower);
+        const gravityOn = !!gravityEnabled;
         const massArr = new Float32Array(n);
         const invInertiaArr = new Float32Array(n);
+        const collisionsOn = !!collisionEnabled;
+        const removed = collisionsOn ? new Uint8Array(n) : null;
+        const maxMerges = collisionsOn ? Math.max(1, Math.floor(PARAM.collisionMaxMergesPerFrame)) : 0;
+        const collisionFactor = collisionsOn ? Math.max(0.05, PARAM.collisionDistanceFactor) : 0;
+        let merges = 0;
+        let maxParticleR = 0;
         for (let i = 0; i < n; i += 1) {
           const p = particles[i];
+          if (p && p.r > maxParticleR) maxParticleR = p.r;
           const m = Math.pow(Math.max(0.2, p ? p.r : 0.2), massPower);
           massArr[i] = m;
           invInertiaArr[i] = 1 / Math.pow(m, inertiaPower);
         }
+        const gravityCellRadius = Math.max(1, Math.ceil(PARAM.ppGravityRange / s));
+        const collisionRangeMax = Math.max(0.0001, maxParticleR * collisionFactor);
+        const collisionCellRadius = Math.max(1, Math.ceil(collisionRangeMax / s));
+        const cellRadius = gravityOn ? gravityCellRadius : collisionCellRadius;
 
         function applyPair(i, j) {
           if (i === j) return;
+          if (removed && (removed[i] || removed[j])) return;
           if (interactionCounts[i] >= maxInteractions || interactionCounts[j] >= maxInteractions) return;
           const pi = particles[i];
           const pj = particles[j];
           if (!pi || !pj) return;
           let dx = pj.x - pi.x;
-          if (dx > wrapW * 0.5) dx -= wrapW;
-          if (dx < -wrapW * 0.5) dx += wrapW;
+          if (dx > halfW) dx -= wrapW;
+          if (dx < -halfW) dx += wrapW;
           let dy = pj.y - pi.y;
-          if (dy > wrapH * 0.5) dy -= wrapH;
-          if (dy < -wrapH * 0.5) dy += wrapH;
+          if (dy > halfH) dy -= wrapH;
+          if (dy < -halfH) dy += wrapH;
           const d2 = dx * dx + dy * dy;
-          if (d2 < 1 || d2 > r2max) return;
+          if (d2 < 1) return;
+
+          if (collisionsOn && merges < maxMerges) {
+            const rr = (pi.r + pj.r) * 0.5 * collisionFactor;
+            if (d2 <= rr * rr) {
+              const mi0 = massArr[i];
+              const mj0 = massArr[j];
+                const m = mi0 + mj0;
+                const wj = mj0 / Math.max(1e-9, m);
+                const ci = pi.collisionCount || 0;
+                const cj = pj.collisionCount || 0;
+                pi.x += dx * wj;
+                pi.y += dy * wj;
+                pi.vx = (pi.vx * mi0 + pj.vx * mj0) / Math.max(1e-9, m);
+                pi.vy = (pi.vy * mi0 + pj.vy * mj0) / Math.max(1e-9, m);
+                pi.r = Math.pow(Math.max(0.2, m), 1 / massPower);
+                setParticleColor(pi, particleColorFromRadius(pi.r));
+                pi.collisionCount = ci + cj + 1;
+                if (pi.life < pj.life) pi.life = pj.life;
+                pi.flash = Math.min(
+                  PARAM.collisionFlashMax,
+                  Math.max(pi.flash || 0, pj.flash || 0) + PARAM.collisionFlashGain
+                );
+                pi.heat = Math.min(1, Math.max(pi.heat || 0, pj.heat || 0) + PARAM.collisionHeatGain);
+                removed[j] = 1;
+                massArr[i] = m;
+                invInertiaArr[i] = 1 / Math.pow(m, inertiaPower);
+              merges += 1;
+              interactionCounts[i] += 1;
+              if (!PARAM.collapseRequireCollisionMode || collisionModeEnabled) {
+                if (tryCollapseParticleToBlackHole(pi)) {
+                  removed[i] = 1;
+                }
+              }
+              return;
+            }
+          }
+
+          if (!gravityOn || d2 > r2max) return;
           const mi = massArr[i];
           const mj = massArr[j];
           // Softened Newtonian gravity: a ~ r_vec / (r^2 + eps^2)^(3/2).
@@ -845,6 +980,7 @@
 
         // Self-centered grid query: each particle searches cells around itself.
         for (let i = 0; i < n; i += 1) {
+          if (removed && removed[i]) continue;
           if (interactionCounts[i] >= maxInteractions) continue;
           const pi = particles[i];
           if (!pi) continue;
@@ -862,6 +998,7 @@
               const arr = ppGrid[ppGridIndex(ncx, ncy)];
               if (!arr || arr.length === 0) continue;
               for (let k = 0; k < arr.length; k += 1) {
+                if (removed && removed[i]) break;
                 if (interactionCounts[i] >= maxInteractions) break;
                 const j = arr[k];
                 if (j <= i) continue;
@@ -870,79 +1007,8 @@
             }
           }
         }
-      }
 
-      function applyParticleCollisions(wrapW, wrapH) {
-        const n = particles.length;
-        if (n <= 1) return;
-        const s = PARAM.ppGravityCellSize;
-        const massPower = Math.max(0.1, PARAM.ppMassPower);
-        const maxMerges = Math.max(1, Math.floor(PARAM.collisionMaxMergesPerFrame));
-        const factor = Math.max(0.05, PARAM.collisionDistanceFactor);
-        const removed = new Uint8Array(n);
-        let merges = 0;
-
-        for (let i = 0; i < n; i += 1) {
-          if (removed[i]) continue;
-          const pi = particles[i];
-          if (!pi) continue;
-          const px = (((pi.x + ppGridOffsetX) % wrapW) + wrapW) % wrapW;
-          const py = (((pi.y + ppGridOffsetY) % wrapH) + wrapH) % wrapH;
-          const cx = Math.floor(px / s);
-          const cy = Math.floor(py / s);
-
-          for (let oy = -1; oy <= 1; oy += 1) {
-            if (removed[i]) break;
-            for (let ox = -1; ox <= 1; ox += 1) {
-              if (removed[i]) break;
-              const ncx = (cx + ox + ppGridCols) % ppGridCols;
-              const ncy = (cy + oy + ppGridRows) % ppGridRows;
-              const arr = ppGrid[ppGridIndex(ncx, ncy)];
-              if (!arr || arr.length === 0) continue;
-              for (let k = 0; k < arr.length; k += 1) {
-                const j = arr[k];
-                if (j <= i || removed[j]) continue;
-                const pj = particles[j];
-                if (!pj) continue;
-
-                let dx = pj.x - pi.x;
-                if (dx > wrapW * 0.5) dx -= wrapW;
-                if (dx < -wrapW * 0.5) dx += wrapW;
-                let dy = pj.y - pi.y;
-                if (dy > wrapH * 0.5) dy -= wrapH;
-                if (dy < -wrapH * 0.5) dy += wrapH;
-                const d2 = dx * dx + dy * dy;
-                const rr = (pi.r + pj.r) * 0.5 * factor;
-                if (d2 > rr * rr) continue;
-
-                const mi = Math.pow(Math.max(0.2, pi.r), massPower);
-                const mj = Math.pow(Math.max(0.2, pj.r), massPower);
-                const m = mi + mj;
-                const wj = mj / Math.max(1e-9, m);
-                pi.x += dx * wj;
-                pi.y += dy * wj;
-                pi.vx = (pi.vx * mi + pj.vx * mj) / Math.max(1e-9, m);
-                pi.vy = (pi.vy * mi + pj.vy * mj) / Math.max(1e-9, m);
-                pi.r = Math.pow(Math.max(0.2, m), 1 / massPower);
-                if (pi.life < pj.life) pi.life = pj.life;
-                removed[j] = 1;
-                if (!PARAM.collapseRequireCollisionMode || collisionModeEnabled) {
-                  if (tryCollapseParticleToBlackHole(pi)) {
-                    removed[i] = 1;
-                    break;
-                  }
-                }
-                merges += 1;
-                if (merges >= maxMerges) break;
-              }
-              if (merges >= maxMerges) break;
-            }
-            if (merges >= maxMerges) break;
-          }
-          if (merges >= maxMerges) break;
-        }
-
-        if (merges === 0) return;
+        if (!removed || merges === 0) return false;
         let write = 0;
         for (let i = 0; i < particles.length; i += 1) {
           if (!removed[i]) {
@@ -951,19 +1017,23 @@
           }
         }
         particles.length = write;
+        return true;
       }
 
       function proximityBrightnessOffset(i, p, wrapW, wrapH) {
-        if (!twinkleEnabled) return 0;
+        if (!collisionModeEnabled) return 0;
         const s = PARAM.ppGravityCellSize;
-        const range = Math.max(0.0001, PARAM.proximityBrightnessRange);
-        const cellRadius = Math.max(1, Math.ceil(range / s));
+        const searchRange = Math.max(
+          0.0001,
+          ((p.r + Math.max(p.r, PARAM.particleRadiusMax)) * 0.5 * Math.max(0.05, PARAM.collisionDistanceFactor)) * 2.2
+        );
+        const cellRadius = Math.max(1, Math.ceil(searchRange / s));
         const px = (((p.x + ppGridOffsetX) % wrapW) + wrapW) % wrapW;
         const py = (((p.y + ppGridOffsetY) % wrapH) + wrapH) % wrapH;
         const cx = Math.floor(px / s);
         const cy = Math.floor(py / s);
 
-        let nearest2 = Number.POSITIVE_INFINITY;
+        let bestRatio = Number.POSITIVE_INFINITY;
         let seen = 0;
         const seenCap = Math.max(4, Math.floor(PARAM.proximityNeighborCap));
 
@@ -984,25 +1054,27 @@
               let dy = q.y - p.y;
               if (dy > wrapH * 0.5) dy -= wrapH;
               if (dy < -wrapH * 0.5) dy += wrapH;
-              const d2 = dx * dx + dy * dy;
-              if (d2 < nearest2) nearest2 = d2;
+              const d = Math.sqrt(dx * dx + dy * dy);
+              const rr = ((p.r + q.r) * 0.5) * Math.max(0.05, PARAM.collisionDistanceFactor);
+              if (rr > 0) {
+                const ratio = d / rr;
+                if (ratio < bestRatio) bestRatio = ratio;
+              }
               seen += 1;
-              if (nearest2 <= 1 || seen >= seenCap) break;
+              if (bestRatio <= 0.05 || seen >= seenCap) break;
             }
-            if (nearest2 <= 1 || seen >= seenCap) break;
+            if (bestRatio <= 0.05 || seen >= seenCap) break;
           }
-          if (nearest2 <= 1 || seen >= seenCap) break;
+          if (bestRatio <= 0.05 || seen >= seenCap) break;
         }
 
-        if (!Number.isFinite(nearest2)) return 0;
-        const d = Math.sqrt(Math.max(0, nearest2));
-        // Near-field twinkle + ultra-close flash.
+        if (!Number.isFinite(bestRatio) || bestRatio >= 1) return 0;
+        // Twinkle uses the same threshold parameter as collision (collisionDistanceFactor).
         const curve = Math.max(1, PARAM.proximityBrightnessCurve);
-        const t = clamp(1 - (d / range), 0, 1);
+        const t = clamp(1 - bestRatio, 0, 1);
         const base = PARAM.proximityBrightnessMaxOffset * Math.pow(t, curve);
-        const ultraRange = Math.max(0.0001, PARAM.proximityUltraRange);
         const ultraCurve = Math.max(0.2, PARAM.proximityUltraCurve);
-        const ultra = PARAM.proximityUltraBoost * Math.exp(-Math.pow(d / ultraRange, ultraCurve));
+        const ultra = PARAM.proximityUltraBoost * Math.exp(-Math.pow(bestRatio, ultraCurve));
         return base + ultra;
       }
 
@@ -1071,8 +1143,9 @@
           vy: 0,
           mass,
           R: radius,
-          Rabs: radius * PARAM.bhAbsorbRatio,
-          absorbedCount: 0
+          Rabs: calcAbsorbRadius(radius),
+          absorbedCount: 0,
+          flash: 0
         });
         bhSpawnCooldown = PARAM.spawnCooldownFrames;
       }
@@ -1109,6 +1182,22 @@
 
         for (let i = 0; i < blackHoles.length; i += 1) {
           const b = blackHoles[i];
+          if (mouse.active && mouseGravityEnabled && dragBh.target !== b) {
+            let dx = mouse.x - b.x;
+            if (dx > w * 0.5) dx -= w;
+            if (dx < -w * 0.5) dx += w;
+            let dy = mouse.y - b.y;
+            if (dy > h * 0.5) dy -= h;
+            if (dy < -h * 0.5) dy += h;
+            const d2 = dx * dx + dy * dy;
+            const ar = currentAttractR;
+            if (d2 > 1 && d2 < ar * ar) {
+              const d = Math.sqrt(d2);
+              const pull = (1 - d / ar) * currentAttractStrength * PARAM.bhMouseAttractScale;
+              b.vx = (b.vx || 0) + (dx / d) * pull;
+              b.vy = (b.vy || 0) + (dy / d) * pull;
+            }
+          }
           b.x += b.vx || 0;
           b.y += b.vy || 0;
           if (!noFrictionModeEnabled) {
@@ -1125,8 +1214,9 @@
           if (b.x >= w) b.x -= w;
           if (b.y < 0) b.y += h;
           if (b.y >= h) b.y -= h;
+          b.flash = (b.flash || 0) * PARAM.bhAbsorbFlashDecay;
           b.R = calcRadius(b.mass);
-          b.Rabs = b.R * PARAM.bhAbsorbRatio;
+          b.Rabs = calcAbsorbRadius(b.R);
         }
 
         const mergeK2 = PARAM.bhMergeK * PARAM.bhMergeK;
@@ -1149,8 +1239,9 @@
             a.vy = ((a.vy || 0) * massA + (b.vy || 0) * massB) / mass;
             a.mass = mass;
             a.R = calcRadius(mass);
-            a.Rabs = a.R * PARAM.bhAbsorbRatio;
+            a.Rabs = calcAbsorbRadius(a.R);
             a.absorbedCount = (a.absorbedCount || 0) + (b.absorbedCount || 0);
+            a.flash = Math.max(a.flash || 0, b.flash || 0);
             blackHoles.splice(j, 1);
             j -= 1;
           }
@@ -1166,12 +1257,20 @@
           ctx.arc(b.x, b.y, b.R, 0, Math.PI * 2);
           ctx.fill();
           ctx.beginPath();
-          ctx.lineWidth = Math.max(0.45, b.R * 0.065);
-          ctx.strokeStyle = 'rgba(184,132,255,0.28)';
+          const absorbLevel = 1 - Math.exp(-(b.flash || 0));
+          const pulse = 0.5 + 0.5 * Math.sin(t * 8 + i * 1.7);
+          const edgeGlow = clamp(0.2 + pulse * 0.25 + absorbLevel * 0.55, 0, 1);
+          const pr = Math.round(168 + 64 * edgeGlow);
+          const pg = Math.round(126 + 58 * edgeGlow);
+          const pb = Math.round(230 + 24 * edgeGlow);
+          const pa = (0.26 + edgeGlow * 0.62).toFixed(3);
+          ctx.lineWidth = Math.max(0.65, b.R * (0.1 + absorbLevel * 0.05));
+          ctx.strokeStyle = 'rgba(' + pr + ',' + pg + ',' + pb + ',' + pa + ')';
           ctx.arc(b.x, b.y, b.R + 0.4, 0, Math.PI * 2);
           ctx.stroke();
         }
       }
+
 
       function resize() {
         const rect = canvas.getBoundingClientRect();
@@ -1197,7 +1296,8 @@
         for (let i = 0; i < target; i += 1) {
           const r = randomParticleRadius();
           const c = particleColorFromRadius(r);
-          particles.push({
+          const heat0 = randomInitialHeat();
+          const p = {
             x: Math.random() * w,
             y: Math.random() * h,
             vx: (Math.random() * 0.55 + 0.18) * (Math.random() > 0.5 ? 1 : -1),
@@ -1208,9 +1308,17 @@
             launchVyTarget: 0,
             launchTime: -1,
             r,
+            collisionCount: 0,
+            flash: 0,
+            heat: heat0,
             life: Math.random() * 0.7 + 0.3,
-            color: c
-          });
+            color: c,
+            cr: 255,
+            cg: 255,
+            cb: 255
+          };
+          setParticleColor(p, c);
+          particles.push(p);
         }
         markSinglePinkStar();
         lastFrameParticleEnergy = computeParticleEnergy();
@@ -1228,24 +1336,33 @@
         ctx.fillStyle = backgroundColorFromEnergy(lastFrameParticleEnergy, t);
         ctx.fillRect(0, 0, w, h);
         const attractR2 = currentAttractR * currentAttractR;
-        const bhSoft2 = currentBhGlobalSoftening * currentBhGlobalSoftening;
+        const bhSoft2 = PARAM.bhMutualSoftening * PARAM.bhMutualSoftening;
         const wrapW = w + 40;
         const wrapH = h + 20;
         let totalEnergy = 0;
+        const preMassThreshold = Math.max(0.0001, PARAM.collapseMassThreshold) * Math.max(0.05, PARAM.preCollapseMassRatio);
+        const preCollThreshold = Math.max(
+          0,
+          PARAM.collapseCollisionThreshold - Math.max(0, PARAM.preCollapseCollisionLead)
+        );
+        const canPreCollapseGlow =
+          bhCreationLockFrames <= 0 && (!PARAM.collapseRequireCollisionMode || collisionModeEnabled);
         const suppressNegativeAmbientGravity = currentGravityScale < 0 && pointerHoldActive;
         if (suppressNegativeAmbientGravity) {
           // Hold-click in negative gravity: disable ambient negative gravity and apply click gravity only.
           gravitateClick(pointerHoldX, pointerHoldY, PARAM.holdGravityImpulseScale);
         }
-        if (particleGravityEnabled || twinkleEnabled || collisionModeEnabled) {
+        if (particleGravityEnabled || collisionModeEnabled) {
           buildParticleGravityGrid(wrapW, wrapH);
         }
-        if (particleGravityEnabled) {
-          applyParticleGravitySymmetric(wrapW, wrapH);
-        }
-        if (collisionModeEnabled && bhCreationLockFrames <= 0) {
-          applyParticleCollisions(wrapW, wrapH);
-          if (twinkleEnabled) {
+        if (particleGravityEnabled || (collisionModeEnabled && bhCreationLockFrames <= 0)) {
+          const merged = applyParticleGravitySymmetric(
+            wrapW,
+            wrapH,
+            particleGravityEnabled,
+            collisionModeEnabled && bhCreationLockFrames <= 0
+          );
+          if (merged && collisionModeEnabled) {
             buildParticleGravityGrid(wrapW, wrapH);
           }
         }
@@ -1267,7 +1384,8 @@
           const prevX = p.x;
           const prevY = p.y;
           if (!noFrictionModeEnabled) {
-            if (!particleGravityEnabled) {
+            const hasBhGravity = bhEnabled && blackHoles.length > 0 && !suppressNegativeAmbientGravity;
+            if (!particleGravityEnabled && (!hasBhGravity || flowModeEnabled)) {
               p.vx += (p.baseVx - p.vx) * currentVelReturn;
               p.vy += (p.baseVy - p.vy) * currentVelReturn;
             } else {
@@ -1317,19 +1435,12 @@
                 break;
               }
               if (d2 > 1) {
-                const absorbed = b.absorbedCount || 0;
-                const pullScale = 1 + Math.sqrt(absorbed) * currentBhPullPerAbsorb;
-                const g = currentBhGlobalPull * pullScale;
+                const mb = Math.max(0.0001, b.mass || 0);
+                const g = PARAM.bhMutualGravityStrength * mb;
                 const invR = 1 / Math.sqrt(d2 + bhSoft2);
                 const invR3 = invR * invR * invR;
-                let ax = g * dx * invR3;
-                let ay = g * dy * invR3;
-                const a2 = ax * ax + ay * ay;
-                if (a2 > currentBhPullMax * currentBhPullMax) {
-                  const s = currentBhPullMax / Math.sqrt(a2);
-                  ax *= s;
-                  ay *= s;
-                }
+                const ax = g * dx * invR3;
+                const ay = g * dy * invR3;
                 p.vx += ax;
                 p.vy += ay;
               }
@@ -1378,6 +1489,19 @@
           p.life += (Math.random() - 0.5) * PARAM.lifeJitter;
           if (p.life < PARAM.lifeMin) p.life = PARAM.lifeMin;
           if (p.life > PARAM.lifeMax) p.life = PARAM.lifeMax;
+          p.flash = (p.flash || 0) * PARAM.collisionFlashDecay;
+          p.heat = (p.heat || 0) * PARAM.collisionHeatDecay;
+          if (canPreCollapseGlow && (p.collisionCount || 0) >= preCollThreshold) {
+            // Expensive mass check only for near-threshold particles.
+            const m = particleMassFromRadius(p.r);
+            if (m >= preMassThreshold) {
+              p.flash = Math.min(
+                PARAM.preCollapseFlashMax,
+                (p.flash || 0) + PARAM.preCollapseFlashGain
+              );
+              p.heat = Math.min(1, (p.heat || 0) + PARAM.preCollapseHeatGain);
+            }
+          }
           totalEnergy += particleBrightnessEnergy(p);
 
           if (p.x < -20) p.x = w + 20;
@@ -1385,11 +1509,21 @@
           if (p.y < -10) p.y = h + 10;
           if (p.y > h + 10) p.y = -10;
 
-          let alpha = (twinkleEnabled ? 0.62 : 0.86) * p.life;
-          if (twinkleEnabled) {
+          let alpha = (collisionModeEnabled ? 0.62 : 0.86) * p.life;
+          if (collisionModeEnabled) {
             alpha += proximityBrightnessOffset(i, p, wrapW, wrapH);
+            alpha += p.flash || 0;
           }
-          ctx.fillStyle = 'rgba(' + p.color + ',' + alpha.toFixed(3) + ')';
+          let dr = p.cr || 255;
+          let dg = p.cg || 255;
+          let db = p.cb || 255;
+          const heat = clamp(p.heat || 0, 0, 1);
+          if (heat > 0.001) {
+            dr = Math.round(lerp(dr, PARAM.hotColorR, heat));
+            dg = Math.round(lerp(dg, PARAM.hotColorG, heat));
+            db = Math.round(lerp(db, PARAM.hotColorB, heat));
+          }
+          ctx.fillStyle = 'rgba(' + dr + ',' + dg + ',' + db + ',' + alpha.toFixed(3) + ')';
           if (p.r >= PARAM.largeStarCircleThreshold) {
             ctx.beginPath();
             ctx.arc(p.x + p.r * 0.5, p.y + p.r * 0.5, p.r * 0.52, 0, Math.PI * 2);
@@ -1582,6 +1716,11 @@
           syncParticleGravityToggle();
           return;
         }
+        if (key === 'h') {
+          flowModeEnabled = !flowModeEnabled;
+          syncFlowToggle();
+          return;
+        }
         if (key === 'l') {
           linksHidden = !linksHidden;
           syncLinksVisibility();
@@ -1599,11 +1738,6 @@
         }
         if (key === 'r') {
           resize();
-          return;
-        }
-        if (key === 't') {
-          twinkleEnabled = !twinkleEnabled;
-          syncTwinkleToggle();
           return;
         }
         if (key === ' ') {
@@ -1626,11 +1760,11 @@
       linksToggleBtn.addEventListener('pointerdown', (e) => {
         e.stopPropagation();
       });
-      twinkleToggleBtn.addEventListener('click', () => {
-        twinkleEnabled = !twinkleEnabled;
-        syncTwinkleToggle();
+      flowToggleBtn.addEventListener('click', () => {
+        flowModeEnabled = !flowModeEnabled;
+        syncFlowToggle();
       });
-      twinkleToggleBtn.addEventListener('pointerdown', (e) => {
+      flowToggleBtn.addEventListener('pointerdown', (e) => {
         e.stopPropagation();
       });
       collisionToggleBtn.addEventListener('click', () => {
@@ -1684,8 +1818,8 @@
       syncLinksVisibility();
       syncParticleGravityToggle();
       syncMouseGravityToggle();
-      syncTwinkleToggle();
       syncCollisionToggle();
+      syncFlowToggle();
       syncFrictionToggle();
       init();
     })();
