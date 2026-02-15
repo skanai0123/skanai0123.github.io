@@ -891,7 +891,7 @@
         const resValue = noFrictionModeEnabled
           ? 0
           : (particleGravityEnabled ? clamp(PARAM.ppLinearDamping, 0, 0.5) : currentVelReturn);
-        hudGravityGEl.textContent = 'G: ' + gRatio.toFixed(1) + ' G_0';
+        hudGravityGEl.innerHTML = 'G: ' + gRatio.toFixed(1) + ' <i>G</i><sub>0</sub>';
         hudResistanceEl.textContent = 'Res: ' + resValue.toFixed(3);
       }
 
