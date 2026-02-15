@@ -291,6 +291,10 @@
         hotColorR: 196,
         hotColorG: 217,
         hotColorB: 248,
+        vividBlueChance: 0.08,
+        vividBlueToneScale: 0.42,
+        vividRedChance: 0.018,
+        vividRedToneMin: 0.9,
         initialHotStarChance: 0.03,
         initialHotStarHeatMin: 0.55,
         initialHotStarHeatMax: 1.0,
@@ -402,8 +406,8 @@
 
       function gradientColor(t) {
         const stops = [
-          [170, 191, 255],  // O: blue
-          [202, 215, 255],  // B: blue-white
+          [96, 140, 255],   // O: vivid deep blue
+          [160, 190, 255],  // B: saturated blue-white
           [248, 247, 255],  // A: white
           [255, 244, 234],  // F/G: warm white
           [255, 210, 161],  // K: orange
@@ -503,7 +507,7 @@
       function markSinglePinkStar() {
         if (particles.length === 0) return;
         const p = particles[0];
-        setParticleColor(p, '255,120,210');
+        setParticleColor(p, '120,255,170');
         p.r = Math.max(p.r, 1.8);
         p.life = 1;
       }
@@ -541,8 +545,20 @@
         if (!PARAM.useRadiusBasedColor) return gradientColor(Math.random());
         const span = Math.max(0.0001, PARAM.particleRadiusMax - PARAM.particleRadiusMin);
         const t = clamp((r - PARAM.particleRadiusMin) / span, 0, 1);
-        // Mostly blue/white with a visible warm tail.
-        return gradientColor(clamp(0.06 + t * 0.9, 0, 1));
+        // Suppress warm/orange population to about one-third while keeping blue spread.
+        const warmCut = 0.78;
+        const tBlueBoost = t < 0.74 ? t * 0.72 : t;
+        const tWarmSuppressed = tBlueBoost < warmCut
+          ? tBlueBoost
+          : warmCut + (tBlueBoost - warmCut) * 0.11;
+        let tone = clamp(0.0 + tWarmSuppressed * 0.82, 0, 1);
+        if (Math.random() < PARAM.vividBlueChance) {
+          tone *= PARAM.vividBlueToneScale;
+        } else if (Math.random() < PARAM.vividRedChance) {
+          const redMin = clamp(PARAM.vividRedToneMin, 0, 0.999);
+          tone = redMin + Math.random() * (1 - redMin);
+        }
+        return gradientColor(tone);
       }
 
       function applyGravityScale(scale) {
@@ -697,10 +713,9 @@
         applyGravityScale(randomInRange(PARAM.bbGravityScaleMin, PARAM.bbGravityScaleMax));
         currentBigBangMaxSpeed = randomInRange(PARAM.bigBangMaxSpeedMin, PARAM.bigBangMaxSpeedMax);
         currentMaxSpeed = randomInRange(PARAM.maxSpeedMin, PARAM.maxSpeedMax);
-        const flowA = Math.random() * Math.PI * 2;
         const flowS = randomInRange(PARAM.bigBangFlowSpeedMin, PARAM.bigBangFlowSpeedMax);
-        currentFlowX = Math.cos(flowA) * flowS;
-        currentFlowY = Math.sin(flowA) * flowS;
+        currentFlowX = (Math.random() > 0.5 ? 1 : -1) * flowS;
+        currentFlowY = (Math.random() * 0.24 - 0.12) * Math.min(1, flowS * 4);
 
         const maxR = Math.sqrt((w * w) + (h * h)) * 0.7;
         for (let i = 0; i < currentParticleTarget; i += 1) {
@@ -715,10 +730,8 @@
           const speed = PARAM.bigBangMinSpeed + curve * (currentBigBangMaxSpeed - PARAM.bigBangMinSpeed);
           const vx = nx * speed;
           const vy = ny * speed;
-          const baseA = Math.random() * Math.PI * 2;
-          const baseS = Math.random() * 0.55 + 0.18;
-          const baseVx = Math.cos(baseA) * baseS;
-          const baseVy = Math.sin(baseA) * baseS;
+          const baseVx = (Math.random() * 0.55 + 0.18) * (Math.random() > 0.5 ? 1 : -1);
+          const baseVy = (Math.random() * 0.24 - 0.12);
           const px = clamp(cx, -20, w + 20);
           const py = clamp(cy, -10, h + 10);
           const r = randomParticleRadius();
@@ -1301,8 +1314,8 @@
             y: Math.random() * h,
             vx: (Math.random() * 0.55 + 0.18) * (Math.random() > 0.5 ? 1 : -1),
             vy: (Math.random() * 0.24 - 0.12),
-            baseVx: Math.cos(Math.random() * Math.PI * 2) * (Math.random() * 0.55 + 0.18),
-            baseVy: Math.sin(Math.random() * Math.PI * 2) * (Math.random() * 0.55 + 0.18),
+            baseVx: (Math.random() * 0.55 + 0.18) * (Math.random() > 0.5 ? 1 : -1),
+            baseVy: (Math.random() * 0.24 - 0.12),
             launchVxTarget: 0,
             launchVyTarget: 0,
             launchTime: -1,
