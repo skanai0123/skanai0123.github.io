@@ -168,6 +168,7 @@
     .friction-toggle { right: 12px; top: 292px; font-size: 12px; }       /* n */
     .reset-layout-btn { right: 12px; top: 332px; font-size: 12px; }      /* r */
     .time-toggle { right: 12px; top: 372px; }                             /* space */
+    .bh-arrow-toggle { right: 12px; top: 412px; font-size: 12px; }        /* b */
 
     .universe-hud {
       position: fixed;
@@ -259,6 +260,7 @@
   <button id="fullscreenToggleBtn" class="tool-btn fullscreen-toggle" type="button" aria-label="Enter fullscreen" title="Fullscreen">[ ]</button>
   <button id="particleGravityToggleBtn" class="tool-btn particle-gravity-toggle" type="button" aria-label="Enable particle gravity" title="Enable particle gravity">g</button>
   <button id="timeToggleBtn" class="tool-btn time-toggle" type="button" aria-label="Pause time" title="Pause">II</button>
+  <button id="bhArrowToggleBtn" class="tool-btn bh-arrow-toggle" type="button" aria-label="Show black hole arrows" title="Show black hole arrows">b</button>
 
   <script>
     (function () {
@@ -445,6 +447,8 @@
       if (!fullscreenToggleBtn) return;
       const timeToggleBtn = document.getElementById('timeToggleBtn');
       if (!timeToggleBtn) return;
+      const bhArrowToggleBtn = document.getElementById('bhArrowToggleBtn');
+      if (!bhArrowToggleBtn) return;
       const universeInfoBtn = document.getElementById('universeInfoBtn');
       if (!universeInfoBtn) return;
       const universeHudEl = document.getElementById('universeHud');
@@ -526,6 +530,7 @@
       let hudVisible = false;
       let clockVisible = true;
       let clockDateVisible = true;
+      let bhArrowEnabled = false;
       let currentParticleTarget = PARAM.particleCount;
       const rRho2 = PARAM.rRho * PARAM.rRho;
       const dragBh = {
@@ -816,6 +821,12 @@
         frictionToggleBtn.textContent = noFrictionModeEnabled ? 'N' : 'n';
         frictionToggleBtn.title = noFrictionModeEnabled ? 'Enable friction' : 'Disable friction';
         frictionToggleBtn.setAttribute('aria-label', noFrictionModeEnabled ? 'Enable friction' : 'Disable friction');
+      }
+
+      function syncBhArrowToggle() {
+        bhArrowToggleBtn.textContent = bhArrowEnabled ? 'B' : 'b';
+        bhArrowToggleBtn.title = bhArrowEnabled ? 'Hide black hole arrows' : 'Show black hole arrows';
+        bhArrowToggleBtn.setAttribute('aria-label', bhArrowEnabled ? 'Hide black hole arrows' : 'Show black hole arrows');
       }
 
       function drawCleanHint(nowMs) {
@@ -1497,6 +1508,26 @@
           ctx.strokeStyle = 'rgba(' + pr + ',' + pg + ',' + pb + ',' + pa + ')';
           ctx.arc(b.x, b.y, b.R + 0.4, 0, Math.PI * 2);
           ctx.stroke();
+
+          if (bhArrowEnabled) {
+            const arrowLen = Math.max(18, b.R * 2.4);
+            const tipY = b.y - b.R - 4;
+            const baseY = tipY - arrowLen;
+            const head = Math.max(5, b.R * 0.5);
+            ctx.strokeStyle = 'rgba(255, 230, 150, 0.95)';
+            ctx.lineWidth = 1.8;
+            ctx.beginPath();
+            ctx.moveTo(b.x, baseY);
+            ctx.lineTo(b.x, tipY);
+            ctx.stroke();
+            ctx.fillStyle = 'rgba(255, 230, 150, 0.95)';
+            ctx.beginPath();
+            ctx.moveTo(b.x, tipY + 1);
+            ctx.lineTo(b.x - head, tipY - head * 0.9);
+            ctx.lineTo(b.x + head, tipY - head * 0.9);
+            ctx.closePath();
+            ctx.fill();
+          }
         }
       }
 
@@ -1937,6 +1968,11 @@
           syncCollisionToggle();
           return;
         }
+        if (key === 'b') {
+          bhArrowEnabled = !bhArrowEnabled;
+          syncBhArrowToggle();
+          return;
+        }
         if (key === 'f') {
           e.preventDefault();
           toggleFullscreen();
@@ -1996,6 +2032,13 @@
         togglePause();
       });
       timeToggleBtn.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+      });
+      bhArrowToggleBtn.addEventListener('click', () => {
+        bhArrowEnabled = !bhArrowEnabled;
+        syncBhArrowToggle();
+      });
+      bhArrowToggleBtn.addEventListener('pointerdown', (e) => {
         e.stopPropagation();
       });
       universeInfoBtn.addEventListener('click', () => {
@@ -2072,6 +2115,7 @@
       syncCollisionToggle();
       syncFlowToggle();
       syncFrictionToggle();
+      syncBhArrowToggle();
       syncUniverseHudVisibility();
       syncClockVisibility();
       syncClockDateVisibility();
