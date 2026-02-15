@@ -237,10 +237,10 @@
         maxSpeedMax: 720,
         bigBangFlowSpeedMin: 0.0,
         bigBangFlowSpeedMax: 0.35,
-        bgLumaMin: 4,
-        bgLumaMax: 18,
-        bgEnergyGain: 0.00014,
-        bgResponseGamma: 1.55,
+        bgLumaMin: 7,
+        bgLumaMax: 26,
+        bgEnergyGain: 0.00017,
+        bgResponseGamma: 1.4,
         bgSpeedPower: 1.0,
         bbGravityScaleMin: -15.0,
         bbGravityScaleMax: 15.0,
@@ -285,13 +285,13 @@
         collisionFlashGain: 0.58,
         collisionFlashDecay: 0.965,
         collisionFlashMax: 2.8,
-        collisionHeatGain: 0.42,
-        collisionHeatDecay: 0.985,
-        preCollapseHeatGain: 0.02,
-        hotColorR: 214,
-        hotColorG: 232,
-        hotColorB: 255,
-        initialHotStarChance: 0.04,
+        collisionHeatGain: 0.24,
+        collisionHeatDecay: 0.978,
+        preCollapseHeatGain: 0.012,
+        hotColorR: 196,
+        hotColorG: 217,
+        hotColorB: 248,
+        initialHotStarChance: 0.03,
         initialHotStarHeatMin: 0.55,
         initialHotStarHeatMax: 1.0,
         preCollapseMassRatio: 0.88,
@@ -541,9 +541,8 @@
         if (!PARAM.useRadiusBasedColor) return gradientColor(Math.random());
         const span = Math.max(0.0001, PARAM.particleRadiusMax - PARAM.particleRadiusMin);
         const t = clamp((r - PARAM.particleRadiusMin) / span, 0, 1);
-        // Bias toward cooler blue tones; keep warm colors rarer.
-        const u = Math.pow(t, 1.7);
-        return gradientColor(clamp(0.0 + u * 0.62, 0, 1));
+        // Mostly blue/white with a visible warm tail.
+        return gradientColor(clamp(0.06 + t * 0.9, 0, 1));
       }
 
       function applyGravityScale(scale) {
