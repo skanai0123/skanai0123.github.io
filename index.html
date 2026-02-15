@@ -169,6 +169,12 @@
     .reset-layout-btn { right: 12px; top: 332px; font-size: 12px; }      /* r */
     .time-toggle { right: 12px; top: 372px; }                             /* space */
     .bh-arrow-toggle { right: 12px; top: 412px; font-size: 12px; }        /* b */
+    .preset-btn { right: 56px; font-size: 12px; }
+    .preset-1 { top: 12px; }
+    .preset-2 { top: 52px; }
+    .preset-3 { top: 92px; }
+    .preset-4 { top: 132px; }
+    .preset-5 { top: 172px; }
 
     .universe-hud {
       position: fixed;
@@ -261,6 +267,11 @@
   <button id="particleGravityToggleBtn" class="tool-btn particle-gravity-toggle" type="button" aria-label="Enable particle gravity" title="Enable particle gravity">g</button>
   <button id="timeToggleBtn" class="tool-btn time-toggle" type="button" aria-label="Pause time" title="Pause">II</button>
   <button id="bhArrowToggleBtn" class="tool-btn bh-arrow-toggle" type="button" aria-label="Show black hole arrows" title="Show black hole arrows">b</button>
+  <button id="preset1Btn" class="tool-btn preset-btn preset-1" type="button" aria-label="Preset 1" title="Preset 1">1</button>
+  <button id="preset2Btn" class="tool-btn preset-btn preset-2" type="button" aria-label="Preset 2" title="Preset 2">2</button>
+  <button id="preset3Btn" class="tool-btn preset-btn preset-3" type="button" aria-label="Preset 3" title="Preset 3">3</button>
+  <button id="preset4Btn" class="tool-btn preset-btn preset-4" type="button" aria-label="Preset 4" title="Preset 4">4</button>
+  <button id="preset5Btn" class="tool-btn preset-btn preset-5" type="button" aria-label="Preset 5" title="Preset 5">5</button>
 
   <script>
     (function () {
@@ -355,8 +366,8 @@
         bgEnergyGain: 0.00017,
         bgResponseGamma: 1.4,
         bgSpeedPower: 1.0,
-        bbGravityScaleMin: -15.0,
-        bbGravityScaleMax: 15.0,
+        bbGravityScaleMin: -10.0,
+        bbGravityScaleMax: 10.0,
         bbGravityCurvePower: 1.8,
         bbGravityAmplify: 1.8,
         bbPullMaxAmplify: 2.4,
@@ -420,7 +431,7 @@
         cleanHintHoldMs: 60000,
         cleanHintShowMs: 6200,
         cleanHintFadeInMs: 1200,
-        cleanHintText: 'The cosmos is clear. Your monitor, maybe not.'
+        cleanHintText: 'Time to clean?'
       };
 
       const canvas = document.getElementById('heroFx');
@@ -449,6 +460,16 @@
       if (!timeToggleBtn) return;
       const bhArrowToggleBtn = document.getElementById('bhArrowToggleBtn');
       if (!bhArrowToggleBtn) return;
+      const preset1Btn = document.getElementById('preset1Btn');
+      if (!preset1Btn) return;
+      const preset2Btn = document.getElementById('preset2Btn');
+      if (!preset2Btn) return;
+      const preset3Btn = document.getElementById('preset3Btn');
+      if (!preset3Btn) return;
+      const preset4Btn = document.getElementById('preset4Btn');
+      if (!preset4Btn) return;
+      const preset5Btn = document.getElementById('preset5Btn');
+      if (!preset5Btn) return;
       const universeInfoBtn = document.getElementById('universeInfoBtn');
       if (!universeInfoBtn) return;
       const universeHudEl = document.getElementById('universeHud');
@@ -486,11 +507,12 @@
       let currentFlowX = 0;
       let currentFlowY = 0;
       let currentGravityScale = PARAM.initialGravityScale;
+      let currentPpGravityStrength = PARAM.ppGravityStrength;
       let lastFrameParticleEnergy = 0;
       let bbWhiteBoost = 1;
       let linksHidden = false;
-      let bhHoldStartMs = 0;
-      let bhCleanHintShownForHold = false;
+      let lowStarStartMs = 0;
+      let lowStarHintShown = false;
       let cleanHintStartMs = 0;
       let cleanHintUntilMs = 0;
       let pointerHoldActive = false;
@@ -531,6 +553,7 @@
       let clockVisible = true;
       let clockDateVisible = true;
       let bhArrowEnabled = false;
+      let homeKeyHeld = false;
       let currentParticleTarget = PARAM.particleCount;
       const rRho2 = PARAM.rRho * PARAM.rRho;
       const dragBh = {
@@ -721,6 +744,7 @@
         currentBhGlobalPull = randomInRange(PARAM.bhGlobalPullMin, PARAM.bhGlobalPullMax) * bbBhPullScale * strongScale;
         currentBhPullMax = PARAM.bhPullMax * bbBhPullScale * (1 + over * PARAM.bbPullMaxAmplify);
         currentBhPullPerAbsorb = randomInRange(PARAM.bhPullPerAbsorbMin, PARAM.bhPullPerAbsorbMax) * strongScale;
+        currentPpGravityStrength = PARAM.ppGravityStrength * (strongScale / Math.max(1e-9, PARAM.initialGravityScale));
         currentBhGlobalSoftening *= softeningFactor;
       }
 
@@ -817,6 +841,91 @@
         syncFlowToggle();
       }
 
+      function neutralizeGlobalDriftWhenFlowOff() {
+        if (flowModeEnabled || particles.length === 0) return;
+        const n = particles.length;
+        const periodX = w + 40;
+        const periodY = h + 20;
+        let sumVx = 0;
+        let sumVy = 0;
+        let sumX = 0;
+        let sumY = 0;
+        for (let i = 0; i < n; i += 1) {
+          const p = particles[i];
+          // Use wrapped [0, period) coordinates to avoid edge discontinuity artifacts.
+          const wx = (((p.x + 20) % periodX) + periodX) % periodX;
+          const wy = (((p.y + 10) % periodY) + periodY) % periodY;
+          sumX += wx;
+          sumY += wy;
+          sumVx += p.vx || 0;
+          sumVy += p.vy || 0;
+        }
+        const meanX = sumX / n;
+        const meanY = sumY / n;
+        const meanVx = sumVx / n;
+        const meanVy = sumVy / n;
+
+        let covXX = 0;
+        let covYY = 0;
+        let covXY = 0;
+        let covXVx = 0;
+        let covYVx = 0;
+        let covXVy = 0;
+        let covYVy = 0;
+        for (let i = 0; i < n; i += 1) {
+          const p = particles[i];
+          const wx = (((p.x + 20) % periodX) + periodX) % periodX;
+          const wy = (((p.y + 10) % periodY) + periodY) % periodY;
+          const x = shortestWrappedDelta(wx, meanX, periodX);
+          const y = shortestWrappedDelta(wy, meanY, periodY);
+          const vx = (p.vx || 0) - meanVx;
+          const vy = (p.vy || 0) - meanVy;
+          covXX += x * x;
+          covYY += y * y;
+          covXY += x * y;
+          covXVx += x * vx;
+          covYVx += y * vx;
+          covXVy += x * vy;
+          covYVy += y * vy;
+        }
+        const invN = 1 / Math.max(1, n);
+        covXX *= invN;
+        covYY *= invN;
+        covXY *= invN;
+        covXVx *= invN;
+        covYVx *= invN;
+        covXVy *= invN;
+        covYVy *= invN;
+
+        const det = covXX * covYY - covXY * covXY;
+        let ax = 0;
+        let ay = 0;
+        let bx = 0;
+        let by = 0;
+        if (Math.abs(det) > 1e-9) {
+          const inv00 = covYY / det;
+          const inv01 = -covXY / det;
+          const inv10 = -covXY / det;
+          const inv11 = covXX / det;
+          ax = inv00 * covXVx + inv01 * covYVx;
+          ay = inv10 * covXVx + inv11 * covYVx;
+          bx = inv00 * covXVy + inv01 * covYVy;
+          by = inv10 * covXVy + inv11 * covYVy;
+        }
+
+        // Keep correction gentle to avoid edge sticking under strong local fields.
+        const corrGain = 0.35;
+        for (let i = 0; i < n; i += 1) {
+          const p = particles[i];
+          const wx = (((p.x + 20) % periodX) + periodX) % periodX;
+          const wy = (((p.y + 10) % periodY) + periodY) % periodY;
+          const x = shortestWrappedDelta(wx, meanX, periodX);
+          const y = shortestWrappedDelta(wy, meanY, periodY);
+          p.vx -= corrGain * (meanVx + ax * x + ay * y);
+          p.vy -= corrGain * (meanVy + bx * x + by * y);
+        }
+      }
+
       function syncFrictionToggle() {
         frictionToggleBtn.textContent = noFrictionModeEnabled ? 'N' : 'n';
         frictionToggleBtn.title = noFrictionModeEnabled ? 'Enable friction' : 'Disable friction';
@@ -899,8 +1008,8 @@
           const vy = ny * speed;
           const baseVx = (Math.random() * 0.55 + 0.18) * (Math.random() > 0.5 ? 1 : -1);
           const baseVy = (Math.random() * 0.24 - 0.12);
-          const px = clamp(cx, -20, w + 20);
-          const py = clamp(cy, -10, h + 10);
+          const px = clamp(cx, 0, w);
+          const py = clamp(cy, 0, h);
           const r = randomParticleRadius();
           const c = particleColorFromRadius(r);
           const heat0 = randomInitialHeat();
@@ -1207,6 +1316,18 @@
         const collisionRangeMax = Math.max(0.0001, maxParticleR * collisionFactor);
         const collisionCellRadius = Math.max(1, Math.ceil(collisionRangeMax / s));
         const cellRadius = gravityOn ? gravityCellRadius : collisionCellRadius;
+        const neighborCellOffsets = [];
+        for (let oy = -cellRadius; oy <= cellRadius; oy += 1) {
+          for (let ox = -cellRadius; ox <= cellRadius; ox += 1) {
+            neighborCellOffsets.push([ox, oy]);
+          }
+        }
+        for (let i = neighborCellOffsets.length - 1; i > 0; i -= 1) {
+          const j = Math.floor(Math.random() * (i + 1));
+          const tmp = neighborCellOffsets[i];
+          neighborCellOffsets[i] = neighborCellOffsets[j];
+          neighborCellOffsets[j] = tmp;
+        }
 
         function applyPair(i, j) {
           if (i === j) return;
@@ -1266,8 +1387,8 @@
           // Softened Newtonian gravity: a ~ r_vec / (r^2 + eps^2)^(3/2).
           const invR = 1 / Math.sqrt(d2 + soften2);
           const invR3 = invR * invR * invR;
-          const ax = PARAM.ppGravityStrength * dx * invR3;
-          const ay = PARAM.ppGravityStrength * dy * invR3;
+          const ax = currentPpGravityStrength * dx * invR3;
+          const ay = currentPpGravityStrength * dy * invR3;
           const invInertiaI = invInertiaArr[i];
           const invInertiaJ = invInertiaArr[j];
           // Equal and opposite pair update (momentum-conserving).
@@ -1279,8 +1400,10 @@
           interactionCounts[j] += 1;
         }
 
-        // Self-centered grid query: each particle searches cells around itself.
-        for (let i = 0; i < n; i += 1) {
+        // Self-centered grid query with randomized iteration order to reduce directional bias.
+        const startIndex = Math.floor(Math.random() * n);
+        for (let ii = 0; ii < n; ii += 1) {
+          const i = (startIndex + ii) % n;
           if (removed && removed[i]) continue;
           if (interactionCounts[i] >= maxInteractions) continue;
           const pi = particles[i];
@@ -1290,21 +1413,20 @@
           const cx = Math.floor(px / s);
           const cy = Math.floor(py / s);
 
-          for (let oy = -cellRadius; oy <= cellRadius; oy += 1) {
+          for (let o = 0; o < neighborCellOffsets.length; o += 1) {
             if (interactionCounts[i] >= maxInteractions) break;
-            for (let ox = -cellRadius; ox <= cellRadius; ox += 1) {
+            const ox = neighborCellOffsets[o][0];
+            const oy = neighborCellOffsets[o][1];
+            const ncx = (cx + ox + ppGridCols) % ppGridCols;
+            const ncy = (cy + oy + ppGridRows) % ppGridRows;
+            const arr = ppGrid[ppGridIndex(ncx, ncy)];
+            if (!arr || arr.length === 0) continue;
+            for (let k = 0; k < arr.length; k += 1) {
+              if (removed && removed[i]) break;
               if (interactionCounts[i] >= maxInteractions) break;
-              const ncx = (cx + ox + ppGridCols) % ppGridCols;
-              const ncy = (cy + oy + ppGridRows) % ppGridRows;
-              const arr = ppGrid[ppGridIndex(ncx, ncy)];
-              if (!arr || arr.length === 0) continue;
-              for (let k = 0; k < arr.length; k += 1) {
-                if (removed && removed[i]) break;
-                if (interactionCounts[i] >= maxInteractions) break;
-                const j = arr[k];
-                if (j <= i) continue;
-                applyPair(i, j);
-              }
+              const j = arr[k];
+              if (j <= i) continue;
+              applyPair(i, j);
             }
           }
         }
@@ -1643,8 +1765,8 @@
         ctx.fillRect(0, 0, w, h);
         const attractR2 = currentAttractR * currentAttractR;
         const bhSoft2 = PARAM.bhMutualSoftening * PARAM.bhMutualSoftening;
-        const wrapW = w + 40;
-        const wrapH = h + 20;
+        const wrapW = w;
+        const wrapH = h;
         let totalEnergy = 0;
         const preMassThreshold = Math.max(0.0001, PARAM.collapseMassThreshold) * Math.max(0.05, PARAM.preCollapseMassRatio);
         const preCollThreshold = Math.max(
@@ -1815,10 +1937,10 @@
           }
           totalEnergy += particleBrightnessEnergy(p);
 
-          if (p.x < -20) p.x = w + 20;
-          if (p.x > w + 20) p.x = -20;
-          if (p.y < -10) p.y = h + 10;
-          if (p.y > h + 10) p.y = -10;
+          if (p.x < 0) p.x += w;
+          if (p.x >= w) p.x -= w;
+          if (p.y < 0) p.y += h;
+          if (p.y >= h) p.y -= h;
 
           let alpha = (collisionModeEnabled ? 0.62 : 1.02) * p.life;
           if (!collisionModeEnabled) alpha += 0.07;
@@ -1847,6 +1969,10 @@
           if (bhArrowEnabled && p.isEarth) {
             drawUpArrow(p.x + p.r * 0.5, p.y + p.r * 0.5, Math.max(2.4, p.r * 0.8), 'rgba(120, 255, 170, 0.95)');
           }
+          if (particles.length < 10 && !(bhArrowEnabled && p.isEarth)) {
+            const starArrowColor = p.isEarth ? 'rgba(120, 255, 170, 0.95)' : 'rgba(255, 205, 120, 0.92)';
+            drawUpArrow(p.x + p.r * 0.5, p.y + p.r * 0.5, Math.max(2.4, p.r * 0.8), starArrowColor);
+          }
         }
 
         updateBlackHoles();
@@ -1856,18 +1982,18 @@
         if (bbWhiteBoost > 1) {
           bbWhiteBoost += (1 - bbWhiteBoost) * PARAM.bbWhiteBoostDecay;
         }
-        if (dragBh.target) {
-          if (bhHoldStartMs <= 0) {
-            bhHoldStartMs = nowMs;
-            bhCleanHintShownForHold = false;
-          } else if (!bhCleanHintShownForHold && (nowMs - bhHoldStartMs) >= PARAM.cleanHintHoldMs) {
+        if (particles.length < 10) {
+          if (lowStarStartMs <= 0) {
+            lowStarStartMs = nowMs;
+            lowStarHintShown = false;
+          } else if (!lowStarHintShown && (nowMs - lowStarStartMs) >= PARAM.cleanHintHoldMs) {
             cleanHintStartMs = nowMs;
             cleanHintUntilMs = nowMs + PARAM.cleanHintShowMs;
-            bhCleanHintShownForHold = true;
+            lowStarHintShown = true;
           }
         } else {
-          bhHoldStartMs = 0;
-          bhCleanHintShownForHold = false;
+          lowStarStartMs = 0;
+          lowStarHintShown = false;
         }
         drawCleanHint(nowMs);
         lastFrameParticleEnergy = totalEnergy;
@@ -1967,18 +2093,14 @@
       window.addEventListener('pointerup', () => {
         dragBh.target = null;
         pointerHoldActive = false;
-        bhHoldStartMs = 0;
-        bhCleanHintShownForHold = false;
       }, { passive: true });
 
       window.addEventListener('pointercancel', () => {
         dragBh.target = null;
         pointerHoldActive = false;
-        bhHoldStartMs = 0;
-        bhCleanHintShownForHold = false;
       }, { passive: true });
-      function togglePause() {
-        isPaused = !isPaused;
+      function setPauseState(paused) {
+        isPaused = !!paused;
         if (isPaused) {
           timeToggleBtn.textContent = '>';
           timeToggleBtn.title = 'Resume';
@@ -1988,6 +2110,59 @@
           timeToggleBtn.title = 'Pause';
           timeToggleBtn.setAttribute('aria-label', 'Pause time');
         }
+      }
+
+      function togglePause() {
+        setPauseState(!isPaused);
+      }
+
+      async function ensureFullscreenOff() {
+        if (!document.fullscreenElement) return;
+        try {
+          await document.exitFullscreen();
+        } catch (_err) {
+          // Ignore fullscreen errors from browser policy/user gesture constraints.
+        }
+      }
+
+      async function applyPreset(id) {
+        if (id === 1 || id === 3 || id === 4 || id === 5) {
+          // Preset 1 baseline. 3-5 are currently mapped to baseline until their specs are defined.
+          collisionModeEnabled = false;      // c
+          particleGravityEnabled = false;    // g
+          setFlowMode(true);                 // H
+          hudVisible = false;                // i
+          linksHidden = true;                // l
+          mouseGravityEnabled = true;        // M
+          noFrictionModeEnabled = false;     // n
+          bhArrowEnabled = true;             // B
+          setPauseState(false);              // ||
+          await ensureFullscreenOff();       // f
+        } else if (id === 2) {
+          collisionModeEnabled = true;       // C
+          particleGravityEnabled = true;     // G
+          setFlowMode(false);                // h
+          hudVisible = true;                 // I
+          linksHidden = false;               // L
+          mouseGravityEnabled = false;       // m
+          noFrictionModeEnabled = false;     // n
+          bhArrowEnabled = true;             // B
+          clockVisible = false;              // t
+          clockDateVisible = false;          // d
+          setPauseState(false);              // ||
+          await ensureFullscreenOff();       // f
+        } else {
+          return;
+        }
+        syncCollisionToggle();
+        syncParticleGravityToggle();
+        syncMouseGravityToggle();
+        syncFrictionToggle();
+        syncBhArrowToggle();
+        syncUniverseHudVisibility();
+        syncLinksVisibility();
+        syncClockVisibility();
+        syncClockDateVisibility();
       }
 
       async function toggleFullscreen() {
@@ -2012,12 +2187,20 @@
         }
         if (e.repeat) return;
         const key = String(e.key || '').toLowerCase();
+        if (key === 'home') {
+          homeKeyHeld = true;
+          return;
+        }
         if (key === 'c') {
           collisionModeEnabled = !collisionModeEnabled;
           syncCollisionToggle();
           return;
         }
         if (key === 'b') {
+          if (homeKeyHeld) {
+            triggerBigBang(w * 0.5, h * 0.5, 'home+b');
+            return;
+          }
           bhArrowEnabled = !bhArrowEnabled;
           syncBhArrowToggle();
           return;
@@ -2075,7 +2258,18 @@
           togglePause();
           return;
         }
+        if (key >= '1' && key <= '5') {
+          applyPreset(Number(key));
+          return;
+        }
       });
+
+      window.addEventListener('keyup', (e) => {
+        const key = String(e.key || '').toLowerCase();
+        if (key === 'home') {
+          homeKeyHeld = false;
+        }
+      }, { passive: true });
 
       timeToggleBtn.addEventListener('click', () => {
         togglePause();
@@ -2089,6 +2283,36 @@
       });
       bhArrowToggleBtn.addEventListener('pointerdown', (e) => {
         e.stopPropagation();
+      });
+      preset1Btn.addEventListener('click', async () => {
+        await applyPreset(1);
+      });
+      preset1Btn.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+      });
+      preset2Btn.addEventListener('click', async () => {
+        await applyPreset(2);
+      });
+      preset2Btn.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+      });
+      preset3Btn.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+      });
+      preset3Btn.addEventListener('click', async () => {
+        await applyPreset(3);
+      });
+      preset4Btn.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+      });
+      preset4Btn.addEventListener('click', async () => {
+        await applyPreset(4);
+      });
+      preset5Btn.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+      });
+      preset5Btn.addEventListener('click', async () => {
+        await applyPreset(5);
       });
       universeInfoBtn.addEventListener('click', () => {
         hudVisible = !hudVisible;
