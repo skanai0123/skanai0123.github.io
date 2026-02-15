@@ -345,9 +345,9 @@
         bhMaxSpeed: 18,
         bhMutualGravityStrength: 0.09,
         bhMutualSoftening: 22,
-        bhAbsorbFlashGain: 0.72,
+        bhAbsorbGlowHalfLifeMs: 500,
+        bhAbsorbGlowEnergyScale: 0.015,
         bhCollapseFlashGain: 3.2,
-        bhAbsorbFlashDecay: 0.965,
         bhMergeK: 1.18,
         bigBangMinSpeed: 0.0,
         bigBangMaxSpeed: 24000,
@@ -524,6 +524,7 @@
       let lowStarHintShown = false;
       let cleanHintStartMs = 0;
       let cleanHintUntilMs = 0;
+      let lastStepMs = 0;
       let pointerHoldActive = false;
       let pointerHoldX = 0;
       let pointerHoldY = 0;
@@ -628,7 +629,10 @@
           R: radius,
           Rabs: calcAbsorbRadius(radius),
           absorbedCount: 0,
-          flash: PARAM.bhCollapseFlashGain
+          absorbGlow: 0,
+          absorbGlowR: 0,
+          absorbGlowG: 0,
+          absorbGlowB: 0
         });
         emitCollapseRepulse(p.x, p.y);
         return true;
@@ -665,7 +669,15 @@
         b.vy = (vby * mb + p.vy * dm) / newM;
         b.mass = newM;
         b.absorbedCount = (b.absorbedCount || 0) + 1;
-        b.flash = (b.flash || 0) + PARAM.bhAbsorbFlashGain;
+        const starMass = particleMassFromRadius(p.r);
+        const rvx = (p.vx || 0) - vbx;
+        const rvy = (p.vy || 0) - vby;
+        const kineticTerm = starMass * (rvx * rvx + rvy * rvy);
+        const glowAdd = kineticTerm * PARAM.bhAbsorbGlowEnergyScale;
+        b.absorbGlow = (b.absorbGlow || 0) + glowAdd;
+        b.absorbGlowR = (b.absorbGlowR || 0) + (p.cr || 255) * glowAdd;
+        b.absorbGlowG = (b.absorbGlowG || 0) + (p.cg || 255) * glowAdd;
+        b.absorbGlowB = (b.absorbGlowB || 0) + (p.cb || 255) * glowAdd;
       }
 
       function removeParticleAt(index) {
@@ -1592,12 +1604,15 @@
           R: radius,
           Rabs: calcAbsorbRadius(radius),
           absorbedCount: 0,
-          flash: 0
+          absorbGlow: 0,
+          absorbGlowR: 0,
+          absorbGlowG: 0,
+          absorbGlowB: 0
         });
         bhSpawnCooldown = PARAM.spawnCooldownFrames;
       }
 
-      function updateBlackHoles() {
+      function updateBlackHoles(dtMs) {
         if (!bhEnabled) return;
 
         // Mutual BH gravity (pairwise, momentum-conserving).
@@ -1627,6 +1642,8 @@
           }
         }
 
+        const halfLifeMs = Math.max(1, PARAM.bhAbsorbGlowHalfLifeMs);
+        const absorbGlowDecay = Math.pow(0.5, dtMs / halfLifeMs);
         for (let i = 0; i < blackHoles.length; i += 1) {
           const b = blackHoles[i];
           if (mouse.active && mouseGravityEnabled && dragBh.target !== b) {
@@ -1661,7 +1678,10 @@
           if (b.x >= w) b.x -= w;
           if (b.y < 0) b.y += h;
           if (b.y >= h) b.y -= h;
-          b.flash = (b.flash || 0) * PARAM.bhAbsorbFlashDecay;
+          b.absorbGlow = (b.absorbGlow || 0) * absorbGlowDecay;
+          b.absorbGlowR = (b.absorbGlowR || 0) * absorbGlowDecay;
+          b.absorbGlowG = (b.absorbGlowG || 0) * absorbGlowDecay;
+          b.absorbGlowB = (b.absorbGlowB || 0) * absorbGlowDecay;
           b.R = calcRadius(b.mass);
           b.Rabs = calcAbsorbRadius(b.R);
         }
@@ -1688,7 +1708,10 @@
             a.R = calcRadius(mass);
             a.Rabs = calcAbsorbRadius(a.R);
             a.absorbedCount = (a.absorbedCount || 0) + (b.absorbedCount || 0);
-            a.flash = Math.max(a.flash || 0, b.flash || 0);
+            a.absorbGlow = (a.absorbGlow || 0) + (b.absorbGlow || 0);
+            a.absorbGlowR = (a.absorbGlowR || 0) + (b.absorbGlowR || 0);
+            a.absorbGlowG = (a.absorbGlowG || 0) + (b.absorbGlowG || 0);
+            a.absorbGlowB = (a.absorbGlowB || 0) + (b.absorbGlowB || 0);
             blackHoles.splice(j, 1);
             j -= 1;
           }
@@ -1703,18 +1726,50 @@
           ctx.fillStyle = 'rgba(0,0,0,0.9)';
           ctx.arc(b.x, b.y, b.R, 0, Math.PI * 2);
           ctx.fill();
-          ctx.beginPath();
-          const absorbLevel = 1 - Math.exp(-(b.flash || 0));
-          const pulse = 0.5 + 0.5 * Math.sin(t * 8 + i * 1.7);
-          const edgeGlow = clamp(0.2 + pulse * 0.25 + absorbLevel * 0.55, 0, 1);
-          const pr = Math.round(168 + 64 * edgeGlow);
-          const pg = Math.round(126 + 58 * edgeGlow);
-          const pb = Math.round(230 + 24 * edgeGlow);
-          const pa = (0.26 + edgeGlow * 0.62).toFixed(3);
-          ctx.lineWidth = Math.max(0.65, b.R * (0.1 + absorbLevel * 0.05));
-          ctx.strokeStyle = 'rgba(' + pr + ',' + pg + ',' + pb + ',' + pa + ')';
-          ctx.arc(b.x, b.y, b.R + 0.4, 0, Math.PI * 2);
-          ctx.stroke();
+          const absorbLevel = 1 - Math.exp(-(b.absorbGlow || 0));
+          if (absorbLevel > 0.001) {
+            ctx.save();
+            ctx.globalCompositeOperation = 'lighter';
+            const innerR = b.R * 1.02;
+            const outerR = b.R * (1.7 + absorbLevel * 4.6);
+            const coreA = clamp(0.22 + absorbLevel * 0.62, 0, 1);
+            const midA = clamp(0.14 + absorbLevel * 0.45, 0, 1);
+            const rimA = clamp(0.06 + absorbLevel * 0.28, 0, 1);
+            const glowDen = Math.max(0.0001, b.absorbGlow || 0);
+            const gr = Math.round(clamp((b.absorbGlowR || 0) / glowDen, 0, 255));
+            const gg = Math.round(clamp((b.absorbGlowG || 0) / glowDen, 0, 255));
+            const gb = Math.round(clamp((b.absorbGlowB || 0) / glowDen, 0, 255));
+            const mr = Math.round(clamp(gr + (255 - gr) * 0.45, 0, 255));
+            const mg = Math.round(clamp(gg + (255 - gg) * 0.45, 0, 255));
+            const mb = Math.round(clamp(gb + (255 - gb) * 0.45, 0, 255));
+            const wr = Math.round(clamp(mr + 18, 0, 255));
+            const wg = Math.round(clamp(mg - 8, 0, 255));
+            const wb = Math.round(clamp(mb - 12, 0, 255));
+            const oval = 1 + 0.025 * Math.sin(t * 1.35 + i * 0.9);
+            ctx.translate(b.x, b.y);
+            ctx.scale(1 / oval, oval);
+            const grad = ctx.createRadialGradient(0, 0, innerR, 0, 0, outerR);
+            grad.addColorStop(0.00, 'rgba(' + wr + ',' + wg + ',' + wb + ',' + coreA.toFixed(3) + ')');
+            grad.addColorStop(0.30, 'rgba(' + mr + ',' + mg + ',' + mb + ',' + midA.toFixed(3) + ')');
+            grad.addColorStop(0.72, 'rgba(' + gr + ',' + gg + ',' + gb + ',' + rimA.toFixed(3) + ')');
+            grad.addColorStop(1.00, 'rgba(255,255,255,0.000)');
+            ctx.beginPath();
+            ctx.fillStyle = grad;
+            ctx.arc(0, 0, outerR, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.lineWidth = Math.max(0.6, b.R * 0.05);
+            ctx.strokeStyle = 'rgba(' + mr + ',' + mg + ',' + mb + ',' + clamp(0.05 + absorbLevel * 0.22, 0, 0.4).toFixed(3) + ')';
+            ctx.arc(0, 0, b.R * (1.28 + absorbLevel * 0.36), 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.fillStyle = 'rgba(0,0,0,0.98)';
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.arc(b.x, b.y, b.R, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+          }
 
           if (bhArrowEnabled) {
             drawUpArrow(b.x, b.y, b.R, 'rgba(255, 120, 210, 0.95)');
@@ -1783,6 +1838,8 @@
         }
 
         const nowMs = performance.now();
+        const dtMs = lastStepMs > 0 ? clamp(nowMs - lastStepMs, 0, 250) : (1000 / 60);
+        lastStepMs = nowMs;
         t += 0.015;
         frameTick += 1;
         ctx.fillStyle = backgroundColorFromEnergy(lastFrameParticleEnergy, t);
@@ -1999,7 +2056,7 @@
           }
         }
 
-        updateBlackHoles();
+        updateBlackHoles(dtMs);
         maybeTriggerBigBang();
         drawBlackHoles();
         updateUniverseHud(false);
