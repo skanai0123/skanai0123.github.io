@@ -1057,6 +1057,33 @@
         return (qx * qx + qy * qy) <= r2;
       }
 
+      function pointToSegmentDistanceSq(px, py, x0, y0, x1, y1) {
+        const dx = x1 - x0;
+        const dy = y1 - y0;
+        const len2 = dx * dx + dy * dy;
+        if (len2 <= 1e-9) {
+          const ex = px - x0;
+          const ey = py - y0;
+          return ex * ex + ey * ey;
+        }
+        let t = ((px - x0) * dx + (py - y0) * dy) / len2;
+        if (t < 0) t = 0;
+        if (t > 1) t = 1;
+        const qx = x0 + t * dx;
+        const qy = y0 + t * dy;
+        const ex = px - qx;
+        const ey = py - qy;
+        return ex * ex + ey * ey;
+      }
+
+      function getBhArrowGeometry(b) {
+        const arrowLen = Math.max(18, b.R * 2.4);
+        const head = Math.max(5, b.R * 0.5);
+        const tipY = b.y + b.R + 4;
+        const baseY = tipY + arrowLen;
+        return { arrowLen, head, tipY, baseY };
+      }
+
       function pickBlackHole(x, y) {
         if (!bhEnabled || blackHoles.length === 0) return null;
         for (let i = blackHoles.length - 1; i >= 0; i -= 1) {
@@ -1065,6 +1092,20 @@
           const dy = y - b.y;
           const r = b.R * 1.35;
           if (dx * dx + dy * dy <= r * r) return b;
+
+          if (bhArrowEnabled) {
+            const g = getBhArrowGeometry(b);
+            const shaftPickR = Math.max(8, b.R * 0.55);
+            const shaftD2 = pointToSegmentDistanceSq(x, y, b.x, g.baseY, b.x, g.tipY);
+            const nearShaft = shaftD2 <= shaftPickR * shaftPickR;
+            const hx = x - b.x;
+            const hy = y - g.tipY;
+            const nearHead =
+              (hx * hx + hy * hy) <= Math.pow(g.head * 2.2, 2) &&
+              y >= (g.tipY - g.head * 1.2) &&
+              y <= (g.tipY + g.head * 2.2);
+            if (nearShaft || nearHead) return b;
+          }
         }
         return null;
       }
@@ -1509,22 +1550,19 @@
           ctx.arc(b.x, b.y, b.R + 0.4, 0, Math.PI * 2);
           ctx.stroke();
 
-          if (bhArrowEnabled) {
-            const arrowLen = Math.max(18, b.R * 2.4);
-            const tipY = b.y - b.R - 4;
-            const baseY = tipY - arrowLen;
-            const head = Math.max(5, b.R * 0.5);
-            ctx.strokeStyle = 'rgba(255, 230, 150, 0.95)';
+          if (bhArrowEnabled && dragBh.target !== b) {
+            const g = getBhArrowGeometry(b);
+            ctx.strokeStyle = 'rgba(255, 120, 210, 0.95)';
             ctx.lineWidth = 1.8;
             ctx.beginPath();
-            ctx.moveTo(b.x, baseY);
-            ctx.lineTo(b.x, tipY);
+            ctx.moveTo(b.x, g.baseY);
+            ctx.lineTo(b.x, g.tipY);
             ctx.stroke();
-            ctx.fillStyle = 'rgba(255, 230, 150, 0.95)';
+            ctx.fillStyle = 'rgba(255, 120, 210, 0.95)';
             ctx.beginPath();
-            ctx.moveTo(b.x, tipY + 1);
-            ctx.lineTo(b.x - head, tipY - head * 0.9);
-            ctx.lineTo(b.x + head, tipY - head * 0.9);
+            ctx.moveTo(b.x, g.tipY - 1);
+            ctx.lineTo(b.x - g.head, g.tipY + g.head * 0.9);
+            ctx.lineTo(b.x + g.head, g.tipY + g.head * 0.9);
             ctx.closePath();
             ctx.fill();
           }
