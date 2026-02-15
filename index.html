@@ -345,7 +345,7 @@
         bhMaxSpeed: 18,
         bhMutualGravityStrength: 0.09,
         bhMutualSoftening: 22,
-        bhAbsorbGlowHalfLifeMs: 500,
+        bhAbsorbGlowHalfLifeMs: 125,
         bhAbsorbGlowEnergyScale: 0.015,
         bhCollapseFlashGain: 3.2,
         bhMergeK: 1.18,
@@ -1730,8 +1730,8 @@
           if (absorbLevel > 0.001) {
             ctx.save();
             ctx.globalCompositeOperation = 'lighter';
-            const innerR = b.R * 1.02;
-            const outerR = b.R * (1.7 + absorbLevel * 4.6);
+            const innerR = b.R * 1.08;
+            const outerR = b.R * 1.62;
             const coreA = clamp(0.22 + absorbLevel * 0.62, 0, 1);
             const midA = clamp(0.14 + absorbLevel * 0.45, 0, 1);
             const rimA = clamp(0.06 + absorbLevel * 0.28, 0, 1);
@@ -1760,7 +1760,7 @@
             ctx.beginPath();
             ctx.lineWidth = Math.max(0.6, b.R * 0.05);
             ctx.strokeStyle = 'rgba(' + mr + ',' + mg + ',' + mb + ',' + clamp(0.05 + absorbLevel * 0.22, 0, 0.4).toFixed(3) + ')';
-            ctx.arc(0, 0, b.R * (1.28 + absorbLevel * 0.36), 0, Math.PI * 2);
+            ctx.arc(0, 0, b.R * 1.30, 0, Math.PI * 2);
             ctx.stroke();
             ctx.beginPath();
             ctx.globalCompositeOperation = 'source-over';
