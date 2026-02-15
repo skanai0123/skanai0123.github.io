@@ -158,17 +158,19 @@
       color: #ffffff;
     }
 
-    .collision-toggle { right: 12px; top: 12px; font-size: 12px; }      /* c */
-    .fullscreen-toggle { right: 12px; top: 52px; font-size: 14px; }      /* f */
-    .particle-gravity-toggle { right: 12px; top: 92px; font-size: 12px; }/* g */
-    .flow-toggle { right: 12px; top: 132px; font-size: 12px; }           /* h */
-    .info-btn { right: 12px; top: 172px; font-size: 14px; }               /* i */
-    .links-toggle { right: 12px; top: 212px; font-size: 13px; }          /* l */
-    .mouse-gravity-toggle { right: 12px; top: 252px; font-size: 12px; }  /* m */
-    .friction-toggle { right: 12px; top: 292px; font-size: 12px; }       /* n */
-    .reset-layout-btn { right: 12px; top: 332px; font-size: 12px; }      /* r */
-    .time-toggle { right: 12px; top: 372px; }                             /* space */
-    .bh-arrow-toggle { right: 12px; top: 412px; font-size: 12px; }        /* b */
+    .bh-arrow-toggle { right: 12px; top: 12px; font-size: 12px; }         /* b */
+    .collision-toggle { right: 12px; top: 52px; font-size: 12px; }        /* c */
+    .date-toggle { right: 12px; top: 92px; font-size: 12px; }             /* d */
+    .fullscreen-toggle { right: 12px; top: 132px; font-size: 14px; }      /* f */
+    .particle-gravity-toggle { right: 12px; top: 172px; font-size: 12px; }/* g */
+    .flow-toggle { right: 12px; top: 212px; font-size: 12px; }            /* h */
+    .info-btn { right: 12px; top: 252px; font-size: 14px; }               /* i */
+    .links-toggle { right: 12px; top: 292px; font-size: 13px; }           /* l */
+    .mouse-gravity-toggle { right: 12px; top: 332px; font-size: 12px; }   /* m */
+    .friction-toggle { right: 12px; top: 372px; font-size: 12px; }        /* n */
+    .reset-layout-btn { right: 12px; top: 412px; font-size: 12px; }       /* r */
+    .clock-toggle { right: 12px; top: 452px; font-size: 12px; }           /* t */
+    .time-toggle { right: 12px; top: 492px; }                              /* space */
     .preset-btn { right: 56px; font-size: 12px; }
     .preset-1 { top: 12px; }
     .preset-2 { top: 52px; }
@@ -256,17 +258,19 @@
     <span class="hud-item" id="hudGravityG">G: -</span>
     <span class="hud-item" id="hudResistance">Res: -</span>
   </div>
+  <button id="bhArrowToggleBtn" class="tool-btn bh-arrow-toggle" type="button" aria-label="Show black hole arrows" title="Show black hole arrows">b</button>
   <button id="collisionToggleBtn" class="tool-btn collision-toggle" type="button" aria-label="Enable collisions" title="Enable collisions">c</button>
+  <button id="dateToggleBtn" class="tool-btn date-toggle" type="button" aria-label="Show date" title="Show date">d</button>
+  <button id="fullscreenToggleBtn" class="tool-btn fullscreen-toggle" type="button" aria-label="Enter fullscreen" title="Fullscreen">[ ]</button>
+  <button id="particleGravityToggleBtn" class="tool-btn particle-gravity-toggle" type="button" aria-label="Enable particle gravity" title="Enable particle gravity">g</button>
   <button id="flowToggleBtn" class="tool-btn flow-toggle" type="button" aria-label="Enable flow mode" title="Enable flow mode">h</button>
   <button id="universeInfoBtn" class="tool-btn info-btn" type="button" aria-label="Show universe panel" title="Universe panel">i</button>
   <button id="linksToggleBtn" class="tool-btn links-toggle" type="button" aria-label="Hide links" title="Hide links">L</button>
   <button id="mouseGravityToggleBtn" class="tool-btn mouse-gravity-toggle" type="button" aria-label="Disable mouse gravity" title="Disable mouse gravity">M</button>
   <button id="frictionToggleBtn" class="tool-btn friction-toggle" type="button" aria-label="Disable friction" title="Disable friction">n</button>
   <button id="resetLayoutBtn" class="tool-btn reset-layout-btn" type="button" aria-label="Reset layout" title="Reset layout">R</button>
-  <button id="fullscreenToggleBtn" class="tool-btn fullscreen-toggle" type="button" aria-label="Enter fullscreen" title="Fullscreen">[ ]</button>
-  <button id="particleGravityToggleBtn" class="tool-btn particle-gravity-toggle" type="button" aria-label="Enable particle gravity" title="Enable particle gravity">g</button>
+  <button id="clockToggleBtn" class="tool-btn clock-toggle" type="button" aria-label="Show clock" title="Show clock">t</button>
   <button id="timeToggleBtn" class="tool-btn time-toggle" type="button" aria-label="Pause time" title="Pause">II</button>
-  <button id="bhArrowToggleBtn" class="tool-btn bh-arrow-toggle" type="button" aria-label="Show black hole arrows" title="Show black hole arrows">b</button>
   <button id="preset1Btn" class="tool-btn preset-btn preset-1" type="button" aria-label="Preset 1" title="Preset 1">1</button>
   <button id="preset2Btn" class="tool-btn preset-btn preset-2" type="button" aria-label="Preset 2" title="Preset 2">2</button>
   <button id="preset3Btn" class="tool-btn preset-btn preset-3" type="button" aria-label="Preset 3" title="Preset 3">3</button>
@@ -458,6 +462,10 @@
       if (!fullscreenToggleBtn) return;
       const timeToggleBtn = document.getElementById('timeToggleBtn');
       if (!timeToggleBtn) return;
+      const dateToggleBtn = document.getElementById('dateToggleBtn');
+      if (!dateToggleBtn) return;
+      const clockToggleBtn = document.getElementById('clockToggleBtn');
+      if (!clockToggleBtn) return;
       const bhArrowToggleBtn = document.getElementById('bhArrowToggleBtn');
       if (!bhArrowToggleBtn) return;
       const preset1Btn = document.getElementById('preset1Btn');
@@ -939,6 +947,18 @@
         bhArrowToggleBtn.setAttribute('aria-label', bhArrowEnabled ? 'Hide black hole arrows' : 'Show black hole arrows');
       }
 
+      function syncClockToggleButton() {
+        clockToggleBtn.textContent = clockVisible ? 'T' : 't';
+        clockToggleBtn.title = clockVisible ? 'Hide clock' : 'Show clock';
+        clockToggleBtn.setAttribute('aria-label', clockVisible ? 'Hide clock' : 'Show clock');
+      }
+
+      function syncDateToggleButton() {
+        dateToggleBtn.textContent = clockDateVisible ? 'D' : 'd';
+        dateToggleBtn.title = clockDateVisible ? 'Hide date' : 'Show date';
+        dateToggleBtn.setAttribute('aria-label', clockDateVisible ? 'Hide date' : 'Show date');
+      }
+
       function drawCleanHint(nowMs) {
         if (nowMs >= cleanHintUntilMs) return;
         const total = Math.max(1, PARAM.cleanHintShowMs);
@@ -1086,12 +1106,14 @@
         const clockEl = document.getElementById('wallClock');
         if (!clockEl) return;
         clockEl.classList.toggle('hidden', !clockVisible);
+        syncClockToggleButton();
       }
 
       function syncClockDateVisibility() {
         const clockDateEl = document.getElementById('wallClockDate');
         if (!clockDateEl) return;
         clockDateEl.classList.toggle('hidden', !clockDateVisible);
+        syncDateToggleButton();
       }
 
       function syncUniverseHudVisibility() {
@@ -2288,6 +2310,20 @@
         togglePause();
       });
       timeToggleBtn.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+      });
+      dateToggleBtn.addEventListener('click', () => {
+        clockDateVisible = !clockDateVisible;
+        syncClockDateVisibility();
+      });
+      dateToggleBtn.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+      });
+      clockToggleBtn.addEventListener('click', () => {
+        clockVisible = !clockVisible;
+        syncClockVisibility();
+      });
+      clockToggleBtn.addEventListener('pointerdown', (e) => {
         e.stopPropagation();
       });
       bhArrowToggleBtn.addEventListener('click', () => {
