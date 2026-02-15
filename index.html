@@ -151,11 +151,18 @@
       line-height: 1;
       cursor: pointer;
       backdrop-filter: blur(1px);
+      opacity: 1;
+      transition: opacity 140ms ease;
     }
 
     .tool-btn:hover {
       border-color: var(--accent);
       color: #ffffff;
+    }
+
+    body.right-panel-hidden .tool-btn {
+      opacity: 0;
+      pointer-events: none;
     }
 
     .bh-arrow-toggle { right: 12px; top: 12px; font-size: 12px; }         /* b */
@@ -168,9 +175,10 @@
     .links-toggle { right: 12px; top: 292px; font-size: 13px; }           /* l */
     .mouse-gravity-toggle { right: 12px; top: 332px; font-size: 12px; }   /* m */
     .friction-toggle { right: 12px; top: 372px; font-size: 12px; }        /* n */
-    .reset-layout-btn { right: 12px; top: 412px; font-size: 12px; }       /* r */
-    .clock-toggle { right: 12px; top: 452px; font-size: 12px; }           /* t */
-    .time-toggle { right: 12px; top: 492px; }                              /* space */
+    .panel-toggle { right: 12px; top: 412px; font-size: 12px; }           /* p */
+    .reset-layout-btn { right: 12px; top: 452px; font-size: 12px; }       /* r */
+    .clock-toggle { right: 12px; top: 492px; font-size: 12px; }           /* t */
+    .time-toggle { right: 12px; top: 532px; }                              /* space */
     .preset-btn { right: 56px; font-size: 12px; }
     .preset-1 { top: 12px; }
     .preset-2 { top: 52px; }
@@ -268,6 +276,7 @@
   <button id="linksToggleBtn" class="tool-btn links-toggle" type="button" aria-label="Hide links" title="Hide links">L</button>
   <button id="mouseGravityToggleBtn" class="tool-btn mouse-gravity-toggle" type="button" aria-label="Disable mouse gravity" title="Disable mouse gravity">M</button>
   <button id="frictionToggleBtn" class="tool-btn friction-toggle" type="button" aria-label="Disable friction" title="Disable friction">n</button>
+  <button id="panelToggleBtn" class="tool-btn panel-toggle" type="button" aria-label="Hide right panel" title="Hide right panel">P</button>
   <button id="resetLayoutBtn" class="tool-btn reset-layout-btn" type="button" aria-label="Reset layout" title="Reset layout">R</button>
   <button id="clockToggleBtn" class="tool-btn clock-toggle" type="button" aria-label="Show clock" title="Show clock">t</button>
   <button id="timeToggleBtn" class="tool-btn time-toggle" type="button" aria-label="Pause time" title="Pause">II</button>
@@ -347,6 +356,11 @@
         bhMutualSoftening: 22,
         bhAbsorbGlowHalfLifeMs: 125,
         bhAbsorbGlowEnergyScale: 0.015,
+        bhRadiativeMassRef: 12.0,
+        bhRadiativeMassExp: 0.22,
+        bhAccretionHalfLifeMs: 900,
+        bhAccretionResponse: 0.06,
+        bhAccretionMaxBoost: 2.2,
         bhCollapseFlashGain: 3.2,
         bhMergeK: 1.18,
         bigBangMinSpeed: 0.0,
@@ -393,7 +407,7 @@
         ppGravityStrength: 0.95,
         ppGravitySoftening: 6,
         ppGravityMaxInteractions: 12,
-        ppLinearDamping: 0.006,
+        ppLinearDamping: 0.003,
         ppMassPower: 3.0,
         ppInertiaPower: 0.65,
         // Physically inspired collapse gate: around 3 solar masses (TOV-scale order).
@@ -452,6 +466,8 @@
       if (!collisionToggleBtn) return;
       const mouseGravityToggleBtn = document.getElementById('mouseGravityToggleBtn');
       if (!mouseGravityToggleBtn) return;
+      const panelToggleBtn = document.getElementById('panelToggleBtn');
+      if (!panelToggleBtn) return;
       const resetLayoutBtn = document.getElementById('resetLayoutBtn');
       if (!resetLayoutBtn) return;
       const flowToggleBtn = document.getElementById('flowToggleBtn');
@@ -564,6 +580,9 @@
       let clockDateVisible = true;
       let bhArrowEnabled = false;
       let homeKeyHeld = false;
+      let rightPanelHidden = false;
+      let rightPanelHover = false;
+      const rightPanelRevealZonePx = 120;
       let currentParticleTarget = PARAM.particleCount;
       const rRho2 = PARAM.rRho * PARAM.rRho;
       const dragBh = {
@@ -629,6 +648,7 @@
           R: radius,
           Rabs: calcAbsorbRadius(radius),
           absorbedCount: 0,
+          recentAccretion: 0,
           absorbGlow: 0,
           absorbGlowR: 0,
           absorbGlowG: 0,
@@ -673,7 +693,13 @@
         const rvx = (p.vx || 0) - vbx;
         const rvy = (p.vy || 0) - vby;
         const kineticTerm = starMass * (rvx * rvx + rvy * rvy);
-        const glowAdd = kineticTerm * PARAM.bhAbsorbGlowEnergyScale;
+        const massRef = Math.max(0.0001, PARAM.bhRadiativeMassRef);
+        const massExp = Math.max(0, PARAM.bhRadiativeMassExp);
+        const massFactor = Math.pow(Math.max(0.0001, newM) / massRef, massExp);
+        const recentAcc = Math.max(0, b.recentAccretion || 0);
+        const accBoost = 1 + Math.min(PARAM.bhAccretionMaxBoost, recentAcc * PARAM.bhAccretionResponse);
+        const glowAdd = kineticTerm * PARAM.bhAbsorbGlowEnergyScale * massFactor * accBoost;
+        b.recentAccretion = recentAcc + starMass;
         b.absorbGlow = (b.absorbGlow || 0) + glowAdd;
         b.absorbGlowR = (b.absorbGlowR || 0) + (p.cr || 255) * glowAdd;
         b.absorbGlowG = (b.absorbGlowG || 0) + (p.cg || 255) * glowAdd;
@@ -1171,6 +1197,19 @@
         return Math.max(lo, Math.min(hi, v));
       }
 
+      function syncRightPanelVisibility() {
+        document.body.classList.toggle('right-panel-hidden', rightPanelHidden && !rightPanelHover);
+        panelToggleBtn.textContent = rightPanelHidden ? 'p' : 'P';
+        panelToggleBtn.title = rightPanelHidden ? 'Show right panel' : 'Hide right panel';
+        panelToggleBtn.setAttribute('aria-label', rightPanelHidden ? 'Show right panel' : 'Hide right panel');
+      }
+
+      function syncRightPanelHover(clientX) {
+        const ww = Math.max(1, window.innerWidth || w || 1);
+        rightPanelHover = clientX >= (ww - rightPanelRevealZonePx);
+        syncRightPanelVisibility();
+      }
+
       function shortestWrappedDelta(a, b, period) {
         let d = a - b;
         if (d > period * 0.5) d -= period;
@@ -1604,6 +1643,7 @@
           R: radius,
           Rabs: calcAbsorbRadius(radius),
           absorbedCount: 0,
+          recentAccretion: 0,
           absorbGlow: 0,
           absorbGlowR: 0,
           absorbGlowG: 0,
@@ -1644,6 +1684,8 @@
 
         const halfLifeMs = Math.max(1, PARAM.bhAbsorbGlowHalfLifeMs);
         const absorbGlowDecay = Math.pow(0.5, dtMs / halfLifeMs);
+        const accHalfLifeMs = Math.max(1, PARAM.bhAccretionHalfLifeMs);
+        const accDecay = Math.pow(0.5, dtMs / accHalfLifeMs);
         for (let i = 0; i < blackHoles.length; i += 1) {
           const b = blackHoles[i];
           if (mouse.active && mouseGravityEnabled && dragBh.target !== b) {
@@ -1678,6 +1720,7 @@
           if (b.x >= w) b.x -= w;
           if (b.y < 0) b.y += h;
           if (b.y >= h) b.y -= h;
+          b.recentAccretion = (b.recentAccretion || 0) * accDecay;
           b.absorbGlow = (b.absorbGlow || 0) * absorbGlowDecay;
           b.absorbGlowR = (b.absorbGlowR || 0) * absorbGlowDecay;
           b.absorbGlowG = (b.absorbGlowG || 0) * absorbGlowDecay;
@@ -1708,6 +1751,7 @@
             a.R = calcRadius(mass);
             a.Rabs = calcAbsorbRadius(a.R);
             a.absorbedCount = (a.absorbedCount || 0) + (b.absorbedCount || 0);
+            a.recentAccretion = (a.recentAccretion || 0) + (b.recentAccretion || 0);
             a.absorbGlow = (a.absorbGlow || 0) + (b.absorbGlow || 0);
             a.absorbGlowR = (a.absorbGlowR || 0) + (b.absorbGlowR || 0);
             a.absorbGlowG = (a.absorbGlowG || 0) + (b.absorbGlowG || 0);
@@ -1727,45 +1771,44 @@
           ctx.arc(b.x, b.y, b.R, 0, Math.PI * 2);
           ctx.fill();
           const absorbLevel = 1 - Math.exp(-(b.absorbGlow || 0));
-          ctx.save();
-          ctx.globalCompositeOperation = 'lighter';
-          const innerR = b.R * 1.08;
-          const outerR = b.R * 1.62;
-          const coreA = clamp(0.22 + absorbLevel * 0.62, 0, 1);
-          const midA = clamp(0.14 + absorbLevel * 0.45, 0, 1);
-          const rimA = clamp(0.06 + absorbLevel * 0.28, 0, 1);
+          if (absorbLevel < 0.000008) {
+            if (bhArrowEnabled) {
+              drawUpArrow(b.x, b.y, b.R, 'rgba(255, 120, 210, 0.95)');
+            }
+            continue;
+          }
+          const glowInnerR = b.R * 1.0008;
+          const glowOuterR = b.R * (1.2036 + absorbLevel * 0.45);
+          const glowCoreA = clamp(Math.max(0.1, (0.16 + absorbLevel * 0.26) * 4.0), 0, 0.95);
+          const glowRimA = clamp(Math.max(0.1, (0.08 + absorbLevel * 0.24) * 4.0), 0, 0.9);
           const glowDen = Math.max(0.0001, b.absorbGlow || 0);
           const gr = Math.round(clamp((b.absorbGlowR || 0) / glowDen, 0, 255));
           const gg = Math.round(clamp((b.absorbGlowG || 0) / glowDen, 0, 255));
           const gb = Math.round(clamp((b.absorbGlowB || 0) / glowDen, 0, 255));
-          const mr = Math.round(clamp(gr + (255 - gr) * 0.45, 0, 255));
-          const mg = Math.round(clamp(gg + (255 - gg) * 0.45, 0, 255));
-          const mb = Math.round(clamp(gb + (255 - gb) * 0.45, 0, 255));
-          const wr = Math.round(clamp(mr + 18, 0, 255));
-          const wg = Math.round(clamp(mg - 8, 0, 255));
-          const wb = Math.round(clamp(mb - 12, 0, 255));
-          const oval = 1 + 0.025 * Math.sin(t * 1.35 + i * 0.9);
+
+          // Warm white disk tone (image-like), still influenced by absorbed-star color.
+          const mr = Math.round(clamp(gr + (255 - gr) * 0.55 + 18, 0, 255));
+          const mg = Math.round(clamp(gg + (255 - gg) * 0.40 - 10, 0, 255));
+          const mb = Math.round(clamp(gb + (255 - gb) * 0.28 - 24, 0, 255));
+
+          ctx.save();
+          ctx.globalCompositeOperation = 'lighter';
           ctx.translate(b.x, b.y);
-          ctx.scale(1 / oval, oval);
-          const grad = ctx.createRadialGradient(0, 0, innerR, 0, 0, outerR);
-          grad.addColorStop(0.00, 'rgba(' + wr + ',' + wg + ',' + wb + ',' + coreA.toFixed(3) + ')');
-          grad.addColorStop(0.30, 'rgba(' + mr + ',' + mg + ',' + mb + ',' + midA.toFixed(3) + ')');
-          grad.addColorStop(0.72, 'rgba(' + gr + ',' + gg + ',' + gb + ',' + rimA.toFixed(3) + ')');
-          grad.addColorStop(1.00, 'rgba(255,255,255,0.000)');
+
+          const glowGrad = ctx.createRadialGradient(0, 0, glowInnerR, 0, 0, glowOuterR);
+          glowGrad.addColorStop(0.00, 'rgba(' + mr + ',' + mg + ',' + mb + ',' + glowCoreA.toFixed(3) + ')');
+          glowGrad.addColorStop(0.42, 'rgba(' + gr + ',' + gg + ',' + gb + ',' + (glowCoreA * 0.75).toFixed(3) + ')');
+          glowGrad.addColorStop(0.80, 'rgba(' + gr + ',' + gg + ',' + gb + ',' + glowRimA.toFixed(3) + ')');
+          glowGrad.addColorStop(1.00, 'rgba(255,255,255,0.000)');
           ctx.beginPath();
-          ctx.fillStyle = grad;
-          ctx.arc(0, 0, outerR, 0, Math.PI * 2);
+          ctx.fillStyle = glowGrad;
+          ctx.arc(0, 0, glowOuterR, 0, Math.PI * 2);
           ctx.fill();
-          ctx.beginPath();
-          ctx.lineWidth = Math.max(0.6, b.R * 0.05);
-          ctx.strokeStyle = 'rgba(' + mr + ',' + mg + ',' + mb + ',' + clamp(0.05 + absorbLevel * 0.22, 0, 0.4).toFixed(3) + ')';
-          ctx.arc(0, 0, b.R * 1.30, 0, Math.PI * 2);
-          ctx.stroke();
+
           ctx.beginPath();
           ctx.globalCompositeOperation = 'source-over';
           ctx.fillStyle = 'rgba(0,0,0,0.98)';
-          ctx.setTransform(1, 0, 0, 1, 0, 0);
-          ctx.arc(b.x, b.y, b.R, 0, Math.PI * 2);
+          ctx.arc(0, 0, b.R, 0, Math.PI * 2);
           ctx.fill();
           ctx.restore();
 
@@ -2122,6 +2165,7 @@
       }
 
       window.addEventListener('pointermove', (e) => {
+        syncRightPanelHover(e.clientX);
         mouse.x = e.clientX;
         mouse.y = e.clientY;
         mouse.active = true;
@@ -2144,6 +2188,8 @@
         mouse.active = false;
         dragBh.target = null;
         pointerHoldActive = false;
+        rightPanelHover = false;
+        syncRightPanelVisibility();
       }, { passive: true });
 
       window.addEventListener('pointerdown', (e) => {
@@ -2215,6 +2261,7 @@
           mouseGravityEnabled = true;        // M
           noFrictionModeEnabled = false;     // n
           bhArrowEnabled = false;            // b
+          rightPanelHidden = false;          // P
           setPauseState(false);              // ||
           await ensureFullscreenOff();       // f
         } else if (id === 2) {
@@ -2228,6 +2275,7 @@
           bhArrowEnabled = true;             // B
           clockVisible = false;              // t
           clockDateVisible = false;          // d
+          rightPanelHidden = false;          // P
           setPauseState(false);              // ||
           await ensureFullscreenOff();       // f
         } else if (id === 3) {
@@ -2241,6 +2289,7 @@
           bhArrowEnabled = false;            // b
           clockVisible = true;               // T
           clockDateVisible = true;           // D
+          rightPanelHidden = true;           // p
         } else {
           return;
         }
@@ -2253,6 +2302,7 @@
         syncLinksVisibility();
         syncClockVisibility();
         syncClockDateVisibility();
+        syncRightPanelVisibility();
       }
 
       async function toggleFullscreen() {
@@ -2332,6 +2382,11 @@
         if (key === 'n') {
           noFrictionModeEnabled = !noFrictionModeEnabled;
           syncFrictionToggle();
+          return;
+        }
+        if (key === 'p') {
+          rightPanelHidden = !rightPanelHidden;
+          syncRightPanelVisibility();
           return;
         }
         if (key === 'r') {
@@ -2466,6 +2521,13 @@
       mouseGravityToggleBtn.addEventListener('pointerdown', (e) => {
         e.stopPropagation();
       });
+      panelToggleBtn.addEventListener('click', () => {
+        rightPanelHidden = !rightPanelHidden;
+        syncRightPanelVisibility();
+      });
+      panelToggleBtn.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+      });
       resetLayoutBtn.addEventListener('click', () => {
         resize();
       });
@@ -2499,6 +2561,7 @@
       updateUniverseHud(true);
       updateWallClock();
       setInterval(updateWallClock, 1000);
+      syncRightPanelVisibility();
       init();
     })();
   </script>
