@@ -90,6 +90,11 @@
       transition: transform 140ms ease, border-color 140ms ease;
     }
 
+    .card .label-nowrap {
+      display: inline-block;
+      white-space: nowrap;
+    }
+
     .card:hover {
       transform: translateY(-2px);
       border-color: var(--accent);
@@ -197,7 +202,7 @@
   <main class="wrap">
     <section class="cards">
       <a class="card" href="https://skanai0123.github.io/llg-playground/">LLG Playground</a>
-      <a class="card" href="https://skanai0123.github.io/t2-playground/"><i>T</i><sub>2</sub> Playground</a>
+      <a class="card" href="https://skanai0123.github.io/t2-playground/"><span class="label-nowrap"><i>T</i><sub>2</sub> Playground</span></a>
     </section>
   </main>
 
