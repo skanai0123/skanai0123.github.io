@@ -1993,7 +1993,7 @@
           if (bhArrowEnabled && p.isEarth) {
             drawUpArrow(p.x + p.r * 0.5, p.y + p.r * 0.5, Math.max(2.4, p.r * 0.8), 'rgba(120, 255, 170, 0.95)');
           }
-          if (particles.length < 10 && !(bhArrowEnabled && p.isEarth)) {
+          if (hudVisible && particles.length < 10 && !(bhArrowEnabled && p.isEarth)) {
             const starArrowColor = p.isEarth ? 'rgba(120, 255, 170, 0.95)' : 'rgba(255, 205, 120, 0.92)';
             drawUpArrow(p.x + p.r * 0.5, p.y + p.r * 0.5, Math.max(2.4, p.r * 0.8), starArrowColor);
           }
@@ -2159,7 +2159,7 @@
           linksHidden = true;                // l
           mouseGravityEnabled = true;        // M
           noFrictionModeEnabled = false;     // n
-          bhArrowEnabled = true;             // B
+          bhArrowEnabled = false;            // b
           setPauseState(false);              // ||
           await ensureFullscreenOff();       // f
         } else if (id === 2) {
