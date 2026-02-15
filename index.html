@@ -257,6 +257,8 @@
         bbWhiteBoostStart: 6.0,
         bbWhiteBoostDecay: 0.012,
         bbWhiteFlashMax: 220,
+        flowOscAmp: 0.075,
+        flowOscFreq: 1.25,
         holdGravityImpulseScale: 0.18,
         ppGravityCellSize: 52,
         ppGravityRange: 72,
@@ -1398,8 +1400,11 @@
           if (!noFrictionModeEnabled) {
             const hasBhGravity = bhEnabled && blackHoles.length > 0 && !suppressNegativeAmbientGravity;
             if (!particleGravityEnabled && (!hasBhGravity || flowModeEnabled)) {
+              const flowOscY = flowModeEnabled
+                ? Math.sin(t * PARAM.flowOscFreq) * PARAM.flowOscAmp
+                : 0;
               p.vx += (p.baseVx - p.vx) * currentVelReturn;
-              p.vy += (p.baseVy - p.vy) * currentVelReturn;
+              p.vy += ((p.baseVy + flowOscY) - p.vy) * currentVelReturn;
             } else {
               const drag = clamp(PARAM.ppLinearDamping, 0, 0.5);
               p.vx *= (1 - drag);
@@ -1521,7 +1526,8 @@
           if (p.y < -10) p.y = h + 10;
           if (p.y > h + 10) p.y = -10;
 
-          let alpha = (collisionModeEnabled ? 0.62 : 0.86) * p.life;
+          let alpha = (collisionModeEnabled ? 0.62 : 1.02) * p.life;
+          if (!collisionModeEnabled) alpha += 0.07;
           if (collisionModeEnabled) {
             alpha += proximityBrightnessOffset(i, p, wrapW, wrapH);
             alpha += p.flash || 0;
