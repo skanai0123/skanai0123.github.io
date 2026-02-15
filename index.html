@@ -54,50 +54,88 @@
       filter: saturate(1.1);
     }
 
-    .wrap {
-      position: relative;
-      z-index: 1;
-      width: min(920px, 100% - 40px);
-      margin: 34px auto;
-      max-height: calc(100vh - 68px);
-      overflow-x: hidden;
-      overflow-y: auto;
-      border: 1px solid var(--line);
-      background: rgba(5, 18, 38, 0.82);
-      box-shadow: 0 20px 42px rgba(0, 0, 0, 0.35);
-      padding: 18px;
-    }
-
-    .cards {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      gap: 14px;
-    }
-
-    .card {
-      min-height: 116px;
-      display: grid;
-      place-items: center;
-      border: 1px solid #274a71;
-      background: linear-gradient(145deg, var(--panel), var(--panel-2));
-      color: var(--text);
-      text-decoration: none;
-      font-size: clamp(30px, 3.4vw, 42px);
-      font-weight: 800;
-      letter-spacing: 0.01em;
+    .wall-clock {
+      position: fixed;
+      left: 50%;
+      top: 45%;
+      transform: translate(-50%, -50%);
+      z-index: 2;
+      color: rgba(255, 255, 255, 0.92);
+      font-size: clamp(72px, 18vw, 170px);
+      font-weight: 600;
+      line-height: 1;
+      letter-spacing: 0.02em;
+      text-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+      pointer-events: none;
       text-align: center;
-      padding: 10px;
-      transition: transform 140ms ease, border-color 140ms ease;
     }
 
-    .card .label-nowrap {
+    .wall-clock-time {
+      display: block;
+      line-height: 1;
+    }
+
+    .wall-clock-date {
+      display: block;
+      margin-top: 0.18em;
+      font-size: clamp(16px, 2.2vw, 30px);
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      opacity: 0.92;
+    }
+
+    .wall-clock-date.hidden {
+      display: none;
+    }
+
+    .wall-clock.hidden {
+      display: none;
+    }
+
+    .bookmark-bar {
+      position: fixed;
+      top: 10px;
+      left: 12px;
+      z-index: 3;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 8px;
+      padding: 6px 8px;
+      border: 1px solid rgba(134, 200, 255, 0.28);
+      border-radius: 10px;
+      background: rgba(8, 21, 42, 0.36);
+      backdrop-filter: blur(2px);
+    }
+
+    .bookmark-bar a {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 28px;
+      min-width: 70px;
+      padding: 0 10px;
+      border: 1px solid rgba(63, 112, 166, 0.45);
+      border-radius: 8px;
+      color: rgba(234, 241, 255, 0.9);
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 600;
+      background: rgba(9, 26, 48, 0.42);
+    }
+
+    .bookmark-bar a sub {
       display: inline-block;
-      white-space: nowrap;
+      font-size: 0.68em;
+      line-height: 1;
+      vertical-align: baseline;
+      transform: translateY(0.22em);
+      margin-left: 0.02em;
     }
 
-    .card:hover {
-      transform: translateY(-2px);
+    .bookmark-bar a:hover {
       border-color: var(--accent);
+      color: #fff;
     }
 
     .tool-btn {
@@ -165,8 +203,22 @@
     }
 
     @media (max-width: 720px) {
-      .wrap { width: calc(100% - 24px); margin-top: 20px; padding: 12px; }
-      .card { min-height: 100px; font-size: clamp(24px, 9vw, 34px); }
+      .wall-clock {
+        top: 42%;
+        font-size: clamp(56px, 22vw, 108px);
+      }
+      .bookmark-bar {
+        top: 8px;
+        left: 8px;
+        gap: 6px;
+        padding: 4px 6px;
+      }
+      .bookmark-bar a {
+        min-height: 24px;
+        min-width: 60px;
+        padding: 0 8px;
+        font-size: 11px;
+      }
       .universe-hud {
         top: 8px;
         max-width: calc(100vw - 12px);
@@ -179,6 +231,15 @@
 </head>
 <body>
   <canvas id="heroFx" aria-hidden="true"></canvas>
+  <nav class="bookmark-bar" aria-label="Bookmarks">
+    <a href="https://skanai0123.github.io/">Hub</a>
+    <a href="https://skanai0123.github.io/llg-playground/">LLG</a>
+    <a href="https://skanai0123.github.io/t2-playground/"><i>T</i><sub>2</sub></a>
+  </nav>
+  <div id="wallClock" class="wall-clock" aria-hidden="true">
+    <span id="wallClockTime" class="wall-clock-time">--:--</span>
+    <span id="wallClockDate" class="wall-clock-date">----</span>
+  </div>
   <div id="universeHud" class="universe-hud" aria-live="polite">
     <span class="hud-item" id="hudVersion">ver: -</span>
     <span class="hud-item" id="hudBhCount">BH: -</span>
@@ -198,13 +259,6 @@
   <button id="fullscreenToggleBtn" class="tool-btn fullscreen-toggle" type="button" aria-label="Enter fullscreen" title="Fullscreen">[ ]</button>
   <button id="particleGravityToggleBtn" class="tool-btn particle-gravity-toggle" type="button" aria-label="Enable particle gravity" title="Enable particle gravity">g</button>
   <button id="timeToggleBtn" class="tool-btn time-toggle" type="button" aria-label="Pause time" title="Pause">II</button>
-
-  <main class="wrap">
-    <section class="cards">
-      <a class="card" href="https://skanai0123.github.io/llg-playground/">LLG Playground</a>
-      <a class="card" href="https://skanai0123.github.io/t2-playground/"><span class="label-nowrap"><i>T</i><sub>2</sub> Playground</span></a>
-    </section>
-  </main>
 
   <script>
     (function () {
@@ -371,10 +425,8 @@
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
-      const wrapEl = document.querySelector('.wrap');
-      if (!wrapEl) return;
-      const cardsEl = document.querySelector('.cards');
-      if (!cardsEl) return;
+      const bookmarkBarEl = document.querySelector('.bookmark-bar');
+      if (!bookmarkBarEl) return;
       const linksToggleBtn = document.getElementById('linksToggleBtn');
       if (!linksToggleBtn) return;
       const frictionToggleBtn = document.getElementById('frictionToggleBtn');
@@ -472,6 +524,8 @@
       let bigBangCount = 0;
       let hudLastUpdateMs = -1;
       let hudVisible = false;
+      let clockVisible = true;
+      let clockDateVisible = true;
       let currentParticleTarget = PARAM.particleCount;
       const rRho2 = PARAM.rRho * PARAM.rRho;
       const dragBh = {
@@ -708,8 +762,7 @@
       }
 
       function syncLinksVisibility() {
-        cardsEl.style.display = linksHidden ? 'none' : '';
-        syncWrapVisibility();
+        bookmarkBarEl.style.display = linksHidden ? 'none' : 'flex';
         linksToggleBtn.textContent = linksHidden ? 'l' : 'L';
         linksToggleBtn.title = linksHidden ? 'Show links' : 'Hide links';
         linksToggleBtn.setAttribute('aria-label', linksHidden ? 'Show links' : 'Hide links');
@@ -763,10 +816,6 @@
         frictionToggleBtn.textContent = noFrictionModeEnabled ? 'N' : 'n';
         frictionToggleBtn.title = noFrictionModeEnabled ? 'Enable friction' : 'Disable friction';
         frictionToggleBtn.setAttribute('aria-label', noFrictionModeEnabled ? 'Enable friction' : 'Disable friction');
-      }
-
-      function syncWrapVisibility() {
-        wrapEl.style.display = linksHidden ? 'none' : '';
       }
 
       function drawCleanHint(nowMs) {
@@ -893,6 +942,34 @@
           : (particleGravityEnabled ? clamp(PARAM.ppLinearDamping, 0, 0.5) : currentVelReturn);
         hudGravityGEl.innerHTML = 'G: ' + gRatio.toFixed(1) + ' <i>G</i><sub>0</sub>';
         hudResistanceEl.textContent = 'Res: ' + resValue.toFixed(3);
+      }
+
+      function updateWallClock() {
+        const clockTimeEl = document.getElementById('wallClockTime');
+        if (!clockTimeEl) return;
+        const clockDateEl = document.getElementById('wallClockDate');
+        if (!clockDateEl) return;
+        const now = new Date();
+        const hh = String(now.getHours()).padStart(2, '0');
+        const mm = String(now.getMinutes()).padStart(2, '0');
+        const yyyy = now.getFullYear();
+        const mon = String(now.getMonth() + 1).padStart(2, '0');
+        const dd = String(now.getDate()).padStart(2, '0');
+        const weekday = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][now.getDay()];
+        clockTimeEl.textContent = hh + ':' + mm;
+        clockDateEl.textContent = yyyy + '/' + mon + '/' + dd + ' (' + weekday + ')';
+      }
+
+      function syncClockVisibility() {
+        const clockEl = document.getElementById('wallClock');
+        if (!clockEl) return;
+        clockEl.classList.toggle('hidden', !clockVisible);
+      }
+
+      function syncClockDateVisibility() {
+        const clockDateEl = document.getElementById('wallClockDate');
+        if (!clockDateEl) return;
+        clockDateEl.classList.toggle('hidden', !clockDateVisible);
       }
 
       function syncUniverseHudVisibility() {
@@ -1865,6 +1942,11 @@
           toggleFullscreen();
           return;
         }
+        if (key === 'd') {
+          clockDateVisible = !clockDateVisible;
+          syncClockDateVisibility();
+          return;
+        }
         if (key === 'g') {
           particleGravityEnabled = !particleGravityEnabled;
           syncParticleGravityToggle();
@@ -1896,6 +1978,11 @@
         }
         if (key === 'r') {
           resize();
+          return;
+        }
+        if (key === 't') {
+          clockVisible = !clockVisible;
+          syncClockVisibility();
           return;
         }
         if (key === ' ') {
@@ -1986,7 +2073,11 @@
       syncFlowToggle();
       syncFrictionToggle();
       syncUniverseHudVisibility();
+      syncClockVisibility();
+      syncClockDateVisibility();
       updateUniverseHud(true);
+      updateWallClock();
+      setInterval(updateWallClock, 1000);
       init();
     })();
   </script>
