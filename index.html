@@ -3461,10 +3461,54 @@
         setPauseState(!isPaused);
       }
 
-      async function ensureFullscreenOff() {
-        if (!document.fullscreenElement) return;
-        try {
+      function currentFullscreenElement() {
+        return document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement || null;
+      }
+
+      async function requestDocumentFullscreen(targetEl) {
+        const el = targetEl || document.documentElement;
+        if (el.requestFullscreen) {
+          await el.requestFullscreen();
+          return true;
+        }
+        if (el.webkitRequestFullscreen) {
+          el.webkitRequestFullscreen();
+          return true;
+        }
+        if (el.msRequestFullscreen) {
+          el.msRequestFullscreen();
+          return true;
+        }
+        return false;
+      }
+
+      async function exitDocumentFullscreen() {
+        if (document.exitFullscreen) {
           await document.exitFullscreen();
+          return true;
+        }
+        if (document.webkitExitFullscreen) {
+          document.webkitExitFullscreen();
+          return true;
+        }
+        if (document.msExitFullscreen) {
+          document.msExitFullscreen();
+          return true;
+        }
+        return false;
+      }
+
+      function syncFullscreenButton() {
+        const active = !!currentFullscreenElement();
+        fullscreenToggleBtn.textContent = active ? 'x' : '[ ]';
+        fullscreenToggleBtn.title = active ? 'Exit fullscreen' : 'Fullscreen';
+        fullscreenToggleBtn.setAttribute('aria-label', active ? 'Exit fullscreen' : 'Enter fullscreen');
+      }
+
+      async function ensureFullscreenOff() {
+        if (!currentFullscreenElement()) return;
+        try {
+          await exitDocumentFullscreen();
         } catch (_err) {
           // Ignore fullscreen errors from browser policy/user gesture constraints.
         }
@@ -3559,10 +3603,10 @@
 
       async function toggleFullscreen() {
         try {
-          if (!document.fullscreenElement) {
-            await document.documentElement.requestFullscreen();
+          if (!currentFullscreenElement()) {
+            await requestDocumentFullscreen(document.documentElement);
           } else {
-            await document.exitFullscreen();
+            await exitDocumentFullscreen();
           }
         } catch (_err) {
           // Ignore fullscreen errors from browser policy/user gesture constraints.
@@ -3830,12 +3874,9 @@
       fullscreenToggleBtn.addEventListener('pointerdown', (e) => {
         e.stopPropagation();
       });
-      document.addEventListener('fullscreenchange', () => {
-        const active = !!document.fullscreenElement;
-        fullscreenToggleBtn.textContent = active ? 'x' : '[ ]';
-        fullscreenToggleBtn.title = active ? 'Exit fullscreen' : 'Fullscreen';
-        fullscreenToggleBtn.setAttribute('aria-label', active ? 'Exit fullscreen' : 'Enter fullscreen');
-      });
+      document.addEventListener('fullscreenchange', syncFullscreenButton);
+      document.addEventListener('webkitfullscreenchange', syncFullscreenButton);
+      document.addEventListener('msfullscreenchange', syncFullscreenButton);
 
       window.addEventListener('resize', resetLayout, { passive: true });
       syncLinksVisibility();
@@ -3850,6 +3891,7 @@
       syncClockVisibility();
       syncClockDateVisibility();
       syncClockStarToggleButton();
+      syncFullscreenButton();
       updateUniverseHud(true);
       updateWallClock();
       setInterval(updateWallClock, 1000);
