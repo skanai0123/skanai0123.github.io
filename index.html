@@ -317,7 +317,7 @@
 
   <script>
     (function () {
-      const HUB_VERSION = 'hub-beta-0.2.2';
+      const HUB_VERSION = 'hub-beta-0.2.3';
       // Added parameters for black-hole gimmick:
       // cellSize, rRho, rhoThreshold, spawnCooldownFrames, maxBlackHoles,
       // spawnCellMinCount, spawnSampleMax, spawnMassBase, spawnMassPerRho,
@@ -359,7 +359,7 @@
         lifeMax: 1.0,
         cellSize: 52,
         rRho: 45,
-        rhoThreshold: 150,
+        rhoThreshold: 1050,
         spawnCooldownFrames: 320,
         maxBlackHoles: 3,
         spawnCellMinCount: 48,
@@ -394,7 +394,8 @@
         bhAccretionDiskRingGap: 0.0009,
         bhAccretionDiskAlpha: 0.64,
         bhAccretionDiskLineWidth: 2.5,
-        bhAccretionDiskHalfLifeMs: 300,
+        bhAccretionDiskHalfLifeMs: 180,
+        bhAccretionDiskMassHalfLifeGain: 0.05,
         bhAccretionDiskSizeScale: 0.01,
         bhAccretionDiskMassScaleExp: 0.42,
         bhAccretionDiskMassScaleCoef: 0.0001,
@@ -447,15 +448,16 @@
         ppGravityStrength: 0.95,
         ppGravitySoftening: 6,
         ppGravityMaxInteractions: 12,
-        ppLinearDamping: 0.003,
+        ppLinearDamping: 0.001,
         ppMassPower: 3.0,
         ppInertiaPower: 0.65,
         // Physically inspired collapse gate: around 3 solar masses (TOV-scale order).
-        collapseMassThreshold: 10.0,
-        collapseCollisionThreshold: 10,
+        collapseMassThreshold: 70.0,
+        collapseCollisionThreshold: 70,
         collapseRequireCollisionMode: true,
         collapseRepulseRadius: 86,
         collapseRepulseImpulse: 2.6,
+        collapseNoAbsorbFrames: 36,
         collisionDistanceFactor: 0.65,
         collisionMaxMergesPerFrame: 220,
         ppGridPhaseJitter: false,
@@ -732,6 +734,7 @@
           absorbGlowR: 0,
           absorbGlowG: 0,
           absorbGlowB: 0,
+          absorbLockFrames: Math.max(0, Math.floor(PARAM.collapseNoAbsorbFrames)),
           diskColorR: null,
           diskColorG: null,
           diskColorB: null,
@@ -1768,6 +1771,8 @@
                 pi.vy = (pi.vy * mi0 + pj.vy * mj0) / Math.max(1e-9, m);
                 pi.r = Math.pow(Math.max(0.2, m), 1 / massPower);
                 setParticleColor(pi, particleColorFromRadius(pi.r));
+                // Preserve Earth identity only if either merged particle was Earth.
+                pi.isEarth = !!(pi.isEarth || pj.isEarth);
                 pi.collisionCount = ci + cj + 1;
                 if (pi.life < pj.life) pi.life = pj.life;
                 pi.flash = Math.min(
@@ -1982,11 +1987,13 @@
           absorbGlowR: 0,
           absorbGlowG: 0,
           absorbGlowB: 0,
+          absorbLockFrames: Math.max(0, Math.floor(PARAM.collapseNoAbsorbFrames)),
           diskColorR: null,
           diskColorG: null,
           diskColorB: null,
           accretionRings: []
         });
+        emitCollapseRepulse(spawnX, spawnY);
         bhSpawnCooldown = PARAM.spawnCooldownFrames;
       }
 
@@ -2025,7 +2032,6 @@
         const accHalfLifeMs = Math.max(1, PARAM.bhAccretionHalfLifeMs);
         const accDecay = Math.pow(0.5, dtMs / accHalfLifeMs);
         const diskHalfLifeMs = Math.max(1, PARAM.bhAccretionDiskHalfLifeMs);
-        const diskDecay = Math.pow(0.5, dtMs / diskHalfLifeMs);
         for (let i = 0; i < blackHoles.length; i += 1) {
           const b = blackHoles[i];
           if (mouse.active && mouseGravityEnabled && dragBh.target !== b) {
@@ -2065,13 +2071,19 @@
           b.absorbGlowR = (b.absorbGlowR || 0) * absorbGlowDecay;
           b.absorbGlowG = (b.absorbGlowG || 0) * absorbGlowDecay;
           b.absorbGlowB = (b.absorbGlowB || 0) * absorbGlowDecay;
+          if ((b.absorbLockFrames || 0) > 0) {
+            b.absorbLockFrames -= 1;
+          }
           if (PARAM.bhAccretionDiskEnabled) {
             const rings = b.accretionRings || (b.accretionRings = []);
+            const absorbedMass = Math.max(0, (b.absorbedCount || 0) * Math.max(0.0001, PARAM.bhMassGainPerAbsorb));
+            const halfLifeScale = 1 + (absorbedMass * Math.max(0, PARAM.bhAccretionDiskMassHalfLifeGain));
+            const ringDecay = Math.pow(0.5, dtMs / (diskHalfLifeMs * halfLifeScale));
             const removeOff = Math.max(1e-12, PARAM.bhAccretionDiskRemoveOff);
             const fadeStartOff = Math.max(removeOff * 1.01, PARAM.bhAccretionDiskFadeStartOff);
             for (let rIdx = rings.length - 1; rIdx >= 0; rIdx -= 1) {
               const ring = rings[rIdx];
-              ring.off = (ring.off == null ? 0 : ring.off) * diskDecay;
+              ring.off = (ring.off == null ? 0 : ring.off) * ringDecay;
               const fade = clamp((ring.off - removeOff) / (fadeStartOff - removeOff), 0, 1);
               ring.fade = fade;
               if (ring.off < removeOff) {
@@ -2110,6 +2122,7 @@
             a.absorbGlowR = (a.absorbGlowR || 0) + (b.absorbGlowR || 0);
             a.absorbGlowG = (a.absorbGlowG || 0) + (b.absorbGlowG || 0);
             a.absorbGlowB = (a.absorbGlowB || 0) + (b.absorbGlowB || 0);
+            a.absorbLockFrames = Math.max(a.absorbLockFrames || 0, b.absorbLockFrames || 0);
             if (a.diskColorR == null || a.diskColorG == null || a.diskColorB == null) {
               a.diskColorR = b.diskColorR;
               a.diskColorG = b.diskColorG;
@@ -2342,6 +2355,7 @@
           if (!suppressNegativeAmbientGravity && bhEnabled && blackHoles.length > 0) {
             for (let bIdx = 0; bIdx < blackHoles.length; bIdx += 1) {
               const b = blackHoles[bIdx];
+              if ((b.absorbLockFrames || 0) > 0) continue;
               const dx = shortestWrappedDelta(b.x, p.x, wrapW);
               const dy = shortestWrappedDelta(b.y, p.y, wrapH);
               const d2 = dx * dx + dy * dy;
@@ -2383,6 +2397,7 @@
           if (bhEnabled && blackHoles.length > 0) {
             for (let bIdx = 0; bIdx < blackHoles.length; bIdx += 1) {
               const b = blackHoles[bIdx];
+              if ((b.absorbLockFrames || 0) > 0) continue;
               const r2 = b.Rabs * b.Rabs;
               const dx = shortestWrappedDelta(b.x, p.x, wrapW);
               const dy = shortestWrappedDelta(b.y, p.y, wrapH);
