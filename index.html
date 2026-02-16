@@ -83,6 +83,7 @@
       font-weight: 500;
       letter-spacing: 0.04em;
       opacity: 0.92;
+      text-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
     }
 
     .wall-clock-date.hidden {
@@ -177,10 +178,11 @@
     .links-toggle { right: 12px; top: 332px; font-size: 13px; }           /* l */
     .mouse-gravity-toggle { right: 12px; top: 372px; font-size: 12px; }   /* m */
     .friction-toggle { right: 12px; top: 412px; font-size: 12px; }        /* n */
-    .panel-toggle { right: 12px; top: 452px; font-size: 12px; }           /* p */
-    .reset-layout-btn { right: 12px; top: 492px; font-size: 12px; }       /* r */
-    .clock-toggle { right: 12px; top: 532px; font-size: 12px; }           /* t */
-    .time-toggle { right: 12px; top: 572px; }                              /* space */
+    .hover-toggle { right: 12px; top: 452px; font-size: 12px; }           /* o */
+    .panel-toggle { right: 12px; top: 492px; font-size: 12px; }           /* p */
+    .reset-layout-btn { right: 12px; top: 532px; font-size: 12px; }       /* r */
+    .clock-toggle { right: 12px; top: 572px; font-size: 12px; }           /* t */
+    .time-toggle { right: 12px; top: 612px; }                              /* space */
     .preset-btn { right: 56px; font-size: 12px; }
     .preset-1 { top: 12px; }
     .preset-2 { top: 52px; }
@@ -195,8 +197,12 @@
       transform: translateX(-50%);
       z-index: 2;
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
+      width: min(96vw, 980px);
+      box-sizing: border-box;
       gap: 10px;
+      row-gap: 5px;
       padding: 6px 10px;
       border: 1px solid rgba(134, 200, 255, 0.35);
       border-radius: 10px;
@@ -206,7 +212,6 @@
       line-height: 1.3;
       backdrop-filter: blur(2px);
       pointer-events: none;
-      white-space: nowrap;
       opacity: 0;
       visibility: hidden;
       transition: opacity 120ms ease;
@@ -215,6 +220,17 @@
     .universe-hud.visible {
       opacity: 1;
       visibility: visible;
+    }
+
+    .universe-hud.hover-only .hud-item:not(#hudEarthAlive):not(#hudStellarClasses):not(#hudHoverStar) {
+      display: none;
+    }
+
+    .universe-hud.hover-only #hudHoverStar {
+      flex: 1 0 auto;
+      border-top: 0;
+      padding-top: 0;
+      margin-top: 0;
     }
 
     .hud-copyright {
@@ -243,6 +259,22 @@
 
     .hud-item {
       opacity: 0.92;
+      white-space: nowrap;
+    }
+
+    .hud-item.hidden {
+      display: none;
+    }
+
+    #hudHoverStar {
+      flex: 1 0 100%;
+      border-top: 1px solid rgba(134, 200, 255, 0.22);
+      padding-top: 4px;
+      margin-top: 1px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      min-height: 1.25em;
     }
 
     @media (max-width: 720px) {
@@ -284,13 +316,14 @@
     <span id="wallClockDate" class="wall-clock-date">----</span>
   </div>
   <div id="universeHud" class="universe-hud" aria-live="polite">
-    <span class="hud-item" id="hudBhCount">BH: -</span>
     <span class="hud-item" id="hudBbCount">BB: -</span>
-    <span class="hud-item" id="hudStarCount">Stars: -</span>
     <span class="hud-item" id="hudEarthAlive">Earth: -</span>
+    <span class="hud-item" id="hudStellarClasses">M/G/D/B: -</span>
+    <span class="hud-item" id="hudMeanTemp">Tavg: -</span>
     <span class="hud-item" id="hudGravityG">G: -</span>
     <span class="hud-item" id="hudResistance">Res: -</span>
     <span class="hud-item" id="hudFps">FPS: -</span>
+    <span class="hud-item" id="hudHoverStar">Hover: -</span>
   </div>
   <div id="hudCopyright" class="hud-copyright" aria-hidden="true">
     <span id="hudVersion">ver: -</span> | © 2026 Shun Kanai
@@ -306,6 +339,7 @@
   <button id="linksToggleBtn" class="tool-btn links-toggle" type="button" aria-label="Hide links" title="Hide links">L</button>
   <button id="mouseGravityToggleBtn" class="tool-btn mouse-gravity-toggle" type="button" aria-label="Disable mouse gravity" title="Disable mouse gravity">M</button>
   <button id="frictionToggleBtn" class="tool-btn friction-toggle" type="button" aria-label="Disable friction" title="Disable friction">n</button>
+  <button id="hoverInfoToggleBtn" class="tool-btn hover-toggle" type="button" aria-label="Show hover info" title="Show hover info">o</button>
   <button id="panelToggleBtn" class="tool-btn panel-toggle" type="button" aria-label="Hide right panel" title="Hide right panel">P</button>
   <button id="resetLayoutBtn" class="tool-btn reset-layout-btn" type="button" aria-label="Reset layout" title="Reset layout">R</button>
   <button id="clockToggleBtn" class="tool-btn clock-toggle" type="button" aria-label="Show clock" title="Show clock">t</button>
@@ -348,7 +382,17 @@
         maxSpeed: 420,
         particleRadiusMin: 1.2,
         particleRadiusMax: 2.4,
-        largeStarCircleThreshold: 2.0,
+        largeStarCircleThreshold: 5.0,
+        giantStarGradientThreshold: 5.0,
+        giantStarGlowRadiusScale: 1.6,
+        giantStarGlowAlpha: 0.35,
+        starGlowAlphaStart: 0.62,
+        starGlowAlphaEnd: 1.25,
+        starGlowTempStartK: 2200,
+        starGlowTempEndK: 10000,
+        starGlowStrengthMin: 0.30,
+        starGlowMaxPerFrame: 400,
+        starGlowCoolAlphaScale: 0.72,
         useRadiusBasedColor: true,
         waveAmp: 0,
         velReturn: 0.02,
@@ -370,7 +414,7 @@
         spawnMassPerRho: 0.1,
         spawnMinDistance: 220,
         spawnCheckEveryNFrames: 10,
-        bbNoBhLockFrames: 900,
+        bbNoBhLockFrames: 12,
         bhR0: 0.24,
         bhAbsorbRatio: 1.0,
         bhCenterHitRadius: 0.08,
@@ -387,6 +431,9 @@
         bhMutualSoftening: 22,
         bhAbsorbGlowHalfLifeMs: 125,
         bhAbsorbGlowEnergyScale: 0.015,
+        bhAbsorbGlowRenderGain: 0.12,
+        bhAbsorbGlowRadiusScale: 2.8,
+        bhAbsorbGlowAlphaMax: 0.72,
         bhRadiativeMassRef: 12.0,
         bhRadiativeMassExp: 0.22,
         bhAccretionHalfLifeMs: 900,
@@ -404,6 +451,11 @@
         bhAccretionDiskFadeStartOff: 0.00001,
         bhAccretionDiskRemoveOff: 0.000001,
         bhAccretionDiskEnabled: true,
+        bhAccretionDiskTempTint: 0.65,
+        bhTempHalfLifeSec: 24,
+        bhTempMixPerAbsorb: 0.55,
+        bhTempKineticScale: 0.04,
+        bhTempMaxBoostK: 12000,
         bhCollapseFlashGain: 3.2,
         bhMergeK: 1.18,
         bigBangMinSpeed: 0.0,
@@ -433,6 +485,17 @@
         bbGravityAmplify: 1.8,
         bbPullMaxAmplify: 2.4,
         bbSofteningMinFactor: 0.3,
+        gravityRelaxHalfLifeSec: 600,
+        bbCleanModeEnabled: true,
+        bbCleanSpeedScale: 0.14,
+        bbCleanBaseDriftScale: 0.35,
+        bbCleanFlowScale: 0.25,
+        bbCleanCollisionLockFrames: 240,
+        bbCleanCollisionFactorScale: 1.45,
+        bbCleanGravityDisplayMin: 0.1,
+        bbCleanGravityDisplayMax: 10.0,
+        bbCleanTempCenterK: 8800,
+        bbCleanTempSpreadK: 900,
         // Toggle this to false to revert to the previous grayscale background.
         useCmbBackground: true,
         cmbBaseR: 0,
@@ -441,10 +504,12 @@
         cmbAnisoAmplitude: 2,
         bbWhiteBoostStart: 6.0,
         bbWhiteBoostDecay: 0.012,
-        bbWhiteFlashMax: 220,
+        bbWhiteFlashMax: 0,
         flowOscAmp: 0.0025,
         flowOscFreq: 1.25,
         holdGravityImpulseScale: 0.18,
+        mouseRepulseHeatGainK: 288,
+        frictionHeatGainK: 0.0000036,
         ppGravityCellSize: 52,
         ppGravityRange: 72,
         ppGravityStrength: 0.95,
@@ -459,8 +524,9 @@
         collapseRequireCollisionMode: true,
         collapseRepulseRadius: 86,
         collapseRepulseImpulse: 2.6,
+        densitySpawnRepulseBoost: 3.0,
         collapseNoAbsorbFrames: 36,
-        collisionDistanceFactor: 0.65,
+        collisionDistanceFactor: 0.85,
         collisionMaxMergesPerFrame: 220,
         collisionSampleDiv: 10,
         collisionJudgeDiv: 10,
@@ -477,10 +543,45 @@
         collisionFlashMax: 2.8,
         collisionHeatGain: 0.24,
         collisionHeatDecay: 0.978,
+        collisionTempGainK: 200,
         preCollapseHeatGain: 0.012,
         hotColorR: 196,
         hotColorG: 217,
         hotColorB: 248,
+        tempMinK: 0,
+        tempMaxK: 10000,
+        tempInitMinK: 3000,
+        tempInitMaxK: 9000,
+        tempInitGamma: 1.0,
+        tempRenderBoostPerHeatK: 1458,
+        tempColorPastelMix: 0.12,
+        tempCoolingRate: 0.04,
+        tempHalfLifeSec: 480,
+        tempCoolingRadiusRef: 2.0,
+        tempCoolingRadiusPower: 3.0,
+        tempBrightnessMin: 0.58,
+        tempBrightnessGamma: 0.5,
+        tempBlueShiftStartK: 8000,
+        tempBlueShiftStrength: 0.82,
+        tempBlueLuminanceBoost: 0.38,
+        stellarMainProb: 0.90,
+        stellarGiantProb: 0.06,
+        stellarDwarfProb: 0.04,
+        stellarGiantRadiusScale: 1.9,
+        stellarDwarfRadiusScale: 0.62,
+        stellarGiantTempScale: 0.72,
+        stellarDwarfTempScale: 1.24,
+        stellarGiantAlphaScale: 1.5,
+        stellarDwarfAlphaScale: 0.72,
+        bbRadiusBiasPower: 2.6,
+        bbRadiusUniformMix: 0.88,
+        bbRadiusMin: 0.9,
+        bbRadiusMax: 1.55,
+        bbClassRadiusScaleMix: 0.18,
+        bbGiantProbScale: 0.04,
+        bbDwarfProbScale: 1.1,
+        bbTempMinRatio: 0.9,
+        bbTempBiasPower: 3.0,
         vividBlueChance: 0.08,
         vividBlueToneScale: 0.42,
         vividRedChance: 0.018,
@@ -521,6 +622,8 @@
       if (!linksToggleBtn) return;
       const clockStarToggleBtn = document.getElementById('clockStarToggleBtn');
       if (!clockStarToggleBtn) return;
+      const hoverInfoToggleBtn = document.getElementById('hoverInfoToggleBtn');
+      if (!hoverInfoToggleBtn) return;
       const frictionToggleBtn = document.getElementById('frictionToggleBtn');
       if (!frictionToggleBtn) return;
       const collisionToggleBtn = document.getElementById('collisionToggleBtn');
@@ -563,14 +666,16 @@
       if (!hudCopyrightEl) return;
       const hudVersionEl = document.getElementById('hudVersion');
       if (!hudVersionEl) return;
-      const hudBhCountEl = document.getElementById('hudBhCount');
-      if (!hudBhCountEl) return;
       const hudBbCountEl = document.getElementById('hudBbCount');
       if (!hudBbCountEl) return;
-      const hudStarCountEl = document.getElementById('hudStarCount');
-      if (!hudStarCountEl) return;
       const hudEarthAliveEl = document.getElementById('hudEarthAlive');
       if (!hudEarthAliveEl) return;
+      const hudStellarClassesEl = document.getElementById('hudStellarClasses');
+      if (!hudStellarClassesEl) return;
+      const hudMeanTempEl = document.getElementById('hudMeanTemp');
+      if (!hudMeanTempEl) return;
+      const hudHoverStarEl = document.getElementById('hudHoverStar');
+      if (!hudHoverStarEl) return;
       const hudGravityGEl = document.getElementById('hudGravityG');
       if (!hudGravityGEl) return;
       const hudResistanceEl = document.getElementById('hudResistance');
@@ -592,6 +697,11 @@
       let currentBhPullMax = PARAM.bhPullMax * PARAM.initialGravityScale * PARAM.initialBhGravityScale;
       let currentBhGlobalSoftening = PARAM.bhGlobalSoftening;
       let currentBhPullPerAbsorb = PARAM.bhPullPerAbsorb * PARAM.initialGravityScale * PARAM.initialBhGravityScale;
+      let gravityRandBhGlobalPull = PARAM.bhGlobalPull;
+      let gravityRandBhPullPerAbsorb = PARAM.bhPullPerAbsorb;
+      let gravityBhSofteningBase = PARAM.bhGlobalSoftening;
+      let gravityRelaxEnabled = true;
+      let bbCleanRuntimeActive = false;
       let currentBigBangMaxSpeed = PARAM.bigBangMaxSpeed;
       let currentMaxSpeed = PARAM.maxSpeed;
       let currentFlowX = 0;
@@ -600,6 +710,7 @@
       let currentPpGravityStrength = PARAM.ppGravityStrength;
       let currentFps = 60;
       let lastFrameParticleEnergy = 0;
+      let lastFrameMeanTempK = PARAM.tempInitMinK;
       let bbWhiteBoost = 1;
       let linksHidden = false;
       let lowStarStartMs = 0;
@@ -615,6 +726,7 @@
       let noFrictionModeEnabled = false;
       let collisionModeEnabled = false;
       let flowModeEnabled = true;
+      let hoverInfoEnabled = false;
       const mouse = {
         x: 0,
         y: 0,
@@ -661,6 +773,9 @@
       let rightPanelHover = false;
       const rightPanelRevealZonePx = 120;
       let currentParticleTarget = PARAM.particleReferenceCount;
+      let initialParticleMassTarget = 0;
+      let currentParticleMassTotal = 0;
+      let bbMassCompensationActive = false;
       const rRho2 = PARAM.rRho * PARAM.rRho;
       const dragBh = {
         target: null,
@@ -710,7 +825,7 @@
       }
 
       function isInsideClockSpawnBlockArea(x, y) {
-        if (!clockVisible && !clockStarModeEnabled) return false;
+        if (!clockVisible && !clockDateVisible && !clockStarModeEnabled) return false;
         const cx = w * 0.5;
         const cy = h * 0.45;
         const timeFontPx = clamp(w * 0.18, 72, 170);
@@ -724,7 +839,7 @@
         if (isInsideClockSpawnBlockArea(p.x, p.y)) return false;
         const collisionCount = p.collisionCount || 0;
         if (collisionCount < PARAM.collapseCollisionThreshold) return false;
-        const m = particleMassFromRadius(p.r);
+        const m = Math.max(0.0001, Number.isFinite(p.mass) ? p.mass : particleMassFromRadius(p.r));
         if (m < PARAM.collapseMassThreshold) return false;
         const radius = calcRadius(m);
         blackHoles.push({
@@ -742,6 +857,11 @@
           absorbGlowG: 0,
           absorbGlowB: 0,
           absorbLockFrames: Math.max(0, Math.floor(PARAM.collapseNoAbsorbFrames)),
+          tempK: clamp(
+            Number.isFinite(p.tempK) ? p.tempK : PARAM.tempMinK,
+            PARAM.tempMinK,
+            PARAM.tempMaxK
+          ),
           diskColorR: null,
           diskColorG: null,
           diskColorB: null,
@@ -751,11 +871,12 @@
         return true;
       }
 
-      function emitCollapseRepulse(cx, cy) {
+      function emitCollapseRepulse(cx, cy, impulseScale = 1) {
         const r = Math.max(1, PARAM.collapseRepulseRadius);
         const r2 = r * r;
         const wx = w + 40;
         const wy = h + 20;
+        const scaledImpulse = PARAM.collapseRepulseImpulse * Math.max(0, impulseScale);
         for (let i = 0; i < particles.length; i += 1) {
           const p = particles[i];
           if (!p) continue;
@@ -765,7 +886,7 @@
           if (d2 < 1 || d2 > r2) continue;
           const d = Math.sqrt(d2);
           const u = 1 - (d / r);
-          const kick = PARAM.collapseRepulseImpulse * u;
+          const kick = scaledImpulse * u;
           p.vx += (dx / d) * kick;
           p.vy += (dy / d) * kick;
           p.flash = Math.min(PARAM.collisionFlashMax, (p.flash || 0) + 0.22 * u);
@@ -782,7 +903,7 @@
         b.vy = (vby * mb + p.vy * dm) / newM;
         b.mass = newM;
         b.absorbedCount = (b.absorbedCount || 0) + 1;
-        const starMass = particleMassFromRadius(p.r);
+        const starMass = Math.max(0.0001, Number.isFinite(p.mass) ? p.mass : particleMassFromRadius(p.r));
         const rvx = (p.vx || 0) - vbx;
         const rvy = (p.vy || 0) - vby;
         const kineticTerm = starMass * (rvx * rvx + rvy * rvy);
@@ -797,6 +918,26 @@
         b.absorbGlowR = (b.absorbGlowR || 0) + (p.cr || 255) * glowAdd;
         b.absorbGlowG = (b.absorbGlowG || 0) + (p.cg || 255) * glowAdd;
         b.absorbGlowB = (b.absorbGlowB || 0) + (p.cb || 255) * glowAdd;
+        const srcTempK = clamp(
+          Number.isFinite(p.tempK) ? p.tempK : PARAM.tempMinK,
+          PARAM.tempMinK,
+          PARAM.tempMaxK
+        );
+        const tempNow = clamp(
+          Number.isFinite(b.tempK) ? b.tempK : srcTempK,
+          PARAM.tempMinK,
+          PARAM.tempMaxK
+        );
+        const kineticBoostK = Math.min(
+          Math.max(0, PARAM.bhTempMaxBoostK),
+          kineticTerm * Math.max(0, PARAM.bhTempKineticScale)
+        );
+        const targetTempK = clamp(srcTempK + kineticBoostK, PARAM.tempMinK, PARAM.tempMaxK);
+        b.tempK = clamp(
+          lerp(tempNow, targetTempK, clamp(PARAM.bhTempMixPerAbsorb, 0, 1)),
+          PARAM.tempMinK,
+          PARAM.tempMaxK
+        );
         const srcR = clamp(Math.round(p.cr || 255), 0, 255);
         const srcG = clamp(Math.round(p.cg || 255), 0, 255);
         const srcB = clamp(Math.round(p.cb || 255), 0, 255);
@@ -852,8 +993,10 @@
           particles[i].isEarth = false;
         }
         const p = particles[0];
-        setParticleColor(p, '120,255,170');
+        setParticleColor(p, '0,255,0');
+        p.stellarClass = 'main';
         p.r = Math.max(p.r, 1.8);
+        p.mass = particleMassFromRadius(p.r);
         p.life = 1;
         p.isEarth = true;
       }
@@ -874,9 +1017,135 @@
         return randomInRange(PARAM.particleRadiusMin, PARAM.particleRadiusMax);
       }
 
+      function randomBigBangParticleRadius() {
+        const lo = Math.max(0.2, Math.min(PARAM.bbRadiusMin, PARAM.bbRadiusMax));
+        const hi = Math.max(lo + 0.01, Math.max(PARAM.bbRadiusMin, PARAM.bbRadiusMax));
+        const biasPow = Math.max(1, PARAM.bbRadiusBiasPower || 1);
+        const uniformMix = clamp(PARAM.bbRadiusUniformMix, 0, 1);
+        // Keep BB radii mostly small while allowing near-uniform spread in a narrow range.
+        const u = Math.random();
+        const biased = Math.pow(u, biasPow);
+        const t = lerp(biased, u, uniformMix);
+        return lo + (hi - lo) * clamp(t, 0, 1);
+      }
+
       function randomInitialHeat() {
         if (Math.random() >= PARAM.initialHotStarChance) return 0;
         return randomInRange(PARAM.initialHotStarHeatMin, PARAM.initialHotStarHeatMax);
+      }
+
+      function sampleStellarClass() {
+        const ms = clamp(PARAM.stellarMainProb, 0, 1);
+        const gi = clamp(PARAM.stellarGiantProb, 0, 1);
+        const wd = clamp(PARAM.stellarDwarfProb, 0, 1);
+        const total = Math.max(1e-9, ms + gi + wd);
+        const x = Math.random() * total;
+        if (x < ms) return 'main';
+        if (x < ms + gi) return 'giant';
+        return 'dwarf';
+      }
+
+      function sampleStellarClassForBigBang() {
+        const ms = clamp(PARAM.stellarMainProb, 0, 1);
+        const gi = clamp(PARAM.stellarGiantProb * Math.max(0, PARAM.bbGiantProbScale), 0, 1);
+        const wd = clamp(PARAM.stellarDwarfProb * Math.max(0, PARAM.bbDwarfProbScale), 0, 1);
+        const total = Math.max(1e-9, ms + gi + wd);
+        const x = Math.random() * total;
+        if (x < ms) return 'main';
+        if (x < ms + gi) return 'giant';
+        return 'dwarf';
+      }
+
+      function bigBangClassRadiusScale(stellarClass) {
+        const raw = stellarClassRadiusScale(stellarClass);
+        const mix = clamp(PARAM.bbClassRadiusScaleMix, 0, 1);
+        return lerp(1, raw, mix);
+      }
+
+      function stellarClassRadiusScale(stellarClass) {
+        if (stellarClass === 'giant') return Math.max(1, PARAM.stellarGiantRadiusScale);
+        if (stellarClass === 'dwarf') return clamp(PARAM.stellarDwarfRadiusScale, 0.2, 1);
+        return 1;
+      }
+
+      function stellarClassTempScale(stellarClass) {
+        if (stellarClass === 'giant') return clamp(PARAM.stellarGiantTempScale, 0.4, 1.5);
+        if (stellarClass === 'dwarf') return clamp(PARAM.stellarDwarfTempScale, 0.4, 2.0);
+        return 1;
+      }
+
+      function stellarClassAlphaScale(stellarClass) {
+        if (stellarClass === 'giant') return Math.max(0.4, PARAM.stellarGiantAlphaScale);
+        if (stellarClass === 'dwarf') return Math.max(0.2, PARAM.stellarDwarfAlphaScale);
+        return 1;
+      }
+
+      function classifyStellarClassFromState(r, tempK) {
+        if (r > 5) return 'giant';
+        if (r <= PARAM.particleRadiusMin * 0.8 && tempK >= 7800) return 'dwarf';
+        return 'main';
+      }
+
+      function kelvinToRgb(tempK) {
+        const k = clamp(tempK, PARAM.tempMinK, PARAM.tempMaxK);
+        // Harvard O/B/A/F/G/K/M-like ramp mapped by effective temperature.
+        const stops = [
+          [2300, [255, 132, 78]],   // M (orange-red extreme)
+          [3900, [240, 202, 152]],  // K
+          [5300, [244, 230, 196]],  // G
+          [6000, [246, 240, 228]],  // F
+          [7300, [226, 232, 245]],  // A
+          [10000, [182, 206, 255]], // B
+          [33000, [104, 150, 255]], // O
+          [40000, [82, 132, 255]]   // very hot O (blue extreme)
+        ];
+        if (k <= stops[0][0]) {
+          const c = stops[0][1];
+          return { r: c[0], g: c[1], b: c[2] };
+        }
+        for (let i = 0; i < stops.length - 1; i += 1) {
+          const a = stops[i];
+          const b = stops[i + 1];
+          if (k <= b[0]) {
+            const u = (k - a[0]) / Math.max(1e-9, b[0] - a[0]);
+            const highT = clamp((k - 8000) / Math.max(1, PARAM.tempMaxK - 8000), 0, 1);
+            const pastelMix = PARAM.tempColorPastelMix * (1 - highT * 0.7);
+            return {
+              r: Math.round(lerp(lerp(a[1][0], b[1][0], u), 255, pastelMix)),
+              g: Math.round(lerp(lerp(a[1][1], b[1][1], u), 255, pastelMix)),
+              b: Math.round(lerp(lerp(a[1][2], b[1][2], u), 255, pastelMix))
+            };
+          }
+        }
+        const c = stops[stops.length - 1][1];
+        return { r: c[0], g: c[1], b: c[2] };
+      }
+
+      function initialParticleTemperatureK(r, stellarClass = 'main') {
+        const normR = r / Math.max(0.1, stellarClassRadiusScale(stellarClass));
+        const span = Math.max(0.0001, PARAM.particleRadiusMax - PARAM.particleRadiusMin);
+        const t = clamp((normR - PARAM.particleRadiusMin) / span, 0, 1);
+        const initT = Math.pow(t, Math.max(0.5, PARAM.tempInitGamma));
+        const k = lerp(PARAM.tempInitMinK, PARAM.tempInitMaxK, initT) * stellarClassTempScale(stellarClass);
+        return clamp(k * randomInRange(0.9, 1.12), PARAM.tempMinK, PARAM.tempMaxK);
+      }
+
+      function equilibriumTemperatureK(r, stellarClass = 'main') {
+        const normR = r / Math.max(0.1, stellarClassRadiusScale(stellarClass));
+        const span = Math.max(0.0001, PARAM.particleRadiusMax - PARAM.particleRadiusMin);
+        const t = clamp((normR - PARAM.particleRadiusMin) / span, 0, 1);
+        const eqT = Math.pow(t, Math.max(0.5, PARAM.tempInitGamma));
+        const baseK = lerp(PARAM.tempInitMinK, PARAM.tempInitMaxK, eqT) * stellarClassTempScale(stellarClass);
+        return clamp(baseK, PARAM.tempMinK, PARAM.tempMaxK);
+      }
+
+      function syncParticleColorFromTemperature(p) {
+        const tempK = (p && Number.isFinite(p.tempK)) ? p.tempK : PARAM.tempMinK;
+        const rgb = kelvinToRgb(tempK);
+        p.cr = rgb.r;
+        p.cg = rgb.g;
+        p.cb = rgb.b;
+        p.color = p.cr + ',' + p.cg + ',' + p.cb;
       }
 
       function setParticleColor(p, csv) {
@@ -921,11 +1190,24 @@
         const softeningFactor = lerp(1, PARAM.bbSofteningMinFactor, strongT);
         currentGravityScale = strongScale;
         currentAttractStrength = PARAM.attractStrength * bbMousePullScale * strongScale;
-        currentBhGlobalPull = randomInRange(PARAM.bhGlobalPullMin, PARAM.bhGlobalPullMax) * bbBhPullScale * strongScale;
+        currentBhGlobalPull = gravityRandBhGlobalPull * bbBhPullScale * strongScale;
         currentBhPullMax = PARAM.bhPullMax * bbBhPullScale * (1 + over * PARAM.bbPullMaxAmplify);
-        currentBhPullPerAbsorb = randomInRange(PARAM.bhPullPerAbsorbMin, PARAM.bhPullPerAbsorbMax) * strongScale;
+        currentBhPullPerAbsorb = gravityRandBhPullPerAbsorb * strongScale;
         currentPpGravityStrength = PARAM.ppGravityStrength * (strongScale / Math.max(1e-9, PARAM.initialGravityScale));
-        currentBhGlobalSoftening *= softeningFactor;
+        currentBhGlobalSoftening = gravityBhSofteningBase * softeningFactor;
+      }
+
+      function gravityInputScaleFromEffective(effectiveScale) {
+        const sign = effectiveScale >= 0 ? 1 : -1;
+        const absStrong = Math.abs(effectiveScale);
+        if (absStrong <= 1) {
+          return clamp(sign * absStrong, PARAM.bbGravityScaleMin, PARAM.bbGravityScaleMax);
+        }
+        const amp = Math.max(1e-9, PARAM.bbGravityAmplify);
+        const pw = Math.max(1e-9, PARAM.bbGravityCurvePower);
+        const over = Math.pow((absStrong - 1) / amp, 1 / pw);
+        const absInput = 1 + over;
+        return clamp(sign * absInput, PARAM.bbGravityScaleMin, PARAM.bbGravityScaleMax);
       }
 
       function particleBrightnessEnergy(p) {
@@ -944,10 +1226,49 @@
         return total;
       }
 
-      function backgroundLumaFromEnergy(totalEnergy) {
-        if (particles.length === 0 || totalEnergy <= 0) return PARAM.bgLumaMin;
-        const scaled = 1 - Math.exp(-totalEnergy * PARAM.bgEnergyGain);
-        const boosted = Math.pow(clamp(scaled, 0, 1), PARAM.bgResponseGamma);
+      function computeAverageTemperature() {
+        if (particles.length === 0) return PARAM.tempMinK;
+        let sum = 0;
+        let count = 0;
+        for (let i = 0; i < particles.length; i += 1) {
+          const p = particles[i];
+          if (!p) continue;
+          const tk = Number.isFinite(p.tempK) ? p.tempK : PARAM.tempMinK;
+          sum += tk;
+          count += 1;
+        }
+        if (count <= 0) return PARAM.tempMinK;
+        return sum / count;
+      }
+
+      function computeParticleMassTotal() {
+        let sum = 0;
+        for (let i = 0; i < particles.length; i += 1) {
+          const p = particles[i];
+          if (!p) continue;
+          const m = Math.max(
+            0.0001,
+            Number.isFinite(p.mass) ? p.mass : particleMassFromRadius(p.r)
+          );
+          sum += m;
+        }
+        return sum;
+      }
+
+      function syncParticleMassState(updateTarget) {
+        currentParticleMassTotal = computeParticleMassTotal();
+        if (updateTarget) {
+          initialParticleMassTarget = currentParticleMassTotal;
+        }
+      }
+
+      function backgroundLumaFromTemperature(meanTempK) {
+        const tNorm = clamp(
+          (meanTempK - PARAM.tempMinK) / Math.max(1, PARAM.tempMaxK - PARAM.tempMinK),
+          0,
+          1
+        );
+        const boosted = Math.pow(tNorm, 0.72);
         const baseLuma = PARAM.bgLumaMin + (PARAM.bgLumaMax - PARAM.bgLumaMin) * boosted;
         const flashT = clamp((bbWhiteBoost - 1) / Math.max(0.0001, PARAM.bbWhiteBoostStart - 1), 0, 1);
         const flash = Math.pow(flashT, 0.35) * PARAM.bbWhiteFlashMax;
@@ -955,18 +1276,27 @@
         return Math.round(clamp(luma, PARAM.bgLumaMin, 255));
       }
 
-      function backgroundColorFromEnergy(totalEnergy, time) {
-        const luma = backgroundLumaFromEnergy(totalEnergy);
+      function backgroundColorFromTemperature(meanTempK, time) {
+        const luma = backgroundLumaFromTemperature(meanTempK);
+        const tempRgb = kelvinToRgb(meanTempK);
+        const warmT = clamp((7000 - meanTempK) / 7000, 0, 1);
+        const coolT = clamp((meanTempK - 7000) / Math.max(1, PARAM.tempMaxK - 7000), 0, 1);
+        const warmMix = 0.04 * warmT; // Soften reddish wash at low temperature.
+        const coolMix = 0.14 * coolT; // Keep bluish tint visible after BB/high-temp phases.
+        const tintMix = warmMix + coolMix;
         if (!PARAM.useCmbBackground) {
-          return 'rgb(' + luma + ',' + luma + ',' + luma + ')';
+          const r0 = clamp(Math.round(lerp(luma, tempRgb.r, tintMix)), 0, 255);
+          const g0 = clamp(Math.round(lerp(luma, tempRgb.g, tintMix)), 0, 255);
+          const b0 = clamp(Math.round(lerp(luma, tempRgb.b, tintMix)), 0, 255);
+          return 'rgb(' + r0 + ',' + g0 + ',' + b0 + ')';
         }
 
-        // Very subtle red/blue temperature-like fluctuations over a dark microwave background.
+        // Subtle CMB-like fluctuations around the average-temperature tint.
         const fluct = (Math.sin(time * 0.63) + Math.sin(time * 0.27 + 1.7)) * 0.5;
         const d = fluct * PARAM.cmbAnisoAmplitude;
-        const r = clamp(Math.round(PARAM.cmbBaseR + luma * 0.92 + d), 0, 255);
-        const g = clamp(Math.round(PARAM.cmbBaseG + luma * 0.97), 0, 255);
-        const b = clamp(Math.round(PARAM.cmbBaseB + luma * 1.08 - d), 0, 255);
+        const r = clamp(Math.round(PARAM.cmbBaseR + luma * 0.72 + tempRgb.r * tintMix + d), 0, 255);
+        const g = clamp(Math.round(PARAM.cmbBaseG + luma * 0.72 + tempRgb.g * tintMix), 0, 255);
+        const b = clamp(Math.round(PARAM.cmbBaseB + luma * 0.72 + tempRgb.b * tintMix - d), 0, 255);
         return 'rgb(' + r + ',' + g + ',' + b + ')';
       }
 
@@ -1134,6 +1464,13 @@
         clockStarToggleBtn.textContent = clockStarModeEnabled ? 'K' : 'k';
         clockStarToggleBtn.title = clockStarModeEnabled ? 'Disable star clock gravity' : 'Enable star clock gravity';
         clockStarToggleBtn.setAttribute('aria-label', clockStarModeEnabled ? 'Disable star clock gravity' : 'Enable star clock gravity');
+      }
+
+      function syncHoverInfoToggle() {
+        hoverInfoToggleBtn.textContent = hoverInfoEnabled ? 'O' : 'o';
+        hoverInfoToggleBtn.title = hoverInfoEnabled ? 'Hide hover info' : 'Show hover info';
+        hoverInfoToggleBtn.setAttribute('aria-label', hoverInfoEnabled ? 'Hide hover info' : 'Show hover info');
+        hudHoverStarEl.classList.toggle('hidden', !hoverInfoEnabled);
       }
 
       function clearClockGravityField() {
@@ -1336,6 +1673,8 @@
 
       function triggerBigBang(cx, cy, source) {
         const src = source || 'unknown';
+        const cleanMode = !!PARAM.bbCleanModeEnabled;
+        bbCleanRuntimeActive = cleanMode;
         bigBangCount += 1;
         if (typeof gtag === 'function') {
           gtag('event', 'big_bang', {
@@ -1348,19 +1687,32 @@
 
         blackHoles.length = 0;
         bhSpawnCooldown = PARAM.spawnCooldownFrames;
-        bhCreationLockFrames = PARAM.bbNoBhLockFrames;
+        bhCreationLockFrames = cleanMode
+          ? Math.max(PARAM.bbNoBhLockFrames, Math.floor(PARAM.bbCleanCollisionLockFrames))
+          : PARAM.bbNoBhLockFrames;
         particles.length = 0;
         bbWhiteBoost = Math.max(bbWhiteBoost, PARAM.bbWhiteBoostStart);
         bbMousePullScale = 1;
         bbBhPullScale = 1;
         currentVelReturn = randomVelReturn();
         currentPpLinearDamping = randomVelReturn();
-        currentBhGlobalSoftening = randomInRange(PARAM.bhGlobalSofteningMin, PARAM.bhGlobalSofteningMax);
-        applyGravityScale(randomInRange(PARAM.bbGravityScaleMin, PARAM.bbGravityScaleMax));
+        gravityRandBhGlobalPull = randomInRange(PARAM.bhGlobalPullMin, PARAM.bhGlobalPullMax);
+        gravityRandBhPullPerAbsorb = randomInRange(PARAM.bhPullPerAbsorbMin, PARAM.bhPullPerAbsorbMax);
+        gravityBhSofteningBase = randomInRange(PARAM.bhGlobalSofteningMin, PARAM.bhGlobalSofteningMax);
+        currentBhGlobalSoftening = gravityBhSofteningBase;
+        if (cleanMode) {
+          const gDisp = randomInRange(PARAM.bbCleanGravityDisplayMin, PARAM.bbCleanGravityDisplayMax);
+          const gEff = gDisp * PARAM.initialGravityScale;
+          applyGravityScale(gravityInputScaleFromEffective(gEff));
+          gravityRelaxEnabled = false;
+        } else {
+          applyGravityScale(randomInRange(PARAM.bbGravityScaleMin, PARAM.bbGravityScaleMax));
+          gravityRelaxEnabled = true;
+        }
         currentBigBangMaxSpeed = randomInRange(PARAM.bigBangMaxSpeedMin, PARAM.bigBangMaxSpeedMax);
         currentMaxSpeed = randomInRange(PARAM.maxSpeedMin, PARAM.maxSpeedMax);
         const flowS = flowModeEnabled
-          ? randomInRange(PARAM.bigBangFlowSpeedMin, PARAM.bigBangFlowSpeedMax)
+          ? randomInRange(PARAM.bigBangFlowSpeedMin, PARAM.bigBangFlowSpeedMax) * (cleanMode ? PARAM.bbCleanFlowScale : 1)
           : 0;
         currentFlowX = (Math.random() > 0.5 ? 1 : -1) * flowS;
         currentFlowY = (Math.random() * 0.24 - 0.12) * Math.min(1, flowS * 4);
@@ -1375,16 +1727,26 @@
           const u = 1 - rNorm;
           const a = Math.max(0.0001, PARAM.bigBangSpeedCurveA);
           const curve = (1 - Math.exp(-a * u)) / (1 - Math.exp(-a));
-          const speed = PARAM.bigBangMinSpeed + curve * (currentBigBangMaxSpeed - PARAM.bigBangMinSpeed);
+          const speedRaw = PARAM.bigBangMinSpeed + curve * (currentBigBangMaxSpeed - PARAM.bigBangMinSpeed);
+          const speed = speedRaw * (cleanMode ? Math.max(0, PARAM.bbCleanSpeedScale) : 1);
           const vx = nx * speed;
           const vy = ny * speed;
-          const baseVx = (Math.random() * 0.55 + 0.18) * (Math.random() > 0.5 ? 1 : -1);
-          const baseVy = (Math.random() * 0.24 - 0.12);
+          const driftScale = cleanMode ? Math.max(0, PARAM.bbCleanBaseDriftScale) : 1;
+          const baseVx = ((Math.random() * 0.55 + 0.18) * (Math.random() > 0.5 ? 1 : -1)) * driftScale;
+          const baseVy = (Math.random() * 0.24 - 0.12) * driftScale;
           const px = clamp(cx, 0, w);
           const py = clamp(cy, 0, h);
-          const r = randomParticleRadius();
-          const c = particleColorFromRadius(r);
+          const stellarClass = sampleStellarClassForBigBang();
+          const rBase = randomBigBangParticleRadius();
+          const r = rBase * bigBangClassRadiusScale(stellarClass);
           const heat0 = randomInitialHeat();
+          const tempK = cleanMode
+            ? clamp(
+              PARAM.bbCleanTempCenterK + randomInRange(-PARAM.bbCleanTempSpreadK, PARAM.bbCleanTempSpreadK),
+              PARAM.tempMinK,
+              PARAM.tempMaxK
+            )
+            : PARAM.tempMaxK;
           const p = {
             x: px,
             y: py,
@@ -1396,19 +1758,24 @@
             launchVyTarget: vy,
             launchTime: 0,
             r,
+            mass: particleMassFromRadius(r),
             collisionCount: 0,
             flash: 0,
             heat: heat0,
             life: Math.random() * 0.7 + 0.3,
-            color: c,
+            stellarClass,
+            tempK,
+            color: '255,255,255',
             cr: 255,
             cg: 255,
             cb: 255
           };
-          setParticleColor(p, c);
+          syncParticleColorFromTemperature(p);
           particles.push(p);
         }
         markSinglePinkStar();
+        syncParticleMassState(false);
+        bbMassCompensationActive = currentParticleMassTotal < Math.max(0, initialParticleMassTarget);
       }
 
       function isEarthAlive() {
@@ -1424,14 +1791,86 @@
         if (!force && hudLastUpdateMs >= 0 && (now - hudLastUpdateMs) < 100) return;
         hudLastUpdateMs = now;
         hudVersionEl.textContent = 'ver: ' + HUB_VERSION;
-        hudBhCountEl.textContent = 'BH: ' + blackHoles.length;
         hudBbCountEl.textContent = 'BB: ' + bigBangCount;
-        hudStarCountEl.textContent = 'Stars: ' + particles.length.toLocaleString();
         hudEarthAliveEl.textContent = 'Earth: ' + (isEarthAlive() ? 'alive' : 'lost');
+        let mainCount = 0;
+        let giantCount = 0;
+        let dwarfCount = 0;
+        for (let i = 0; i < particles.length; i += 1) {
+          const cls = (particles[i] && particles[i].stellarClass) || 'main';
+          if (cls === 'giant') giantCount += 1;
+          else if (cls === 'dwarf') dwarfCount += 1;
+          else mainCount += 1;
+        }
+        hudStellarClassesEl.textContent = 'M/G/D/B: '
+          + mainCount.toLocaleString() + '/'
+          + giantCount.toLocaleString() + '/'
+          + dwarfCount.toLocaleString() + '/'
+          + blackHoles.length.toLocaleString();
+        hudMeanTempEl.textContent = 'Tavg: ' + Math.round(lastFrameMeanTempK).toLocaleString() + 'K';
+        if (!hoverInfoEnabled) {
+          hudHoverStarEl.textContent = 'Hover: -';
+        } else {
+          const hoveredBh = dragBh.target || (mouse.active ? pickBlackHole(mouse.x, mouse.y) : null);
+          if (hoveredBh) {
+            const bhTempK = Math.round(clamp(
+              Number.isFinite(hoveredBh.tempK) ? hoveredBh.tempK : PARAM.tempMinK,
+              PARAM.tempMinK,
+              PARAM.tempMaxK
+            ));
+            const bhMass = Math.max(0.0001, Number.isFinite(hoveredBh.mass) ? hoveredBh.mass : 0.0001);
+            const bhSpeed = Math.sqrt(
+              (hoveredBh.vx || 0) * (hoveredBh.vx || 0) + (hoveredBh.vy || 0) * (hoveredBh.vy || 0)
+            );
+            hudHoverStarEl.textContent =
+              'Hover: BH'
+              + ', T ' + bhTempK.toLocaleString() + 'K'
+              + ', R ' + hoveredBh.R.toFixed(2)
+              + ', M ' + bhMass.toFixed(2)
+              + ', v ' + bhSpeed.toFixed(2);
+          } else if (!mouse.active || particles.length === 0) {
+            hudHoverStarEl.textContent = 'Hover: -';
+          } else {
+          let best = null;
+          let bestD2 = Number.POSITIVE_INFINITY;
+          for (let i = 0; i < particles.length; i += 1) {
+            const p = particles[i];
+            if (!p) continue;
+            const dx = shortestWrappedDelta(p.x, mouse.x, Math.max(1, w));
+            const dy = shortestWrappedDelta(p.y, mouse.y, Math.max(1, h));
+            const d2 = dx * dx + dy * dy;
+            const hitR = Math.max(6, p.r * 1.4);
+            if (d2 <= hitR * hitR && d2 < bestD2) {
+              best = p;
+              bestD2 = d2;
+            }
+          }
+          if (!best) {
+            hudHoverStarEl.textContent = 'Hover: -';
+          } else {
+            if (best.isEarth) {
+              hudHoverStarEl.textContent = 'Hover: Earth';
+            } else {
+              const cls = best.stellarClass || 'main';
+              const tempK = Math.round(Number.isFinite(best.tempK) ? best.tempK : PARAM.tempMinK);
+              const mass = Math.max(0.0001, Number.isFinite(best.mass) ? best.mass : particleMassFromRadius(best.r));
+              const speed = Math.sqrt((best.vx || 0) * (best.vx || 0) + (best.vy || 0) * (best.vy || 0));
+              hudHoverStarEl.textContent =
+                'Hover: ' + cls
+                + ', T ' + tempK.toLocaleString() + 'K'
+                + ', R ' + best.r.toFixed(2)
+                + ', M ' + mass.toFixed(2)
+                + ', v ' + speed.toFixed(2);
+            }
+          }
+          }
+        }
         const gRatio = PARAM.attractStrength !== 0 ? (currentAttractStrength / PARAM.attractStrength) : 0;
+        const gDisplayBase = Math.max(0.0001, PARAM.initialGravityScale || 1);
+        const gDisplayRatio = gRatio / gDisplayBase;
         // Keep Res as physical drag only so it stays comparable across flow on/off.
         const resValue = noFrictionModeEnabled ? 0 : clamp(currentPpLinearDamping, 0, 0.5);
-        hudGravityGEl.innerHTML = 'G: ' + gRatio.toFixed(1) + ' <i>G</i><sub>0</sub>';
+        hudGravityGEl.textContent = 'G: ' + gDisplayRatio.toFixed(1) + ' G0';
         hudResistanceEl.textContent = 'Res: ' + resValue.toFixed(3);
         hudFpsEl.textContent = 'FPS: ' + Math.round(currentFps);
       }
@@ -1457,7 +1896,7 @@
 
       function drawWallClockOnCanvas() {
         if (clockStarModeEnabled) return;
-        if (!clockVisible) return;
+        if (!clockVisible && !clockDateVisible) return;
         const cx = w * 0.5;
         const cy = h * 0.45;
         const timeFontPx = clamp(w * 0.18, 72, 170);
@@ -1470,12 +1909,15 @@
         ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
         ctx.shadowBlur = 30;
         ctx.shadowOffsetY = 8;
-        ctx.font = '600 ' + timeFontPx.toFixed(1) + 'px "Noto Sans JP", sans-serif';
-        ctx.fillText(wallClockTimeText, cx, cy);
+        if (clockVisible) {
+          ctx.font = '600 ' + timeFontPx.toFixed(1) + 'px "Noto Sans JP", sans-serif';
+          ctx.fillText(wallClockTimeText, cx, cy);
+        }
 
         if (clockDateVisible) {
           ctx.font = '500 ' + dateFontPx.toFixed(1) + 'px "Noto Sans JP", sans-serif';
-          ctx.fillText(wallClockDateText, cx, cy + (timeFontPx * 0.6));
+          const dateY = clockVisible ? (cy + (timeFontPx * 0.6)) : cy;
+          ctx.fillText(wallClockDateText, cx, dateY);
         }
         ctx.restore();
       }
@@ -1483,22 +1925,32 @@
       function syncClockVisibility() {
         const clockEl = document.getElementById('wallClock');
         if (!clockEl) return;
-        clockEl.classList.toggle('hidden', !clockVisible);
+        const clockTimeEl = document.getElementById('wallClockTime');
+        if (clockTimeEl) {
+          clockTimeEl.classList.toggle('hidden', !clockVisible);
+        }
+        clockEl.classList.toggle('hidden', !clockVisible && !clockDateVisible);
         rebuildClockGravityField(true);
         syncClockToggleButton();
       }
 
       function syncClockDateVisibility() {
+        const clockEl = document.getElementById('wallClock');
+        if (!clockEl) return;
         const clockDateEl = document.getElementById('wallClockDate');
         if (!clockDateEl) return;
         clockDateEl.classList.toggle('hidden', !clockDateVisible);
+        clockEl.classList.toggle('hidden', !clockVisible && !clockDateVisible);
         rebuildClockGravityField(true);
         syncDateToggleButton();
       }
 
       function syncUniverseHudVisibility() {
-        universeHudEl.classList.toggle('visible', hudVisible);
-        universeHudEl.setAttribute('aria-hidden', hudVisible ? 'false' : 'true');
+        const showHud = hudVisible || hoverInfoEnabled;
+        const hoverOnly = hoverInfoEnabled && !hudVisible;
+        universeHudEl.classList.toggle('visible', showHud);
+        universeHudEl.classList.toggle('hover-only', hoverOnly);
+        universeHudEl.setAttribute('aria-hidden', showHud ? 'false' : 'true');
         hudCopyrightEl.classList.toggle('visible', hudVisible);
         hudCopyrightEl.setAttribute('aria-hidden', hudVisible ? 'false' : 'true');
         universeInfoBtn.textContent = hudVisible ? 'I' : 'i';
@@ -1721,19 +2173,75 @@
         const collisionsOn = !!collisionEnabled;
         const removed = collisionsOn ? new Uint8Array(n) : null;
         const maxMerges = collisionsOn ? Math.max(1, Math.floor(PARAM.collisionMaxMergesPerFrame)) : 0;
-        const collisionFactor = collisionsOn ? Math.max(0.05, PARAM.collisionDistanceFactor) : 0;
+        const collisionScale = bbCleanRuntimeActive
+          ? Math.max(0.1, PARAM.bbCleanCollisionFactorScale || 1)
+          : 1;
+        const collisionFactor = collisionsOn
+          ? Math.max(0.05, PARAM.collisionDistanceFactor * collisionScale)
+          : 0;
         const collisionSampleDiv = collisionsOn ? Math.max(1, Math.floor(PARAM.collisionSampleDiv || 1)) : 1;
         const collisionSamplePhase = collisionsOn ? (frameTick % collisionSampleDiv) : 0;
         const collisionJudgeDiv = collisionsOn ? Math.max(1, Math.floor(PARAM.collisionJudgeDiv || 1)) : 1;
         const collisionJudgePhase = collisionsOn ? (frameTick % collisionJudgeDiv) : 0;
+        const compensationEnabled =
+          collisionsOn &&
+          bbMassCompensationActive &&
+          initialParticleMassTarget > 0;
+        let projectedMass = currentParticleMassTotal;
+        const compensationSpawnSpecs = [];
         let merges = 0;
         let maxParticleR = 0;
         for (let i = 0; i < n; i += 1) {
           const p = particles[i];
           if (p && p.r > maxParticleR) maxParticleR = p.r;
-          const m = Math.pow(Math.max(0.2, p ? p.r : 0.2), massPower);
+          const m = Math.max(
+            0.0001,
+            p && Number.isFinite(p.mass)
+              ? p.mass
+              : Math.pow(Math.max(0.2, p ? p.r : 0.2), massPower)
+          );
           massArr[i] = m;
           invInertiaArr[i] = 1 / Math.pow(m, inertiaPower);
+        }
+
+        function buildBigBangCompensationParticle() {
+          const rLo = Math.max(0.25, Math.min(PARAM.bbRadiusMin, PARAM.bbRadiusMax));
+          const rHiBase = Math.max(rLo + 0.01, Math.max(PARAM.bbRadiusMin, PARAM.bbRadiusMax));
+          const rHi = lerp(rLo, rHiBase, 0.35);
+          const r = randomInRange(rLo, rHi);
+          const tempK = clamp(
+            (Number.isFinite(lastFrameMeanTempK) ? lastFrameMeanTempK : PARAM.bbCleanTempCenterK),
+            PARAM.tempMinK,
+            PARAM.tempMaxK
+          );
+          const baseVx = (Math.random() * 0.42 + 0.12) * (Math.random() > 0.5 ? 1 : -1);
+          const baseVy = (Math.random() * 0.2 - 0.1);
+          const p = {
+            x: Math.random() * Math.max(1, w),
+            y: Math.random() * Math.max(1, h),
+            vx: baseVx + currentFlowX,
+            vy: baseVy + currentFlowY,
+            baseVx: baseVx + currentFlowX,
+            baseVy: baseVy + currentFlowY,
+            launchVxTarget: 0,
+            launchVyTarget: 0,
+            launchTime: -1,
+            r,
+            mass: particleMassFromRadius(r),
+            collisionCount: 0,
+            flash: 0,
+            heat: randomInitialHeat(),
+            life: Math.random() * 0.7 + 0.3,
+            stellarClass: 'main',
+            tempK,
+            color: '255,255,255',
+            cr: 255,
+            cg: 255,
+            cb: 255,
+            isEarth: false
+          };
+          syncParticleColorFromTemperature(p);
+          return p;
         }
         const gravityCellRadius = Math.max(1, Math.ceil(PARAM.ppGravityRange / s));
         const collisionRangeMax = Math.max(0.0001, maxParticleR * collisionFactor);
@@ -1788,14 +2296,29 @@
                 const wj = mj0 / Math.max(1e-9, m);
                 const ci = pi.collisionCount || 0;
                 const cj = pj.collisionCount || 0;
+                const rvx = (pi.vx || 0) - (pj.vx || 0);
+                const rvy = (pi.vy || 0) - (pj.vy || 0);
+                const reducedMass = (mi0 * mj0) / Math.max(1e-9, m);
+                const collisionEnergy = reducedMass * (rvx * rvx + rvy * rvy);
                 pi.x += dx * wj;
                 pi.y += dy * wj;
                 pi.vx = (pi.vx * mi0 + pj.vx * mj0) / Math.max(1e-9, m);
                 pi.vy = (pi.vy * mi0 + pj.vy * mj0) / Math.max(1e-9, m);
                 pi.r = Math.pow(Math.max(0.2, m), 1 / massPower);
-                setParticleColor(pi, particleColorFromRadius(pi.r));
-                // Preserve Earth identity only if either merged particle was Earth.
-                pi.isEarth = !!(pi.isEarth || pj.isEarth);
+                pi.mass = m;
+                const classI = pi.stellarClass || 'main';
+                const classJ = pj.stellarClass || 'main';
+                const ti = Number.isFinite(pi.tempK) ? pi.tempK : initialParticleTemperatureK(pi.r, classI);
+                const tj = Number.isFinite(pj.tempK) ? pj.tempK : initialParticleTemperatureK(pj.r, classJ);
+                const tempBase = ((ti * mi0) + (tj * mj0)) / Math.max(1e-9, m);
+                const tempGain = PARAM.collisionTempGainK * Math.log1p(Math.max(0, collisionEnergy));
+                pi.tempK = clamp(tempBase + tempGain, PARAM.tempMinK, PARAM.tempMaxK);
+                pi.stellarClass = classifyStellarClassFromState(pi.r, pi.tempK);
+                syncParticleColorFromTemperature(pi);
+                // Earth is considered lost once it participates in any merge.
+                if (pi.isEarth || pj.isEarth) {
+                  pi.isEarth = false;
+                }
                 pi.collisionCount = ci + cj + 1;
                 if (pi.life < pj.life) pi.life = pj.life;
                 pi.flash = Math.min(
@@ -1807,6 +2330,11 @@
                 massArr[i] = m;
                 invInertiaArr[i] = 1 / Math.pow(m, inertiaPower);
               merges += 1;
+              if (compensationEnabled && projectedMass < initialParticleMassTarget) {
+                const addP = buildBigBangCompensationParticle();
+                projectedMass += Math.max(0.0001, addP.mass || particleMassFromRadius(addP.r));
+                compensationSpawnSpecs.push(addP);
+              }
               interactionCounts[i] += 1;
               if (!PARAM.collapseRequireCollisionMode || collisionModeEnabled) {
                 if (tryCollapseParticleToBlackHole(pi)) {
@@ -1878,6 +2406,15 @@
           }
         }
         particles.length = write;
+        if (compensationSpawnSpecs.length > 0) {
+          for (let sIdx = 0; sIdx < compensationSpawnSpecs.length; sIdx += 1) {
+            particles.push(compensationSpawnSpecs[sIdx]);
+          }
+        }
+        currentParticleMassTotal = projectedMass;
+        if (bbMassCompensationActive && currentParticleMassTotal >= initialParticleMassTarget) {
+          bbMassCompensationActive = false;
+        }
         return true;
       }
 
@@ -2013,12 +2550,13 @@
           absorbGlowG: 0,
           absorbGlowB: 0,
           absorbLockFrames: Math.max(0, Math.floor(PARAM.collapseNoAbsorbFrames)),
+          tempK: clamp(lastFrameMeanTempK || PARAM.tempMinK, PARAM.tempMinK, PARAM.tempMaxK),
           diskColorR: null,
           diskColorG: null,
           diskColorB: null,
           accretionRings: []
         });
-        emitCollapseRepulse(spawnX, spawnY);
+        emitCollapseRepulse(spawnX, spawnY, PARAM.densitySpawnRepulseBoost);
         bhSpawnCooldown = PARAM.spawnCooldownFrames;
       }
 
@@ -2056,6 +2594,8 @@
         const absorbGlowDecay = Math.pow(0.5, dtMs / halfLifeMs);
         const accHalfLifeMs = Math.max(1, PARAM.bhAccretionHalfLifeMs);
         const accDecay = Math.pow(0.5, dtMs / accHalfLifeMs);
+        const bhTempHalfLifeMs = Math.max(1, PARAM.bhTempHalfLifeSec * 1000);
+        const bhTempDecay = Math.pow(0.5, dtMs / bhTempHalfLifeMs);
         const diskHalfLifeMs = Math.max(1, PARAM.bhAccretionDiskHalfLifeMs);
         for (let i = 0; i < blackHoles.length; i += 1) {
           const b = blackHoles[i];
@@ -2096,6 +2636,11 @@
           b.absorbGlowR = (b.absorbGlowR || 0) * absorbGlowDecay;
           b.absorbGlowG = (b.absorbGlowG || 0) * absorbGlowDecay;
           b.absorbGlowB = (b.absorbGlowB || 0) * absorbGlowDecay;
+          b.tempK = clamp(
+            (Number.isFinite(b.tempK) ? b.tempK : PARAM.tempMinK) * bhTempDecay,
+            PARAM.tempMinK,
+            PARAM.tempMaxK
+          );
           if ((b.absorbLockFrames || 0) > 0) {
             b.absorbLockFrames -= 1;
           }
@@ -2147,6 +2692,13 @@
             a.absorbGlowR = (a.absorbGlowR || 0) + (b.absorbGlowR || 0);
             a.absorbGlowG = (a.absorbGlowG || 0) + (b.absorbGlowG || 0);
             a.absorbGlowB = (a.absorbGlowB || 0) + (b.absorbGlowB || 0);
+            const aTemp = clamp(Number.isFinite(a.tempK) ? a.tempK : PARAM.tempMinK, PARAM.tempMinK, PARAM.tempMaxK);
+            const bTemp = clamp(Number.isFinite(b.tempK) ? b.tempK : PARAM.tempMinK, PARAM.tempMinK, PARAM.tempMaxK);
+            a.tempK = clamp(
+              (aTemp * massA + bTemp * massB) / Math.max(1e-9, mass),
+              PARAM.tempMinK,
+              PARAM.tempMaxK
+            );
             a.absorbLockFrames = Math.max(a.absorbLockFrames || 0, b.absorbLockFrames || 0);
             if (a.diskColorR == null || a.diskColorG == null || a.diskColorB == null) {
               a.diskColorR = b.diskColorR;
@@ -2177,6 +2729,37 @@
         if (!bhEnabled) return;
         for (let i = 0; i < blackHoles.length; i += 1) {
           const b = blackHoles[i];
+          const glowE = Math.max(0, b.absorbGlow || 0);
+          if (glowE > 1e-7) {
+            const invE = 1 / Math.max(1e-9, glowE);
+            const gr = clamp(Math.round((b.absorbGlowR || 0) * invE), 0, 255);
+            const gg = clamp(Math.round((b.absorbGlowG || 0) * invE), 0, 255);
+            const gb = clamp(Math.round((b.absorbGlowB || 0) * invE), 0, 255);
+            const glowStrength = 1 - Math.exp(-glowE * Math.max(0, PARAM.bhAbsorbGlowRenderGain));
+            const glowRadius = Math.max(
+              b.R * 1.2,
+              b.R * (1 + Math.max(0, PARAM.bhAbsorbGlowRadiusScale) * glowStrength)
+            );
+            const glowAlpha = clamp(
+              glowStrength * Math.max(0, PARAM.bhAbsorbGlowAlphaMax),
+              0,
+              1
+            );
+            if (glowAlpha > 0.002) {
+              const g0 = ctx.createRadialGradient(b.x, b.y, b.R * 0.35, b.x, b.y, glowRadius);
+              g0.addColorStop(0, 'rgba(' + gr + ',' + gg + ',' + gb + ',' + glowAlpha.toFixed(3) + ')');
+              g0.addColorStop(1, 'rgba(' + gr + ',' + gg + ',' + gb + ',0)');
+              ctx.save();
+              ctx.globalCompositeOperation = 'lighter';
+              ctx.fillStyle = g0;
+              ctx.beginPath();
+              ctx.arc(b.x, b.y, glowRadius, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.restore();
+            }
+          }
+          const bhTempRgb = kelvinToRgb(Number.isFinite(b.tempK) ? b.tempK : PARAM.tempMinK);
+          const tempTint = clamp(PARAM.bhAccretionDiskTempTint, 0, 1);
           const rings = PARAM.bhAccretionDiskEnabled ? (b.accretionRings || []) : [];
           if (rings.length > 0) {
             const gap = Math.max(0.00001, PARAM.bhAccretionDiskRingGap);
@@ -2197,7 +2780,10 @@
               const rr = b.R + (ring.off == null ? 0 : ring.off) * massScale * sizeScale;
               const fade = ring.fade == null ? 1 : ring.fade;
               const a = baseA * (0.5 + 0.5 * (rIdx / Math.max(1, rings.length))) * fade;
-              ctx.strokeStyle = 'rgba(' + ring.r + ',' + ring.g + ',' + ring.bl + ',' + a.toFixed(3) + ')';
+              const tr = Math.round(lerp(ring.r, bhTempRgb.r, tempTint));
+              const tg = Math.round(lerp(ring.g, bhTempRgb.g, tempTint));
+              const tb = Math.round(lerp(ring.bl, bhTempRgb.b, tempTint));
+              ctx.strokeStyle = 'rgba(' + tr + ',' + tg + ',' + tb + ',' + a.toFixed(3) + ')';
               ctx.beginPath();
               ctx.arc(b.x, b.y, rr, 0, Math.PI * 2);
               ctx.stroke();
@@ -2241,9 +2827,11 @@
         blackHoles.length = 0;
         bhSpawnCooldown = 0;
         for (let i = 0; i < target; i += 1) {
-          const r = randomParticleRadius();
-          const c = particleColorFromRadius(r);
+          const stellarClass = sampleStellarClass();
+          const rBase = randomParticleRadius();
+          const r = rBase * stellarClassRadiusScale(stellarClass);
           const heat0 = randomInitialHeat();
+          const tempK = initialParticleTemperatureK(r, stellarClass);
           const p = {
             x: Math.random() * w,
             y: Math.random() * h,
@@ -2255,20 +2843,27 @@
             launchVyTarget: 0,
             launchTime: -1,
             r,
+            mass: particleMassFromRadius(r),
             collisionCount: 0,
             flash: 0,
             heat: heat0,
             life: Math.random() * 0.7 + 0.3,
-            color: c,
+            stellarClass,
+            tempK,
+            color: '255,255,255',
             cr: 255,
             cg: 255,
             cb: 255
           };
-          setParticleColor(p, c);
+          syncParticleColorFromTemperature(p);
           particles.push(p);
         }
         markSinglePinkStar();
-        lastFrameParticleEnergy = computeParticleEnergy();
+        lastFrameMeanTempK = computeAverageTemperature();
+        syncParticleMassState(true);
+        bbMassCompensationActive = false;
+        gravityRelaxEnabled = true;
+        bbCleanRuntimeActive = false;
       }
 
       function step() {
@@ -2285,13 +2880,14 @@
         currentFps = lerp(currentFps, instantFps, 0.12);
         t += 0.015;
         frameTick += 1;
-        ctx.fillStyle = backgroundColorFromEnergy(lastFrameParticleEnergy, t);
+        ctx.fillStyle = backgroundColorFromTemperature(lastFrameMeanTempK, t);
         ctx.fillRect(0, 0, w, h);
         const attractR2 = currentAttractR * currentAttractR;
         const bhSoft2 = PARAM.bhMutualSoftening * PARAM.bhMutualSoftening;
         const wrapW = w;
         const wrapH = h;
         let totalEnergy = 0;
+        let totalTempK = 0;
         const preMassThreshold = Math.max(0.0001, PARAM.collapseMassThreshold) * Math.max(0.05, PARAM.preCollapseMassRatio);
         const preCollThreshold = Math.max(
           0,
@@ -2301,7 +2897,23 @@
           bhCreationLockFrames <= 0 && (!PARAM.collapseRequireCollisionMode || collisionModeEnabled);
         const suppressNegativeAmbientGravity = currentGravityScale < 0 && pointerHoldActive;
         const flowOscY = flowModeEnabled ? Math.sin(t * PARAM.flowOscFreq) * PARAM.flowOscAmp : 0;
+        syncParticleMassState(false);
+        if (bbMassCompensationActive && currentParticleMassTotal >= initialParticleMassTarget) {
+          bbMassCompensationActive = false;
+        }
+        const glowMaxPerFrame = Math.max(0, Math.floor(PARAM.starGlowMaxPerFrame || 0));
+        let glowDrawCount = 0;
         const maxSpeed2 = currentMaxSpeed * currentMaxSpeed;
+        if (gravityRelaxEnabled) {
+          const gravityTargetScale = PARAM.initialGravityScale;
+          const gravityHalfLifeMs = Math.max(1, PARAM.gravityRelaxHalfLifeSec * 1000);
+          const gravityDecay = Math.pow(0.5, dtMs / gravityHalfLifeMs);
+          if (Math.abs(currentGravityScale - gravityTargetScale) > 1e-4) {
+            const relaxedScale = gravityTargetScale + (currentGravityScale - gravityTargetScale) * gravityDecay;
+            const relaxedInputScale = gravityInputScaleFromEffective(relaxedScale);
+            applyGravityScale(relaxedInputScale);
+          }
+        }
         const hasBhGravity = !suppressNegativeAmbientGravity && bhEnabled && blackHoles.length > 0;
         const hasBhAbsorbCheck = bhEnabled && blackHoles.length > 0;
         const waveAmp = PARAM.waveAmp;
@@ -2340,16 +2952,33 @@
           const p = particles[i];
           const prevX = p.x;
           const prevY = p.y;
+          let frictionHeatDeltaK = 0;
           if (!noFrictionModeEnabled) {
             if (!particleGravityEnabled && (!hasBhGravity || flowModeEnabled)) {
               const targetVx = flowModeEnabled ? p.baseVx : 0;
               const targetVy = (flowModeEnabled ? p.baseVy : 0) + flowOscY;
+              const rvx0 = p.vx - targetVx;
+              const rvy0 = p.vy - targetVy;
               p.vx += (targetVx - p.vx) * currentVelReturn;
               p.vy += (targetVy - p.vy) * currentVelReturn;
+              const rvx1 = p.vx - targetVx;
+              const rvy1 = p.vy - targetVy;
+              const relLoss = (rvx0 * rvx0 + rvy0 * rvy0) - (rvx1 * rvx1 + rvy1 * rvy1);
+              if (relLoss > 0) frictionHeatDeltaK += relLoss * PARAM.frictionHeatGainK;
             } else {
               const drag = clamp(currentPpLinearDamping, 0, 0.5);
+              const v20 = p.vx * p.vx + p.vy * p.vy;
               p.vx *= (1 - drag);
               p.vy *= (1 - drag);
+              const v21 = p.vx * p.vx + p.vy * p.vy;
+              const loss = v20 - v21;
+              if (loss > 0) frictionHeatDeltaK += loss * PARAM.frictionHeatGainK;
+            }
+            if (frictionHeatDeltaK > 0) {
+              const tempNow = Number.isFinite(p.tempK)
+                ? p.tempK
+                : equilibriumTemperatureK(p.r, p.stellarClass || 'main');
+              p.tempK = clamp(tempNow + frictionHeatDeltaK, PARAM.tempMinK, PARAM.tempMaxK);
             }
           }
 
@@ -2368,8 +2997,8 @@
           }
 
           if (mouse.active && mouseGravityEnabled && !suppressNegativeAmbientGravity) {
-            const dx = mouse.x - p.x;
-            const dy = mouse.y - p.y;
+            const dx = shortestWrappedDelta(mouse.x, p.x, wrapW);
+            const dy = shortestWrappedDelta(mouse.y, p.y, wrapH);
             const d2 = dx * dx + dy * dy;
             if (d2 > 1 && d2 < attractR2) {
               const d = Math.sqrt(d2);
@@ -2446,9 +3075,19 @@
           if (p.life > PARAM.lifeMax) p.life = PARAM.lifeMax;
           p.flash = (p.flash || 0) * PARAM.collisionFlashDecay;
           p.heat = (p.heat || 0) * PARAM.collisionHeatDecay;
+          const tempNow = Number.isFinite(p.tempK)
+            ? p.tempK
+            : equilibriumTemperatureK(p.r, p.stellarClass || 'main');
+          const coolRefR = Math.max(0.1, PARAM.tempCoolingRadiusRef || 2.0);
+          const coolPow = Math.max(0.05, PARAM.tempCoolingRadiusPower || 1.0);
+          const rScale = Math.pow(Math.max(0.1, p.r) / coolRefR, coolPow);
+          const halfLifeMs = Math.max(1, PARAM.tempHalfLifeSec * 1000 * rScale);
+          const decay = Math.pow(0.5, dtMs / halfLifeMs);
+          p.tempK = clamp(tempNow * decay, PARAM.tempMinK, PARAM.tempMaxK);
+          totalTempK += p.tempK;
           if (canPreCollapseGlow && (p.collisionCount || 0) >= preCollThreshold) {
             // Expensive mass check only for near-threshold particles.
-            const m = particleMassFromRadius(p.r);
+            const m = Math.max(0.0001, Number.isFinite(p.mass) ? p.mass : particleMassFromRadius(p.r));
             if (m >= preMassThreshold) {
               p.flash = Math.min(
                 PARAM.preCollapseFlashMax,
@@ -2466,19 +3105,100 @@
 
           // Twinkle suspended: keep brightness behavior identical to non-collision mode.
           let alpha = 1.02 * p.life + 0.07;
-          let dr = p.cr || 255;
-          let dg = p.cg || 255;
-          let db = p.cb || 255;
           const heat = clamp(p.heat || 0, 0, 1);
-          if (heat > 0.001) {
-            dr = Math.round(lerp(dr, PARAM.hotColorR, heat));
-            dg = Math.round(lerp(dg, PARAM.hotColorG, heat));
-            db = Math.round(lerp(db, PARAM.hotColorB, heat));
+          const renderTempK = clamp(
+            (Number.isFinite(p.tempK) ? p.tempK : PARAM.tempMinK) + (heat * PARAM.tempRenderBoostPerHeatK),
+            PARAM.tempMinK,
+            PARAM.tempMaxK
+          );
+          const renderRgb = kelvinToRgb(renderTempK);
+          let dr = renderRgb.r;
+          let dg = renderRgb.g;
+          let db = renderRgb.b;
+          const blueT = clamp(
+            (renderTempK - PARAM.tempBlueShiftStartK) / Math.max(1, PARAM.tempMaxK - PARAM.tempBlueShiftStartK),
+            0,
+            1
+          ) * clamp(PARAM.tempBlueShiftStrength, 0, 1);
+          if (blueT > 0) {
+            dr = Math.round(lerp(dr, dr * 0.34, blueT));
+            dg = Math.round(lerp(dg, dg * 0.48, blueT));
+            db = Math.round(lerp(db, 255, blueT));
+            alpha = Math.min(1.45, alpha * (1 + blueT * Math.max(0, PARAM.tempBlueLuminanceBoost)));
           }
+          // Continuous warm/cool grading so the population transitions smoothly between red-orange and blue.
+          const warmT = clamp((6000 - renderTempK) / Math.max(1, 6000 - PARAM.tempMinK), 0, 1);
+          const coolT = clamp((renderTempK - 9000) / Math.max(1, PARAM.tempMaxK - 9000), 0, 1);
+          if (warmT > 0) {
+            const t = warmT * 0.45;
+            dr = Math.round(lerp(dr, 255, t));
+            dg = Math.round(lerp(dg, 156, t));
+            db = Math.round(lerp(db, 92, t));
+          }
+          if (coolT > 0) {
+            const t = coolT * 0.4;
+            dr = Math.round(lerp(dr, 86, t));
+            dg = Math.round(lerp(dg, 156, t));
+            db = Math.round(lerp(db, 255, t));
+            alpha = Math.min(1.35, alpha * (1 + coolT * 0.28));
+          }
+          const tempNorm = clamp(renderTempK / Math.max(1, PARAM.tempMaxK), 0, 1);
+          const tempLum = lerp(
+            clamp(PARAM.tempBrightnessMin, 0, 1),
+            1,
+            Math.pow(tempNorm, Math.max(0.1, PARAM.tempBrightnessGamma))
+          );
+          alpha *= tempLum;
+          alpha *= stellarClassAlphaScale(p.stellarClass || 'main');
+          alpha = clamp(alpha, 0.04, 1.35);
+          if (p.isEarth) {
+            dr = 0;
+            dg = 255;
+            db = 0;
+          }
+          p.cr = dr;
+          p.cg = dg;
+          p.cb = db;
+          p.color = dr + ',' + dg + ',' + db;
           ctx.fillStyle = 'rgba(' + dr + ',' + dg + ',' + db + ',' + alpha.toFixed(3) + ')';
+          const cx = p.x + p.r * 0.5;
+          const cy = p.y + p.r * 0.5;
+          const glowAlphaT = clamp(
+            (alpha - PARAM.starGlowAlphaStart) / Math.max(0.0001, PARAM.starGlowAlphaEnd - PARAM.starGlowAlphaStart),
+            0,
+            1
+          );
+          const glowTempT = clamp(
+            (renderTempK - PARAM.starGlowTempStartK) / Math.max(1, PARAM.starGlowTempEndK - PARAM.starGlowTempStartK),
+            0,
+            1
+          );
+          const glowStrength = Math.pow(glowAlphaT, 1.2) * (0.35 + 0.65 * glowTempT);
+          if (
+            !p.isEarth &&
+            glowStrength >= PARAM.starGlowStrengthMin &&
+            (glowMaxPerFrame <= 0 || glowDrawCount < glowMaxPerFrame)
+          ) {
+            const glowScale = lerp(1.25, PARAM.giantStarGlowRadiusScale, glowStrength);
+            const glowR = Math.max(1.2, p.r * glowScale);
+            const coreR = Math.max(0.45, p.r * 0.46);
+            const coolScale = renderTempK < 5200
+              ? clamp(PARAM.starGlowCoolAlphaScale, 0.1, 1)
+              : 1;
+            const glowAlpha = clamp(PARAM.giantStarGlowAlpha * alpha * glowStrength * coolScale, 0, 1);
+            const grad = ctx.createRadialGradient(cx, cy, coreR * 0.35, cx, cy, glowR);
+            grad.addColorStop(0, 'rgba(' + dr + ',' + dg + ',' + db + ',' + glowAlpha.toFixed(3) + ')');
+            grad.addColorStop(1, 'rgba(' + dr + ',' + dg + ',' + db + ',0)');
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(cx, cy, glowR, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = 'rgba(' + dr + ',' + dg + ',' + db + ',' + alpha.toFixed(3) + ')';
+            glowDrawCount += 1;
+          }
           if (p.r >= PARAM.largeStarCircleThreshold) {
             ctx.beginPath();
-            ctx.arc(p.x + p.r * 0.5, p.y + p.r * 0.5, p.r * 0.52, 0, Math.PI * 2);
+            ctx.arc(cx, cy, p.r * 0.52, 0, Math.PI * 2);
             ctx.fill();
           } else {
             ctx.fillRect(p.x, p.y, p.r, p.r);
@@ -2516,6 +3236,9 @@
         }
         drawCleanHint(nowMs);
         lastFrameParticleEnergy = totalEnergy;
+        lastFrameMeanTempK = particles.length > 0
+          ? (totalTempK / Math.max(1, particles.length))
+          : PARAM.tempMinK;
 
         raf = requestAnimationFrame(step);
       }
@@ -2530,8 +3253,8 @@
         const blastR2 = currentBlastR * currentBlastR;
         for (let i = 0; i < particles.length; i += 1) {
           const p = particles[i];
-          const dx = p.x - x;
-          const dy = p.y - y;
+          const dx = shortestWrappedDelta(p.x, x, w);
+          const dy = shortestWrappedDelta(p.y, y, h);
           const d2 = dx * dx + dy * dy;
           if (d2 < 1 || d2 > blastR2) continue;
           const d = Math.sqrt(d2);
@@ -2539,6 +3262,8 @@
           const impulse = PARAM.blastImpulse * u;
           p.vx += (dx / d) * impulse;
           p.vy += (dy / d) * impulse;
+          const tempNow = Number.isFinite(p.tempK) ? p.tempK : PARAM.tempMinK;
+          p.tempK = clamp(tempNow + (PARAM.mouseRepulseHeatGainK * u), PARAM.tempMinK, PARAM.tempMaxK);
           p.life = Math.min(1, p.life + 0.2);
         }
       }
@@ -2548,8 +3273,8 @@
         const blastR2 = currentBlastR * currentBlastR;
         for (let i = 0; i < particles.length; i += 1) {
           const p = particles[i];
-          const dx = x - p.x;
-          const dy = y - p.y;
+          const dx = shortestWrappedDelta(x, p.x, w);
+          const dy = shortestWrappedDelta(y, p.y, h);
           const d2 = dx * dx + dy * dy;
           if (d2 < 1 || d2 > blastR2) continue;
           const d = Math.sqrt(d2);
@@ -2557,8 +3282,18 @@
           const impulse = PARAM.blastImpulse * u * scale;
           p.vx += (dx / d) * impulse;
           p.vy += (dy / d) * impulse;
+          const tempNow = Number.isFinite(p.tempK) ? p.tempK : PARAM.tempMinK;
+          p.tempK = clamp(tempNow + (PARAM.mouseRepulseHeatGainK * u * scale), PARAM.tempMinK, PARAM.tempMaxK);
           p.life = Math.min(1, p.life + 0.2);
         }
+      }
+
+      function resetPointerInteractionState() {
+        mouse.active = false;
+        dragBh.target = null;
+        pointerHoldActive = false;
+        rightPanelHover = false;
+        syncRightPanelVisibility();
       }
 
       window.addEventListener('pointermove', (e) => {
@@ -2582,11 +3317,19 @@
       }, { passive: true });
 
       window.addEventListener('pointerleave', () => {
-        mouse.active = false;
-        dragBh.target = null;
-        pointerHoldActive = false;
-        rightPanelHover = false;
-        syncRightPanelVisibility();
+        resetPointerInteractionState();
+      }, { passive: true });
+
+      window.addEventListener('pointerout', (e) => {
+        if (!e.relatedTarget) resetPointerInteractionState();
+      }, { passive: true });
+
+      window.addEventListener('blur', () => {
+        resetPointerInteractionState();
+      }, { passive: true });
+
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) resetPointerInteractionState();
       }, { passive: true });
 
       window.addEventListener('pointerdown', (e) => {
@@ -2805,6 +3548,12 @@
           syncFrictionToggle();
           return;
         }
+        if (key === 'o') {
+          hoverInfoEnabled = !hoverInfoEnabled;
+          syncHoverInfoToggle();
+          syncUniverseHudVisibility();
+          return;
+        }
         if (key === 'p') {
           rightPanelHidden = !rightPanelHidden;
           syncRightPanelVisibility();
@@ -2936,6 +3685,14 @@
       frictionToggleBtn.addEventListener('pointerdown', (e) => {
         e.stopPropagation();
       });
+      hoverInfoToggleBtn.addEventListener('click', () => {
+        hoverInfoEnabled = !hoverInfoEnabled;
+        syncHoverInfoToggle();
+        syncUniverseHudVisibility();
+      });
+      hoverInfoToggleBtn.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+      });
       particleGravityToggleBtn.addEventListener('click', () => {
         particleGravityEnabled = !particleGravityEnabled;
         syncParticleGravityToggle();
@@ -2983,6 +3740,7 @@
       syncCollisionToggle();
       syncFlowToggle();
       syncFrictionToggle();
+      syncHoverInfoToggle();
       syncBhArrowToggle();
       syncUniverseHudVisibility();
       syncClockVisibility();
