@@ -496,6 +496,9 @@
         bbCleanGravityDisplayMax: 10.0,
         bbCleanTempCenterK: 8800,
         bbCleanTempSpreadK: 900,
+        bbPostResBoostMultiplier: 10.0,
+        bbPostResBoostHalfLifeSec: 5,
+        bbPostResAtBigBang: 0.3,
         // Toggle this to false to revert to the previous grayscale background.
         useCmbBackground: true,
         cmbBaseR: 0,
@@ -575,8 +578,8 @@
         stellarDwarfAlphaScale: 0.72,
         bbRadiusBiasPower: 2.6,
         bbRadiusUniformMix: 0.88,
-        bbRadiusMin: 0.9,
-        bbRadiusMax: 1.55,
+        bbRadiusMin: 1.1,
+        bbRadiusMax: 1.9,
         bbClassRadiusScaleMix: 0.18,
         bbGiantProbScale: 0.04,
         bbDwarfProbScale: 1.1,
@@ -702,6 +705,8 @@
       let gravityBhSofteningBase = PARAM.bhGlobalSoftening;
       let gravityRelaxEnabled = true;
       let bbCleanRuntimeActive = false;
+      let bbPostResBoostStartMs = -1;
+      let bbPostResBoostRuntimeMultiplier = PARAM.bbPostResBoostMultiplier;
       let currentBigBangMaxSpeed = PARAM.bigBangMaxSpeed;
       let currentMaxSpeed = PARAM.maxSpeed;
       let currentFlowX = 0;
@@ -1217,6 +1222,18 @@
         return Math.pow(v2, Math.max(0.01, PARAM.bgSpeedPower * 0.5));
       }
 
+      function effectiveLinearDamping(nowMs) {
+        const now = (nowMs == null) ? performance.now() : nowMs;
+        let mul = 1;
+        if (bbPostResBoostStartMs >= 0) {
+          const elapsedMs = Math.max(0, now - bbPostResBoostStartMs);
+          const halfLifeMs = Math.max(1, (PARAM.bbPostResBoostHalfLifeSec || 60) * 1000);
+          const base = Math.max(1, bbPostResBoostRuntimeMultiplier || PARAM.bbPostResBoostMultiplier || 1);
+          mul = 1 + (base - 1) * Math.pow(0.5, elapsedMs / halfLifeMs);
+        }
+        return clamp(currentPpLinearDamping * mul, 0, 0.5);
+      }
+
       function computeParticleEnergy() {
         let total = 0;
         for (let i = 0; i < particles.length; i += 1) {
@@ -1695,7 +1712,13 @@
         bbMousePullScale = 1;
         bbBhPullScale = 1;
         currentVelReturn = randomVelReturn();
-        currentPpLinearDamping = randomVelReturn();
+        currentPpLinearDamping = randomInRange(0.001, 0.005);
+        const targetResAtBb = clamp(PARAM.bbPostResAtBigBang, 0, 0.5);
+        bbPostResBoostRuntimeMultiplier = Math.max(
+          1,
+          targetResAtBb / Math.max(1e-9, currentPpLinearDamping)
+        );
+        bbPostResBoostStartMs = performance.now();
         gravityRandBhGlobalPull = randomInRange(PARAM.bhGlobalPullMin, PARAM.bhGlobalPullMax);
         gravityRandBhPullPerAbsorb = randomInRange(PARAM.bhPullPerAbsorbMin, PARAM.bhPullPerAbsorbMax);
         gravityBhSofteningBase = randomInRange(PARAM.bhGlobalSofteningMin, PARAM.bhGlobalSofteningMax);
@@ -1869,7 +1892,7 @@
         const gDisplayBase = Math.max(0.0001, PARAM.initialGravityScale || 1);
         const gDisplayRatio = gRatio / gDisplayBase;
         // Keep Res as physical drag only so it stays comparable across flow on/off.
-        const resValue = noFrictionModeEnabled ? 0 : clamp(currentPpLinearDamping, 0, 0.5);
+        const resValue = noFrictionModeEnabled ? 0 : effectiveLinearDamping(now);
         hudGravityGEl.textContent = 'G: ' + gDisplayRatio.toFixed(1) + ' G0';
         hudResistanceEl.textContent = 'Res: ' + resValue.toFixed(3);
         hudFpsEl.textContent = 'FPS: ' + Math.round(currentFps);
@@ -2866,6 +2889,43 @@
         bbCleanRuntimeActive = false;
       }
 
+      function resetLayout() {
+        const rect = canvas.getBoundingClientRect();
+        w = Math.max(1, Math.floor(rect.width));
+        h = Math.max(1, Math.floor(rect.height));
+        canvas.width = Math.floor(w * dpr);
+        canvas.height = Math.floor(h * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        const baseArea = Math.max(1, PARAM.baseViewWidth * PARAM.baseViewHeight);
+        const areaScale = (w * h) / baseArea;
+        const particleAreaScale = Math.min(1, (w * h) / Math.max(1, PARAM.particleReferenceArea));
+        currentParticleTarget = Math.max(
+          PARAM.minParticleCount,
+          Math.round(PARAM.particleReferenceCount * particleAreaScale)
+        );
+        const lenScale = Math.sqrt(Math.max(0.0001, areaScale));
+        currentAttractR = PARAM.attractR * lenScale;
+        currentBlastR = PARAM.blastR * lenScale;
+        clearClockGravityField();
+        updateWallClock();
+
+        // Keep current universe state; just wrap positions into the new viewport.
+        for (let i = 0; i < particles.length; i += 1) {
+          const p = particles[i];
+          if (!p) continue;
+          p.x = ((p.x % w) + w) % w;
+          p.y = ((p.y % h) + h) % h;
+        }
+        for (let i = 0; i < blackHoles.length; i += 1) {
+          const b = blackHoles[i];
+          if (!b) continue;
+          b.x = ((b.x % w) + w) % w;
+          b.y = ((b.y % h) + h) % h;
+        }
+        syncParticleMassState(false);
+      }
+
       function step() {
         if (isPaused) {
           updateUniverseHud(false);
@@ -2903,6 +2963,7 @@
         }
         const glowMaxPerFrame = Math.max(0, Math.floor(PARAM.starGlowMaxPerFrame || 0));
         let glowDrawCount = 0;
+        const frameLinearDamping = effectiveLinearDamping(nowMs);
         const maxSpeed2 = currentMaxSpeed * currentMaxSpeed;
         if (gravityRelaxEnabled) {
           const gravityTargetScale = PARAM.initialGravityScale;
@@ -2966,7 +3027,7 @@
               const relLoss = (rvx0 * rvx0 + rvy0 * rvy0) - (rvx1 * rvx1 + rvy1 * rvy1);
               if (relLoss > 0) frictionHeatDeltaK += relLoss * PARAM.frictionHeatGainK;
             } else {
-              const drag = clamp(currentPpLinearDamping, 0, 0.5);
+              const drag = frameLinearDamping;
               const v20 = p.vx * p.vx + p.vy * p.vy;
               p.vx *= (1 - drag);
               p.vy *= (1 - drag);
@@ -3560,7 +3621,7 @@
           return;
         }
         if (key === 'r') {
-          resize();
+          resetLayout();
           return;
         }
         if (key === 't') {
@@ -3715,7 +3776,7 @@
         e.stopPropagation();
       });
       resetLayoutBtn.addEventListener('click', () => {
-        resize();
+        resetLayout();
       });
       resetLayoutBtn.addEventListener('pointerdown', (e) => {
         e.stopPropagation();
@@ -3733,7 +3794,7 @@
         fullscreenToggleBtn.setAttribute('aria-label', active ? 'Exit fullscreen' : 'Enter fullscreen');
       });
 
-      window.addEventListener('resize', init, { passive: true });
+      window.addEventListener('resize', resetLayout, { passive: true });
       syncLinksVisibility();
       syncParticleGravityToggle();
       syncMouseGravityToggle();
