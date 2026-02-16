@@ -713,6 +713,7 @@
       let bbPostResBoostStartMs = -1;
       let bbPostResBoostRuntimeMultiplier = PARAM.bbPostResBoostMultiplier;
       let glowRenderingEnabled = true;
+      let forceCircleRendering = false;
       let currentBigBangMaxSpeed = PARAM.bigBangMaxSpeed;
       let currentMaxSpeed = PARAM.maxSpeed;
       let currentFlowX = 0;
@@ -1243,6 +1244,7 @@
       function syncGlowRenderingMode() {
         const isMobileLike = window.matchMedia('(max-width: 900px), (pointer: coarse)').matches;
         glowRenderingEnabled = !(PARAM.disableGlowOnMobile && isMobileLike);
+        forceCircleRendering = isMobileLike;
       }
 
       function computeParticleEnergy() {
@@ -3271,7 +3273,7 @@
             ctx.fillStyle = 'rgba(' + dr + ',' + dg + ',' + db + ',' + alpha.toFixed(3) + ')';
             glowDrawCount += 1;
           }
-          if (p.r >= PARAM.largeStarCircleThreshold) {
+          if (forceCircleRendering || p.r >= PARAM.largeStarCircleThreshold) {
             ctx.beginPath();
             ctx.arc(cx, cy, p.r * 0.52, 0, Math.PI * 2);
             ctx.fill();
