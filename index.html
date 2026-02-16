@@ -501,7 +501,8 @@
         bbPostResBoostMultiplier: 10.0,
         bbPostResBoostHalfLifeSec: 5,
         bbPostResAtBigBang: 0.3,
-        disableGlowOnMobile: true,
+        disableGlowOnMobile: false,
+        mobileStarGlowMaxPerFrame: 100,
         // Toggle this to false to revert to the previous grayscale background.
         useCmbBackground: true,
         cmbBaseR: 0,
@@ -2976,7 +2977,9 @@
         if (bbMassCompensationActive && currentParticleMassTotal >= initialParticleMassTarget) {
           bbMassCompensationActive = false;
         }
-        const glowMaxPerFrame = Math.max(0, Math.floor(PARAM.starGlowMaxPerFrame || 0));
+        const desktopGlowMax = Math.max(0, Math.floor(PARAM.starGlowMaxPerFrame || 0));
+        const mobileGlowMax = Math.max(0, Math.floor(PARAM.mobileStarGlowMaxPerFrame || desktopGlowMax));
+        const glowMaxPerFrame = forceCircleRendering ? mobileGlowMax : desktopGlowMax;
         let glowDrawCount = 0;
         const frameLinearDamping = effectiveLinearDamping(nowMs);
         const maxSpeed2 = currentMaxSpeed * currentMaxSpeed;
