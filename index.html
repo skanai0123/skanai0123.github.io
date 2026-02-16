@@ -290,6 +290,7 @@
     <span class="hud-item" id="hudEarthAlive">Earth: -</span>
     <span class="hud-item" id="hudGravityG">G: -</span>
     <span class="hud-item" id="hudResistance">Res: -</span>
+    <span class="hud-item" id="hudFps">FPS: -</span>
   </div>
   <div id="hudCopyright" class="hud-copyright" aria-hidden="true">
     <span id="hudVersion">ver: -</span> | © 2026 Shun Kanai
@@ -330,7 +331,8 @@
       // bhPullPerAbsorbMax, bigBangMaxSpeedMin, bigBangMaxSpeedMax,
       // maxSpeedMin, maxSpeedMax, bigBangFlowSpeedMin, bigBangFlowSpeedMax
       const PARAM = {
-        particleCount: 15000,
+        particleReferenceCount: 8000,
+        particleReferenceArea: 1843200, // (1440 * 2560) / 2
         baseViewWidth: 1920,
         baseViewHeight: 1080,
         minParticleCount: 1200,
@@ -460,6 +462,8 @@
         collapseNoAbsorbFrames: 36,
         collisionDistanceFactor: 0.65,
         collisionMaxMergesPerFrame: 220,
+        collisionSampleDiv: 10,
+        collisionJudgeDiv: 10,
         ppGridPhaseJitter: false,
         proximityBrightnessRange: 12,
         proximityBrightnessMaxOffset: 1.4,
@@ -504,7 +508,7 @@
         cleanHintHoldMs: 60000,
         cleanHintShowMs: 6200,
         cleanHintFadeInMs: 1200,
-        cleanHintText: 'Time to clean?'
+        cleanHintText: 'Need to clean the monitor?'
       };
 
       const canvas = document.getElementById('heroFx');
@@ -571,7 +575,9 @@
       if (!hudGravityGEl) return;
       const hudResistanceEl = document.getElementById('hudResistance');
       if (!hudResistanceEl) return;
-      let dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+      const hudFpsEl = document.getElementById('hudFps');
+      if (!hudFpsEl) return;
+      let dpr = Math.max(1, Math.min(1.5, window.devicePixelRatio || 1));
       let w = 0;
       let h = 0;
       let raf = 0;
@@ -592,6 +598,7 @@
       let currentFlowY = 0;
       let currentGravityScale = PARAM.initialGravityScale;
       let currentPpGravityStrength = PARAM.ppGravityStrength;
+      let currentFps = 60;
       let lastFrameParticleEnergy = 0;
       let bbWhiteBoost = 1;
       let linksHidden = false;
@@ -653,7 +660,7 @@
       let rightPanelHidden = false;
       let rightPanelHover = false;
       const rightPanelRevealZonePx = 120;
-      let currentParticleTarget = PARAM.particleCount;
+      let currentParticleTarget = PARAM.particleReferenceCount;
       const rRho2 = PARAM.rRho * PARAM.rRho;
       const dragBh = {
         target: null,
@@ -1426,6 +1433,7 @@
         const resValue = noFrictionModeEnabled ? 0 : clamp(currentPpLinearDamping, 0, 0.5);
         hudGravityGEl.innerHTML = 'G: ' + gRatio.toFixed(1) + ' <i>G</i><sub>0</sub>';
         hudResistanceEl.textContent = 'Res: ' + resValue.toFixed(3);
+        hudFpsEl.textContent = 'FPS: ' + Math.round(currentFps);
       }
 
       function updateWallClock() {
@@ -1714,6 +1722,10 @@
         const removed = collisionsOn ? new Uint8Array(n) : null;
         const maxMerges = collisionsOn ? Math.max(1, Math.floor(PARAM.collisionMaxMergesPerFrame)) : 0;
         const collisionFactor = collisionsOn ? Math.max(0.05, PARAM.collisionDistanceFactor) : 0;
+        const collisionSampleDiv = collisionsOn ? Math.max(1, Math.floor(PARAM.collisionSampleDiv || 1)) : 1;
+        const collisionSamplePhase = collisionsOn ? (frameTick % collisionSampleDiv) : 0;
+        const collisionJudgeDiv = collisionsOn ? Math.max(1, Math.floor(PARAM.collisionJudgeDiv || 1)) : 1;
+        const collisionJudgePhase = collisionsOn ? (frameTick % collisionJudgeDiv) : 0;
         let merges = 0;
         let maxParticleR = 0;
         for (let i = 0; i < n; i += 1) {
@@ -1757,6 +1769,17 @@
           if (d2 < 1) return;
 
           if (collisionsOn && merges < maxMerges) {
+            let collisionCandidate = true;
+            if (collisionSampleDiv > 1) {
+              const sampleI = ((i + collisionSamplePhase) % collisionSampleDiv) === 0;
+              const sampleJ = ((j + collisionSamplePhase) % collisionSampleDiv) === 0;
+              collisionCandidate = sampleI || sampleJ;
+            }
+            if (collisionCandidate && collisionJudgeDiv > 1) {
+              const h = (((i * 73856093) ^ (j * 19349663)) >>> 0);
+              collisionCandidate = (((h + collisionJudgePhase) % collisionJudgeDiv) === 0);
+            }
+            if (collisionCandidate) {
             const rr = (pi.r + pj.r) * 0.5 * collisionFactor;
             if (d2 <= rr * rr) {
               const mi0 = massArr[i];
@@ -1792,6 +1815,7 @@
               }
               return;
             }
+            }
           }
 
           if (!gravityOn || d2 > r2max) return;
@@ -1817,6 +1841,7 @@
         const startIndex = Math.floor(Math.random() * n);
         for (let ii = 0; ii < n; ii += 1) {
           const i = (startIndex + ii) % n;
+          if (collisionsOn && !gravityOn && (((i + collisionSamplePhase) % collisionSampleDiv) !== 0)) continue;
           if (removed && removed[i]) continue;
           if (interactionCounts[i] >= maxInteractions) continue;
           const pi = particles[i];
@@ -2201,9 +2226,10 @@
 
         const baseArea = Math.max(1, PARAM.baseViewWidth * PARAM.baseViewHeight);
         const areaScale = (w * h) / baseArea;
+        const particleAreaScale = Math.min(1, (w * h) / Math.max(1, PARAM.particleReferenceArea));
         currentParticleTarget = Math.max(
           PARAM.minParticleCount,
-          Math.round(PARAM.particleCount * areaScale)
+          Math.round(PARAM.particleReferenceCount * particleAreaScale)
         );
         const lenScale = Math.sqrt(Math.max(0.0001, areaScale));
         currentAttractR = PARAM.attractR * lenScale;
@@ -2255,6 +2281,8 @@
         const nowMs = performance.now();
         const dtMs = lastStepMs > 0 ? clamp(nowMs - lastStepMs, 0, 250) : (1000 / 60);
         lastStepMs = nowMs;
+        const instantFps = dtMs > 0 ? (1000 / dtMs) : 60;
+        currentFps = lerp(currentFps, instantFps, 0.12);
         t += 0.015;
         frameTick += 1;
         ctx.fillStyle = backgroundColorFromEnergy(lastFrameParticleEnergy, t);
@@ -2272,6 +2300,11 @@
         const canPreCollapseGlow =
           bhCreationLockFrames <= 0 && (!PARAM.collapseRequireCollisionMode || collisionModeEnabled);
         const suppressNegativeAmbientGravity = currentGravityScale < 0 && pointerHoldActive;
+        const flowOscY = flowModeEnabled ? Math.sin(t * PARAM.flowOscFreq) * PARAM.flowOscAmp : 0;
+        const maxSpeed2 = currentMaxSpeed * currentMaxSpeed;
+        const hasBhGravity = !suppressNegativeAmbientGravity && bhEnabled && blackHoles.length > 0;
+        const hasBhAbsorbCheck = bhEnabled && blackHoles.length > 0;
+        const waveAmp = PARAM.waveAmp;
         if (suppressNegativeAmbientGravity) {
           // Hold-click in negative gravity: disable ambient negative gravity and apply click gravity only.
           gravitateClick(pointerHoldX, pointerHoldY, PARAM.holdGravityImpulseScale);
@@ -2308,11 +2341,7 @@
           const prevX = p.x;
           const prevY = p.y;
           if (!noFrictionModeEnabled) {
-            const hasBhGravity = bhEnabled && blackHoles.length > 0 && !suppressNegativeAmbientGravity;
             if (!particleGravityEnabled && (!hasBhGravity || flowModeEnabled)) {
-              const flowOscY = flowModeEnabled
-                ? Math.sin(t * PARAM.flowOscFreq) * PARAM.flowOscAmp
-                : 0;
               const targetVx = flowModeEnabled ? p.baseVx : 0;
               const targetVy = (flowModeEnabled ? p.baseVy : 0) + flowOscY;
               p.vx += (targetVx - p.vx) * currentVelReturn;
@@ -2352,19 +2381,13 @@
           applyClockGravity(p);
 
           let absorbed = false;
-          if (!suppressNegativeAmbientGravity && bhEnabled && blackHoles.length > 0) {
+          if (hasBhGravity) {
             for (let bIdx = 0; bIdx < blackHoles.length; bIdx += 1) {
               const b = blackHoles[bIdx];
               if ((b.absorbLockFrames || 0) > 0) continue;
               const dx = shortestWrappedDelta(b.x, p.x, wrapW);
               const dy = shortestWrappedDelta(b.y, p.y, wrapH);
               const d2 = dx * dx + dy * dy;
-              if (d2 < b.Rabs * b.Rabs) {
-                absorbParticleIntoBlackHole(b, p);
-                removeParticleAt(i);
-                absorbed = true;
-                break;
-              }
               if (d2 > 1) {
                 const mb = Math.max(0.0001, b.mass || 0);
                 const g = PARAM.bhMutualGravityStrength * mb;
@@ -2383,18 +2406,18 @@
           }
 
           const sp2 = p.vx * p.vx + p.vy * p.vy;
-          if (sp2 > currentMaxSpeed * currentMaxSpeed) {
+          if (sp2 > maxSpeed2) {
             const s = currentMaxSpeed / Math.sqrt(sp2);
             p.vx *= s;
             p.vy *= s;
           }
 
-          const wave = Math.sin((p.x * 0.01) + t) * PARAM.waveAmp;
+          const wave = Math.sin((p.x * 0.01) + t) * waveAmp;
           p.x += p.vx;
           p.y += p.vy + wave;
 
           // Robust horizon check (endpoint + segment-crossing) to prevent tunneling leaks.
-          if (bhEnabled && blackHoles.length > 0) {
+          if (hasBhAbsorbCheck) {
             for (let bIdx = 0; bIdx < blackHoles.length; bIdx += 1) {
               const b = blackHoles[bIdx];
               if ((b.absorbLockFrames || 0) > 0) continue;
