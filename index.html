@@ -35,6 +35,7 @@
     body {
       margin: 0;
       height: 100vh;
+      min-height: 100dvh;
       overflow: hidden;
       font-family: "Noto Sans JP", system-ui, sans-serif;
       color: rgba(234, 241, 255, 0.3);
@@ -48,10 +49,20 @@
       inset: 0;
       width: 100vw;
       height: 100vh;
+      min-height: 100dvh;
       display: block;
       z-index: 0;
       pointer-events: none;
       filter: saturate(1.1);
+    }
+
+    body.pseudo-fullscreen .bookmark-bar,
+    body.pseudo-fullscreen .tool-btn,
+    body.pseudo-fullscreen .universe-hud,
+    body.pseudo-fullscreen .hud-copyright {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
     }
 
     .wall-clock {
@@ -715,6 +726,7 @@
       let bbPostResBoostRuntimeMultiplier = PARAM.bbPostResBoostMultiplier;
       let glowRenderingEnabled = true;
       let forceCircleRendering = false;
+      let pseudoFullscreenActive = false;
       let currentBigBangMaxSpeed = PARAM.bigBangMaxSpeed;
       let currentMaxSpeed = PARAM.maxSpeed;
       let currentFlowX = 0;
@@ -1246,6 +1258,14 @@
         const isMobileLike = window.matchMedia('(max-width: 900px), (pointer: coarse)').matches;
         glowRenderingEnabled = !(PARAM.disableGlowOnMobile && isMobileLike);
         forceCircleRendering = isMobileLike;
+      }
+
+      function setPseudoFullscreen(active) {
+        pseudoFullscreenActive = !!active;
+        document.body.classList.toggle('pseudo-fullscreen', pseudoFullscreenActive);
+        if (pseudoFullscreenActive) {
+          window.scrollTo(0, 1);
+        }
       }
 
       function computeParticleEnergy() {
@@ -3499,13 +3519,16 @@
       }
 
       function syncFullscreenButton() {
-        const active = !!currentFullscreenElement();
+        const active = !!currentFullscreenElement() || pseudoFullscreenActive;
         fullscreenToggleBtn.textContent = active ? 'x' : '[ ]';
         fullscreenToggleBtn.title = active ? 'Exit fullscreen' : 'Fullscreen';
         fullscreenToggleBtn.setAttribute('aria-label', active ? 'Exit fullscreen' : 'Enter fullscreen');
       }
 
       async function ensureFullscreenOff() {
+        if (pseudoFullscreenActive) {
+          setPseudoFullscreen(false);
+        }
         if (!currentFullscreenElement()) return;
         try {
           await exitDocumentFullscreen();
@@ -3603,14 +3626,22 @@
 
       async function toggleFullscreen() {
         try {
-          if (!currentFullscreenElement()) {
-            await requestDocumentFullscreen(document.documentElement);
+          if (!currentFullscreenElement() && !pseudoFullscreenActive) {
+            const ok = await requestDocumentFullscreen(document.documentElement);
+            if (!ok || !currentFullscreenElement()) {
+              setPseudoFullscreen(true);
+            }
           } else {
-            await exitDocumentFullscreen();
+            setPseudoFullscreen(false);
+            if (currentFullscreenElement()) {
+              await exitDocumentFullscreen();
+            }
           }
         } catch (_err) {
-          // Ignore fullscreen errors from browser policy/user gesture constraints.
+          // Fallback for browsers/policies that block Fullscreen API.
+          setPseudoFullscreen(!pseudoFullscreenActive);
         }
+        syncFullscreenButton();
       }
 
       window.addEventListener('keydown', (e) => {
@@ -3877,6 +3908,11 @@
       document.addEventListener('fullscreenchange', syncFullscreenButton);
       document.addEventListener('webkitfullscreenchange', syncFullscreenButton);
       document.addEventListener('msfullscreenchange', syncFullscreenButton);
+      window.addEventListener('orientationchange', () => {
+        setTimeout(() => {
+          if (pseudoFullscreenActive) window.scrollTo(0, 1);
+        }, 80);
+      }, { passive: true });
 
       window.addEventListener('resize', resetLayout, { passive: true });
       syncLinksVisibility();
