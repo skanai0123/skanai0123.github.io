@@ -173,14 +173,14 @@
     .particle-gravity-toggle { right: 12px; top: 172px; font-size: 12px; }/* g */
     .flow-toggle { right: 12px; top: 212px; font-size: 12px; }            /* h */
     .info-btn { right: 12px; top: 252px; font-size: 14px; }               /* i */
-    .links-toggle { right: 12px; top: 292px; font-size: 13px; }           /* l */
-    .clock-star-toggle { right: 12px; top: 572px; font-size: 12px; }      /* k */
-    .mouse-gravity-toggle { right: 12px; top: 332px; font-size: 12px; }   /* m */
-    .friction-toggle { right: 12px; top: 372px; font-size: 12px; }        /* n */
-    .panel-toggle { right: 12px; top: 412px; font-size: 12px; }           /* p */
-    .reset-layout-btn { right: 12px; top: 452px; font-size: 12px; }       /* r */
-    .clock-toggle { right: 12px; top: 492px; font-size: 12px; }           /* t */
-    .time-toggle { right: 12px; top: 532px; }                              /* space */
+    .clock-star-toggle { right: 12px; top: 292px; font-size: 12px; }      /* k */
+    .links-toggle { right: 12px; top: 332px; font-size: 13px; }           /* l */
+    .mouse-gravity-toggle { right: 12px; top: 372px; font-size: 12px; }   /* m */
+    .friction-toggle { right: 12px; top: 412px; font-size: 12px; }        /* n */
+    .panel-toggle { right: 12px; top: 452px; font-size: 12px; }           /* p */
+    .reset-layout-btn { right: 12px; top: 492px; font-size: 12px; }       /* r */
+    .clock-toggle { right: 12px; top: 532px; font-size: 12px; }           /* t */
+    .time-toggle { right: 12px; top: 572px; }                              /* space */
     .preset-btn { right: 56px; font-size: 12px; }
     .preset-1 { top: 12px; }
     .preset-2 { top: 52px; }
@@ -213,6 +213,30 @@
     }
 
     .universe-hud.visible {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .hud-copyright {
+      position: fixed;
+      right: 12px;
+      bottom: 10px;
+      z-index: 2;
+      padding: 4px 8px;
+      border: 1px solid rgba(134, 200, 255, 0.26);
+      border-radius: 8px;
+      background: rgba(8, 21, 42, 0.24);
+      color: rgba(234, 241, 255, 0.72);
+      font-size: 11px;
+      line-height: 1.2;
+      backdrop-filter: blur(2px);
+      pointer-events: none;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 120ms ease;
+    }
+
+    .hud-copyright.visible {
       opacity: 1;
       visibility: visible;
     }
@@ -260,13 +284,15 @@
     <span id="wallClockDate" class="wall-clock-date">----</span>
   </div>
   <div id="universeHud" class="universe-hud" aria-live="polite">
-    <span class="hud-item" id="hudVersion">ver: -</span>
     <span class="hud-item" id="hudBhCount">BH: -</span>
     <span class="hud-item" id="hudBbCount">BB: -</span>
     <span class="hud-item" id="hudStarCount">Stars: -</span>
     <span class="hud-item" id="hudEarthAlive">Earth: -</span>
     <span class="hud-item" id="hudGravityG">G: -</span>
     <span class="hud-item" id="hudResistance">Res: -</span>
+  </div>
+  <div id="hudCopyright" class="hud-copyright" aria-hidden="true">
+    <span id="hudVersion">ver: -</span> | © 2026 Shun Kanai
   </div>
   <button id="bhArrowToggleBtn" class="tool-btn bh-arrow-toggle" type="button" aria-label="Show black hole arrows" title="Show black hole arrows">b</button>
   <button id="collisionToggleBtn" class="tool-btn collision-toggle" type="button" aria-label="Enable collisions" title="Enable collisions">c</button>
@@ -275,8 +301,8 @@
   <button id="particleGravityToggleBtn" class="tool-btn particle-gravity-toggle" type="button" aria-label="Enable particle gravity" title="Enable particle gravity">g</button>
   <button id="flowToggleBtn" class="tool-btn flow-toggle" type="button" aria-label="Enable flow mode" title="Enable flow mode">h</button>
   <button id="universeInfoBtn" class="tool-btn info-btn" type="button" aria-label="Show universe panel" title="Universe panel">i</button>
-  <button id="linksToggleBtn" class="tool-btn links-toggle" type="button" aria-label="Hide links" title="Hide links">L</button>
   <button id="clockStarToggleBtn" class="tool-btn clock-star-toggle" type="button" aria-label="Enable star clock gravity" title="Enable star clock gravity">k</button>
+  <button id="linksToggleBtn" class="tool-btn links-toggle" type="button" aria-label="Hide links" title="Hide links">L</button>
   <button id="mouseGravityToggleBtn" class="tool-btn mouse-gravity-toggle" type="button" aria-label="Disable mouse gravity" title="Disable mouse gravity">M</button>
   <button id="frictionToggleBtn" class="tool-btn friction-toggle" type="button" aria-label="Disable friction" title="Disable friction">n</button>
   <button id="panelToggleBtn" class="tool-btn panel-toggle" type="button" aria-label="Hide right panel" title="Hide right panel">P</button>
@@ -364,6 +390,17 @@
         bhAccretionHalfLifeMs: 900,
         bhAccretionResponse: 0.06,
         bhAccretionMaxBoost: 2.2,
+        bhAccretionDiskMaxRings: 180,
+        bhAccretionDiskRingGap: 0.0009,
+        bhAccretionDiskAlpha: 0.64,
+        bhAccretionDiskLineWidth: 2.5,
+        bhAccretionDiskHalfLifeMs: 300,
+        bhAccretionDiskSizeScale: 0.01,
+        bhAccretionDiskMassScaleExp: 0.42,
+        bhAccretionDiskMassScaleCoef: 0.0001,
+        bhAccretionDiskFadeStartOff: 0.00001,
+        bhAccretionDiskRemoveOff: 0.000001,
+        bhAccretionDiskEnabled: true,
         bhCollapseFlashGain: 3.2,
         bhMergeK: 1.18,
         bigBangMinSpeed: 0.0,
@@ -460,6 +497,8 @@
         clockStickyDragNear: 0.03875,
         clockStickyDragFar: 0.03875,
         clockInsideFlowBoost: 0.084,
+        clockDateTurbulenceFactor: 0.3333333,
+        clockDateResistanceFactor: 4.0,
         cleanHintHoldMs: 60000,
         cleanHintShowMs: 6200,
         cleanHintFadeInMs: 1200,
@@ -514,6 +553,8 @@
       if (!universeInfoBtn) return;
       const universeHudEl = document.getElementById('universeHud');
       if (!universeHudEl) return;
+      const hudCopyrightEl = document.getElementById('hudCopyright');
+      if (!hudCopyrightEl) return;
       const hudVersionEl = document.getElementById('hudVersion');
       if (!hudVersionEl) return;
       const hudBhCountEl = document.getElementById('hudBhCount');
@@ -604,6 +645,7 @@
       let clockFieldWidth = 0;
       let clockFieldHeight = 0;
       let clockSdfField = null;
+      let clockDateMaskField = null;
       let bhArrowEnabled = false;
       let homeKeyHeld = false;
       let rightPanelHidden = false;
@@ -659,7 +701,7 @@
       }
 
       function isInsideClockSpawnBlockArea(x, y) {
-        if (!clockVisible) return false;
+        if (!clockVisible && !clockStarModeEnabled) return false;
         const cx = w * 0.5;
         const cy = h * 0.45;
         const timeFontPx = clamp(w * 0.18, 72, 170);
@@ -689,7 +731,11 @@
           absorbGlow: 0,
           absorbGlowR: 0,
           absorbGlowG: 0,
-          absorbGlowB: 0
+          absorbGlowB: 0,
+          diskColorR: null,
+          diskColorG: null,
+          diskColorB: null,
+          accretionRings: []
         });
         emitCollapseRepulse(p.x, p.y);
         return true;
@@ -741,6 +787,46 @@
         b.absorbGlowR = (b.absorbGlowR || 0) + (p.cr || 255) * glowAdd;
         b.absorbGlowG = (b.absorbGlowG || 0) + (p.cg || 255) * glowAdd;
         b.absorbGlowB = (b.absorbGlowB || 0) + (p.cb || 255) * glowAdd;
+        const srcR = clamp(Math.round(p.cr || 255), 0, 255);
+        const srcG = clamp(Math.round(p.cg || 255), 0, 255);
+        const srcB = clamp(Math.round(p.cb || 255), 0, 255);
+        if (b.diskColorR == null || b.diskColorG == null || b.diskColorB == null) {
+          b.diskColorR = srcR;
+          b.diskColorG = srcG;
+          b.diskColorB = srcB;
+        } else {
+          const emaT = 0.2;
+          b.diskColorR = lerp(b.diskColorR, srcR, emaT);
+          b.diskColorG = lerp(b.diskColorG, srcG, emaT);
+          b.diskColorB = lerp(b.diskColorB, srcB, emaT);
+        }
+        if (PARAM.bhAccretionDiskEnabled) {
+          const rings = b.accretionRings || (b.accretionRings = []);
+          const gap = Math.max(0.00001, PARAM.bhAccretionDiskRingGap);
+          let maxOffset = gap;
+          for (let i = 0; i < rings.length; i += 1) {
+            const off = rings[i].off == null ? gap : rings[i].off;
+            if (off > maxOffset) maxOffset = off;
+          }
+          let mixR = Math.round(clamp(b.diskColorR == null ? srcR : b.diskColorR, 0, 255));
+          let mixG = Math.round(clamp(b.diskColorG == null ? srcG : b.diskColorG, 0, 255));
+          let mixB = Math.round(clamp(b.diskColorB == null ? srcB : b.diskColorB, 0, 255));
+          if (rings.length > 0) {
+            // Blend with the most recent ring color so the disk color transitions naturally.
+            const prev = rings[rings.length - 1];
+            mixR = Math.round(lerp(prev.r, mixR, 0.42));
+            mixG = Math.round(lerp(prev.g, mixG, 0.42));
+            mixB = Math.round(lerp(prev.bl, mixB, 0.42));
+          }
+          rings.push({
+            r: clamp(mixR, 0, 255),
+            g: clamp(mixG, 0, 255),
+            bl: clamp(mixB, 0, 255),
+            off: maxOffset + gap
+          });
+          const maxRings = Math.max(24, Math.floor(PARAM.bhAccretionDiskMaxRings));
+          while (rings.length > maxRings) rings.shift();
+        }
       }
 
       function removeParticleAt(index) {
@@ -1046,6 +1132,7 @@
         clockFieldHeight = 0;
         clockFieldScale = 1;
         clockSdfField = null;
+        clockDateMaskField = null;
       }
 
       function buildChamferDistance(mask, width, height, targetValue) {
@@ -1099,9 +1186,28 @@
         return lerp(a, b, ty);
       }
 
+      function sampleClockDateMask(fx, fy) {
+        if (!clockDateMaskField || clockFieldWidth <= 1 || clockFieldHeight <= 1) return 0;
+        const x = clamp(fx, 0, clockFieldWidth - 1);
+        const y = clamp(fy, 0, clockFieldHeight - 1);
+        const x0 = Math.floor(x);
+        const y0 = Math.floor(y);
+        const x1 = Math.min(clockFieldWidth - 1, x0 + 1);
+        const y1 = Math.min(clockFieldHeight - 1, y0 + 1);
+        const tx = x - x0;
+        const ty = y - y0;
+        const i00 = y0 * clockFieldWidth + x0;
+        const i10 = y0 * clockFieldWidth + x1;
+        const i01 = y1 * clockFieldWidth + x0;
+        const i11 = y1 * clockFieldWidth + x1;
+        const a = lerp(clockDateMaskField[i00], clockDateMaskField[i10], tx);
+        const b = lerp(clockDateMaskField[i01], clockDateMaskField[i11], tx);
+        return lerp(a, b, ty);
+      }
+
       function rebuildClockGravityField(force) {
         if (!clockGravityCtx) return;
-        if (!clockStarModeEnabled || !clockVisible) {
+        if (!clockStarModeEnabled) {
           clearClockGravityField();
           return;
         }
@@ -1142,10 +1248,11 @@
           sdf[i] = distToInk[i] - distToBg[i];
         }
         clockSdfField = sdf;
+        clockDateMaskField = null;
       }
 
       function applyClockGravity(p) {
-        if (!clockStarModeEnabled || !clockVisible) return;
+        if (!clockStarModeEnabled) return;
         if (!clockSdfField || clockFieldWidth <= 1 || clockFieldHeight <= 1) return;
         const fx = p.x * clockFieldScale;
         const fy = p.y * clockFieldScale;
@@ -1169,7 +1276,9 @@
         const insideMask = dWorld < 0 ? 1 : 0;
         if (edgeProx > 0 || insideMask > 0) {
           const regionProx = Math.max(insideMask, edgeProx);
-          const localDrag = PARAM.clockStickyDragNear * regionProx;
+          const dateMix = sampleClockDateMask(fx, fy);
+          const dateResistance = lerp(1, PARAM.clockDateResistanceFactor, clamp(dateMix, 0, 1));
+          const localDrag = PARAM.clockStickyDragNear * regionProx * dateResistance;
           const damp = clamp(1 - localDrag, 0.02, 1);
           p.vx *= damp;
           p.vy *= damp;
@@ -1181,7 +1290,9 @@
           const v2 = p.vx * p.vx + p.vy * p.vy;
           if (v2 > 1e-8) {
             const invV = 1 / Math.sqrt(v2);
-            const boost = PARAM.clockInsideFlowBoost * (0.35 + insideDepth * 0.65);
+            const dateMix = sampleClockDateMask(fx, fy);
+            const turbulenceFactor = lerp(1, PARAM.clockDateTurbulenceFactor, clamp(dateMix, 0, 1));
+            const boost = PARAM.clockInsideFlowBoost * turbulenceFactor * (0.35 + insideDepth * 0.65);
             p.vx += (p.vx * invV) * boost;
             p.vy += (p.vy * invV) * boost;
           }
@@ -1308,9 +1419,8 @@
         hudStarCountEl.textContent = 'Stars: ' + particles.length.toLocaleString();
         hudEarthAliveEl.textContent = 'Earth: ' + (isEarthAlive() ? 'alive' : 'lost');
         const gRatio = PARAM.attractStrength !== 0 ? (currentAttractStrength / PARAM.attractStrength) : 0;
-        const resValue = noFrictionModeEnabled
-          ? 0
-          : (particleGravityEnabled ? clamp(currentPpLinearDamping, 0, 0.5) : currentVelReturn);
+        // Keep Res as physical drag only so it stays comparable across flow on/off.
+        const resValue = noFrictionModeEnabled ? 0 : clamp(currentPpLinearDamping, 0, 0.5);
         hudGravityGEl.innerHTML = 'G: ' + gRatio.toFixed(1) + ' <i>G</i><sub>0</sub>';
         hudResistanceEl.textContent = 'Res: ' + resValue.toFixed(3);
       }
@@ -1378,6 +1488,8 @@
       function syncUniverseHudVisibility() {
         universeHudEl.classList.toggle('visible', hudVisible);
         universeHudEl.setAttribute('aria-hidden', hudVisible ? 'false' : 'true');
+        hudCopyrightEl.classList.toggle('visible', hudVisible);
+        hudCopyrightEl.setAttribute('aria-hidden', hudVisible ? 'false' : 'true');
         universeInfoBtn.textContent = hudVisible ? 'I' : 'i';
         universeInfoBtn.title = hudVisible ? 'Hide universe panel' : 'Show universe panel';
         universeInfoBtn.setAttribute('aria-label', hudVisible ? 'Hide universe panel' : 'Show universe panel');
@@ -1869,7 +1981,11 @@
           absorbGlow: 0,
           absorbGlowR: 0,
           absorbGlowG: 0,
-          absorbGlowB: 0
+          absorbGlowB: 0,
+          diskColorR: null,
+          diskColorG: null,
+          diskColorB: null,
+          accretionRings: []
         });
         bhSpawnCooldown = PARAM.spawnCooldownFrames;
       }
@@ -1908,6 +2024,8 @@
         const absorbGlowDecay = Math.pow(0.5, dtMs / halfLifeMs);
         const accHalfLifeMs = Math.max(1, PARAM.bhAccretionHalfLifeMs);
         const accDecay = Math.pow(0.5, dtMs / accHalfLifeMs);
+        const diskHalfLifeMs = Math.max(1, PARAM.bhAccretionDiskHalfLifeMs);
+        const diskDecay = Math.pow(0.5, dtMs / diskHalfLifeMs);
         for (let i = 0; i < blackHoles.length; i += 1) {
           const b = blackHoles[i];
           if (mouse.active && mouseGravityEnabled && dragBh.target !== b) {
@@ -1947,6 +2065,20 @@
           b.absorbGlowR = (b.absorbGlowR || 0) * absorbGlowDecay;
           b.absorbGlowG = (b.absorbGlowG || 0) * absorbGlowDecay;
           b.absorbGlowB = (b.absorbGlowB || 0) * absorbGlowDecay;
+          if (PARAM.bhAccretionDiskEnabled) {
+            const rings = b.accretionRings || (b.accretionRings = []);
+            const removeOff = Math.max(1e-12, PARAM.bhAccretionDiskRemoveOff);
+            const fadeStartOff = Math.max(removeOff * 1.01, PARAM.bhAccretionDiskFadeStartOff);
+            for (let rIdx = rings.length - 1; rIdx >= 0; rIdx -= 1) {
+              const ring = rings[rIdx];
+              ring.off = (ring.off == null ? 0 : ring.off) * diskDecay;
+              const fade = clamp((ring.off - removeOff) / (fadeStartOff - removeOff), 0, 1);
+              ring.fade = fade;
+              if (ring.off < removeOff) {
+                rings.splice(rIdx, 1);
+              }
+            }
+          }
           b.R = calcRadius(b.mass);
           b.Rabs = calcAbsorbRadius(b.R);
         }
@@ -1978,6 +2110,25 @@
             a.absorbGlowR = (a.absorbGlowR || 0) + (b.absorbGlowR || 0);
             a.absorbGlowG = (a.absorbGlowG || 0) + (b.absorbGlowG || 0);
             a.absorbGlowB = (a.absorbGlowB || 0) + (b.absorbGlowB || 0);
+            if (a.diskColorR == null || a.diskColorG == null || a.diskColorB == null) {
+              a.diskColorR = b.diskColorR;
+              a.diskColorG = b.diskColorG;
+              a.diskColorB = b.diskColorB;
+            } else if (b.diskColorR != null && b.diskColorG != null && b.diskColorB != null) {
+              const wa = Math.max(1, a.absorbedCount || 1);
+              const wb = Math.max(1, b.absorbedCount || 1);
+              const den = wa + wb;
+              a.diskColorR = (a.diskColorR * wa + b.diskColorR * wb) / den;
+              a.diskColorG = (a.diskColorG * wa + b.diskColorG * wb) / den;
+              a.diskColorB = (a.diskColorB * wa + b.diskColorB * wb) / den;
+            }
+            const ringsA = a.accretionRings || (a.accretionRings = []);
+            const ringsB = b.accretionRings || [];
+            if (ringsB.length > 0) {
+              for (let k = 0; k < ringsB.length; k += 1) ringsA.push(ringsB[k]);
+              const maxRings = Math.max(24, Math.floor(PARAM.bhAccretionDiskMaxRings));
+              while (ringsA.length > maxRings) ringsA.shift();
+            }
             blackHoles.splice(j, 1);
             j -= 1;
           }
@@ -1988,51 +2139,37 @@
         if (!bhEnabled) return;
         for (let i = 0; i < blackHoles.length; i += 1) {
           const b = blackHoles[i];
+          const rings = PARAM.bhAccretionDiskEnabled ? (b.accretionRings || []) : [];
+          if (rings.length > 0) {
+            const gap = Math.max(0.00001, PARAM.bhAccretionDiskRingGap);
+            const lineW = Math.max(0.2, PARAM.bhAccretionDiskLineWidth);
+            const baseA = clamp(PARAM.bhAccretionDiskAlpha, 0.02, 0.98);
+            const sizeScale = Math.max(0.0001, PARAM.bhAccretionDiskSizeScale);
+            const absorbedMass = Math.max(0, (b.absorbedCount || 0) * Math.max(0.0001, PARAM.bhMassGainPerAbsorb));
+            const rawMassScale = Math.pow(
+              1 + absorbedMass,
+              Math.max(0, PARAM.bhAccretionDiskMassScaleExp)
+            );
+            const massScale = 1 + (Math.min(2.2, rawMassScale) - 1) * Math.max(0, PARAM.bhAccretionDiskMassScaleCoef);
+            ctx.save();
+            ctx.lineWidth = lineW;
+            ctx.globalCompositeOperation = 'lighter';
+            for (let rIdx = 0; rIdx < rings.length; rIdx += 1) {
+              const ring = rings[rIdx];
+              const rr = b.R + (ring.off == null ? 0 : ring.off) * massScale * sizeScale;
+              const fade = ring.fade == null ? 1 : ring.fade;
+              const a = baseA * (0.5 + 0.5 * (rIdx / Math.max(1, rings.length))) * fade;
+              ctx.strokeStyle = 'rgba(' + ring.r + ',' + ring.g + ',' + ring.bl + ',' + a.toFixed(3) + ')';
+              ctx.beginPath();
+              ctx.arc(b.x, b.y, rr, 0, Math.PI * 2);
+              ctx.stroke();
+            }
+            ctx.restore();
+          }
           ctx.beginPath();
           ctx.fillStyle = 'rgba(0,0,0,0.9)';
           ctx.arc(b.x, b.y, b.R, 0, Math.PI * 2);
           ctx.fill();
-          const absorbLevel = 1 - Math.exp(-(b.absorbGlow || 0));
-          if (absorbLevel < 0.000008) {
-            if (bhArrowEnabled) {
-              drawUpArrow(b.x, b.y, b.R, 'rgba(255, 120, 210, 0.95)');
-            }
-            continue;
-          }
-          const glowInnerR = b.R * 1.0008;
-          const glowOuterR = b.R * (1.2036 + absorbLevel * 0.45);
-          const glowCoreA = clamp(Math.max(0.1, (0.16 + absorbLevel * 0.26) * 4.0), 0, 0.95);
-          const glowRimA = clamp(Math.max(0.1, (0.08 + absorbLevel * 0.24) * 4.0), 0, 0.9);
-          const glowDen = Math.max(0.0001, b.absorbGlow || 0);
-          const gr = Math.round(clamp((b.absorbGlowR || 0) / glowDen, 0, 255));
-          const gg = Math.round(clamp((b.absorbGlowG || 0) / glowDen, 0, 255));
-          const gb = Math.round(clamp((b.absorbGlowB || 0) / glowDen, 0, 255));
-
-          // Warm white disk tone (image-like), still influenced by absorbed-star color.
-          const mr = Math.round(clamp(gr + (255 - gr) * 0.55 + 18, 0, 255));
-          const mg = Math.round(clamp(gg + (255 - gg) * 0.40 - 10, 0, 255));
-          const mb = Math.round(clamp(gb + (255 - gb) * 0.28 - 24, 0, 255));
-
-          ctx.save();
-          ctx.globalCompositeOperation = 'lighter';
-          ctx.translate(b.x, b.y);
-
-          const glowGrad = ctx.createRadialGradient(0, 0, glowInnerR, 0, 0, glowOuterR);
-          glowGrad.addColorStop(0.00, 'rgba(' + mr + ',' + mg + ',' + mb + ',' + glowCoreA.toFixed(3) + ')');
-          glowGrad.addColorStop(0.42, 'rgba(' + gr + ',' + gg + ',' + gb + ',' + (glowCoreA * 0.75).toFixed(3) + ')');
-          glowGrad.addColorStop(0.80, 'rgba(' + gr + ',' + gg + ',' + gb + ',' + glowRimA.toFixed(3) + ')');
-          glowGrad.addColorStop(1.00, 'rgba(255,255,255,0.000)');
-          ctx.beginPath();
-          ctx.fillStyle = glowGrad;
-          ctx.arc(0, 0, glowOuterR, 0, Math.PI * 2);
-          ctx.fill();
-
-          ctx.beginPath();
-          ctx.globalCompositeOperation = 'source-over';
-          ctx.fillStyle = 'rgba(0,0,0,0.98)';
-          ctx.arc(0, 0, b.R, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.restore();
 
           if (bhArrowEnabled) {
             drawUpArrow(b.x, b.y, b.R, 'rgba(255, 120, 210, 0.95)');
@@ -2473,8 +2610,8 @@
       }
 
       async function applyPreset(id) {
-        if (id === 1 || id === 4 || id === 5) {
-          // Preset 1 baseline. 4-5 are currently mapped to baseline until their specs are defined.
+        if (id === 1 || id === 5) {
+          // Preset 1 baseline. 5 is currently mapped to baseline until its spec is defined.
           collisionModeEnabled = false;      // c
           particleGravityEnabled = false;    // g
           setFlowMode(true);                 // H
@@ -2487,6 +2624,20 @@
           clockStarModeEnabled = false;      // k
           setPauseState(false);              // ||
           await ensureFullscreenOff();       // f
+        } else if (id === 4) {
+          // Preset 4: based on preset 3 with no gravity, h on, k on, and clock/date hidden.
+          collisionModeEnabled = false;      // c
+          particleGravityEnabled = false;    // g
+          setFlowMode(true);                 // H
+          hudVisible = false;                // i
+          linksHidden = true;                // l
+          mouseGravityEnabled = false;       // m
+          noFrictionModeEnabled = false;     // n
+          bhArrowEnabled = false;            // b
+          clockVisible = false;              // t
+          clockDateVisible = false;          // d
+          rightPanelHidden = true;           // p
+          clockStarModeEnabled = true;       // K
         } else if (id === 2) {
           collisionModeEnabled = true;       // C
           particleGravityEnabled = true;     // G
