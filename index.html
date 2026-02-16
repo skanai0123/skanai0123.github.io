@@ -501,6 +501,7 @@
         bbPostResBoostMultiplier: 10.0,
         bbPostResBoostHalfLifeSec: 5,
         bbPostResAtBigBang: 0.3,
+        disableGlowOnMobile: true,
         // Toggle this to false to revert to the previous grayscale background.
         useCmbBackground: true,
         cmbBaseR: 0,
@@ -711,6 +712,7 @@
       let bbCleanRuntimeActive = false;
       let bbPostResBoostStartMs = -1;
       let bbPostResBoostRuntimeMultiplier = PARAM.bbPostResBoostMultiplier;
+      let glowRenderingEnabled = true;
       let currentBigBangMaxSpeed = PARAM.bigBangMaxSpeed;
       let currentMaxSpeed = PARAM.maxSpeed;
       let currentFlowX = 0;
@@ -1236,6 +1238,11 @@
           mul = 1 + (base - 1) * Math.pow(0.5, elapsedMs / halfLifeMs);
         }
         return clamp(currentPpLinearDamping * mul, 0, 0.5);
+      }
+
+      function syncGlowRenderingMode() {
+        const isMobileLike = window.matchMedia('(max-width: 900px), (pointer: coarse)').matches;
+        glowRenderingEnabled = !(PARAM.disableGlowOnMobile && isMobileLike);
       }
 
       function computeParticleEnergy() {
@@ -2757,7 +2764,7 @@
         for (let i = 0; i < blackHoles.length; i += 1) {
           const b = blackHoles[i];
           const glowE = Math.max(0, b.absorbGlow || 0);
-          if (glowE > 1e-7) {
+          if (glowRenderingEnabled && glowE > 1e-7) {
             const invE = 1 / Math.max(1e-9, glowE);
             const gr = clamp(Math.round((b.absorbGlowR || 0) * invE), 0, 255);
             const gg = clamp(Math.round((b.absorbGlowG || 0) * invE), 0, 255);
@@ -2830,6 +2837,7 @@
 
 
       function resize() {
+        syncGlowRenderingMode();
         const rect = canvas.getBoundingClientRect();
         w = Math.max(1, Math.floor(rect.width));
         h = Math.max(1, Math.floor(rect.height));
@@ -2894,6 +2902,7 @@
       }
 
       function resetLayout() {
+        syncGlowRenderingMode();
         const rect = canvas.getBoundingClientRect();
         w = Math.max(1, Math.floor(rect.width));
         h = Math.max(1, Math.floor(rect.height));
@@ -3240,6 +3249,7 @@
           );
           const glowStrength = Math.pow(glowAlphaT, 1.2) * (0.35 + 0.65 * glowTempT);
           if (
+            glowRenderingEnabled &&
             !p.isEarth &&
             glowStrength >= PARAM.starGlowStrengthMin &&
             (glowMaxPerFrame <= 0 || glowDrawCount < glowMaxPerFrame)
