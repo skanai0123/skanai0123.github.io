@@ -60,6 +60,7 @@
       top: 45%;
       transform: translate(-50%, -50%);
       z-index: 2;
+      visibility: hidden;
       color: rgba(255, 255, 255, 0.92);
       font-size: clamp(72px, 18vw, 170px);
       font-weight: 600;
@@ -173,6 +174,7 @@
     .flow-toggle { right: 12px; top: 212px; font-size: 12px; }            /* h */
     .info-btn { right: 12px; top: 252px; font-size: 14px; }               /* i */
     .links-toggle { right: 12px; top: 292px; font-size: 13px; }           /* l */
+    .clock-star-toggle { right: 12px; top: 572px; font-size: 12px; }      /* k */
     .mouse-gravity-toggle { right: 12px; top: 332px; font-size: 12px; }   /* m */
     .friction-toggle { right: 12px; top: 372px; font-size: 12px; }        /* n */
     .panel-toggle { right: 12px; top: 412px; font-size: 12px; }           /* p */
@@ -274,6 +276,7 @@
   <button id="flowToggleBtn" class="tool-btn flow-toggle" type="button" aria-label="Enable flow mode" title="Enable flow mode">h</button>
   <button id="universeInfoBtn" class="tool-btn info-btn" type="button" aria-label="Show universe panel" title="Universe panel">i</button>
   <button id="linksToggleBtn" class="tool-btn links-toggle" type="button" aria-label="Hide links" title="Hide links">L</button>
+  <button id="clockStarToggleBtn" class="tool-btn clock-star-toggle" type="button" aria-label="Enable star clock gravity" title="Enable star clock gravity">k</button>
   <button id="mouseGravityToggleBtn" class="tool-btn mouse-gravity-toggle" type="button" aria-label="Disable mouse gravity" title="Disable mouse gravity">M</button>
   <button id="frictionToggleBtn" class="tool-btn friction-toggle" type="button" aria-label="Disable friction" title="Disable friction">n</button>
   <button id="panelToggleBtn" class="tool-btn panel-toggle" type="button" aria-label="Hide right panel" title="Hide right panel">P</button>
@@ -399,7 +402,7 @@
         bbWhiteBoostStart: 6.0,
         bbWhiteBoostDecay: 0.012,
         bbWhiteFlashMax: 220,
-        flowOscAmp: 0.075,
+        flowOscAmp: 0.0025,
         flowOscFreq: 1.25,
         holdGravityImpulseScale: 0.18,
         ppGravityCellSize: 52,
@@ -446,6 +449,17 @@
         preCollapseCollisionLead: 2,
         preCollapseFlashGain: 0.12,
         preCollapseFlashMax: 3.4,
+        clockGravityStrength: 0.04,
+        clockGravityRange: 88,
+        clockGravitySoftening: 6,
+        clockGravityGridCell: 38,
+        clockGravityRenderScale: 0.25,
+        clockGravitySampleStep: 2,
+        clockGravityMaxPoints: 1800,
+        clockGravityMaxInteractions: 6,
+        clockStickyDragNear: 0.03875,
+        clockStickyDragFar: 0.03875,
+        clockInsideFlowBoost: 0.084,
         cleanHintHoldMs: 60000,
         cleanHintShowMs: 6200,
         cleanHintFadeInMs: 1200,
@@ -460,6 +474,8 @@
       if (!bookmarkBarEl) return;
       const linksToggleBtn = document.getElementById('linksToggleBtn');
       if (!linksToggleBtn) return;
+      const clockStarToggleBtn = document.getElementById('clockStarToggleBtn');
+      if (!clockStarToggleBtn) return;
       const frictionToggleBtn = document.getElementById('frictionToggleBtn');
       if (!frictionToggleBtn) return;
       const collisionToggleBtn = document.getElementById('collisionToggleBtn');
@@ -578,6 +594,16 @@
       let hudVisible = false;
       let clockVisible = true;
       let clockDateVisible = true;
+      let clockStarModeEnabled = false;
+      let wallClockTimeText = '--:--';
+      let wallClockDateText = '----';
+      let clockGravityFieldSignature = '';
+      const clockGravityCanvas = document.createElement('canvas');
+      const clockGravityCtx = clockGravityCanvas.getContext('2d', { willReadFrequently: true });
+      let clockFieldScale = 1;
+      let clockFieldWidth = 0;
+      let clockFieldHeight = 0;
+      let clockSdfField = null;
       let bhArrowEnabled = false;
       let homeKeyHeld = false;
       let rightPanelHidden = false;
@@ -632,8 +658,19 @@
         return Math.pow(Math.max(0.2, r), Math.max(0.1, PARAM.ppMassPower));
       }
 
+      function isInsideClockSpawnBlockArea(x, y) {
+        if (!clockVisible) return false;
+        const cx = w * 0.5;
+        const cy = h * 0.45;
+        const timeFontPx = clamp(w * 0.18, 72, 170);
+        const halfW = timeFontPx * 1.7;
+        const halfH = timeFontPx * (clockDateVisible ? 0.9 : 0.55);
+        return Math.abs(x - cx) <= halfW && Math.abs(y - cy) <= halfH;
+      }
+
       function tryCollapseParticleToBlackHole(p) {
         if (bhCreationLockFrames > 0) return false;
+        if (isInsideClockSpawnBlockArea(p.x, p.y)) return false;
         const collisionCount = p.collisionCount || 0;
         if (collisionCount < PARAM.collapseCollisionThreshold) return false;
         const m = particleMassFromRadius(p.r);
@@ -997,6 +1034,160 @@
         dateToggleBtn.setAttribute('aria-label', clockDateVisible ? 'Hide date' : 'Show date');
       }
 
+      function syncClockStarToggleButton() {
+        clockStarToggleBtn.textContent = clockStarModeEnabled ? 'K' : 'k';
+        clockStarToggleBtn.title = clockStarModeEnabled ? 'Disable star clock gravity' : 'Enable star clock gravity';
+        clockStarToggleBtn.setAttribute('aria-label', clockStarModeEnabled ? 'Disable star clock gravity' : 'Enable star clock gravity');
+      }
+
+      function clearClockGravityField() {
+        clockGravityFieldSignature = '';
+        clockFieldWidth = 0;
+        clockFieldHeight = 0;
+        clockFieldScale = 1;
+        clockSdfField = null;
+      }
+
+      function buildChamferDistance(mask, width, height, targetValue) {
+        const dist = new Float32Array(width * height);
+        const INF = 1e9;
+        const DIAG = 1.41421356237;
+        for (let i = 0; i < dist.length; i += 1) {
+          dist[i] = mask[i] === targetValue ? 0 : INF;
+        }
+        for (let y = 0; y < height; y += 1) {
+          for (let x = 0; x < width; x += 1) {
+            const idx = y * width + x;
+            let d = dist[idx];
+            if (x > 0) d = Math.min(d, dist[idx - 1] + 1);
+            if (y > 0) d = Math.min(d, dist[idx - width] + 1);
+            if (x > 0 && y > 0) d = Math.min(d, dist[idx - width - 1] + DIAG);
+            if (x + 1 < width && y > 0) d = Math.min(d, dist[idx - width + 1] + DIAG);
+            dist[idx] = d;
+          }
+        }
+        for (let y = height - 1; y >= 0; y -= 1) {
+          for (let x = width - 1; x >= 0; x -= 1) {
+            const idx = y * width + x;
+            let d = dist[idx];
+            if (x + 1 < width) d = Math.min(d, dist[idx + 1] + 1);
+            if (y + 1 < height) d = Math.min(d, dist[idx + width] + 1);
+            if (x + 1 < width && y + 1 < height) d = Math.min(d, dist[idx + width + 1] + DIAG);
+            if (x > 0 && y + 1 < height) d = Math.min(d, dist[idx + width - 1] + DIAG);
+            dist[idx] = d;
+          }
+        }
+        return dist;
+      }
+
+      function sampleClockSdf(fx, fy) {
+        if (!clockSdfField || clockFieldWidth <= 1 || clockFieldHeight <= 1) return 0;
+        const x = clamp(fx, 0, clockFieldWidth - 1);
+        const y = clamp(fy, 0, clockFieldHeight - 1);
+        const x0 = Math.floor(x);
+        const y0 = Math.floor(y);
+        const x1 = Math.min(clockFieldWidth - 1, x0 + 1);
+        const y1 = Math.min(clockFieldHeight - 1, y0 + 1);
+        const tx = x - x0;
+        const ty = y - y0;
+        const i00 = y0 * clockFieldWidth + x0;
+        const i10 = y0 * clockFieldWidth + x1;
+        const i01 = y1 * clockFieldWidth + x0;
+        const i11 = y1 * clockFieldWidth + x1;
+        const a = lerp(clockSdfField[i00], clockSdfField[i10], tx);
+        const b = lerp(clockSdfField[i01], clockSdfField[i11], tx);
+        return lerp(a, b, ty);
+      }
+
+      function rebuildClockGravityField(force) {
+        if (!clockGravityCtx) return;
+        if (!clockStarModeEnabled || !clockVisible) {
+          clearClockGravityField();
+          return;
+        }
+        const signature =
+          wallClockTimeText + '|' +
+          Math.round(w) + 'x' + Math.round(h);
+        if (!force && signature === clockGravityFieldSignature) return;
+        clockGravityFieldSignature = signature;
+
+        const scale = clamp(PARAM.clockGravityRenderScale, 0.1, 0.5);
+        const rw = Math.max(64, Math.floor(w * scale));
+        const rh = Math.max(64, Math.floor(h * scale));
+        clockFieldScale = scale;
+        clockFieldWidth = rw;
+        clockFieldHeight = rh;
+        clockGravityCanvas.width = rw;
+        clockGravityCanvas.height = rh;
+        clockGravityCtx.clearRect(0, 0, rw, rh);
+        clockGravityCtx.textAlign = 'center';
+        clockGravityCtx.textBaseline = 'middle';
+        clockGravityCtx.fillStyle = '#fff';
+        const timeFontPx = clamp(rw * 0.18, 28, 96);
+        const cx = rw * 0.5;
+        const cy = rh * 0.45;
+        clockGravityCtx.font = '600 ' + timeFontPx.toFixed(1) + 'px "Noto Sans JP", sans-serif';
+        clockGravityCtx.fillText(wallClockTimeText, cx, cy);
+
+        const image = clockGravityCtx.getImageData(0, 0, rw, rh);
+        const data = image.data;
+        const mask = new Uint8Array(rw * rh);
+        for (let i = 0; i < mask.length; i += 1) {
+          mask[i] = data[(i * 4) + 3] >= 100 ? 1 : 0;
+        }
+        const distToInk = buildChamferDistance(mask, rw, rh, 1);
+        const distToBg = buildChamferDistance(mask, rw, rh, 0);
+        const sdf = new Float32Array(rw * rh);
+        for (let i = 0; i < sdf.length; i += 1) {
+          sdf[i] = distToInk[i] - distToBg[i];
+        }
+        clockSdfField = sdf;
+      }
+
+      function applyClockGravity(p) {
+        if (!clockStarModeEnabled || !clockVisible) return;
+        if (!clockSdfField || clockFieldWidth <= 1 || clockFieldHeight <= 1) return;
+        const fx = p.x * clockFieldScale;
+        const fy = p.y * clockFieldScale;
+        const range = Math.max(8, PARAM.clockGravityRange);
+        const dWorld = sampleClockSdf(fx, fy) / Math.max(0.0001, clockFieldScale);
+
+        if (dWorld > 0 && dWorld < range) {
+          const gx = sampleClockSdf(fx + 1, fy) - sampleClockSdf(fx - 1, fy);
+          const gy = sampleClockSdf(fx, fy + 1) - sampleClockSdf(fx, fy - 1);
+          const gn = Math.sqrt(gx * gx + gy * gy);
+          if (gn > 0.000001) {
+            const u = 1 - (dWorld / range);
+            const pull = PARAM.clockGravityStrength * u;
+            p.vx += (-gx / gn) * pull;
+            p.vy += (-gy / gn) * pull;
+          }
+        }
+
+        const edgeBand = Math.max(6, range * 0.35);
+        const edgeProx = clamp(1 - (Math.abs(dWorld) / edgeBand), 0, 1);
+        const insideMask = dWorld < 0 ? 1 : 0;
+        if (edgeProx > 0 || insideMask > 0) {
+          const regionProx = Math.max(insideMask, edgeProx);
+          const localDrag = PARAM.clockStickyDragNear * regionProx;
+          const damp = clamp(1 - localDrag, 0.02, 1);
+          p.vx *= damp;
+          p.vy *= damp;
+        }
+
+        // Stronger flow inside the clock glyph area only.
+        if (insideMask > 0) {
+          const insideDepth = clamp((-dWorld) / Math.max(8, range), 0, 1);
+          const v2 = p.vx * p.vx + p.vy * p.vy;
+          if (v2 > 1e-8) {
+            const invV = 1 / Math.sqrt(v2);
+            const boost = PARAM.clockInsideFlowBoost * (0.35 + insideDepth * 0.65);
+            p.vx += (p.vx * invV) * boost;
+            p.vy += (p.vy * invV) * boost;
+          }
+        }
+      }
+
       function drawCleanHint(nowMs) {
         if (nowMs >= cleanHintUntilMs) return;
         const total = Math.max(1, PARAM.cleanHintShowMs);
@@ -1136,14 +1327,43 @@
         const mon = String(now.getMonth() + 1).padStart(2, '0');
         const dd = String(now.getDate()).padStart(2, '0');
         const weekday = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][now.getDay()];
-        clockTimeEl.textContent = hh + ':' + mm;
-        clockDateEl.textContent = yyyy + '/' + mon + '/' + dd + ' (' + weekday + ')';
+        wallClockTimeText = hh + ':' + mm;
+        wallClockDateText = yyyy + '/' + mon + '/' + dd + ' (' + weekday + ')';
+        clockTimeEl.textContent = wallClockTimeText;
+        clockDateEl.textContent = wallClockDateText;
+        rebuildClockGravityField(false);
+      }
+
+      function drawWallClockOnCanvas() {
+        if (clockStarModeEnabled) return;
+        if (!clockVisible) return;
+        const cx = w * 0.5;
+        const cy = h * 0.45;
+        const timeFontPx = clamp(w * 0.18, 72, 170);
+        const dateFontPx = clamp(w * 0.022, 16, 30);
+
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.92)';
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
+        ctx.shadowBlur = 30;
+        ctx.shadowOffsetY = 8;
+        ctx.font = '600 ' + timeFontPx.toFixed(1) + 'px "Noto Sans JP", sans-serif';
+        ctx.fillText(wallClockTimeText, cx, cy);
+
+        if (clockDateVisible) {
+          ctx.font = '500 ' + dateFontPx.toFixed(1) + 'px "Noto Sans JP", sans-serif';
+          ctx.fillText(wallClockDateText, cx, cy + (timeFontPx * 0.6));
+        }
+        ctx.restore();
       }
 
       function syncClockVisibility() {
         const clockEl = document.getElementById('wallClock');
         if (!clockEl) return;
         clockEl.classList.toggle('hidden', !clockVisible);
+        rebuildClockGravityField(true);
         syncClockToggleButton();
       }
 
@@ -1151,6 +1371,7 @@
         const clockDateEl = document.getElementById('wallClockDate');
         if (!clockDateEl) return;
         clockDateEl.classList.toggle('hidden', !clockDateVisible);
+        rebuildClockGravityField(true);
         syncDateToggleButton();
       }
 
@@ -1631,6 +1852,7 @@
           const dy = b.y - spawnY;
           if (dx * dx + dy * dy < minD2) return;
         }
+        if (isInsideClockSpawnBlockArea(spawnX, spawnY)) return;
 
         const mass = PARAM.spawnMassBase + (bestRho - PARAM.rhoThreshold) * PARAM.spawnMassPerRho;
         const radius = calcRadius(mass);
@@ -1836,6 +2058,8 @@
         const lenScale = Math.sqrt(Math.max(0.0001, areaScale));
         currentAttractR = PARAM.attractR * lenScale;
         currentBlastR = PARAM.blastR * lenScale;
+        clearClockGravityField();
+        updateWallClock();
         const target = currentParticleTarget;
         particles.length = 0;
         blackHoles.length = 0;
@@ -1902,21 +2126,21 @@
           // Hold-click in negative gravity: disable ambient negative gravity and apply click gravity only.
           gravitateClick(pointerHoldX, pointerHoldY, PARAM.holdGravityImpulseScale);
         }
-        if (particleGravityEnabled || collisionModeEnabled) {
+        const pairGravityEnabled = particleGravityEnabled;
+        if (pairGravityEnabled || collisionModeEnabled) {
           buildParticleGravityGrid(wrapW, wrapH);
         }
-        if (particleGravityEnabled || (collisionModeEnabled && bhCreationLockFrames <= 0)) {
+        if (pairGravityEnabled || (collisionModeEnabled && bhCreationLockFrames <= 0)) {
           const merged = applyParticleGravitySymmetric(
             wrapW,
             wrapH,
-            particleGravityEnabled,
+            pairGravityEnabled,
             collisionModeEnabled && bhCreationLockFrames <= 0
           );
           if (merged && collisionModeEnabled) {
             buildParticleGravityGrid(wrapW, wrapH);
           }
         }
-
         if (bhSpawnCooldown > 0) bhSpawnCooldown -= 1;
         if (bhCreationLockFrames > 0) bhCreationLockFrames -= 1;
         if (
@@ -1975,6 +2199,7 @@
               p.vy += (dy / d) * pull;
             }
           }
+          applyClockGravity(p);
 
           let absorbed = false;
           if (!suppressNegativeAmbientGravity && bhEnabled && blackHoles.length > 0) {
@@ -2064,12 +2289,8 @@
           if (p.y < 0) p.y += h;
           if (p.y >= h) p.y -= h;
 
-          let alpha = (collisionModeEnabled ? 0.62 : 1.02) * p.life;
-          if (!collisionModeEnabled) alpha += 0.07;
-          if (collisionModeEnabled) {
-            alpha += proximityBrightnessOffset(i, p, wrapW, wrapH);
-            alpha += p.flash || 0;
-          }
+          // Twinkle suspended: keep brightness behavior identical to non-collision mode.
+          let alpha = 1.02 * p.life + 0.07;
           let dr = p.cr || 255;
           let dg = p.cg || 255;
           let db = p.cb || 255;
@@ -2098,6 +2319,7 @@
         }
 
         updateBlackHoles(dtMs);
+        drawWallClockOnCanvas();
         maybeTriggerBigBang();
         drawBlackHoles();
         updateUniverseHud(false);
@@ -2262,6 +2484,7 @@
           noFrictionModeEnabled = false;     // n
           bhArrowEnabled = false;            // b
           rightPanelHidden = false;          // P
+          clockStarModeEnabled = false;      // k
           setPauseState(false);              // ||
           await ensureFullscreenOff();       // f
         } else if (id === 2) {
@@ -2276,6 +2499,7 @@
           clockVisible = false;              // t
           clockDateVisible = false;          // d
           rightPanelHidden = false;          // P
+          clockStarModeEnabled = false;      // k
           setPauseState(false);              // ||
           await ensureFullscreenOff();       // f
         } else if (id === 3) {
@@ -2290,6 +2514,7 @@
           clockVisible = true;               // T
           clockDateVisible = true;           // D
           rightPanelHidden = true;           // p
+          clockStarModeEnabled = false;      // k
         } else {
           return;
         }
@@ -2302,6 +2527,7 @@
         syncLinksVisibility();
         syncClockVisibility();
         syncClockDateVisibility();
+        syncClockStarToggleButton();
         syncRightPanelVisibility();
       }
 
@@ -2372,6 +2598,12 @@
         if (key === 'l') {
           linksHidden = !linksHidden;
           syncLinksVisibility();
+          return;
+        }
+        if (key === 'k') {
+          clockStarModeEnabled = !clockStarModeEnabled;
+          syncClockStarToggleButton();
+          rebuildClockGravityField(true);
           return;
         }
         if (key === 'm') {
@@ -2487,6 +2719,14 @@
       linksToggleBtn.addEventListener('pointerdown', (e) => {
         e.stopPropagation();
       });
+      clockStarToggleBtn.addEventListener('click', () => {
+        clockStarModeEnabled = !clockStarModeEnabled;
+        syncClockStarToggleButton();
+        rebuildClockGravityField(true);
+      });
+      clockStarToggleBtn.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+      });
       flowToggleBtn.addEventListener('click', () => {
         setFlowMode(!flowModeEnabled);
       });
@@ -2558,6 +2798,7 @@
       syncUniverseHudVisibility();
       syncClockVisibility();
       syncClockDateVisibility();
+      syncClockStarToggleButton();
       updateUniverseHud(true);
       updateWallClock();
       setInterval(updateWallClock, 1000);
