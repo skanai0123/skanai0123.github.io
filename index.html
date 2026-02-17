@@ -905,6 +905,10 @@
           absorbedStarMass: 0,
           diskMass: 0,
           accretionGlowVolumeR3: 0,
+          accretionShellColorR: 0,
+          accretionShellColorG: 0,
+          accretionShellColorB: 0,
+          accretionShellColorW: 0,
           recentAccretion: 0,
           absorbGlow: 0,
           absorbGlowR: 0,
@@ -1007,6 +1011,11 @@
         const srcR = clamp(Math.round(p.cr || 255), 0, 255);
         const srcG = clamp(Math.round(p.cg || 255), 0, 255);
         const srcB = clamp(Math.round(p.cb || 255), 0, 255);
+        const shellW = Math.max(0.000001, volumeAddR3);
+        b.accretionShellColorR = (b.accretionShellColorR || 0) + srcR * shellW;
+        b.accretionShellColorG = (b.accretionShellColorG || 0) + srcG * shellW;
+        b.accretionShellColorB = (b.accretionShellColorB || 0) + srcB * shellW;
+        b.accretionShellColorW = (b.accretionShellColorW || 0) + shellW;
         if (b.diskColorR == null || b.diskColorG == null || b.diskColorB == null) {
           b.diskColorR = srcR;
           b.diskColorG = srcG;
@@ -2803,6 +2812,10 @@
           absorbedStarMass: 0,
           diskMass: 0,
           accretionGlowVolumeR3: 0,
+          accretionShellColorR: 0,
+          accretionShellColorG: 0,
+          accretionShellColorB: 0,
+          accretionShellColorW: 0,
           recentAccretion: 0,
           absorbGlow: 0,
           absorbGlowR: 0,
@@ -2896,6 +2909,10 @@
           if (b.y >= h) b.y -= h;
           b.recentAccretion = (b.recentAccretion || 0) * accDecay;
           b.accretionGlowVolumeR3 = Math.max(0, (b.accretionGlowVolumeR3 || 0) * accretionGlowDecay);
+          b.accretionShellColorR = Math.max(0, (b.accretionShellColorR || 0) * accretionGlowDecay);
+          b.accretionShellColorG = Math.max(0, (b.accretionShellColorG || 0) * accretionGlowDecay);
+          b.accretionShellColorB = Math.max(0, (b.accretionShellColorB || 0) * accretionGlowDecay);
+          b.accretionShellColorW = Math.max(0, (b.accretionShellColorW || 0) * accretionGlowDecay);
           const diskMassNow = Math.max(0, b.diskMass || 0);
           if (diskMassNow > 1e-9) {
             const diskToBh = diskMassNow * diskInfallFrac;
@@ -2963,6 +2980,10 @@
             a.absorbedStarMass = (a.absorbedStarMass || 0) + (b.absorbedStarMass || 0);
             a.diskMass = (a.diskMass || 0) + (b.diskMass || 0);
             a.accretionGlowVolumeR3 = (a.accretionGlowVolumeR3 || 0) + (b.accretionGlowVolumeR3 || 0);
+            a.accretionShellColorR = (a.accretionShellColorR || 0) + (b.accretionShellColorR || 0);
+            a.accretionShellColorG = (a.accretionShellColorG || 0) + (b.accretionShellColorG || 0);
+            a.accretionShellColorB = (a.accretionShellColorB || 0) + (b.accretionShellColorB || 0);
+            a.accretionShellColorW = (a.accretionShellColorW || 0) + (b.accretionShellColorW || 0);
             a.recentAccretion = (a.recentAccretion || 0) + (b.recentAccretion || 0);
             a.absorbGlow = (a.absorbGlow || 0) + (b.absorbGlow || 0);
             a.absorbGlowR = (a.absorbGlowR || 0) + (b.absorbGlowR || 0);
@@ -3056,9 +3077,17 @@
           const tempTint = clamp(PARAM.bhAccretionDiskTempTint, 0, 1);
           const shellVolumeR3 = Math.max(0, b.accretionGlowVolumeR3 || 0);
           if (shellVolumeR3 > 1e-7) {
-            const srcR = b.diskColorR == null ? bhTempRgb.r : b.diskColorR;
-            const srcG = b.diskColorG == null ? bhTempRgb.g : b.diskColorG;
-            const srcB = b.diskColorB == null ? bhTempRgb.b : b.diskColorB;
+            const shellW = Math.max(0, b.accretionShellColorW || 0);
+            const invShellW = 1 / Math.max(1e-9, shellW);
+            const srcR = shellW > 1e-7
+              ? clamp(Math.round((b.accretionShellColorR || 0) * invShellW), 0, 255)
+              : (b.diskColorR == null ? bhTempRgb.r : b.diskColorR);
+            const srcG = shellW > 1e-7
+              ? clamp(Math.round((b.accretionShellColorG || 0) * invShellW), 0, 255)
+              : (b.diskColorG == null ? bhTempRgb.g : b.diskColorG);
+            const srcB = shellW > 1e-7
+              ? clamp(Math.round((b.accretionShellColorB || 0) * invShellW), 0, 255)
+              : (b.diskColorB == null ? bhTempRgb.b : b.diskColorB);
             const tr = Math.round(srcR);
             const tg = Math.round(srcG);
             const tb = Math.round(srcB);
