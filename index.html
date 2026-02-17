@@ -429,6 +429,7 @@
         spawnCheckEveryNFrames: 10,
         bbNoBhLockFrames: 12,
         bhR0: 0.24,
+        bhTargetDiameterCmAtTotalMass: 1.0,
         bhAbsorbRatio: 1.0,
         bhCenterHitRadius: 0.08,
         bhCaptureRadiusMin: 0.24,
@@ -447,6 +448,19 @@
         bhAbsorbGlowRenderGain: 0.12,
         bhAbsorbGlowRadiusScale: 2.8,
         bhAbsorbGlowAlphaMax: 0.72,
+        bhAbsorbHaloMassScale: 0.08,
+        bhAccretionLuminosityGain: 0.9,
+        bhAccretionTempRateScale: 2800,
+        bhAccretionColorMix: 0.6,
+        bhTidalStripEnabled: true,
+        bhDirectCaptureEnabled: true,
+        bhTidalStripRangeScale: 3.2,
+        bhTidalStripRatePerSec: 4.2,
+        bhTidalStripMaxFractionPerFrame: 0.2,
+        bhCapturedHideRangeScale: 1.35,
+        bhCapturedDrag: 0.28,
+        bhCapturedInwardPull: 0.85,
+        bhDiskInfallHalfLifeMs: 700,
         bhRadiativeMassRef: 12.0,
         bhRadiativeMassExp: 0.22,
         bhAccretionHalfLifeMs: 900,
@@ -463,7 +477,7 @@
         bhAccretionDiskMassScaleCoef: 0.0001,
         bhAccretionDiskFadeStartOff: 0.00001,
         bhAccretionDiskRemoveOff: 0.000001,
-        bhAccretionDiskEnabled: true,
+        bhAccretionDiskEnabled: false,
         bhAccretionDiskTempTint: 0.65,
         bhTempHalfLifeSec: 24,
         bhTempMixPerAbsorb: 0.55,
@@ -542,6 +556,10 @@
         collapseRequireCollisionMode: true,
         collapseRepulseRadius: 86,
         collapseRepulseImpulse: 2.6,
+        collapseRepulseSoftening: 12,
+        collapseRepulseMassInertia: 0.65,
+        collapseRepulseKickCap: 4.8,
+        collapseRepulseHeatGainK: 900,
         densitySpawnRepulseBoost: 3.0,
         collapseNoAbsorbFrames: 36,
         collisionDistanceFactor: 0.85,
@@ -801,6 +819,7 @@
       let initialParticleMassTarget = 0;
       let currentParticleMassTotal = 0;
       let bbMassCompensationActive = false;
+      let bhR0Dynamic = PARAM.bhR0;
       const rRho2 = PARAM.rRho * PARAM.rRho;
       const dragBh = {
         target: null,
@@ -834,7 +853,7 @@
       }
 
       function calcRadius(mass) {
-        return PARAM.bhR0 * Math.cbrt(Math.max(0.01, mass));
+        return bhR0Dynamic * Math.max(0.0001, mass);
       }
 
       function calcAbsorbRadius(visualRadius) {
@@ -847,6 +866,10 @@
 
       function particleMassFromRadius(r) {
         return Math.pow(Math.max(0.2, r), Math.max(0.1, PARAM.ppMassPower));
+      }
+
+      function particleRadiusFromMass(m) {
+        return Math.pow(Math.max(0.0001, m), 1 / Math.max(0.1, PARAM.ppMassPower));
       }
 
       function isInsideClockSpawnBlockArea(x, y) {
@@ -876,6 +899,8 @@
           R: radius,
           Rabs: calcAbsorbRadius(radius),
           absorbedCount: 0,
+          absorbedStarMass: 0,
+          diskMass: 0,
           recentAccretion: 0,
           absorbGlow: 0,
           absorbGlowR: 0,
@@ -902,6 +927,9 @@
         const wx = w + 40;
         const wy = h + 20;
         const scaledImpulse = PARAM.collapseRepulseImpulse * Math.max(0, impulseScale);
+        const soft2 = Math.max(1, PARAM.collapseRepulseSoftening * PARAM.collapseRepulseSoftening);
+        const massInertiaPow = Math.max(0, PARAM.collapseRepulseMassInertia);
+        const kickCap = Math.max(0.1, PARAM.collapseRepulseKickCap);
         for (let i = 0; i < particles.length; i += 1) {
           const p = particles[i];
           if (!p) continue;
@@ -911,24 +939,33 @@
           if (d2 < 1 || d2 > r2) continue;
           const d = Math.sqrt(d2);
           const u = 1 - (d / r);
-          const kick = scaledImpulse * u;
+          const distFactor = 1 / (1 + (d2 / soft2));
+          const massNow = Math.max(0.0001, Number.isFinite(p.mass) ? p.mass : particleMassFromRadius(p.r));
+          const inertia = Math.pow(massNow, massInertiaPow);
+          const kick = Math.min(kickCap, (scaledImpulse * u * distFactor) / Math.max(1e-6, inertia));
           p.vx += (dx / d) * kick;
           p.vy += (dy / d) * kick;
-          p.flash = Math.min(PARAM.collisionFlashMax, (p.flash || 0) + 0.22 * u);
+          const flashGain = 0.18 + 0.34 * (kick / kickCap);
+          p.flash = Math.min(PARAM.collisionFlashMax, (p.flash || 0) + flashGain * u);
+          const tempNow = Number.isFinite(p.tempK) ? p.tempK : PARAM.tempMinK;
+          const heatAdd = Math.max(0, PARAM.collapseRepulseHeatGainK) * (kick / kickCap) * u;
+          p.tempK = clamp(tempNow + heatAdd, PARAM.tempMinK, PARAM.tempMaxK);
         }
       }
 
-      function absorbParticleIntoBlackHole(b, p) {
-        const dm = Math.max(0.0001, PARAM.bhMassGainPerAbsorb);
+      function transferMassToBlackHole(b, p, dm, sourceMass, addDiskRing = true) {
+        const addMass = Math.max(0.000001, dm);
         const mb = Math.max(0.0001, b.mass || 0);
         const vbx = b.vx || 0;
         const vby = b.vy || 0;
-        const newM = mb + dm;
-        b.vx = (vbx * mb + p.vx * dm) / newM;
-        b.vy = (vby * mb + p.vy * dm) / newM;
+        const newM = mb + addMass;
+        b.vx = (vbx * mb + p.vx * addMass) / newM;
+        b.vy = (vby * mb + p.vy * addMass) / newM;
         b.mass = newM;
-        b.absorbedCount = (b.absorbedCount || 0) + 1;
-        const starMass = Math.max(0.0001, Number.isFinite(p.mass) ? p.mass : particleMassFromRadius(p.r));
+        b.R = calcRadius(newM);
+        b.Rabs = calcAbsorbRadius(b.R);
+        const starMass = Math.max(0.000001, sourceMass == null ? addMass : sourceMass);
+        b.absorbedStarMass = (b.absorbedStarMass || 0) + addMass;
         const rvx = (p.vx || 0) - vbx;
         const rvy = (p.vy || 0) - vby;
         const kineticTerm = starMass * (rvx * rvx + rvy * rvy);
@@ -976,7 +1013,7 @@
           b.diskColorG = lerp(b.diskColorG, srcG, emaT);
           b.diskColorB = lerp(b.diskColorB, srcB, emaT);
         }
-        if (PARAM.bhAccretionDiskEnabled) {
+        if (PARAM.bhAccretionDiskEnabled && addDiskRing) {
           const rings = b.accretionRings || (b.accretionRings = []);
           const gap = Math.max(0.00001, PARAM.bhAccretionDiskRingGap);
           let maxOffset = gap;
@@ -1005,6 +1042,138 @@
         }
       }
 
+      function absorbParticleIntoBlackHole(b, p) {
+        const dm = Math.max(0.0001, PARAM.bhMassGainPerAbsorb);
+        const starMass = Math.max(0.0001, Number.isFinite(p.mass) ? p.mass : particleMassFromRadius(p.r));
+        transferMassToBlackHole(b, p, dm, starMass);
+        b.absorbedCount = (b.absorbedCount || 0) + 1;
+      }
+
+      function transferMassToAccretionDisk(b, p, dm, addDiskRing = true) {
+        const addMass = Math.max(0.000001, dm);
+        b.diskMass = (b.diskMass || 0) + addMass;
+        b.absorbedStarMass = (b.absorbedStarMass || 0) + addMass;
+        const vbx = b.vx || 0;
+        const vby = b.vy || 0;
+        const rvx = (p.vx || 0) - vbx;
+        const rvy = (p.vy || 0) - vby;
+        const kineticTerm = addMass * (rvx * rvx + rvy * rvy);
+        const massRef = Math.max(0.0001, PARAM.bhRadiativeMassRef);
+        const massExp = Math.max(0, PARAM.bhRadiativeMassExp);
+        const massFactor = Math.pow(Math.max(0.0001, b.mass || 0) / massRef, massExp);
+        const recentAcc = Math.max(0, b.recentAccretion || 0);
+        const accBoost = 1 + Math.min(PARAM.bhAccretionMaxBoost, recentAcc * PARAM.bhAccretionResponse);
+        const glowAdd = kineticTerm * PARAM.bhAbsorbGlowEnergyScale * massFactor * accBoost;
+        b.recentAccretion = recentAcc + addMass;
+        b.absorbGlow = (b.absorbGlow || 0) + glowAdd;
+        b.absorbGlowR = (b.absorbGlowR || 0) + (p.cr || 255) * glowAdd;
+        b.absorbGlowG = (b.absorbGlowG || 0) + (p.cg || 255) * glowAdd;
+        b.absorbGlowB = (b.absorbGlowB || 0) + (p.cb || 255) * glowAdd;
+
+        const srcTempK = clamp(
+          Number.isFinite(p.tempK) ? p.tempK : PARAM.tempMinK,
+          PARAM.tempMinK,
+          PARAM.tempMaxK
+        );
+        const tempNow = clamp(
+          Number.isFinite(b.tempK) ? b.tempK : srcTempK,
+          PARAM.tempMinK,
+          PARAM.tempMaxK
+        );
+        b.tempK = clamp(lerp(tempNow, srcTempK, 0.25), PARAM.tempMinK, PARAM.tempMaxK);
+
+        const srcR = clamp(Math.round(p.cr || 255), 0, 255);
+        const srcG = clamp(Math.round(p.cg || 255), 0, 255);
+        const srcB = clamp(Math.round(p.cb || 255), 0, 255);
+        if (b.diskColorR == null || b.diskColorG == null || b.diskColorB == null) {
+          b.diskColorR = srcR;
+          b.diskColorG = srcG;
+          b.diskColorB = srcB;
+        } else {
+          const emaT = 0.2;
+          b.diskColorR = lerp(b.diskColorR, srcR, emaT);
+          b.diskColorG = lerp(b.diskColorG, srcG, emaT);
+          b.diskColorB = lerp(b.diskColorB, srcB, emaT);
+        }
+        if (PARAM.bhAccretionDiskEnabled && addDiskRing) {
+          const rings = b.accretionRings || (b.accretionRings = []);
+          const gap = Math.max(0.00001, PARAM.bhAccretionDiskRingGap);
+          let maxOffset = gap;
+          for (let i = 0; i < rings.length; i += 1) {
+            const off = rings[i].off == null ? gap : rings[i].off;
+            if (off > maxOffset) maxOffset = off;
+          }
+          rings.push({
+            r: srcR,
+            g: srcG,
+            bl: srcB,
+            off: maxOffset + gap
+          });
+          const maxRings = Math.max(24, Math.floor(PARAM.bhAccretionDiskMaxRings));
+          while (rings.length > maxRings) rings.shift();
+        }
+      }
+
+      function stripParticleMassIntoBlackHole(b, p, d, dtMs) {
+        if (!PARAM.bhTidalStripEnabled) return false;
+        const inner = Math.max(0.0001, b.Rabs || 0);
+        const outer = Math.max(inner + 0.0001, inner * Math.max(1.01, PARAM.bhTidalStripRangeScale));
+        if (d <= inner || d >= outer) return false;
+        const massNow = Math.max(0.0001, Number.isFinite(p.mass) ? p.mass : particleMassFromRadius(p.r));
+        const dtSec = Math.max(0, dtMs) * 0.001;
+        const u = 1 - ((d - inner) / Math.max(0.0001, outer - inner));
+        const stripRate = Math.max(0, PARAM.bhTidalStripRatePerSec) * u * u;
+        let dm = massNow * (1 - Math.exp(-stripRate * dtSec));
+        const fracCap = clamp(PARAM.bhTidalStripMaxFractionPerFrame, 0, 1);
+        dm = Math.min(dm, massNow * fracCap);
+        if (dm <= 0.000001) return false;
+        p.capturedByBh = false;
+        transferMassToAccretionDisk(b, p, dm, true);
+        const nextMass = Math.max(0.0001, massNow - dm);
+        p.mass = nextMass;
+        p.r = Math.max(0.2, particleRadiusFromMass(nextMass));
+        p.stellarClass = classifyStellarClassFromState(
+          p.r,
+          Number.isFinite(p.tempK) ? p.tempK : PARAM.tempMinK
+        );
+        return nextMass <= 0.00011;
+      }
+
+      function lockCapturedParticleToNearestBh(p) {
+        if (!p || !p.capturedByBh || !bhEnabled || blackHoles.length === 0) {
+          if (p) p.capturedByBh = false;
+          return;
+        }
+        let best = null;
+        let bestDx = 0;
+        let bestDy = 0;
+        let bestD2 = Infinity;
+        for (let i = 0; i < blackHoles.length; i += 1) {
+          const b = blackHoles[i];
+          const dx = shortestWrappedDelta(b.x, p.x, w);
+          const dy = shortestWrappedDelta(b.y, p.y, h);
+          const d2 = dx * dx + dy * dy;
+          if (d2 < bestD2) {
+            best = b;
+            bestDx = dx;
+            bestDy = dy;
+            bestD2 = d2;
+          }
+        }
+        if (!best) {
+          p.capturedByBh = false;
+          return;
+        }
+        const d = Math.sqrt(Math.max(1e-9, bestD2));
+        const nx = bestDx / d;
+        const ny = bestDy / d;
+        const targetVx = (best.vx || 0) + nx * Math.max(0, PARAM.bhCapturedInwardPull);
+        const targetVy = (best.vy || 0) + ny * Math.max(0, PARAM.bhCapturedInwardPull);
+        const dragT = clamp(PARAM.bhCapturedDrag, 0, 1);
+        p.vx = lerp(p.vx || 0, targetVx, dragT);
+        p.vy = lerp(p.vy || 0, targetVy, dragT);
+      }
+
       function removeParticleAt(index) {
         const last = particles.length - 1;
         if (index < 0 || index > last) return;
@@ -1016,6 +1185,7 @@
         if (particles.length === 0) return;
         for (let i = 0; i < particles.length; i += 1) {
           particles[i].isEarth = false;
+          particles[i].capturedByBh = false;
         }
         const p = particles[0];
         setParticleColor(p, '0,255,0');
@@ -1024,6 +1194,7 @@
         p.mass = particleMassFromRadius(p.r);
         p.life = 1;
         p.isEarth = true;
+        p.capturedByBh = false;
       }
 
       function randomVelReturn() {
@@ -1310,6 +1481,14 @@
         currentParticleMassTotal = computeParticleMassTotal();
         if (updateTarget) {
           initialParticleMassTarget = currentParticleMassTotal;
+          const targetDiamCm = Math.max(0, PARAM.bhTargetDiameterCmAtTotalMass || 0);
+          if (targetDiamCm > 0 && initialParticleMassTarget > 0) {
+            const targetDiamPx = (targetDiamCm * 96) / 2.54;
+            const targetR = targetDiamPx * 0.5;
+            bhR0Dynamic = targetR / Math.max(0.0001, initialParticleMassTarget);
+          } else {
+            bhR0Dynamic = PARAM.bhR0;
+          }
         }
       }
 
@@ -1825,7 +2004,8 @@
             color: '255,255,255',
             cr: 255,
             cg: 255,
-            cb: 255
+            cb: 255,
+            capturedByBh: false
           };
           syncParticleColorFromTemperature(p);
           particles.push(p);
@@ -2172,6 +2352,7 @@
         const s = PARAM.cellSize;
         for (let i = 0; i < particles.length; i += 1) {
           const p = particles[i];
+          if (!p || p.capturedByBh) continue;
           const cx = Math.floor(p.x / s);
           const cy = Math.floor(p.y / s);
           const k = gridKey(cx, cy);
@@ -2198,6 +2379,7 @@
         }
         for (let i = 0; i < particles.length; i += 1) {
           const p = particles[i];
+          if (!p || p.capturedByBh) continue;
           const px = (((p.x + ppGridOffsetX) % periodX) + periodX) % periodX;
           const py = (((p.y + ppGridOffsetY) % periodY) + periodY) % periodY;
           const cx = Math.floor(px / s);
@@ -2250,6 +2432,11 @@
         let maxParticleR = 0;
         for (let i = 0; i < n; i += 1) {
           const p = particles[i];
+          if (!p || p.capturedByBh) {
+            massArr[i] = 0;
+            invInertiaArr[i] = 0;
+            continue;
+          }
           if (p && p.r > maxParticleR) maxParticleR = p.r;
           const m = Math.max(
             0.0001,
@@ -2295,7 +2482,8 @@
             cr: 255,
             cg: 255,
             cb: 255,
-            isEarth: false
+            isEarth: false,
+            capturedByBh: false
           };
           syncParticleColorFromTemperature(p);
           return p;
@@ -2324,6 +2512,7 @@
           const pi = particles[i];
           const pj = particles[j];
           if (!pi || !pj) return;
+          if (pi.capturedByBh || pj.capturedByBh) return;
           let dx = pj.x - pi.x;
           if (dx > halfW) dx -= wrapW;
           if (dx < -halfW) dx += wrapW;
@@ -2601,6 +2790,8 @@
           R: radius,
           Rabs: calcAbsorbRadius(radius),
           absorbedCount: 0,
+          absorbedStarMass: 0,
+          diskMass: 0,
           recentAccretion: 0,
           absorbGlow: 0,
           absorbGlowR: 0,
@@ -2651,6 +2842,8 @@
         const absorbGlowDecay = Math.pow(0.5, dtMs / halfLifeMs);
         const accHalfLifeMs = Math.max(1, PARAM.bhAccretionHalfLifeMs);
         const accDecay = Math.pow(0.5, dtMs / accHalfLifeMs);
+        const diskInfallHalfLifeMs = Math.max(1, PARAM.bhDiskInfallHalfLifeMs);
+        const diskInfallFrac = 1 - Math.pow(0.5, dtMs / diskInfallHalfLifeMs);
         const bhTempHalfLifeMs = Math.max(1, PARAM.bhTempHalfLifeSec * 1000);
         const bhTempDecay = Math.pow(0.5, dtMs / bhTempHalfLifeMs);
         const diskHalfLifeMs = Math.max(1, PARAM.bhAccretionDiskHalfLifeMs);
@@ -2689,6 +2882,14 @@
           if (b.y < 0) b.y += h;
           if (b.y >= h) b.y -= h;
           b.recentAccretion = (b.recentAccretion || 0) * accDecay;
+          const diskMassNow = Math.max(0, b.diskMass || 0);
+          if (diskMassNow > 1e-9) {
+            const diskToBh = diskMassNow * diskInfallFrac;
+            if (diskToBh > 0) {
+              b.diskMass = Math.max(0, diskMassNow - diskToBh);
+              b.mass = Math.max(0.0001, (b.mass || 0) + diskToBh);
+            }
+          }
           b.absorbGlow = (b.absorbGlow || 0) * absorbGlowDecay;
           b.absorbGlowR = (b.absorbGlowR || 0) * absorbGlowDecay;
           b.absorbGlowG = (b.absorbGlowG || 0) * absorbGlowDecay;
@@ -2703,7 +2904,7 @@
           }
           if (PARAM.bhAccretionDiskEnabled) {
             const rings = b.accretionRings || (b.accretionRings = []);
-            const absorbedMass = Math.max(0, (b.absorbedCount || 0) * Math.max(0.0001, PARAM.bhMassGainPerAbsorb));
+            const absorbedMass = Math.max(0, b.diskMass || 0);
             const halfLifeScale = 1 + (absorbedMass * Math.max(0, PARAM.bhAccretionDiskMassHalfLifeGain));
             const ringDecay = Math.pow(0.5, dtMs / (diskHalfLifeMs * halfLifeScale));
             const removeOff = Math.max(1e-12, PARAM.bhAccretionDiskRemoveOff);
@@ -2744,6 +2945,8 @@
             a.R = calcRadius(mass);
             a.Rabs = calcAbsorbRadius(a.R);
             a.absorbedCount = (a.absorbedCount || 0) + (b.absorbedCount || 0);
+            a.absorbedStarMass = (a.absorbedStarMass || 0) + (b.absorbedStarMass || 0);
+            a.diskMass = (a.diskMass || 0) + (b.diskMass || 0);
             a.recentAccretion = (a.recentAccretion || 0) + (b.recentAccretion || 0);
             a.absorbGlow = (a.absorbGlow || 0) + (b.absorbGlow || 0);
             a.absorbGlowR = (a.absorbGlowR || 0) + (b.absorbGlowR || 0);
@@ -2787,15 +2990,33 @@
         for (let i = 0; i < blackHoles.length; i += 1) {
           const b = blackHoles[i];
           const glowE = Math.max(0, b.absorbGlow || 0);
-          if (glowRenderingEnabled && glowE > 1e-7) {
+          const bhMass = Math.max(0.0001, b.mass || 0);
+          const activeAccretion = Math.max(0, b.recentAccretion || 0);
+          const accWindowSec = Math.max(0.001, PARAM.bhAccretionHalfLifeMs * 0.001);
+          const mdotProxy = activeAccretion / accWindowSec;
+          const luminosityProxy = mdotProxy * bhMass;
+          if (glowRenderingEnabled && (glowE > 1e-7 || luminosityProxy > 1e-7)) {
+            const bhTempRgbBase = kelvinToRgb(Number.isFinite(b.tempK) ? b.tempK : PARAM.tempMinK);
             const invE = 1 / Math.max(1e-9, glowE);
-            const gr = clamp(Math.round((b.absorbGlowR || 0) * invE), 0, 255);
-            const gg = clamp(Math.round((b.absorbGlowG || 0) * invE), 0, 255);
-            const gb = clamp(Math.round((b.absorbGlowB || 0) * invE), 0, 255);
-            const glowStrength = 1 - Math.exp(-glowE * Math.max(0, PARAM.bhAbsorbGlowRenderGain));
+            const srcR = glowE > 1e-7 ? clamp(Math.round((b.absorbGlowR || 0) * invE), 0, 255) : bhTempRgbBase.r;
+            const srcG = glowE > 1e-7 ? clamp(Math.round((b.absorbGlowG || 0) * invE), 0, 255) : bhTempRgbBase.g;
+            const srcB = glowE > 1e-7 ? clamp(Math.round((b.absorbGlowB || 0) * invE), 0, 255) : bhTempRgbBase.b;
+            const accRateNorm = clamp(
+              (mdotProxy / Math.max(1e-6, bhMass * bhMass)) * Math.max(0, PARAM.bhAccretionTempRateScale),
+              0,
+              1
+            );
+            const accTempK = lerp(3500, PARAM.tempMaxK, Math.pow(accRateNorm, 0.25));
+            const accRgb = kelvinToRgb(accTempK);
+            const colorMix = clamp(PARAM.bhAccretionColorMix, 0, 1);
+            const gr = Math.round(lerp(srcR, accRgb.r, colorMix));
+            const gg = Math.round(lerp(srcG, accRgb.g, colorMix));
+            const gb = Math.round(lerp(srcB, accRgb.b, colorMix));
+            const glowStrength = 1 - Math.exp(-luminosityProxy * Math.max(0, PARAM.bhAccretionLuminosityGain));
+            const haloMassScale = 1 + Math.log1p(activeAccretion) * Math.max(0, PARAM.bhAbsorbHaloMassScale);
             const glowRadius = Math.max(
               b.R * 1.2,
-              b.R * (1 + Math.max(0, PARAM.bhAbsorbGlowRadiusScale) * glowStrength)
+              b.R * haloMassScale
             );
             const glowAlpha = clamp(
               glowStrength * Math.max(0, PARAM.bhAbsorbGlowAlphaMax),
@@ -2823,7 +3044,7 @@
             const lineW = Math.max(0.2, PARAM.bhAccretionDiskLineWidth);
             const baseA = clamp(PARAM.bhAccretionDiskAlpha, 0.02, 0.98);
             const sizeScale = Math.max(0.0001, PARAM.bhAccretionDiskSizeScale);
-            const absorbedMass = Math.max(0, (b.absorbedCount || 0) * Math.max(0.0001, PARAM.bhMassGainPerAbsorb));
+            const absorbedMass = Math.max(0, b.diskMass || 0);
             const rawMassScale = Math.pow(
               1 + absorbedMass,
               Math.max(0, PARAM.bhAccretionDiskMassScaleExp)
@@ -2848,7 +3069,7 @@
             ctx.restore();
           }
           ctx.beginPath();
-          ctx.fillStyle = 'rgba(0,0,0,0.9)';
+          ctx.fillStyle = 'rgba(0,0,0,1)';
           ctx.arc(b.x, b.y, b.R, 0, Math.PI * 2);
           ctx.fill();
 
@@ -2911,7 +3132,8 @@
             color: '255,255,255',
             cr: 255,
             cg: 255,
-            cb: 255
+            cb: 255,
+            capturedByBh: false
           };
           syncParticleColorFromTemperature(p);
           particles.push(p);
@@ -3107,6 +3329,9 @@
             }
           }
           applyClockGravity(p);
+          if (p.capturedByBh) {
+            lockCapturedParticleToNearestBh(p);
+          }
 
           let absorbed = false;
           if (hasBhGravity) {
@@ -3128,6 +3353,22 @@
               }
             }
           }
+          if (hasBhAbsorbCheck && PARAM.bhTidalStripEnabled) {
+            for (let bIdx = 0; bIdx < blackHoles.length; bIdx += 1) {
+              const b = blackHoles[bIdx];
+              if ((b.absorbLockFrames || 0) > 0) continue;
+              const dx = shortestWrappedDelta(b.x, p.x, wrapW);
+              const dy = shortestWrappedDelta(b.y, p.y, wrapH);
+              const d2 = dx * dx + dy * dy;
+              if (d2 <= 1) continue;
+              const d = Math.sqrt(d2);
+              if (stripParticleMassIntoBlackHole(b, p, d, dtMs)) {
+                removeParticleAt(i);
+                absorbed = true;
+                break;
+              }
+            }
+          }
           if (absorbed) {
             i -= 1;
             continue;
@@ -3145,7 +3386,7 @@
           p.y += p.vy + wave;
 
           // Robust horizon check (endpoint + segment-crossing) to prevent tunneling leaks.
-          if (hasBhAbsorbCheck) {
+          if (hasBhAbsorbCheck && PARAM.bhDirectCaptureEnabled) {
             for (let bIdx = 0; bIdx < blackHoles.length; bIdx += 1) {
               const b = blackHoles[bIdx];
               if ((b.absorbLockFrames || 0) > 0) continue;
@@ -3195,12 +3436,18 @@
               p.heat = Math.min(1, (p.heat || 0) + PARAM.preCollapseHeatGain);
             }
           }
-          totalEnergy += particleBrightnessEnergy(p);
+          if (!p.capturedByBh) {
+            totalEnergy += particleBrightnessEnergy(p);
+          }
 
           if (p.x < 0) p.x += w;
           if (p.x >= w) p.x -= w;
           if (p.y < 0) p.y += h;
           if (p.y >= h) p.y -= h;
+
+          if (p.capturedByBh) {
+            continue;
+          }
 
           // Twinkle suspended: keep brightness behavior identical to non-collision mode.
           let alpha = 1.02 * p.life + 0.07;
