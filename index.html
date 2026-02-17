@@ -105,6 +105,118 @@
       display: none;
     }
 
+    .custom-text-box {
+      position: fixed;
+      left: 50%;
+      top: 20%;
+      transform: translate(-50%, -50%);
+      z-index: 4;
+      width: min(72vw, 760px);
+      max-width: calc(100vw - 26px);
+      padding-top: 30px;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      backdrop-filter: none;
+      color: rgba(234, 241, 255, 0.95);
+      box-shadow: none;
+      pointer-events: auto;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    .custom-text-box.hidden {
+      display: none;
+    }
+
+    .custom-text-drag-handle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      min-height: 14px;
+      padding: 0;
+      border-bottom: 0;
+      color: transparent;
+      font-size: 0;
+      font-weight: 600;
+      letter-spacing: 0;
+      cursor: grab;
+      touch-action: none;
+      opacity: 0;
+    }
+
+    .custom-text-drag-handle:active {
+      cursor: grabbing;
+    }
+
+    .custom-text-input {
+      display: block;
+      width: 100%;
+      height: 2.45em;
+      min-height: 0;
+      max-height: none;
+      padding: 0;
+      border: 0;
+      outline: 0;
+      resize: none;
+      overflow: hidden;
+      background: transparent;
+      color: rgba(255, 255, 255, 0.92);
+      font-family: "Noto Sans JP", system-ui, sans-serif;
+      font-size: 42px;
+      font-weight: 600;
+      line-height: 1.05;
+      letter-spacing: 0.02em;
+      white-space: pre-wrap;
+      text-align: center;
+      text-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    .custom-text-input::placeholder {
+      color: rgba(234, 241, 255, 0.35);
+      text-align: center;
+    }
+
+    .custom-text-controls {
+      position: fixed;
+      left: 50%;
+      top: 8px;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 4px 6px;
+      border: 1px solid rgba(134, 200, 255, 0.24);
+      border-radius: 8px;
+      background: rgba(9, 26, 48, 0.24);
+      border-top: 0;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 120ms ease;
+      z-index: 5;
+    }
+
+    .custom-text-controls.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .custom-text-size-btn {
+      min-width: 44px;
+      height: 24px;
+      border: 1px solid rgba(63, 112, 166, 0.3);
+      border-radius: 8px;
+      background: rgba(9, 26, 48, 0.26);
+      color: rgba(234, 241, 255, 0.8);
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
     .bookmark-bar {
       position: fixed;
       top: 10px;
@@ -185,16 +297,17 @@
     .particle-gravity-toggle { right: 12px; top: 172px; font-size: 12px; }/* g */
     .flow-toggle { right: 12px; top: 212px; font-size: 12px; }            /* h */
     .info-btn { right: 12px; top: 252px; font-size: 14px; }               /* i */
-    .clock-star-toggle { right: 12px; top: 292px; font-size: 12px; }      /* k */
-    .links-toggle { right: 12px; top: 332px; font-size: 13px; }           /* l */
-    .mouse-gravity-toggle { right: 12px; top: 372px; font-size: 12px; }   /* m */
-    .friction-toggle { right: 12px; top: 412px; font-size: 12px; }        /* n */
-    .hover-toggle { right: 12px; top: 452px; font-size: 12px; }           /* o */
-    .panel-toggle { right: 12px; top: 492px; font-size: 12px; }           /* p */
-    .reset-layout-btn { right: 12px; top: 532px; font-size: 12px; }       /* r */
-    .relayout-btn { right: 12px; top: 572px; font-size: 12px; }           /* x */
-    .clock-toggle { right: 12px; top: 612px; font-size: 12px; }           /* t */
-    .time-toggle { right: 12px; top: 652px; }                              /* space */
+    .custom-text-toggle { right: 12px; top: 292px; font-size: 12px; }     /* j */
+    .clock-star-toggle { right: 12px; top: 332px; font-size: 12px; }      /* k */
+    .links-toggle { right: 12px; top: 372px; font-size: 13px; }           /* l */
+    .mouse-gravity-toggle { right: 12px; top: 412px; font-size: 12px; }   /* m */
+    .friction-toggle { right: 12px; top: 452px; font-size: 12px; }        /* n */
+    .hover-toggle { right: 12px; top: 492px; font-size: 12px; }           /* o */
+    .panel-toggle { right: 12px; top: 532px; font-size: 12px; }           /* p */
+    .reset-layout-btn { right: 12px; top: 572px; font-size: 12px; }       /* r */
+    .relayout-btn { right: 12px; top: 612px; font-size: 12px; }           /* x */
+    .clock-toggle { right: 12px; top: 652px; font-size: 12px; }           /* t */
+    .time-toggle { right: 12px; top: 692px; }                              /* space */
     .preset-btn { right: 56px; font-size: 12px; }
     .preset-1 { top: 12px; }
     .preset-2 { top: 52px; }
@@ -294,6 +407,13 @@
         top: 42%;
         font-size: clamp(56px, 22vw, 108px);
       }
+      .custom-text-box {
+        width: calc(100vw - 16px);
+        max-width: calc(100vw - 16px);
+      }
+      .custom-text-input {
+        font-size: 30px;
+      }
       .bookmark-bar {
         top: 8px;
         left: 8px;
@@ -327,6 +447,14 @@
     <span id="wallClockTime" class="wall-clock-time">--:--</span>
     <span id="wallClockDate" class="wall-clock-date">----</span>
   </div>
+  <div id="customTextBox" class="custom-text-box hidden" aria-hidden="true">
+    <div id="customTextDragHandle" class="custom-text-drag-handle">Text Box (Drag here)</div>
+    <textarea id="customTextInput" class="custom-text-input" rows="2" placeholder="Type here / 日本語OK / Enter for newline"></textarea>
+  </div>
+  <div id="customTextControls" class="custom-text-controls" aria-hidden="true">
+    <button id="customTextSizeDownBtn" class="custom-text-size-btn" type="button" aria-label="Decrease text size" title="Smaller text">A-</button>
+    <button id="customTextSizeUpBtn" class="custom-text-size-btn" type="button" aria-label="Increase text size" title="Larger text">A+</button>
+  </div>
   <div id="universeHud" class="universe-hud" aria-live="polite">
     <span class="hud-item" id="hudBbCount">BB: -</span>
     <span class="hud-item" id="hudEarthAlive">Earth: -</span>
@@ -347,6 +475,7 @@
   <button id="particleGravityToggleBtn" class="tool-btn particle-gravity-toggle" type="button" aria-label="Enable particle gravity" title="Enable particle gravity">g</button>
   <button id="flowToggleBtn" class="tool-btn flow-toggle" type="button" aria-label="Enable flow mode" title="Enable flow mode">h</button>
   <button id="universeInfoBtn" class="tool-btn info-btn" type="button" aria-label="Show universe panel" title="Universe panel">i</button>
+  <button id="customTextToggleBtn" class="tool-btn custom-text-toggle" type="button" aria-label="Show text box" title="Show text box">j</button>
   <button id="clockStarToggleBtn" class="tool-btn clock-star-toggle" type="button" aria-label="Enable star clock gravity" title="Enable star clock gravity">k</button>
   <button id="linksToggleBtn" class="tool-btn links-toggle" type="button" aria-label="Hide links" title="Hide links">L</button>
   <button id="mouseGravityToggleBtn" class="tool-btn mouse-gravity-toggle" type="button" aria-label="Disable mouse gravity" title="Disable mouse gravity">M</button>
@@ -659,6 +788,8 @@
       if (!bookmarkBarEl) return;
       const linksToggleBtn = document.getElementById('linksToggleBtn');
       if (!linksToggleBtn) return;
+      const customTextToggleBtn = document.getElementById('customTextToggleBtn');
+      if (!customTextToggleBtn) return;
       const clockStarToggleBtn = document.getElementById('clockStarToggleBtn');
       if (!clockStarToggleBtn) return;
       const hoverInfoToggleBtn = document.getElementById('hoverInfoToggleBtn');
@@ -723,6 +854,18 @@
       if (!hudResistanceEl) return;
       const hudFpsEl = document.getElementById('hudFps');
       if (!hudFpsEl) return;
+      const customTextBoxEl = document.getElementById('customTextBox');
+      if (!customTextBoxEl) return;
+      const customTextDragHandleEl = document.getElementById('customTextDragHandle');
+      if (!customTextDragHandleEl) return;
+      const customTextInputEl = document.getElementById('customTextInput');
+      if (!customTextInputEl) return;
+      const customTextControlsEl = document.getElementById('customTextControls');
+      if (!customTextControlsEl) return;
+      const customTextSizeDownBtn = document.getElementById('customTextSizeDownBtn');
+      if (!customTextSizeDownBtn) return;
+      const customTextSizeUpBtn = document.getElementById('customTextSizeUpBtn');
+      if (!customTextSizeUpBtn) return;
       let dpr = Math.max(1, Math.min(1.5, window.devicePixelRatio || 1));
       let w = 0;
       let h = 0;
@@ -803,6 +946,19 @@
       let clockVisible = true;
       let clockDateVisible = true;
       let clockStarModeEnabled = false;
+      let customTextEnabled = false;
+      let customTextEditing = false;
+      let customTextFontSizePx = 42;
+      let customTextPosX = NaN;
+      let customTextPosY = NaN;
+      let customTextDragActive = false;
+      let customTextDragPointerId = -1;
+      let customTextDragOffsetX = 0;
+      let customTextDragOffsetY = 0;
+      let customTextPendingDragId = -1;
+      let customTextDownX = 0;
+      let customTextDownY = 0;
+      let customTextDraggedSinceDown = false;
       let wallClockTimeText = '--:--';
       let wallClockDateText = '----';
       let clockGravityFieldSignature = '';
@@ -1554,6 +1710,93 @@
         linksToggleBtn.textContent = linksHidden ? 'l' : 'L';
         linksToggleBtn.title = linksHidden ? 'Show links' : 'Hide links';
         linksToggleBtn.setAttribute('aria-label', linksHidden ? 'Show links' : 'Hide links');
+      }
+
+      function ensureCustomTextPosition() {
+        if (!Number.isFinite(customTextPosX) || !Number.isFinite(customTextPosY)) {
+          const ww = Math.max(1, w || window.innerWidth || 1);
+          const hh = Math.max(1, h || window.innerHeight || 1);
+          // Align default text position directly above the wall clock center.
+          customTextPosX = ww * 0.5;
+          customTextPosY = hh * 0.33;
+        }
+      }
+
+      function clampCustomTextPosition() {
+        ensureCustomTextPosition();
+        const ww = Math.max(1, w || window.innerWidth || 1);
+        const hh = Math.max(1, h || window.innerHeight || 1);
+        customTextPosX = ((customTextPosX % ww) + ww) % ww;
+        customTextPosY = ((customTextPosY % hh) + hh) % hh;
+      }
+
+      function syncCustomTextFontSize() {
+        const px = clamp(customTextFontSizePx, 12, 220);
+        customTextFontSizePx = px;
+        customTextInputEl.style.fontSize = px.toFixed(1) + 'px';
+        requestAnimationFrame(syncCustomTextAutoHeight);
+      }
+
+      function scaleCustomTextPosition(oldW, oldH, newW, newH) {
+        if (!Number.isFinite(customTextPosX) || !Number.isFinite(customTextPosY)) return;
+        const ow = Math.max(1, oldW || 1);
+        const oh = Math.max(1, oldH || 1);
+        const nw = Math.max(1, newW || 1);
+        const nh = Math.max(1, newH || 1);
+        customTextPosX = (customTextPosX / ow) * nw;
+        customTextPosY = (customTextPosY / oh) * nh;
+      }
+
+      function syncCustomTextAutoHeight() {
+        customTextInputEl.style.height = '0px';
+        const linePx = customTextFontSizePx * 1.05;
+        const minPx = Math.max(24, linePx * 2.45);
+        const next = Math.max(minPx, customTextInputEl.scrollHeight);
+        customTextInputEl.style.height = next.toFixed(1) + 'px';
+      }
+
+      function syncCustomTextVisibility() {
+        customTextBoxEl.classList.toggle('hidden', !customTextEnabled);
+        customTextBoxEl.setAttribute('aria-hidden', customTextEnabled ? 'false' : 'true');
+        if (!customTextEnabled) {
+          customTextEditing = false;
+          customTextBoxEl.classList.remove('editing');
+          customTextControlsEl.classList.remove('visible');
+          customTextControlsEl.setAttribute('aria-hidden', 'true');
+          customTextInputEl.readOnly = true;
+          return;
+        }
+        ensureCustomTextPosition();
+        customTextBoxEl.style.transform = 'translate(-50%, -50%)';
+        customTextBoxEl.style.left = customTextPosX.toFixed(1) + 'px';
+        customTextBoxEl.style.top = customTextPosY.toFixed(1) + 'px';
+        clampCustomTextPosition();
+        customTextBoxEl.style.left = customTextPosX.toFixed(1) + 'px';
+        customTextBoxEl.style.top = customTextPosY.toFixed(1) + 'px';
+        requestAnimationFrame(syncCustomTextAutoHeight);
+      }
+
+      function syncCustomTextPlaceholder() {
+        customTextInputEl.placeholder = 'Type here';
+      }
+
+      function setCustomTextEditing(editing) {
+        customTextEditing = !!editing;
+        customTextBoxEl.classList.toggle('editing', customTextEditing);
+        customTextControlsEl.classList.toggle('visible', customTextEnabled && customTextEditing);
+        customTextControlsEl.setAttribute('aria-hidden', (customTextEnabled && customTextEditing) ? 'false' : 'true');
+        customTextInputEl.readOnly = !customTextEditing;
+        if (customTextEditing) {
+          customTextInputEl.focus();
+          const end = customTextInputEl.value.length;
+          customTextInputEl.setSelectionRange(end, end);
+        }
+      }
+
+      function syncCustomTextToggleButton() {
+        customTextToggleBtn.textContent = customTextEnabled ? 'J' : 'j';
+        customTextToggleBtn.title = customTextEnabled ? 'Hide text box' : 'Show text box';
+        customTextToggleBtn.setAttribute('aria-label', customTextEnabled ? 'Hide text box' : 'Show text box');
       }
 
       function syncParticleGravityToggle() {
@@ -3150,9 +3393,12 @@
 
       function resize() {
         syncGlowRenderingMode();
+        const oldW = w;
+        const oldH = h;
         const rect = canvas.getBoundingClientRect();
         w = Math.max(1, Math.floor(rect.width));
         h = Math.max(1, Math.floor(rect.height));
+        scaleCustomTextPosition(oldW, oldH, w, h);
         canvas.width = Math.floor(w * dpr);
         canvas.height = Math.floor(h * dpr);
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -3169,6 +3415,7 @@
         currentBlastR = PARAM.blastR * lenScale;
         clearClockGravityField();
         updateWallClock();
+        syncCustomTextVisibility();
         const target = currentParticleTarget;
         particles.length = 0;
         blackHoles.length = 0;
@@ -3216,9 +3463,12 @@
 
       function resetLayout() {
         syncGlowRenderingMode();
+        const oldW = w;
+        const oldH = h;
         const rect = canvas.getBoundingClientRect();
         w = Math.max(1, Math.floor(rect.width));
         h = Math.max(1, Math.floor(rect.height));
+        scaleCustomTextPosition(oldW, oldH, w, h);
         canvas.width = Math.floor(w * dpr);
         canvas.height = Math.floor(h * dpr);
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -3235,6 +3485,7 @@
         currentBlastR = PARAM.blastR * lenScale;
         clearClockGravityField();
         updateWallClock();
+        syncCustomTextVisibility();
 
         // Keep current universe state; randomize positions for a visible relayout.
         for (let i = 0; i < particles.length; i += 1) {
@@ -3707,11 +3958,32 @@
         mouse.active = false;
         dragBh.target = null;
         pointerHoldActive = false;
+        customTextDragActive = false;
+        customTextDragPointerId = -1;
         rightPanelHover = false;
         syncRightPanelVisibility();
       }
 
       window.addEventListener('pointermove', (e) => {
+        if (!customTextDragActive && customTextPendingDragId === e.pointerId && !customTextEditing) {
+          const dx0 = e.clientX - customTextDownX;
+          const dy0 = e.clientY - customTextDownY;
+          if ((dx0 * dx0 + dy0 * dy0) >= 16) {
+            ensureCustomTextPosition();
+            customTextDragActive = true;
+            customTextDragPointerId = e.pointerId;
+            customTextDragOffsetX = e.clientX - customTextPosX;
+            customTextDragOffsetY = e.clientY - customTextPosY;
+            customTextDraggedSinceDown = true;
+          }
+        }
+        if (customTextDragActive && e.pointerId === customTextDragPointerId) {
+          customTextPosX = e.clientX - customTextDragOffsetX;
+          customTextPosY = e.clientY - customTextDragOffsetY;
+          clampCustomTextPosition();
+          syncCustomTextVisibility();
+          return;
+        }
         syncRightPanelHover(e.clientX);
         mouse.x = e.clientX;
         mouse.y = e.clientY;
@@ -3773,11 +4045,17 @@
       window.addEventListener('pointerup', () => {
         dragBh.target = null;
         pointerHoldActive = false;
+        customTextDragActive = false;
+        customTextDragPointerId = -1;
+        customTextPendingDragId = -1;
       }, { passive: true });
 
       window.addEventListener('pointercancel', () => {
         dragBh.target = null;
         pointerHoldActive = false;
+        customTextDragActive = false;
+        customTextDragPointerId = -1;
+        customTextPendingDragId = -1;
       }, { passive: true });
       function setPauseState(paused) {
         isPaused = !!paused;
@@ -4011,6 +4289,12 @@
           syncUniverseHudVisibility();
           return;
         }
+        if (key === 'j') {
+          customTextEnabled = !customTextEnabled;
+          syncCustomTextVisibility();
+          syncCustomTextToggleButton();
+          return;
+        }
         if (key === 'l') {
           linksHidden = !linksHidden;
           syncLinksVisibility();
@@ -4138,6 +4422,133 @@
       universeInfoBtn.addEventListener('pointerdown', (e) => {
         e.stopPropagation();
       });
+      customTextToggleBtn.addEventListener('click', () => {
+        customTextEnabled = !customTextEnabled;
+        syncCustomTextVisibility();
+        syncCustomTextPlaceholder();
+        syncCustomTextToggleButton();
+        if (!customTextEnabled) setCustomTextEditing(false);
+      });
+      customTextToggleBtn.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+      });
+      function beginCustomTextDragPointer(e) {
+        if (!customTextEnabled || customTextEditing) return;
+        e.stopPropagation();
+        customTextPendingDragId = e.pointerId;
+        customTextDownX = e.clientX;
+        customTextDownY = e.clientY;
+        customTextDraggedSinceDown = false;
+      }
+      customTextBoxEl.addEventListener('pointerdown', (e) => {
+        beginCustomTextDragPointer(e);
+      });
+      customTextInputEl.addEventListener('pointerdown', (e) => {
+        beginCustomTextDragPointer(e);
+      });
+      customTextInputEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (customTextDraggedSinceDown) return;
+        if (!customTextEnabled) return;
+        if (!customTextEditing) setCustomTextEditing(true);
+      });
+      customTextInputEl.addEventListener('input', () => {
+        // Keep multiline text and Japanese IME input as-is.
+        syncCustomTextPlaceholder();
+        syncCustomTextAutoHeight();
+      });
+      customTextInputEl.addEventListener('focus', () => {
+        if (!customTextEditing) {
+          customTextInputEl.blur();
+        }
+      });
+      customTextInputEl.addEventListener('blur', () => {
+        const next = document.activeElement;
+        if (next && customTextBoxEl.contains(next)) {
+          // Keep edit mode while interacting with inline controls.
+          setTimeout(() => {
+            if (customTextEditing) customTextInputEl.focus();
+          }, 0);
+          return;
+        }
+        setCustomTextEditing(false);
+      });
+      customTextInputEl.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && String(e.key || '').toLowerCase() === 'a') {
+          e.preventDefault();
+          return;
+        }
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          customTextInputEl.blur();
+        }
+      });
+      customTextInputEl.addEventListener('select', () => {
+        const end = customTextInputEl.value.length;
+        try { customTextInputEl.setSelectionRange(end, end); } catch (_err) {}
+      });
+      customTextBoxEl.addEventListener('pointerup', (e) => {
+        customTextDragActive = false;
+        customTextDragPointerId = -1;
+        customTextPendingDragId = -1;
+        if (customTextBoxEl.releasePointerCapture) {
+          try { customTextBoxEl.releasePointerCapture(e.pointerId); } catch (_err) {}
+        }
+      });
+      customTextBoxEl.addEventListener('pointercancel', (e) => {
+        customTextDragActive = false;
+        customTextDragPointerId = -1;
+        customTextPendingDragId = -1;
+        if (customTextBoxEl.releasePointerCapture) {
+          try { customTextBoxEl.releasePointerCapture(e.pointerId); } catch (_err) {}
+        }
+      });
+      customTextDragHandleEl.addEventListener('pointerdown', (e) => {
+        if (!customTextEnabled) return;
+        e.stopPropagation();
+        ensureCustomTextPosition();
+        customTextDragActive = true;
+        customTextDragPointerId = e.pointerId;
+        customTextDragOffsetX = e.clientX - customTextPosX;
+        customTextDragOffsetY = e.clientY - customTextPosY;
+        if (customTextDragHandleEl.setPointerCapture) {
+          customTextDragHandleEl.setPointerCapture(e.pointerId);
+        }
+      });
+      customTextDragHandleEl.addEventListener('pointerup', (e) => {
+        e.stopPropagation();
+        customTextDragActive = false;
+        customTextDragPointerId = -1;
+        if (customTextDragHandleEl.releasePointerCapture) {
+          try { customTextDragHandleEl.releasePointerCapture(e.pointerId); } catch (_err) {}
+        }
+      });
+      customTextDragHandleEl.addEventListener('pointercancel', (e) => {
+        e.stopPropagation();
+        customTextDragActive = false;
+        customTextDragPointerId = -1;
+        if (customTextDragHandleEl.releasePointerCapture) {
+          try { customTextDragHandleEl.releasePointerCapture(e.pointerId); } catch (_err) {}
+        }
+      });
+      customTextSizeDownBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        customTextFontSizePx = clamp(customTextFontSizePx * 0.9, 12, 220);
+        syncCustomTextFontSize();
+      });
+      customTextSizeDownBtn.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      });
+      customTextSizeUpBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        customTextFontSizePx = clamp(customTextFontSizePx / 0.9, 12, 220);
+        syncCustomTextFontSize();
+      });
+      customTextSizeUpBtn.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      });
       linksToggleBtn.addEventListener('click', () => {
         linksHidden = !linksHidden;
         syncLinksVisibility();
@@ -4242,6 +4653,12 @@
       syncClockVisibility();
       syncClockDateVisibility();
       syncClockStarToggleButton();
+      syncCustomTextFontSize();
+      syncCustomTextVisibility();
+      setCustomTextEditing(false);
+      syncCustomTextPlaceholder();
+      syncCustomTextAutoHeight();
+      syncCustomTextToggleButton();
       syncFullscreenButton();
       updateUniverseHud(true);
       updateWallClock();
