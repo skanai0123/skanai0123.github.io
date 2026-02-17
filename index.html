@@ -574,8 +574,8 @@
         largeStarGlowMinAlpha: 0.14,
         lumGiantGlowMinStrength: 0.55,
         lumGiantGlowMinAlpha: 0.14,
-        lumIIIWarmGlowStrengthBoost: 0.55,
-        lumIIIWarmGlowAlphaBoost: 0.22,
+        lumIIIWarmGlowStrengthBoost: 0.75,
+        lumIIIWarmGlowAlphaBoost: 0.34,
         useRadiusBasedColor: true,
         waveAmp: 0,
         velReturn: 0.02,
@@ -757,7 +757,6 @@
         collisionFlashMax: 2.8,
         collisionHeatGain: 0.24,
         collisionHeatDecay: 0.978,
-        collisionTempGainK: 200,
         collisionColdKineticTempGain: 0.00005,
         collisionMergeFadeSec: 0.0,
         preCollapseHeatGain: 0.012,
@@ -831,8 +830,6 @@
         evoMainToDwarfMassMax: 0.42,
         evoMainToDwarfTempMinK: 11000,
         evoGiantExitMassMin: 4.2,
-        evoDwarfToMainMassMin: 1.15,
-        evoDwarfToMainTempMinK: 6500,
         evoTempRelaxPerSec: 0.08,
         evoRadiusRelaxPerSec: 0.45,
         displayRadiusRelaxPerSec: 0.693147,
@@ -1994,14 +1991,6 @@
         const cls = p.stellarClass || 'main';
         if (cls === 'giant') return cls;
         return 'main';
-      }
-
-      function largerRadiusStage(a, b) {
-        const sa = stageFromParticleState({ evoStage: a, stellarClass: a });
-        const sb = stageFromParticleState({ evoStage: b, stellarClass: b });
-        const ra = stellarClassRadiusScale(sa);
-        const rb = stellarClassRadiusScale(sb);
-        return rb > ra ? sb : sa;
       }
 
       function mainSequenceLifetimeSec(massNow) {
@@ -3429,6 +3418,7 @@
       function pushMergeFadeEffect(absorber, absorbed, tempK) {
         if (!absorber || !absorbed) return;
         const durMs = Math.max(0, PARAM.collisionMergeFadeSec * 1000);
+        if (durMs <= 0) return;
         const rgb = kelvinToRgb(clamp(tempK, PARAM.tempMinK, PARAM.tempMaxK));
         mergeFadeEffects.push({
           startMs: performance.now(),
@@ -4966,8 +4956,7 @@
               ctx.fillStyle = 'rgba(' + dr + ',' + dg + ',' + db + ',' + alpha.toFixed(3) + ')';
               glowDrawCount += 1;
             }
-            const squareOnlyLumV = (lumClassForGlow === 'V');
-            if (!squareOnlyLumV && (forceCircleRendering || drawR >= PARAM.largeStarCircleThreshold)) {
+            if (drawR > 3) {
               ctx.beginPath();
               ctx.arc(dcx, dcy, drawR * 0.52, 0, Math.PI * 2);
               ctx.fill();
