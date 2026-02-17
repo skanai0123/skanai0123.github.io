@@ -511,7 +511,7 @@
 
   <script>
     (function () {
-      const HUB_VERSION = 'v 0.4.1';
+      const HUB_VERSION = 'v 0.4.2';
       // Added parameters for black-hole gimmick:
       // cellSize, rRho, rhoThreshold, spawnCooldownFrames, maxBlackHoles,
       // spawnCellMinCount, spawnSampleMax, spawnMassBase, spawnMassPerRho,
@@ -694,11 +694,14 @@
         bbCleanCollisionFactorScale: 1.45,
         bbCleanGravityDisplayMin: 0.1,
         bbCleanGravityDisplayMax: 10.0,
-        bbCleanTempCenterK: 15000,
-        bbCleanTempSpreadK: 3000,
+        bbCleanTempCenterK: 13000,
+        bbCleanTempSpreadK: 2400,
         bbPostResBoostMultiplier: 10.0,
         bbPostResBoostHalfLifeSec: 5,
         bbPostResAtBigBang: 0.3,
+        bbPostCoolingHalfLifeMulMin: 0.45,
+        bbPostCoolingFastSec: 60,
+        bbPostCoolingFastMul: 0.08,
         disableGlowOnMobile: false,
         mobileStarGlowMaxPerFrame: 100,
         // Toggle this to false to revert to the previous grayscale background.
@@ -4740,7 +4743,20 @@
           const rScale = Math.pow(Math.max(0.1, p.r) / coolRefR, coolPow);
           const lumClass = luminosityClassFromParticle(p);
           const classScale = coolingHalfLifeMultiplierForLumClass(lumClass);
-          const halfLifeMs = Math.max(1, PARAM.tempHalfLifeSec * 1000 * rScale * classScale);
+          let bbPostCoolingMul = 1;
+          if (bbPostResBoostStartMs >= 0) {
+            const elapsedMs = Math.max(0, nowMs - bbPostResBoostStartMs);
+            const halfLifeMsRes = Math.max(1, (PARAM.bbPostResBoostHalfLifeSec || 5) * 1000);
+            const minMul = clamp(PARAM.bbPostCoolingHalfLifeMulMin || 1, 0.05, 1);
+            const fastSec = Math.max(0, PARAM.bbPostCoolingFastSec || 0);
+            const fastMul = clamp(PARAM.bbPostCoolingFastMul || 1, 0.05, 1);
+            // BB直後は冷却半減期を短くし、時間経過で通常値(1)へ戻す。
+            bbPostCoolingMul = 1 - ((1 - minMul) * Math.pow(0.5, elapsedMs / halfLifeMsRes));
+            if (elapsedMs < (fastSec * 1000)) {
+              bbPostCoolingMul = Math.min(bbPostCoolingMul, fastMul);
+            }
+          }
+          const halfLifeMs = Math.max(1, PARAM.tempHalfLifeSec * 1000 * rScale * classScale * bbPostCoolingMul);
           const decay = Math.pow(0.5, dtMs / halfLifeMs);
           p.tempK = clamp(tempNow * decay, PARAM.tempMinK, PARAM.tempMaxK);
           evolveParticleStageAndTemperature(p, dtSec);
