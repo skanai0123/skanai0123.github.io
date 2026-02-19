@@ -200,6 +200,8 @@
       pointer-events: none;
       transition: opacity 120ms ease;
       z-index: 5;
+      -webkit-backdrop-filter: blur(2px);
+      backdrop-filter: blur(2px);
     }
 
     .custom-text-controls.visible {
@@ -321,6 +323,7 @@
     .clock-toggle { right: 12px; top: 692px; font-size: 12px; }           /* t */
     .relayout-btn { right: 12px; top: 732px; font-size: 12px; }           /* x */
     .time-toggle { right: 12px; top: 772px; }                              /* space */
+    .share-link-btn { right: 12px; top: 812px; font-size: 12px; }          /* u */
     .preset-btn { right: 56px; font-size: 12px; }
     .preset-1 { top: 12px; }
     .preset-2 { top: 52px; }
@@ -471,9 +474,10 @@
   <div id="universeHud" class="universe-hud" aria-live="polite">
     <span class="hud-item" id="hudBbCount">BB: -</span>
     <span class="hud-item" id="hudUniverseAge">AgeU: -</span>
+    <span class="hud-item" id="hudAging">Aging: -</span>
     <span class="hud-item" id="hudEarthAlive">Earth: -</span>
     <span class="hud-item" id="hudTotalMass">Mtot: -</span>
-    <span class="hud-item" id="hudStellarClasses">Lum I/II/III/IV/V/WD/BH: -</span>
+    <span class="hud-item" id="hudStellarClasses">Lum I/II/III/IV/V/WD/NS/BH: -</span>
     <span class="hud-item" id="hudMeanTemp">Tavg: -</span>
     <span class="hud-item" id="hudGravityG">G: -</span>
     <span class="hud-item" id="hudResistance">Res: -</span>
@@ -481,7 +485,7 @@
     <span class="hud-item" id="hudHoverStar">Hover: -</span>
   </div>
   <div id="hudCopyright" class="hud-copyright" aria-hidden="true">
-    <span id="hudVersion">ver: -</span> | © 2026 Shun Kanai
+    <span id="hudVersion">-</span> | © 2026 Shun Kanai
   </div>
   <button id="agingToggleBtn" class="tool-btn aging-toggle" type="button" aria-label="Enable stellar aging" title="Enable stellar aging">a</button>
   <button id="bhArrowToggleBtn" class="tool-btn bh-arrow-toggle" type="button" aria-label="Show black hole arrows" title="Show black hole arrows">b</button>
@@ -503,6 +507,7 @@
   <button id="relayoutBtn" class="tool-btn relayout-btn" type="button" aria-label="Relayout positions" title="Relayout positions">x</button>
   <button id="clockToggleBtn" class="tool-btn clock-toggle" type="button" aria-label="Show clock" title="Show clock">t</button>
   <button id="timeToggleBtn" class="tool-btn time-toggle" type="button" aria-label="Pause time" title="Pause">II</button>
+  <button id="shareLinkBtn" class="tool-btn share-link-btn" type="button" aria-label="Copy share link" title="Copy share link">u</button>
   <button id="preset1Btn" class="tool-btn preset-btn preset-1" type="button" aria-label="Preset 1" title="Preset 1">1</button>
   <button id="preset2Btn" class="tool-btn preset-btn preset-2" type="button" aria-label="Preset 2" title="Preset 2">2</button>
   <button id="preset3Btn" class="tool-btn preset-btn preset-3" type="button" aria-label="Preset 3" title="Preset 3">3</button>
@@ -511,7 +516,7 @@
 
   <script>
     (function () {
-      const HUB_VERSION = 'v 0.4.2';
+      const HUB_VERSION = 'v 0.5.0';
       // Added parameters for black-hole gimmick:
       // cellSize, rRho, rhoThreshold, spawnCooldownFrames, maxBlackHoles,
       // spawnCellMinCount, spawnSampleMax, spawnMassBase, spawnMassPerRho,
@@ -524,7 +529,7 @@
       // bhPullPerAbsorbMax, bigBangMaxSpeedMin, bigBangMaxSpeedMax,
       // maxSpeedMin, maxSpeedMax, bigBangFlowSpeedMin, bigBangFlowSpeedMax
       const PARAM = {
-        particleReferenceCount: 7000,
+        particleReferenceCount: 6000,
         particleReferenceArea: 1843200, // (1440 * 2560) / 2
         baseViewWidth: 1920,
         baseViewHeight: 1080,
@@ -535,7 +540,7 @@
         initialGravityScale: 3.0,
         initialBhGravityScale: 1 / 3,
         bbMouseAttractMultiplier: 0.9,
-        bbBhPullMultiplier: 0.9,
+        bbBhPullMultiplier: 1.0,
         blastR: 260,
         blastImpulse: 5.2,
         maxSpeed: 420,
@@ -588,6 +593,19 @@
         lifeMax: 1.0,
         cellSize: 52,
         rRho: 45,
+        densitySmoothEnabled: true,
+        densitySmoothPower: 2.0,
+        densitySmoothScale: 2.0,
+        densityUseMassWeight: false,
+        densityMassWeightPower: 1.0,
+        densityOverlayEnabled: true,
+        densityOverlayGasOnly: true,
+        densityOverlayUseCircular: true,
+        densityOverlayDrawEveryNFrames: 1,
+        densityOverlayCellStep: 1,
+        densityOverlayMin: 1.0,
+        densityOverlayMax: 120.0,
+        densityOverlayAlphaMax: 0.30,
         rhoThreshold: 1050,
         spawnCooldownFrames: 320,
         maxBlackHoles: 3,
@@ -607,7 +625,7 @@
         bhMassGainPerAbsorb: 0.16,
         bhPullPerAbsorb: 0.6,
         bhPullMax: 1.4,
-        bhGlobalPull: 1.6,
+        bhGlobalPull: 1.0,
         bhGlobalSoftening: 22,
         bhVelocityDamping: 0.992,
         bhMaxSpeed: 18,
@@ -662,8 +680,8 @@
         bigBangMaxSpeed: 24000,
         bigBangSpeedCurveA: 4.0,
         bigBangLaunchA: 0.01,
-        bhGlobalPullMin: 0.6,
-        bhGlobalPullMax: 3.6,
+        bhGlobalPullMin: 1.0,
+        bhGlobalPullMax: 1.0,
         bhGlobalSofteningMin: 8,
         bhGlobalSofteningMax: 40,
         bhPullPerAbsorbMin: 0.24,
@@ -698,10 +716,14 @@
         bbCleanTempSpreadK: 2400,
         bbPostResBoostMultiplier: 10.0,
         bbPostResBoostHalfLifeSec: 5,
-        bbPostResAtBigBang: 0.3,
+        bbPostResAtBigBang: 0.12,
         bbPostCoolingHalfLifeMulMin: 0.45,
-        bbPostCoolingFastSec: 60,
+        bbPostCoolingFastSec: 30,
         bbPostCoolingFastMul: 0.08,
+        bbCollisionTempBoostStart: 3.0,
+        bbCollisionTempBoostHalfLifeSec: 18,
+        bbCollisionHeatBoostStart: 1.4,
+        bbCollisionHeatBoostHalfLifeSec: 18,
         disableGlowOnMobile: false,
         mobileStarGlowMaxPerFrame: 100,
         // Toggle this to false to revert to the previous grayscale background.
@@ -728,12 +750,12 @@
         ppGravityStrength: 0.95,
         ppGravitySoftening: 6,
         ppGravityMaxInteractions: 12,
-        ppLinearDamping: 0.001,
+        ppLinearDamping: 0.002,
         ppMassPower: 3.0,
         ppInertiaPower: 0.65,
         // Physically inspired collapse gate: around 3 solar masses (TOV-scale order).
-        collapseMassThreshold: 70.0,
-        collapseCollisionThreshold: 70,
+        collapseMassThreshold: 120.0,
+        collapseCollisionThreshold: 110,
         collapseRequireCollisionMode: true,
         collapseRepulseRadius: 86,
         collapseRepulseImpulse: 2.6,
@@ -758,9 +780,12 @@
         collisionFlashGain: 0.58,
         collisionFlashDecay: 0.965,
         collisionFlashMax: 2.8,
-        collisionHeatGain: 0.24,
+        collisionHeatGain: 0.12,
         collisionHeatDecay: 0.978,
-        collisionColdKineticTempGain: 0.00005,
+        collisionColdKineticTempGain: 0.0006,
+        collisionMergeTempBaseK: 1200,
+        collisionMergeTempMassK: 8,
+        collisionMergeTempSpeedK: 210,
         collisionMergeFadeSec: 0.0,
         preCollapseHeatGain: 0.012,
         hotColorR: 196,
@@ -775,7 +800,7 @@
         tempRenderBoostPerHeatK: 1458,
         tempColorPastelMix: 0.01,
         tempCoolingRate: 0.04,
-        tempHalfLifeSec: 1200,
+        tempHalfLifeSec: 300,
         tempHalfLifeMulI: 0.55,
         tempHalfLifeMulII: 0.7,
         tempHalfLifeMulIII: 0.9,
@@ -804,17 +829,19 @@
         hrMainBlueMinorityProb: 0.22,
         hrMainBlueMinorityGain: 0.58,
         stellarEvolutionEnabled: true,
+        evoAgingRate: 4.0,
         evoMassRef: 4.0,
         evoMainLifetimeAtMassRefSec: 5200,
         evoMainLifetimeMassPower: 2.3,
         evoMainLifetimeMinSec: 550,
         evoMainLifetimeMaxSec: 19000,
+        evoMainToDwarfAgeFrac: 0.72,
         evoGiantLifetimeAtMassRefSec: 2600,
         evoGiantLifetimeMassPower: 1.1,
         evoGiantLifetimeMinSec: 300,
         evoGiantLifetimeMaxSec: 8200,
-        evoSupernovaMassMin: 60.0,
-        evoBlackHoleFromSnMassMin: 120.0,
+        evoSupernovaMassMin: 95.0,
+        evoBlackHoleFromSnMassMin: 180.0,
         evoSupernovaRepulseBoost: 2.1,
         evoSupernovaHoldSec: 1.2,
         evoNeutronRadius: 0.42,
@@ -830,13 +857,22 @@
         evoInitVeryHotMinK: 20000,
         evoInitVeryHotMaxK: 50000,
         evoMainToGiantMassMin: 7.5,
-        evoMainToDwarfMassMax: 0.42,
-        evoMainToDwarfTempMinK: 11000,
+        evoMainToDwarfMassMax: 8.0,
+        evoMainToDwarfTempMinK: 7000,
+        evoMainToDwarfTempMaxK: 6500,
+        evoMainToDwarfMinAgeSec: 20000,
         evoGiantExitMassMin: 4.2,
-        evoTempRelaxPerSec: 0.08,
+        evoTempRelaxPerSec: 0.50,
         evoRadiusRelaxPerSec: 0.45,
+        evoContractionHeatGainK: 2600,
+        evoFusionEnabled: true,
+        evoFusionMassMin: 1.2,
+        evoFusionRatePerSec: 0.22,
+        evoFusionTargetMul: 1.18,
+        evoFusionFuelFloor: 0.25,
+        evoFusionMassPower: 0.35,
         displayRadiusRelaxPerSec: 0.693147,
-        evoDwarfTempFloorK: 5200,
+        evoDwarfTempFloorK: 4200,
         stellarGiantRadiusScale: 1.9,
         stellarDwarfRadiusScale: 0.62,
         stellarGiantTempScale: 0.72,
@@ -846,7 +882,7 @@
         bbRadiusBiasPower: 2.6,
         bbRadiusUniformMix: 0.88,
         bbRadiusMin: 1.1,
-        bbRadiusMax: 1.9,
+        bbRadiusMax: 9.5,
         bbClassRadiusScaleMix: 0.18,
         bbGiantProbScale: 0.04,
         bbDwarfProbScale: 0.0,
@@ -855,6 +891,38 @@
         bbCompMassMulMin: 1.0,
         bbCompMassMulMax: 3.0,
         bbCompMassMulPow: 2.0,
+        bbCompRadiusMaxMul: 5.0,
+        compGasEnabled: true,
+        bbInitialGasEnabled: true,
+        compGasDensityThreshold: 9,
+        compGasTempMaxK: 6500,
+        compGasMinAgeSec: 10.0,
+        compGasStarFormMaxPerFrame: 18,
+        compGasDensityEvalEveryNFrames: 1,
+        compGasJeansCoeff: 4.0,
+        compGasJeansTempRefK: 6000,
+        compGasJeansDensityRef: 12,
+        compGasCoolingHalfLifeSec: 12,
+        compGasMaxAgeSec: 60.0,
+        compGasMaxAgeJitterSec: 5.0,
+        compGasForceByAgeRatePerSec: 0.45,
+        compGasStarTempFloorK: 6500,
+        compGasStarInitTempMinK: 4500,
+        compGasStarInitTempMaxK: 6000,
+        compGasAlphaScale: 0.55,
+        compGasDampingMul: 2.0,
+        compGasInitMassScatterSigma: 0.9,
+        compGasInitMassDensityBias: 1.25,
+        compGasInitMassWeightFloor: 0.08,
+        gasStarAccretionEnabled: true,
+        gasStarAccreteMinStarCount: 2,
+        gasStarAccreteRadiusScale: 1.35,
+        gasStarAccreteGasRadiusMul: 2.0,
+        gasStarAccreteBaseRadius: 2.0,
+        gasStarAccreteFraction: 0.35,
+        gasStarAccreteTempMix: 0.2,
+        gasStarAccreteFlashGain: 0.03,
+        gasStarAccreteHeatGain: 0.02,
         entityCountCompensationEnabled: true,
         entityCompSpawnMaxPerFrame: 240,
         vividBlueChance: 0.08,
@@ -923,6 +991,8 @@
       if (!fullscreenToggleBtn) return;
       const timeToggleBtn = document.getElementById('timeToggleBtn');
       if (!timeToggleBtn) return;
+      const shareLinkBtn = document.getElementById('shareLinkBtn');
+      if (!shareLinkBtn) return;
       const dateToggleBtn = document.getElementById('dateToggleBtn');
       if (!dateToggleBtn) return;
       const clockToggleBtn = document.getElementById('clockToggleBtn');
@@ -951,6 +1021,8 @@
       if (!hudBbCountEl) return;
       const hudUniverseAgeEl = document.getElementById('hudUniverseAge');
       if (!hudUniverseAgeEl) return;
+      const hudAgingEl = document.getElementById('hudAging');
+      if (!hudAgingEl) return;
       const hudEarthAliveEl = document.getElementById('hudEarthAlive');
       if (!hudEarthAliveEl) return;
       const hudTotalMassEl = document.getElementById('hudTotalMass');
@@ -1059,6 +1131,7 @@
       let bbBhPullScale = 1;
       let bigBangCount = 0;
       let universeAgeSec = 0;
+      let wdTransitionCount = 0;
       let hudLastUpdateMs = -1;
       let hudVisible = false;
       let clockVisible = true;
@@ -1217,6 +1290,11 @@
           diskColorB: null,
           accretionRings: []
         });
+        if (blackHoles.length === 1 && mouseGravityEnabled) {
+          mouseGravityEnabled = false;
+          pointerHoldActive = false;
+          syncMouseGravityToggle();
+        }
         return true;
       }
 
@@ -1519,6 +1597,12 @@
         return lo + Math.random() * (hi - lo);
       }
 
+      function randomNormal01() {
+        // 6-uniform approximation of N(0,1) for lightweight stochastic spreads.
+        const s = (Math.random() + Math.random() + Math.random() + Math.random() + Math.random() + Math.random()) - 3;
+        return s / 0.7071067811865476;
+      }
+
       function sampleRadiusPowerLaw(minR, maxR, exponent) {
         const lo = Math.max(0.05, Math.min(minR, maxR));
         const hi = Math.max(lo + 1e-9, Math.max(minR, maxR));
@@ -1659,7 +1743,7 @@
 
       function randomBigBangParticleRadius() {
         const lo = Math.max(0.2, Math.min(PARAM.bbRadiusMin, PARAM.bbRadiusMax));
-        // BB mode: generate minimum-size stars only.
+        // BB直後は最小粒子で開始する。
         return lo;
       }
 
@@ -1670,7 +1754,8 @@
 
       function buildCompensationParticle() {
         const rLo = Math.max(0.25, Math.min(PARAM.bbRadiusMin, PARAM.bbRadiusMax));
-        const r = rLo;
+        const rHi = Math.max(rLo, rLo * Math.max(1, PARAM.bbCompRadiusMaxMul || 1));
+        const r = randomInRange(rLo, rHi);
         const baseMass = particleMassFromRadius(r);
         const mmMin = Math.max(1, PARAM.bbCompMassMulMin || 1);
         const mmMax = Math.max(mmMin, PARAM.bbCompMassMulMax || 10);
@@ -1690,6 +1775,8 @@
           x = Math.random() * Math.max(1, w);
           y = Math.random() * Math.max(1, h);
         }
+        const gasAgeBase = Math.max(0, PARAM.compGasMaxAgeSec || 0);
+        const gasAgeJitter = Math.max(0, PARAM.compGasMaxAgeJitterSec || 0);
         const p = {
           x,
           y,
@@ -1716,7 +1803,10 @@
           cg: 255,
           cb: 255,
           isEarth: false,
-          capturedByBh: false
+          capturedByBh: false,
+          isCompGas: !!PARAM.compGasEnabled,
+          compGasAgeSec: 0,
+          compGasMaxAgeSec: Math.max(0, gasAgeBase + randomInRange(-gasAgeJitter, gasAgeJitter))
         };
         p.lumClass = null;
         assignInitialEvolutionState(p, 'bb');
@@ -1789,7 +1879,7 @@
         }
         if (stellarClass === 'dwarf') {
           const t = Math.pow(mn, 0.42);
-          return clamp(lerp(7000, 13000, t), PARAM.tempMinK, PARAM.tempMaxK);
+          return clamp(lerp(4500, 9000, t), PARAM.tempMinK, PARAM.tempMaxK);
         }
         const t = Math.pow(mn, Math.max(0.2, PARAM.hrMainTempSkew || 1.35));
         return clamp(lerp(4500, 12000, t), PARAM.tempMinK, PARAM.tempMaxK);
@@ -1895,23 +1985,27 @@
       function luminosityClassFromParticle(p) {
         if (!p) return 'V';
         if (p.isEarth) return 'Earth';
+        if (p.isCompGas) return 'GAS';
         if (p.lumClass === 'IV') return 'IV';
         const stage = stageFromParticleState(p);
         if (stage === 'supernova') return 'SN';
         if (stage === 'neutron') return 'NS';
+        if (stage === 'dwarf') return 'WD';
         const r = Math.max(0.1, Number.isFinite(p.r) ? p.r : 0.1);
         if (stage === 'giant') {
           const h = Math.max(0, PARAM.lumClassHysteresisR || 0);
           const prev = p.lumClass;
-          let lc = 'III';
+          let lc = 'IV';
           if (prev === 'I') {
-            lc = (r >= (9.0 - h)) ? 'I' : (r >= 7.0 ? 'II' : 'III');
+            lc = (r >= (9.0 - h)) ? 'I' : (r >= 7.0 ? 'II' : (r >= 5.0 ? 'III' : 'IV'));
           } else if (prev === 'II') {
-            lc = (r >= (9.0 + h)) ? 'I' : (r >= (7.0 - h) ? 'II' : 'III');
+            lc = (r >= (9.0 + h)) ? 'I' : (r >= (7.0 - h) ? 'II' : (r >= 5.0 ? 'III' : 'IV'));
           } else if (prev === 'III') {
-            lc = (r >= (9.0 + h)) ? 'I' : (r >= (7.0 + h) ? 'II' : 'III');
+            lc = (r >= (9.0 + h)) ? 'I' : (r >= (7.0 + h) ? 'II' : (r >= (5.0 - h) ? 'III' : 'IV'));
+          } else if (prev === 'IV') {
+            lc = (r >= (9.0 + h)) ? 'I' : (r >= (7.0 + h) ? 'II' : (r >= (5.0 + h) ? 'III' : 'IV'));
           } else {
-            lc = (r >= 9.0) ? 'I' : (r >= 7.0 ? 'II' : 'III');
+            lc = (r >= 9.0) ? 'I' : (r >= 7.0 ? 'II' : (r >= 5.0 ? 'III' : 'IV'));
           }
           p.lumClass = lc;
           return lc;
@@ -1924,6 +2018,7 @@
       function spectralLuminosityLabel(p) {
         if (!p) return '-';
         if (p.isEarth) return 'Earth';
+        if (p.isCompGas) return 'Gas';
         const lum = luminosityClassFromParticle(p);
         if (lum === 'SN') return 'SN';
         if (lum === 'NS') return 'NS';
@@ -1988,11 +2083,13 @@
         if (
           p.evoStage === 'main' ||
           p.evoStage === 'giant' ||
+          p.evoStage === 'dwarf' ||
           p.evoStage === 'neutron' ||
           p.evoStage === 'supernova'
         ) return p.evoStage;
         const cls = p.stellarClass || 'main';
         if (cls === 'giant') return cls;
+        if (cls === 'dwarf') return cls;
         return 'main';
       }
 
@@ -2099,8 +2196,9 @@
 
       function evolveParticleStageAndTemperature(p, dtSec) {
         if (!p || !PARAM.stellarEvolutionEnabled || !stellarAgingEnabled) return;
-        const dt = Math.max(0, dtSec || 0);
+        const dt = Math.max(0, dtSec || 0) * Math.max(0.1, PARAM.evoAgingRate || 1);
         let stage = stageFromParticleState(p);
+        const prevStage = stage;
         const ageSec = Math.max(0, (p.evoAgeSec || 0) + dt);
         p.evoAgeSec = ageSec;
         const massNow = Math.max(0.0001, Number.isFinite(p.mass) ? p.mass : particleMassFromRadius(p.r));
@@ -2108,6 +2206,8 @@
 
         if (stage === 'main') {
           const lifeMain = mainSequenceLifetimeSec(massNow);
+          const lowMassForDwarf = massNow < Math.max(0.0001, PARAM.evoMainToGiantMassMin || 1);
+          const dwarfAgeFrac = clamp(PARAM.evoMainToDwarfAgeFrac || 1, 0.05, 1);
           if (ageSec >= lifeMain) {
             if (massNow >= PARAM.evoSupernovaMassMin) {
               stage = 'supernova';
@@ -2116,14 +2216,25 @@
               stage = 'giant';
               p.evoAgeSec = 0;
             } else {
-              stage = 'main';
+              stage = 'dwarf';
               p.evoAgeSec = 0;
             }
+          } else if (
+            lowMassForDwarf &&
+            ageSec >= Math.max(2, lifeMain * dwarfAgeFrac) &&
+            tempNow <= Math.max(PARAM.tempMinK, PARAM.evoMainToDwarfTempMaxK || 9000)
+          ) {
+            stage = 'dwarf';
+            p.evoAgeSec = 0;
+          } else if (
+            massNow <= PARAM.evoMainToDwarfMassMax &&
+            ageSec >= Math.max(0, PARAM.evoMainToDwarfMinAgeSec || 0) &&
+            tempNow <= Math.max(PARAM.tempMinK, PARAM.evoMainToDwarfTempMaxK || 9000)
+          ) {
+            stage = 'dwarf';
+            p.evoAgeSec = 0;
           } else if (massNow >= PARAM.evoMainToGiantMassMin && ageSec >= Math.max(2, lifeMain * 0.6)) {
             stage = 'giant';
-            p.evoAgeSec = 0;
-          } else if (massNow <= PARAM.evoMainToDwarfMassMax && tempNow >= PARAM.evoMainToDwarfTempMinK) {
-            stage = 'main';
             p.evoAgeSec = 0;
           }
         } else if (stage === 'giant') {
@@ -2132,13 +2243,16 @@
             if (massNow >= PARAM.evoSupernovaMassMin) {
               stage = 'supernova';
             } else {
-              stage = 'main';
+              stage = 'dwarf';
             }
             p.evoAgeSec = 0;
           } else if (massNow <= PARAM.evoGiantExitMassMin) {
-            stage = 'main';
+            stage = 'dwarf';
             p.evoAgeSec = 0;
           }
+        } else if (stage === 'dwarf') {
+          // White dwarfs remain compact remnants in this simplified model.
+          // Rejuvenation is intentionally disabled to keep WD branch stable.
         } else if (stage === 'neutron') {
           // Neutron stars stay compact and very hot, then cool slowly.
           p.r = Math.max(0.2, PARAM.evoNeutronRadius || 0.42);
@@ -2150,22 +2264,29 @@
 
         p.evoStage = stage;
         p.stellarClass = stage;
+        if (prevStage !== 'dwarf' && stage === 'dwarf') {
+          wdTransitionCount += 1;
+        }
         if (stage !== 'main') {
           p.lumClass = null;
         }
 
         // Radius is mass-driven only (no class/stage radius jump).
+        const prevR = Math.max(0.2, Number.isFinite(p.r) ? p.r : 0.2);
         const coreR = Math.max(0.2, particleRadiusFromMass(massNow));
         const targetR = coreR;
         const rr = 1 - Math.exp(-Math.max(0, PARAM.evoRadiusRelaxPerSec) * dt);
         if (rr > 0) {
           p.r = Math.max(0.2, lerp(Math.max(0.2, p.r || coreR), targetR, rr));
         }
+        const dr = p.r - prevR;
 
         const eqMain = equilibriumTemperatureK(p.r, 'main', massNow);
         let targetK = eqMain;
         if (stage === 'giant') {
           targetK = equilibriumTemperatureK(p.r, 'giant', massNow);
+        } else if (stage === 'dwarf') {
+          targetK = equilibriumTemperatureK(p.r, 'dwarf', massNow);
         } else if (stage === 'neutron') {
           targetK = Math.min(tempNow, Math.max(PARAM.evoNeutronTempFloorK, equilibriumTemperatureK(p.r, 'dwarf', massNow)));
         } else if (stage === 'supernova') {
@@ -2184,6 +2305,34 @@
         const relax = 1 - Math.exp(-relaxRate * dt);
         if (relax > 0) {
           p.tempK = clamp(lerp(tempNow, targetK, relax), PARAM.tempMinK, PARAM.tempMaxK);
+        }
+        if (dr < 0 && stage !== 'supernova') {
+          const contractionFrac = clamp((-dr) / Math.max(0.2, prevR), 0, 1);
+          const gainK = Math.max(0, PARAM.evoContractionHeatGainK || 0) * contractionFrac;
+          if (gainK > 0) {
+            p.tempK = clamp((Number.isFinite(p.tempK) ? p.tempK : tempNow) + gainK, PARAM.tempMinK, PARAM.tempMaxK);
+          }
+        }
+        if (stage === 'main' && PARAM.evoFusionEnabled && massNow >= Math.max(0.0001, PARAM.evoFusionMassMin || 1.2)) {
+          const lifeMain = Math.max(1, mainSequenceLifetimeSec(massNow));
+          const ageFrac = clamp(ageSec / lifeMain, 0, 1);
+          const fuelFloor = clamp(PARAM.evoFusionFuelFloor || 0.25, 0, 1);
+          const fuelMul = lerp(fuelFloor, 1, 1 - ageFrac);
+          const mRef = Math.max(0.0001, PARAM.evoMassRef || 4.0);
+          const massPow = Math.max(0, PARAM.evoFusionMassPower || 0.35);
+          const massMul = Math.pow(Math.max(0.1, massNow / mRef), massPow);
+          const fusionRate = Math.max(0, PARAM.evoFusionRatePerSec || 0.22) * fuelMul * massMul;
+          const fusionTargetK = clamp(
+            eqMain * Math.max(0.2, PARAM.evoFusionTargetMul || 1.18),
+            PARAM.tempMinK,
+            PARAM.tempMaxK
+          );
+          if (fusionTargetK > p.tempK && fusionRate > 0) {
+            const up = 1 - Math.exp(-fusionRate * dt);
+            if (up > 0) {
+              p.tempK = clamp(lerp(p.tempK, fusionTargetK, up), PARAM.tempMinK, PARAM.tempMaxK);
+            }
+          }
         }
       }
 
@@ -2917,7 +3066,7 @@
         clockDateMaskField = null;
       }
 
-      function applyClockGravity(p) {
+      function applyClockGravity(p, dtFrameScale = 1) {
         if (!clockStarModeEnabled) return;
         if (!clockSdfField || clockFieldWidth <= 1 || clockFieldHeight <= 1) return;
         const fx = p.x * clockFieldScale;
@@ -2931,7 +3080,7 @@
           const gn = Math.sqrt(gx * gx + gy * gy);
           if (gn > 0.000001) {
             const u = 1 - (dWorld / range);
-            const pull = PARAM.clockGravityStrength * u;
+            const pull = PARAM.clockGravityStrength * u * dtFrameScale;
             p.vx += (-gx / gn) * pull;
             p.vy += (-gy / gn) * pull;
           }
@@ -2944,7 +3093,8 @@
           const regionProx = Math.max(insideMask, edgeProx);
           const dateMix = sampleClockDateMask(fx, fy);
           const dateResistance = lerp(1, PARAM.clockDateResistanceFactor, clamp(dateMix, 0, 1));
-          const localDrag = PARAM.clockStickyDragNear * regionProx * dateResistance;
+          const localDrag60 = clamp(PARAM.clockStickyDragNear * regionProx * dateResistance, 0, 0.98);
+          const localDrag = 1 - Math.pow(1 - localDrag60, dtFrameScale);
           const damp = clamp(1 - localDrag, 0.02, 1);
           p.vx *= damp;
           p.vy *= damp;
@@ -2958,7 +3108,7 @@
             const invV = 1 / Math.sqrt(v2);
             const dateMix = sampleClockDateMask(fx, fy);
             const turbulenceFactor = lerp(1, PARAM.clockDateTurbulenceFactor, clamp(dateMix, 0, 1));
-            const boost = PARAM.clockInsideFlowBoost * turbulenceFactor * (0.35 + insideDepth * 0.65);
+            const boost = PARAM.clockInsideFlowBoost * turbulenceFactor * (0.35 + insideDepth * 0.65) * dtFrameScale;
             p.vx += (p.vx * invV) * boost;
             p.vy += (p.vy * invV) * boost;
           }
@@ -2994,6 +3144,8 @@
         const src = source || 'unknown';
         const cleanMode = !!PARAM.bbCleanModeEnabled;
         bbCleanRuntimeActive = cleanMode;
+        const totalMassBeforeBb = currentParticleMassTotal + computeBlackHoleMassTotal();
+        wdTransitionCount = 0;
         bigBangCount += 1;
         const isFirstBigBang = bigBangCount === 1;
         if (typeof gtag === 'function') {
@@ -3019,7 +3171,7 @@
         currentVelReturn = randomVelReturn();
         if (isFirstBigBang) {
           // Keep first BB dynamics aligned with initial universe defaults.
-          currentPpLinearDamping = 0.001;
+          currentPpLinearDamping = 0.002;
           const targetResAtBb = clamp(PARAM.bbPostResAtBigBang, 0, 0.5);
           bbPostResBoostRuntimeMultiplier = Math.max(
             1,
@@ -3030,7 +3182,7 @@
           gravityRandBhPullPerAbsorb = PARAM.bhPullPerAbsorb;
           gravityBhSofteningBase = PARAM.bhGlobalSoftening;
         } else {
-          currentPpLinearDamping = randomInRange(0.001, 0.005);
+          currentPpLinearDamping = 0.002;
           const targetResAtBb = clamp(PARAM.bbPostResAtBigBang, 0, 0.5);
           bbPostResBoostRuntimeMultiplier = Math.max(
             1,
@@ -3062,7 +3214,16 @@
         currentFlowX = (Math.random() > 0.5 ? 1 : -1) * flowS;
         currentFlowY = (Math.random() * 0.24 - 0.12) * Math.min(1, flowS * 4);
 
+        const useBbInitialGas = !!PARAM.compGasEnabled && !!PARAM.bbInitialGasEnabled;
+        const bbGasCount = Math.max(1, Math.floor(currentParticleTarget || 1));
+        const bbGasTotalMass = Math.max(
+          0.0001,
+          totalMassBeforeBb > 0 ? totalMassBeforeBb : Math.max(0.0001, initialParticleMassTarget || 0.0001)
+        );
+        const gasAgeBase = Math.max(0, PARAM.compGasMaxAgeSec || 0);
+        const gasAgeJitter = Math.max(0, PARAM.compGasMaxAgeJitterSec || 0);
         const maxR = Math.sqrt((w * w) + (h * h)) * 0.7;
+        const bbSpecs = [];
         for (let i = 0; i < currentParticleTarget; i += 1) {
           const ang = Math.random() * Math.PI * 2;
           const rr = Math.pow(Math.random(), 0.72) * maxR;
@@ -3073,17 +3234,14 @@
           const a = Math.max(0.0001, PARAM.bigBangSpeedCurveA);
           const curve = (1 - Math.exp(-a * u)) / (1 - Math.exp(-a));
           const speedRaw = PARAM.bigBangMinSpeed + curve * (currentBigBangMaxSpeed - PARAM.bigBangMinSpeed);
-          const speed = speedRaw * 10 * (cleanMode ? Math.max(0, PARAM.bbCleanSpeedScale) : 1);
+          const speed = speedRaw * 1 * (cleanMode ? Math.max(0, PARAM.bbCleanSpeedScale) : 1);
           const vx = nx * speed;
           const vy = ny * speed;
           const driftScale = cleanMode ? Math.max(0, PARAM.bbCleanBaseDriftScale) : 1;
           const baseVx = ((Math.random() * 0.55 + 0.18) * (Math.random() > 0.5 ? 1 : -1)) * driftScale;
           const baseVy = (Math.random() * 0.24 - 0.12) * driftScale;
-          const px = clamp(cx, 0, w);
-          const py = clamp(cy, 0, h);
           const stellarClass = sampleStellarClassForBigBang();
           const rBase = randomBigBangParticleRadius();
-          const r = rBase * bigBangClassRadiusScale(stellarClass);
           const heat0 = randomInitialHeat();
           const tempK = cleanMode
             ? clamp(
@@ -3092,42 +3250,93 @@
               PARAM.tempMaxK
             )
             : PARAM.tempMaxK;
-          const p = {
-            x: px,
-            y: py,
+          bbSpecs.push({
+            u,
             vx: baseVx + currentFlowX,
             vy: baseVy + currentFlowY,
             baseVx: baseVx + currentFlowX,
             baseVy: baseVy + currentFlowY,
             launchVxTarget: vx,
             launchVyTarget: vy,
+            stellarClass,
+            rBase,
+            heat0,
+            tempK
+          });
+        }
+
+        const bbGasMasses = new Array(bbSpecs.length);
+        if (useBbInitialGas && bbSpecs.length > 0) {
+          const sigma = Math.max(0, Number.isFinite(PARAM.compGasInitMassScatterSigma) ? PARAM.compGasInitMassScatterSigma : 0.9);
+          const densityBias = Math.max(0.2, Number.isFinite(PARAM.compGasInitMassDensityBias) ? PARAM.compGasInitMassDensityBias : 1.25);
+          const weightFloor = Math.max(0.0001, Number.isFinite(PARAM.compGasInitMassWeightFloor) ? PARAM.compGasInitMassWeightFloor : 0.08);
+          let sumW = 0;
+          for (let i = 0; i < bbSpecs.length; i += 1) {
+            const densityW = weightFloor + Math.pow(Math.max(0.0001, bbSpecs[i].u), densityBias);
+            const scatterW = Math.exp(randomNormal01() * sigma);
+            const wMass = Math.max(1e-9, densityW * scatterW);
+            bbGasMasses[i] = wMass;
+            sumW += wMass;
+          }
+          const norm = sumW > 0 ? (bbGasTotalMass / sumW) : (bbGasTotalMass / Math.max(1, bbGasCount));
+          for (let i = 0; i < bbGasMasses.length; i += 1) {
+            bbGasMasses[i] = bbGasMasses[i] * norm;
+          }
+        }
+
+        for (let i = 0; i < bbSpecs.length; i += 1) {
+          const spec = bbSpecs[i];
+          const px = clamp(cx, 0, w);
+          const py = clamp(cy, 0, h);
+          const mass = useBbInitialGas
+            ? Math.max(1e-9, bbGasMasses[i] || (bbGasTotalMass / Math.max(1, bbGasCount)))
+            : particleMassFromRadius(spec.rBase * bigBangClassRadiusScale(spec.stellarClass));
+          const r = useBbInitialGas
+            ? Math.max(0.2, particleRadiusFromMass(mass))
+            : (spec.rBase * bigBangClassRadiusScale(spec.stellarClass));
+          const p = {
+            x: px,
+            y: py,
+            vx: spec.vx,
+            vy: spec.vy,
+            baseVx: spec.baseVx,
+            baseVy: spec.baseVy,
+            launchVxTarget: spec.launchVxTarget,
+            launchVyTarget: spec.launchVyTarget,
             launchTime: 0,
             r,
             displayR: r,
-            mass: particleMassFromRadius(r),
+            mass,
             collisionCount: 0,
             flash: 0,
-            heat: heat0,
+            heat: spec.heat0,
             life: Math.random() * 0.7 + 0.3,
-            stellarClass,
-            evoStage: stellarClass,
+            stellarClass: spec.stellarClass,
+            evoStage: spec.stellarClass,
             evoAgeSec: 0,
-            tempK,
+            tempK: spec.tempK,
             color: '255,255,255',
             cr: 255,
             cg: 255,
             cb: 255,
-            capturedByBh: false
+            capturedByBh: false,
+            isCompGas: useBbInitialGas,
+            compGasAgeSec: 0,
+            compGasMaxAgeSec: Math.max(0, gasAgeBase + randomInRange(-gasAgeJitter, gasAgeJitter))
           };
           p.lumClass = null;
-          assignInitialEvolutionState(p, 'bb');
+          if (!useBbInitialGas) {
+            assignInitialEvolutionState(p, 'bb');
+          }
           syncParticleColorFromTemperature(p);
           particles.push(p);
         }
-        markSinglePinkStar();
+        if (!useBbInitialGas) {
+          markSinglePinkStar();
+        }
         syncParticleMassState(false);
-        bbMassCompensationActive =
-          (currentParticleMassTotal + computeBlackHoleMassTotal()) < Math.max(0, initialParticleMassTarget);
+        // BB mode with explicit gas total mass: no post-BB mass compensation spawning.
+        bbMassCompensationActive = false;
       }
 
       function isEarthAlive() {
@@ -3142,9 +3351,12 @@
         const now = performance.now();
         if (!force && hudLastUpdateMs >= 0 && (now - hudLastUpdateMs) < 100) return;
         hudLastUpdateMs = now;
-        hudVersionEl.textContent = 'ver: ' + HUB_VERSION;
+        hudVersionEl.textContent = HUB_VERSION;
         hudBbCountEl.textContent = 'BB: ' + bigBangCount;
         hudUniverseAgeEl.textContent = 'AgeU: ' + formatAgeShort(universeAgeSec);
+        hudAgingEl.textContent = 'Aging: '
+          + (stellarAgingEnabled ? 'ON' : 'OFF')
+          + ' x' + Number(PARAM.evoAgingRate || 1).toFixed(1);
         hudEarthAliveEl.textContent = 'Earth: ' + (isEarthAlive() ? 'alive' : 'lost');
         const totalMassAll = computeParticleMassTotal() + computeBlackHoleMassTotal();
         hudTotalMassEl.textContent = 'Mtot: ' + totalMassAll.toFixed(1);
@@ -3154,6 +3366,8 @@
         let classIV = 0;
         let classV = 0;
         let classWD = 0;
+        let classNS = 0;
+        let classGas = 0;
         let rSum = 0;
         let rCount = 0;
         let rSmall = 0;
@@ -3166,7 +3380,9 @@
           else if (lc === 'III') classIII += 1;
           else if (lc === 'IV') classIV += 1;
           else if (lc === 'WD') classWD += 1;
-          else if (lc !== 'Earth') classV += 1;
+          else if (lc === 'NS') classNS += 1;
+          else if (lc === 'GAS') classGas += 1;
+          else if (lc !== 'Earth' && lc !== 'GAS') classV += 1;
           if (p && Number.isFinite(p.r)) {
             const rr = Math.max(0, p.r);
             rSum += rr;
@@ -3176,13 +3392,15 @@
           }
         }
         const rAvg = rCount > 0 ? (rSum / rCount) : 0;
-        hudStellarClassesEl.textContent = 'Lum I/II/III/IV/V/WD/BH: '
+        hudStellarClassesEl.textContent = 'Lum I/II/III/IV/V/WD/NS/Gas/BH: '
           + classI.toLocaleString() + '/'
           + classII.toLocaleString() + '/'
           + classIII.toLocaleString() + '/'
           + classIV.toLocaleString() + '/'
           + classV.toLocaleString() + '/'
           + classWD.toLocaleString() + '/'
+          + classNS.toLocaleString() + '/'
+          + classGas.toLocaleString() + '/'
           + blackHoles.length.toLocaleString()
           + ' | Ravg: ' + rAvg.toFixed(2)
           + ' S/L: ' + rSmall.toLocaleString() + '/' + rLarge.toLocaleString();
@@ -3585,7 +3803,7 @@
         }
       }
 
-      function applyParticleGravitySymmetric(wrapW, wrapH, gravityEnabled, collisionEnabled) {
+      function applyParticleGravitySymmetric(wrapW, wrapH, gravityEnabled, collisionEnabled, dtFrameScale = 1) {
         const n = particles.length;
         if (n <= 1) return false;
         const s = PARAM.ppGravityCellSize;
@@ -3620,6 +3838,14 @@
         let projectedMass = currentParticleMassTotal;
         const compensationSpawnSpecs = [];
         let merges = 0;
+        let bbCollisionHeatMul = 1;
+        if (bbPostResBoostStartMs >= 0) {
+          const now = performance.now();
+          const elapsedMs = Math.max(0, now - bbPostResBoostStartMs);
+          const heatHalfLifeMs = Math.max(1, (PARAM.bbCollisionHeatBoostHalfLifeSec || 18) * 1000);
+          const heatBoost0 = Math.max(1, PARAM.bbCollisionHeatBoostStart || 1);
+          bbCollisionHeatMul = 1 + ((heatBoost0 - 1) * Math.pow(0.5, elapsedMs / heatHalfLifeMs));
+        }
         let maxParticleR = 0;
         for (let i = 0; i < n; i += 1) {
           const p = particles[i];
@@ -3693,9 +3919,11 @@
             if (collisionCandidate) {
             const rr = (pi.r + pj.r) * 0.5 * collisionFactor;
             if (d2 <= rr * rr) {
-              const mi0 = massArr[i];
-              const mj0 = massArr[j];
+                const mi0 = massArr[i];
+                const mj0 = massArr[j];
                 const m = mi0 + mj0;
+                const ageI = Math.max(0, Number.isFinite(pi.evoAgeSec) ? pi.evoAgeSec : 0);
+                const ageJ = Math.max(0, Number.isFinite(pj.evoAgeSec) ? pj.evoAgeSec : 0);
                 const ci = pi.collisionCount || 0;
                 const cj = pj.collisionCount || 0;
                 const vix = pi.vx || 0;
@@ -3739,16 +3967,11 @@
                 const classJ = pj.stellarClass || 'main';
                 const ti = Number.isFinite(pi.tempK) ? pi.tempK : initialParticleTemperatureK(pi.r, classI);
                 const tj = Number.isFinite(pj.tempK) ? pj.tempK : initialParticleTemperatureK(pj.r, classJ);
-                const hotTempK = Math.max(ti, tj);
-                const coldIsI = ti <= tj;
-                const coldM = coldIsI ? mi0 : mj0;
-                const coldVx = coldIsI ? vix : vjx;
-                const coldVy = coldIsI ? viy : vjy;
-                const coldKinetic = 0.5 * coldM * ((coldVx * coldVx) + (coldVy * coldVy));
-                const tempGain = Math.max(0, PARAM.collisionColdKineticTempGain || 0) * coldKinetic;
-                pi.tempK = clamp(hotTempK + tempGain, PARAM.tempMinK, PARAM.tempMaxK);
+                const mixedTempK = ((ti * mi0) + (tj * mj0)) / Math.max(1e-9, m);
+                pi.tempK = clamp(mixedTempK, PARAM.tempMinK, PARAM.tempMaxK);
                 pi.evoStage = stageFromParticleState(pi);
-                pi.evoAgeSec = 0;
+                // Keep stellar aging continuity across merges (mass-weighted age carry-over).
+                pi.evoAgeSec = (ageI * mi0 + ageJ * mj0) / Math.max(1e-9, m);
                 pi.stellarClass = pi.evoStage;
                 syncParticleColorFromTemperature(pi);
                 // Earth is considered lost once it participates in any merge.
@@ -3767,7 +3990,7 @@
                     PARAM.collisionFlashMax,
                     Math.max(pi.flash || 0, pj.flash || 0) + PARAM.collisionFlashGain
                   );
-                  pi.heat = Math.min(1, Math.max(pi.heat || 0, pj.heat || 0) + PARAM.collisionHeatGain);
+                  pi.heat = Math.min(1, Math.max(pi.heat || 0, pj.heat || 0) + (PARAM.collisionHeatGain * bbCollisionHeatMul));
                   pi.collisionGlowLocked = true;
                 } else {
                   pi.flash = Math.max(pi.flash || 0, pj.flash || 0);
@@ -3801,15 +4024,13 @@
           // Softened Newtonian gravity: a ~ r_vec / (r^2 + eps^2)^(3/2).
           const invR = 1 / Math.sqrt(d2 + soften2);
           const invR3 = invR * invR * invR;
-          const ax = currentPpGravityStrength * dx * invR3;
-          const ay = currentPpGravityStrength * dy * invR3;
-          const invInertiaI = invInertiaArr[i];
-          const invInertiaJ = invInertiaArr[j];
-          // Equal and opposite pair update (momentum-conserving).
-          pi.vx += ax * mj * invInertiaI;
-          pi.vy += ay * mj * invInertiaI;
-          pj.vx -= ax * mi * invInertiaJ;
-          pj.vy -= ay * mi * invInertiaJ;
+          const ax = currentPpGravityStrength * dx * invR3 * dtFrameScale;
+          const ay = currentPpGravityStrength * dy * invR3 * dtFrameScale;
+          // Equal and opposite pair update (momentum-conserving, mass-independent acceleration law).
+          pi.vx += ax * mj;
+          pi.vy += ay * mj;
+          pj.vx -= ax * mi;
+          pj.vy -= ay * mi;
           interactionCounts[i] += 1;
           interactionCounts[j] += 1;
         }
@@ -3925,23 +4146,176 @@
         return base + ultra;
       }
 
-      function localDensityAt(x, y) {
+      function localDensityAtCore(x, y, gasOnly) {
         const s = PARAM.cellSize;
         const cx = Math.floor(x / s);
         const cy = Math.floor(y / s);
-        let count = 0;
+        let density = 0;
+        const smoothEnabled = !!PARAM.densitySmoothEnabled;
+        const rhoR2 = Math.max(1, rRho2);
+        const smoothPow = Math.max(0.2, PARAM.densitySmoothPower || 2.0);
+        const smoothScale = Math.max(0.01, PARAM.densitySmoothScale || 1.0);
+        const useMassWeight = !!PARAM.densityUseMassWeight;
+        const massWeightPow = Math.max(0.1, PARAM.densityMassWeightPower || 1.0);
         for (let n = 0; n < neighborOffsets.length; n += 1) {
           const o = neighborOffsets[n];
           const arr = grid.get(gridKey(cx + o[0], cy + o[1]));
           if (!arr) continue;
           for (let j = 0; j < arr.length; j += 1) {
             const p = particles[arr[j]];
+            if (!p || p.capturedByBh) continue;
+            if (gasOnly && !p.isCompGas) continue;
             const dx = p.x - x;
             const dy = p.y - y;
-            if (dx * dx + dy * dy <= rRho2) count += 1;
+            const d2 = dx * dx + dy * dy;
+            if (d2 > rhoR2) continue;
+            if (!smoothEnabled) {
+              density += 1;
+              continue;
+            }
+            const u = 1 - (d2 / rhoR2);
+            const wKernel = Math.pow(Math.max(0, u), smoothPow);
+            const m = useMassWeight
+              ? Math.pow(
+                Math.max(0.0001, Number.isFinite(p.mass) ? p.mass : particleMassFromRadius(p.r)),
+                massWeightPow
+              )
+              : 1;
+            density += (wKernel * m);
           }
         }
-        return count;
+        return smoothEnabled ? (density * smoothScale) : density;
+      }
+
+      function localDensityAt(x, y) {
+        return localDensityAtCore(x, y, false);
+      }
+
+      function drawDensityOverlay() {
+        if (!PARAM.densityOverlayEnabled) return;
+        if (grid.size <= 0) return;
+        if (PARAM.densityOverlayGasOnly) {
+          let hasGas = false;
+          for (let i = 0; i < particles.length; i += 1) {
+            const p = particles[i];
+            if (p && !p.capturedByBh && p.isCompGas) {
+              hasGas = true;
+              break;
+            }
+          }
+          if (!hasGas) return;
+        }
+        const s = Math.max(4, PARAM.cellSize || 1);
+        const useCircular = !!PARAM.densityOverlayUseCircular;
+        const minRho = Math.max(0, PARAM.densityOverlayMin || 0);
+        const maxRho = Math.max(minRho + 1e-6, PARAM.densityOverlayMax || PARAM.rhoThreshold || 1);
+        const alphaMax = clamp(PARAM.densityOverlayAlphaMax || 0.18, 0.01, 1);
+        const minLog = Math.log1p(minRho);
+        const maxLog = Math.log1p(maxRho);
+        const spanLog = Math.max(1e-6, maxLog - minLog);
+
+        for (const entry of grid.entries()) {
+          const key = entry[0];
+          const c = key.split(',');
+          if (c.length !== 2) continue;
+          const cx = Number(c[0]);
+          const cy = Number(c[1]);
+          if (!Number.isFinite(cx) || !Number.isFinite(cy)) continue;
+          const x = (cx + 0.5) * s;
+          const y = (cy + 0.5) * s;
+          const rho = PARAM.densityOverlayGasOnly
+            ? localDensityAtCore(x, y, true)
+            : localDensityAtCore(x, y, false);
+          if (!Number.isFinite(rho) || rho <= minRho) continue;
+          const t = clamp((Math.log1p(rho) - minLog) / spanLog, 0, 1);
+          const r = Math.round(lerp(28, 255, t));
+          const g = Math.round(lerp(64, 110, t));
+          const b = Math.round(lerp(220, 80, t));
+          const a = alphaMax * Math.pow(t, 0.8);
+          if (useCircular) {
+            const radius = s * (0.55 + 0.95 * t);
+            const grad = ctx.createRadialGradient(x, y, 0, x, y, radius);
+            grad.addColorStop(0, 'rgba(' + r + ',' + g + ',' + b + ',' + a.toFixed(3) + ')');
+            grad.addColorStop(1, 'rgba(' + r + ',' + g + ',' + b + ',0)');
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, Math.PI * 2);
+            ctx.fill();
+          } else {
+            ctx.fillStyle = 'rgba(' + r + ',' + g + ',' + b + ',' + a.toFixed(3) + ')';
+            ctx.fillRect(cx * s, cy * s, s, s);
+          }
+        }
+      }
+
+      function tryAccreteGasOntoStar(gasIndex, gas, wrapW, wrapH, visibleStarCount) {
+        if (!PARAM.gasStarAccretionEnabled) return false;
+        if ((visibleStarCount || 0) < Math.max(0, Math.floor(PARAM.gasStarAccreteMinStarCount || 0))) return false;
+        if (!gas || !gas.isCompGas || gas.capturedByBh) return false;
+        const s = PARAM.cellSize;
+        const cx = Math.floor(gas.x / s);
+        const cy = Math.floor(gas.y / s);
+        const rScale = Math.max(0.2, PARAM.gasStarAccreteRadiusScale || 1.35);
+        const gasRadiusMul = Math.max(0.2, PARAM.gasStarAccreteGasRadiusMul || 1.0);
+        const baseR = Math.max(0.2, PARAM.gasStarAccreteBaseRadius || 2.0);
+        let best = null;
+        let bestD2 = Number.POSITIVE_INFINITY;
+        for (let n = 0; n < neighborOffsets.length; n += 1) {
+          const o = neighborOffsets[n];
+          const arr = grid.get(gridKey(cx + o[0], cy + o[1]));
+          if (!arr) continue;
+          for (let j = 0; j < arr.length; j += 1) {
+            const idx = arr[j];
+            if (idx === gasIndex) continue;
+            const p = particles[idx];
+            if (!p || p.capturedByBh || p.isCompGas) continue;
+            const dx = shortestWrappedDelta(p.x, gas.x, wrapW);
+            const dy = shortestWrappedDelta(p.y, gas.y, wrapH);
+            const d2 = dx * dx + dy * dy;
+            const hitR = Math.max(baseR, Math.max(0.2, Number.isFinite(p.r) ? p.r : 0.2) * rScale * gasRadiusMul);
+            if (d2 <= hitR * hitR && d2 < bestD2) {
+              best = p;
+              bestD2 = d2;
+            }
+          }
+        }
+        if (!best) return false;
+        const gasMassNow = Math.max(0.0001, Number.isFinite(gas.mass) ? gas.mass : particleMassFromRadius(gas.r));
+        const takeFrac = clamp(PARAM.gasStarAccreteFraction || 1, 0.01, 1);
+        const dm = Math.max(0.000001, gasMassNow * takeFrac);
+        const gasMassRemain = Math.max(0.000001, gasMassNow - dm);
+        const starMass = Math.max(0.0001, Number.isFinite(best.mass) ? best.mass : particleMassFromRadius(best.r));
+        const mergedMass = starMass + dm;
+        best.mass = mergedMass;
+        best.r = Math.max(0.2, particleRadiusFromMass(mergedMass));
+        if (!Number.isFinite(best.displayR)) best.displayR = best.r;
+        const gasTemp = clamp(
+          Number.isFinite(gas.tempK) ? gas.tempK : PARAM.tempMinK,
+          PARAM.tempMinK,
+          PARAM.tempMaxK
+        );
+        const starTemp = clamp(
+          Number.isFinite(best.tempK) ? best.tempK : PARAM.tempMinK,
+          PARAM.tempMinK,
+          PARAM.tempMaxK
+        );
+        const tempMix = clamp(PARAM.gasStarAccreteTempMix || 0.2, 0, 1);
+        best.tempK = clamp(
+          lerp(starTemp, Math.max(starTemp, gasTemp), tempMix),
+          PARAM.tempMinK,
+          PARAM.tempMaxK
+        );
+        best.flash = Math.min(PARAM.collisionFlashMax, (best.flash || 0) + Math.max(0, PARAM.gasStarAccreteFlashGain || 0));
+        best.heat = Math.min(1, (best.heat || 0) + Math.max(0, PARAM.gasStarAccreteHeatGain || 0));
+        syncParticleColorFromTemperature(best);
+        if (gasMassRemain <= 0.00011 || takeFrac >= 0.999) {
+          removeParticleAt(gasIndex);
+        } else {
+          gas.mass = gasMassRemain;
+          gas.r = Math.max(0.2, particleRadiusFromMass(gasMassRemain));
+          if (!Number.isFinite(gas.displayR)) gas.displayR = gas.r;
+        }
+        return true;
       }
 
       function trySpawnBlackHole() {
@@ -4012,11 +4386,16 @@
           diskColorB: null,
           accretionRings: []
         });
+        if (blackHoles.length === 1 && mouseGravityEnabled) {
+          mouseGravityEnabled = false;
+          pointerHoldActive = false;
+          syncMouseGravityToggle();
+        }
         emitCollapseRepulse(spawnX, spawnY, PARAM.densitySpawnRepulseBoost);
         bhSpawnCooldown = PARAM.spawnCooldownFrames;
       }
 
-      function updateBlackHoles(dtMs) {
+      function updateBlackHoles(dtMs, dtFrameScale = 1) {
         if (!bhEnabled) return;
 
         // Mutual BH gravity (pairwise, momentum-conserving).
@@ -4037,8 +4416,8 @@
             const soften2 = PARAM.bhMutualSoftening * PARAM.bhMutualSoftening;
             const invR = 1 / Math.sqrt(d2 + soften2);
             const invR3 = invR * invR * invR;
-            const ax = PARAM.bhMutualGravityStrength * dx * invR3;
-            const ay = PARAM.bhMutualGravityStrength * dy * invR3;
+            const ax = PARAM.bhMutualGravityStrength * dx * invR3 * dtFrameScale;
+            const ay = PARAM.bhMutualGravityStrength * dy * invR3 * dtFrameScale;
             a.vx = (a.vx || 0) + ax * mb;
             a.vy = (a.vy || 0) + ay * mb;
             b.vx = (b.vx || 0) - ax * ma;
@@ -4071,15 +4450,16 @@
             if (d2 > 1 && d2 < ar * ar) {
               const d = Math.sqrt(d2);
               const pull = (1 - d / ar) * currentAttractStrength * PARAM.bhMouseAttractScale;
-              b.vx = (b.vx || 0) + (dx / d) * pull;
-              b.vy = (b.vy || 0) + (dy / d) * pull;
+              b.vx = (b.vx || 0) + (dx / d) * pull * dtFrameScale;
+              b.vy = (b.vy || 0) + (dy / d) * pull * dtFrameScale;
             }
           }
-          b.x += b.vx || 0;
-          b.y += b.vy || 0;
+          b.x += (b.vx || 0) * dtFrameScale;
+          b.y += (b.vy || 0) * dtFrameScale;
           if (!noFrictionModeEnabled) {
-            b.vx = (b.vx || 0) * PARAM.bhVelocityDamping;
-            b.vy = (b.vy || 0) * PARAM.bhVelocityDamping;
+            const bhDamping = Math.pow(clamp(PARAM.bhVelocityDamping, 0, 1), dtFrameScale);
+            b.vx = (b.vx || 0) * bhDamping;
+            b.vy = (b.vy || 0) * bhDamping;
           }
           const sp2 = (b.vx || 0) * (b.vx || 0) + (b.vy || 0) * (b.vy || 0);
           if (sp2 > PARAM.bhMaxSpeed * PARAM.bhMaxSpeed) {
@@ -4488,21 +4868,24 @@
 
         const nowMs = performance.now();
         const dtMs = lastStepMs > 0 ? clamp(nowMs - lastStepMs, 0, 250) : (1000 / 60);
+        const dtFrameScale = clamp(dtMs / (1000 / 60), 0, 4);
         const dtSec = dtMs * 0.001;
         universeAgeSec += dtSec;
         lastStepMs = nowMs;
         const instantFps = dtMs > 0 ? (1000 / dtMs) : 60;
         currentFps = lerp(currentFps, instantFps, 0.12);
-        t += 0.015;
+        t += 0.015 * dtFrameScale;
         frameTick += 1;
         ctx.fillStyle = backgroundColorFromTemperature(lastFrameMeanTempK, t);
         ctx.fillRect(0, 0, w, h);
         const attractR2 = currentAttractR * currentAttractR;
-        const bhSoft2 = PARAM.bhMutualSoftening * PARAM.bhMutualSoftening;
+        const bhSoft2 = PARAM.ppGravitySoftening * PARAM.ppGravitySoftening;
         const wrapW = w;
         const wrapH = h;
         let totalEnergy = 0;
         let totalTempK = 0;
+        let gasStarFormsThisFrame = 0;
+        const gasStarFormCap = Math.max(0, Math.floor(PARAM.compGasStarFormMaxPerFrame || 0));
         const preMassThreshold = Math.max(0.0001, PARAM.collapseMassThreshold) * Math.max(0.05, PARAM.preCollapseMassRatio);
         const preCollThreshold = Math.max(
           0,
@@ -4532,14 +4915,16 @@
             applyGravityScale(relaxedInputScale);
           }
         }
+        const pairGravityEnabled = particleGravityEnabled;
         const hasBhGravity = !suppressNegativeAmbientGravity && bhEnabled && blackHoles.length > 0;
         const hasBhAbsorbCheck = bhEnabled && blackHoles.length > 0;
+        const bhGravityRange = pairGravityEnabled ? Infinity : Math.max(1, PARAM.ppGravityRange);
+        const bhGravityRange2 = Number.isFinite(bhGravityRange) ? (bhGravityRange * bhGravityRange) : Infinity;
         const waveAmp = PARAM.waveAmp;
         if (suppressNegativeAmbientGravity) {
           // Hold-click in negative gravity: disable ambient negative gravity and apply click gravity only.
-          gravitateClick(pointerHoldX, pointerHoldY, PARAM.holdGravityImpulseScale);
+          gravitateClick(pointerHoldX, pointerHoldY, PARAM.holdGravityImpulseScale, dtFrameScale);
         }
-        const pairGravityEnabled = particleGravityEnabled;
         if (pairGravityEnabled || collisionModeEnabled) {
           buildParticleGravityGrid(wrapW, wrapH);
         }
@@ -4548,7 +4933,8 @@
             wrapW,
             wrapH,
             pairGravityEnabled,
-            collisionModeEnabled && bhCreationLockFrames <= 0
+            collisionModeEnabled && bhCreationLockFrames <= 0,
+            dtFrameScale
           );
           if (merged && collisionModeEnabled) {
             buildParticleGravityGrid(wrapW, wrapH);
@@ -4556,35 +4942,53 @@
         }
         if (bhSpawnCooldown > 0) bhSpawnCooldown -= 1;
         if (bhCreationLockFrames > 0) bhCreationLockFrames -= 1;
-        if (
+        const shouldTryBhSpawn =
           bhEnabled &&
           blackHoles.length < PARAM.maxBlackHoles &&
           bhSpawnCooldown === 0 &&
-          (frameTick % PARAM.spawnCheckEveryNFrames === 0)
-        ) {
+          (frameTick % PARAM.spawnCheckEveryNFrames === 0);
+        const needSpatialGrid =
+          !!PARAM.compGasEnabled ||
+          !!PARAM.densityOverlayEnabled ||
+          shouldTryBhSpawn;
+        if (needSpatialGrid) {
           buildSpatialGrid();
+        }
+        let visibleStarCount = 0;
+        for (let si = 0; si < particles.length; si += 1) {
+          const sp = particles[si];
+          if (sp && !sp.capturedByBh && !sp.isCompGas) visibleStarCount += 1;
+        }
+        if (shouldTryBhSpawn) {
           trySpawnBlackHole();
         }
+        drawDensityOverlay();
 
         for (let i = 0; i < particles.length; i += 1) {
           const p = particles[i];
           const prevX = p.x;
           const prevY = p.y;
           let frictionHeatDeltaK = 0;
+          const gasDampingMul = p.isCompGas
+            ? Math.max(0.1, PARAM.compGasDampingMul || 1.0)
+            : 1.0;
           if (!noFrictionModeEnabled) {
             if (!particleGravityEnabled && (!hasBhGravity || flowModeEnabled)) {
               const targetVx = flowModeEnabled ? p.baseVx : 0;
               const targetVy = (flowModeEnabled ? p.baseVy : 0) + flowOscY;
               const rvx0 = p.vx - targetVx;
               const rvy0 = p.vy - targetVy;
-              p.vx += (targetVx - p.vx) * currentVelReturn;
-              p.vy += (targetVy - p.vy) * currentVelReturn;
+              const gasVelReturn60 = clamp(currentVelReturn * gasDampingMul, 0, 1);
+              const gasVelReturn = 1 - Math.pow(1 - gasVelReturn60, dtFrameScale);
+              p.vx += (targetVx - p.vx) * gasVelReturn;
+              p.vy += (targetVy - p.vy) * gasVelReturn;
               const rvx1 = p.vx - targetVx;
               const rvy1 = p.vy - targetVy;
               const relLoss = (rvx0 * rvx0 + rvy0 * rvy0) - (rvx1 * rvx1 + rvy1 * rvy1);
               if (relLoss > 0) frictionHeatDeltaK += relLoss * PARAM.frictionHeatGainK;
             } else {
-              const drag = frameLinearDamping;
+              const drag60 = clamp(frameLinearDamping * gasDampingMul, 0, 0.98);
+              const drag = 1 - Math.pow(1 - drag60, dtFrameScale);
               const v20 = p.vx * p.vx + p.vy * p.vy;
               p.vx *= (1 - drag);
               p.vy *= (1 - drag);
@@ -4607,7 +5011,7 @@
           if (p.launchTime >= 0) {
             const a = Math.max(0.000001, PARAM.bigBangLaunchA);
             const prevPhase = 1 - Math.exp(-a * p.launchTime);
-            p.launchTime += 1;
+            p.launchTime += dtFrameScale;
             const nextPhase = 1 - Math.exp(-a * p.launchTime);
             const dPhase = nextPhase - prevPhase;
             if (dPhase > 0.000001) {
@@ -4625,11 +5029,11 @@
             if (d2 > 1 && d2 < attractR2) {
               const d = Math.sqrt(d2);
               const pull = (1 - d / currentAttractR) * currentAttractStrength;
-              p.vx += (dx / d) * pull;
-              p.vy += (dy / d) * pull;
+              p.vx += (dx / d) * pull * dtFrameScale;
+              p.vy += (dy / d) * pull * dtFrameScale;
             }
           }
-          applyClockGravity(p);
+          applyClockGravity(p, dtFrameScale);
           if (p.capturedByBh) {
             lockCapturedParticleToNearestBh(p);
           }
@@ -4642,15 +5046,15 @@
               const dx = shortestWrappedDelta(b.x, p.x, wrapW);
               const dy = shortestWrappedDelta(b.y, p.y, wrapH);
               const d2 = dx * dx + dy * dy;
-              if (d2 > 1) {
+              if (d2 > 1 && (pairGravityEnabled || d2 <= bhGravityRange2)) {
+                // Match star-vs-star gravity law and inertia scaling.
                 const mb = Math.max(0.0001, b.mass || 0);
-                const g = PARAM.bhMutualGravityStrength * mb;
                 const invR = 1 / Math.sqrt(d2 + bhSoft2);
                 const invR3 = invR * invR * invR;
-                const ax = g * dx * invR3;
-                const ay = g * dy * invR3;
-                p.vx += ax;
-                p.vy += ay;
+                const ax = currentPpGravityStrength * dx * invR3;
+                const ay = currentPpGravityStrength * dy * invR3;
+                p.vx += ax * mb * dtFrameScale;
+                p.vy += ay * mb * dtFrameScale;
               }
             }
           }
@@ -4702,8 +5106,8 @@
           }
 
           const wave = Math.sin((p.x * 0.01) + t) * waveAmp;
-          p.x += p.vx;
-          p.y += p.vy + wave;
+          p.x += p.vx * dtFrameScale;
+          p.y += (p.vy + wave) * dtFrameScale;
 
           // Robust horizon check (endpoint + segment-crossing) to prevent tunneling leaks.
           if (hasBhAbsorbCheck && PARAM.bhDirectCaptureEnabled) {
@@ -4726,6 +5130,10 @@
             }
           }
           if (absorbed) {
+            i -= 1;
+            continue;
+          }
+          if (p.isCompGas && tryAccreteGasOntoStar(i, p, wrapW, wrapH, visibleStarCount)) {
             i -= 1;
             continue;
           }
@@ -4759,21 +5167,70 @@
           const halfLifeMs = Math.max(1, PARAM.tempHalfLifeSec * 1000 * rScale * classScale * bbPostCoolingMul);
           const decay = Math.pow(0.5, dtMs / halfLifeMs);
           p.tempK = clamp(tempNow * decay, PARAM.tempMinK, PARAM.tempMaxK);
-          evolveParticleStageAndTemperature(p, dtSec);
-          if (PARAM.forceAllMinTempForCalibration) {
-            // Temporary calibration mode: force every star to the current minimum temperature.
-            p.tempK = PARAM.tempMinK;
-          }
-          if (p.evoStage === 'supernova') {
-            const holdSec = Math.max(0, PARAM.evoSupernovaHoldSec || 0);
-            if ((p.evoAgeSec || 0) >= holdSec) {
-              if (triggerSupernovaCollapse(p)) {
-                removeParticleAt(i);
-                i -= 1;
-                continue;
+          if (p.isCompGas) {
+            const gasHalfLifeMs = Math.max(1, (PARAM.compGasCoolingHalfLifeSec || 12) * 1000);
+            const gasDecay = Math.pow(0.5, dtMs / gasHalfLifeMs);
+            p.tempK = clamp(p.tempK * gasDecay, PARAM.tempMinK, PARAM.tempMaxK);
+            p.compGasAgeSec = (p.compGasAgeSec || 0) + dtSec;
+            const rho = localDensityAt(p.x, p.y);
+            const massNow = Math.max(0.0001, Number.isFinite(p.mass) ? p.mass : particleMassFromRadius(p.r));
+            const tRef = Math.max(1, PARAM.compGasJeansTempRefK || 6000);
+            const rhoRef = Math.max(1, PARAM.compGasJeansDensityRef || 12);
+            const jeansMass = Math.max(
+              0.0001,
+              (PARAM.compGasJeansCoeff || 4.0)
+              * Math.pow(Math.max(1, p.tempK) / tRef, 1.5)
+              / Math.max(0.2, rho / rhoRef)
+            );
+            const canFormStar =
+              rho >= Math.max(1, PARAM.compGasDensityThreshold || 9)
+              && p.tempK <= Math.max(PARAM.tempMinK, PARAM.compGasTempMaxK || 12000)
+              && (p.compGasAgeSec || 0) >= Math.max(0, PARAM.compGasMinAgeSec || 0)
+              && massNow >= jeansMass;
+            const gasMaxAge = Math.max(0, Number.isFinite(p.compGasMaxAgeSec) ? p.compGasMaxAgeSec : (PARAM.compGasMaxAgeSec || 0));
+            const passedAgeGate = (p.compGasAgeSec || 0) >= gasMaxAge;
+            let forceByAge = false;
+            if (passedAgeGate) {
+              const rate = Math.max(0, PARAM.compGasForceByAgeRatePerSec || 0.45);
+              const chance = 1 - Math.exp(-rate * dtSec);
+              forceByAge = Math.random() < chance;
+            }
+            const underStarFormCap =
+              gasStarFormCap <= 0 || gasStarFormsThisFrame < gasStarFormCap;
+            if ((canFormStar || forceByAge) && underStarFormCap) {
+              p.isCompGas = false;
+              p.compGasAgeSec = 0;
+              p.compGasMaxAgeSec = 0;
+              p.evoStage = 'main';
+              p.stellarClass = 'main';
+              p.lumClass = null;
+              p.r = Math.max(0.2, particleRadiusFromMass(massNow));
+              p.displayR = Math.max(0.2, Number.isFinite(p.displayR) ? p.displayR : p.r);
+              const gasToStarTempBase = Math.max((p.tempK - 3000), (PARAM.compGasStarTempFloorK || 6500) - 3000);
+              const gasToStarMinK = Math.max(PARAM.tempMinK, PARAM.compGasStarInitTempMinK || 4500);
+              const gasToStarMaxK = Math.max(gasToStarMinK, Math.min(PARAM.tempMaxK, PARAM.compGasStarInitTempMaxK || 6000));
+              p.tempK = clamp(gasToStarTempBase, gasToStarMinK, gasToStarMaxK);
+              assignInitialEvolutionState(p, 'bb');
+              syncParticleColorFromTemperature(p);
+              gasStarFormsThisFrame += 1;
+            }
+          } else {
+            evolveParticleStageAndTemperature(p, dtSec);
+            if (PARAM.forceAllMinTempForCalibration) {
+              // Temporary calibration mode: force every star to the current minimum temperature.
+              p.tempK = PARAM.tempMinK;
+            }
+            if (p.evoStage === 'supernova') {
+              const holdSec = Math.max(0, PARAM.evoSupernovaHoldSec || 0);
+              if ((p.evoAgeSec || 0) >= holdSec) {
+                if (triggerSupernovaCollapse(p)) {
+                  removeParticleAt(i);
+                  i -= 1;
+                  continue;
+                }
+                // If collapse is temporarily blocked (e.g. spawn guard), keep SN visible and retry.
+                p.evoAgeSec = Math.max(0, holdSec - 0.12);
               }
-              // If collapse is temporarily blocked (e.g. spawn guard), keep SN visible and retry.
-              p.evoAgeSec = Math.max(0, holdSec - 0.12);
             }
           }
           totalTempK += p.tempK;
@@ -4788,7 +5245,7 @@
               p.heat = Math.min(1, (p.heat || 0) + PARAM.preCollapseHeatGain);
             }
           }
-          if (!p.capturedByBh) {
+          if (!p.capturedByBh && !p.isCompGas) {
             totalEnergy += particleBrightnessEnergy(p);
           }
 
@@ -4798,6 +5255,9 @@
           if (p.y >= h) p.y -= h;
 
           if (p.capturedByBh) {
+            continue;
+          }
+          if (p.isCompGas) {
             continue;
           }
 
@@ -4850,6 +5310,9 @@
           alpha *= tempLum;
           alpha *= hrLuminosityAlphaScale(p.r, renderTempK);
           alpha *= stellarClassAlphaScale(p.stellarClass || 'main');
+          if (p.isCompGas) {
+            alpha *= clamp(PARAM.compGasAlphaScale || 0.55, 0.05, 1);
+          }
           alpha *= Math.max(0, PARAM.globalStarBrightnessMul || 1);
           alpha = clamp(alpha, 0.04, 2.4);
           if (p.isEarth) {
@@ -4994,7 +5457,7 @@
         }
 
         drawMergeFadeEffects(nowMs);
-        updateBlackHoles(dtMs);
+        updateBlackHoles(dtMs, dtFrameScale);
         maintainEntityCountCompensation();
         drawWallClockOnCanvas();
         maybeTriggerBigBang();
@@ -5050,7 +5513,7 @@
         }
       }
 
-      function gravitateClick(x, y, impulseScale) {
+      function gravitateClick(x, y, impulseScale, dtFrameScale = 1) {
         const scale = impulseScale == null ? 1 : impulseScale;
         const blastR2 = currentBlastR * currentBlastR;
         for (let i = 0; i < particles.length; i += 1) {
@@ -5061,12 +5524,12 @@
           if (d2 < 1 || d2 > blastR2) continue;
           const d = Math.sqrt(d2);
           const u = 1 - (d / currentBlastR);
-          const impulse = PARAM.blastImpulse * u * scale;
+          const impulse = PARAM.blastImpulse * u * scale * dtFrameScale;
           p.vx += (dx / d) * impulse;
           p.vy += (dy / d) * impulse;
           const tempNow = Number.isFinite(p.tempK) ? p.tempK : PARAM.tempMinK;
-          p.tempK = clamp(tempNow + (PARAM.mouseRepulseHeatGainK * u * scale), PARAM.tempMinK, PARAM.tempMaxK);
-          p.life = Math.min(1, p.life + 0.2);
+          p.tempK = clamp(tempNow + (PARAM.mouseRepulseHeatGainK * u * scale * dtFrameScale), PARAM.tempMinK, PARAM.tempMaxK);
+          p.life = Math.min(1, p.life + (0.2 * dtFrameScale));
         }
       }
 
@@ -5253,14 +5716,19 @@
       async function applyPreset(id) {
         if (id === 1) {
           // Preset 1 baseline.
+          stellarAgingEnabled = false;       // a
           collisionModeEnabled = false;      // c
           particleGravityEnabled = false;    // g
           setFlowMode(true);                 // H
           hudVisible = false;                // i
+          customTextEnabled = false;         // j
           linksHidden = true;                // l
           mouseGravityEnabled = true;        // M
           noFrictionModeEnabled = false;     // n
+          hoverInfoEnabled = false;          // o
           bhArrowEnabled = false;            // b
+          clockVisible = true;               // T
+          clockDateVisible = true;           // D
           rightPanelHidden = false;          // P
           clockStarModeEnabled = false;      // k
           setPauseState(false);              // ||
@@ -5280,6 +5748,7 @@
           rightPanelHidden = true;           // p
           clockStarModeEnabled = true;       // K
         } else if (id === 2) {
+          stellarAgingEnabled = true;        // A
           collisionModeEnabled = true;       // C
           particleGravityEnabled = true;     // G
           setFlowMode(false);                // h
@@ -5324,6 +5793,7 @@
         } else {
           return;
         }
+        syncAgingToggle();
         syncCollisionToggle();
         syncParticleGravityToggle();
         syncMouseGravityToggle();
@@ -5335,6 +5805,163 @@
         syncClockDateVisibility();
         syncClockStarToggleButton();
         syncRightPanelVisibility();
+      }
+
+      function parseBoolQueryParam(params, key) {
+        const raw = params.get(key);
+        if (raw == null) return null;
+        const v = String(raw).trim().toLowerCase();
+        if (v === '1' || v === 'true' || v === 'on') return true;
+        if (v === '0' || v === 'false' || v === 'off') return false;
+        return null;
+      }
+
+      function applyQueryToggleOverrides(params) {
+        const qA = parseBoolQueryParam(params, 'a');
+        if (qA !== null) stellarAgingEnabled = qA;
+        const qB = parseBoolQueryParam(params, 'b');
+        if (qB !== null) bhArrowEnabled = qB;
+        const qC = parseBoolQueryParam(params, 'c');
+        if (qC !== null) collisionModeEnabled = qC;
+        const qD = parseBoolQueryParam(params, 'd');
+        if (qD !== null) clockDateVisible = qD;
+        const qF = parseBoolQueryParam(params, 'f');
+        const qG = parseBoolQueryParam(params, 'g');
+        if (qG !== null) particleGravityEnabled = qG;
+        const qH = parseBoolQueryParam(params, 'h');
+        if (qH !== null) setFlowMode(qH);
+        const qI = parseBoolQueryParam(params, 'i');
+        if (qI !== null) hudVisible = qI;
+        const qJ = parseBoolQueryParam(params, 'j');
+        if (qJ !== null) customTextEnabled = qJ;
+        const qJTextRaw = params.get('jt') ?? params.get('jtext');
+        if (qJTextRaw != null) {
+          customTextInputEl.value = String(qJTextRaw).replace(/\r\n/g, '\n');
+        }
+        const qK = parseBoolQueryParam(params, 'k');
+        if (qK !== null) clockStarModeEnabled = qK;
+        const qL = parseBoolQueryParam(params, 'l');
+        if (qL !== null) linksHidden = qL;
+        const qM = parseBoolQueryParam(params, 'm');
+        if (qM !== null) mouseGravityEnabled = qM;
+        const qN = parseBoolQueryParam(params, 'n');
+        if (qN !== null) noFrictionModeEnabled = qN;
+        const qO = parseBoolQueryParam(params, 'o');
+        if (qO !== null) hoverInfoEnabled = qO;
+        const qP = parseBoolQueryParam(params, 'p');
+        if (qP !== null) rightPanelHidden = qP;
+        const qT = parseBoolQueryParam(params, 't');
+        if (qT !== null) clockVisible = qT;
+        const qPause = parseBoolQueryParam(params, 'space');
+        const qPauseAlt = parseBoolQueryParam(params, 'pause');
+        const pauseValue = qPause !== null ? qPause : qPauseAlt;
+        if (pauseValue !== null) setPauseState(pauseValue);
+        if (qF !== null) {
+          if (qF) {
+            setPseudoFullscreen(true);
+          } else {
+            setPseudoFullscreen(false);
+            if (currentFullscreenElement()) {
+              exitDocumentFullscreen().catch(() => {});
+            }
+          }
+        }
+
+        syncAgingToggle();
+        syncCollisionToggle();
+        syncParticleGravityToggle();
+        syncFlowToggle();
+        syncUniverseHudVisibility();
+        syncCustomTextVisibility();
+        syncCustomTextToggleButton();
+        syncCustomTextPlaceholder();
+        syncCustomTextAutoHeight();
+        if (!customTextEnabled) setCustomTextEditing(false);
+        syncLinksVisibility();
+        syncMouseGravityToggle();
+        syncFrictionToggle();
+        syncHoverInfoToggle();
+        syncBhArrowToggle();
+        syncClockVisibility();
+        syncClockDateVisibility();
+        syncClockStarToggleButton();
+        if (qK !== null) rebuildClockGravityField(true);
+        syncRightPanelVisibility();
+        syncFullscreenButton();
+      }
+
+      function boolToQuery(v) {
+        return v ? '1' : '0';
+      }
+
+      function buildCurrentStateShareUrl() {
+        const shareUrl = new URL(window.location.href);
+        shareUrl.search = '';
+        const qp = shareUrl.searchParams;
+        qp.set('a', boolToQuery(stellarAgingEnabled));
+        qp.set('b', boolToQuery(bhArrowEnabled));
+        qp.set('c', boolToQuery(collisionModeEnabled));
+        qp.set('d', boolToQuery(clockDateVisible));
+        qp.set('f', boolToQuery(!!currentFullscreenElement() || pseudoFullscreenActive));
+        qp.set('g', boolToQuery(particleGravityEnabled));
+        qp.set('h', boolToQuery(flowModeEnabled));
+        qp.set('i', boolToQuery(hudVisible));
+        qp.set('j', boolToQuery(customTextEnabled));
+        qp.set('k', boolToQuery(clockStarModeEnabled));
+        qp.set('l', boolToQuery(linksHidden));
+        qp.set('m', boolToQuery(mouseGravityEnabled));
+        qp.set('n', boolToQuery(noFrictionModeEnabled));
+        qp.set('o', boolToQuery(hoverInfoEnabled));
+        qp.set('p', boolToQuery(rightPanelHidden));
+        qp.set('t', boolToQuery(clockVisible));
+        qp.set('space', boolToQuery(isPaused));
+        const customText = String(customTextInputEl.value || '');
+        if (customText.length > 0) qp.set('jt', customText);
+        return shareUrl.toString();
+      }
+
+      function syncShareLinkButton() {
+        shareLinkBtn.textContent = 'u';
+        shareLinkBtn.title = 'Copy share link';
+        shareLinkBtn.setAttribute('aria-label', 'Copy share link');
+      }
+
+      async function copyShareLinkToClipboard() {
+        const link = buildCurrentStateShareUrl();
+        let copied = false;
+        try {
+          if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(link);
+            copied = true;
+          }
+        } catch (_err) {}
+        if (!copied) {
+          const ta = document.createElement('textarea');
+          ta.value = link;
+          ta.setAttribute('readonly', '');
+          ta.style.position = 'fixed';
+          ta.style.left = '-9999px';
+          ta.style.top = '0';
+          document.body.appendChild(ta);
+          ta.select();
+          ta.setSelectionRange(0, ta.value.length);
+          try {
+            copied = document.execCommand('copy');
+          } catch (_err) {
+            copied = false;
+          }
+          document.body.removeChild(ta);
+        }
+        if (copied) {
+          shareLinkBtn.textContent = 'OK';
+          shareLinkBtn.title = 'Share link copied';
+          shareLinkBtn.setAttribute('aria-label', 'Share link copied');
+        } else {
+          shareLinkBtn.textContent = '!!';
+          shareLinkBtn.title = 'Copy failed';
+          shareLinkBtn.setAttribute('aria-label', 'Copy failed');
+        }
+        setTimeout(syncShareLinkButton, 1200);
       }
 
       async function toggleFullscreen() {
@@ -5775,6 +6402,12 @@
       fullscreenToggleBtn.addEventListener('pointerdown', (e) => {
         e.stopPropagation();
       });
+      shareLinkBtn.addEventListener('click', async () => {
+        await copyShareLinkToClipboard();
+      });
+      shareLinkBtn.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+      });
       document.addEventListener('fullscreenchange', syncFullscreenButton);
       document.addEventListener('webkitfullscreenchange', syncFullscreenButton);
       document.addEventListener('msfullscreenchange', syncFullscreenButton);
@@ -5806,17 +6439,19 @@
       syncCustomTextAutoHeight();
       syncCustomTextToggleButton();
       syncFullscreenButton();
+      syncShareLinkButton();
       updateUniverseHud(true);
       updateWallClock();
       setInterval(updateWallClock, 1000);
       syncRightPanelVisibility();
-      const presetParam = Number(new URLSearchParams(window.location.search).get('preset'));
+      const queryParams = new URLSearchParams(window.location.search);
+      const presetParam = Number(queryParams.get('preset'));
       if (Number.isInteger(presetParam) && presetParam >= 1 && presetParam <= 5) {
         void applyPreset(presetParam);
       }
+      applyQueryToggleOverrides(queryParams);
       init();
     })();
   </script>
 </body>
 </html>
-
