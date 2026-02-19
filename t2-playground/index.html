@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-118J91MG59"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-118J91MG59');
+  </script><link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Space+Grotesk:wght@600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <nav class="hub-panel" aria-label="Navigation">
+    <a href="https://skanai0123.github.io/">Hub</a>
+  </nav>
+  <main class="app">
+    <header class="hero">
+      <h1><i>T</i><sub>2</sub> Playground</h1>
+      <p class="meta">beta-0.0.0</p>
+    </header>
+
+    <section class="card" aria-labelledby="calc-title">
+      <h2 id="calc-title">Input</h2>
+      <form id="t2-form" novalidate>
+        <select id="nuclide" name="nuclide" required hidden aria-hidden="true" tabindex="-1"></select>
+        <div class="periodic-table-wrap">
+          <div id="periodic-table" class="periodic-table" aria-label="Periodic table selector"></div>
+          <button type="button" id="pt-custom-btn" class="pt-custom-btn">Custom</button>
+        </div>
+        <label for="isotope-candidates">Selection (isotope or natural abundance)</label>
+        <select id="isotope-candidates" name="isotope-candidates" disabled>
+          <option value="">Select an element first</option>
+        </select>
+
+        <label for="g-factor">g factor (g)</label>
+        <input id="g-factor" name="g-factor" type="number" inputmode="decimal" step="any" required />
+
+        <label for="spin">Nuclear spin (I)</label>
+        <input id="spin" name="spin" type="number" inputmode="decimal" min="0" step="any" required />
+
+        <label for="abundance">Natural abundance</label>
+        <input id="abundance" name="abundance" type="text" readonly />
+
+        <label id="density-label" for="density">concentration n (1e23 cm^-3)</label>
+        <input id="density" name="density" type="number" inputmode="decimal" min="0" step="any" value="1" placeholder="e.g., 0.5" required />
+
+        <button type="submit">Calculate <i>T</i><sub>2</sub></button>
+      </form>
+      <p id="result" class="result"></p>
+      <p id="mixed-result" class="result"></p>
+      <p id="meta" class="meta"></p>
+    </section>
+
+    <section class="card" aria-labelledby="cif-title">
+      <h2 id="cif-title">CIF/JSON-based Material <i>T</i><sub>2</sub></h2>
+      <form id="cif-form" novalidate>
+        <label for="cif-file">Structure file (CIF or JSON)</label>
+        <input id="cif-file" name="cif-file" type="file" accept=".cif,.json,application/json" required />
+        <p class="meta">
+          Example material page:
+          <a href="https://next-gen.materialsproject.org/materials/mp-8062" target="_blank" rel="noopener noreferrer">mp-8062 (SiC, Materials Project)</a>
+        </p>
+
+        <button type="submit">Calculate Natural-Abundance <i>T</i><sub>2</sub> from File</button>
+      </form>
+      <p class="meta">Model: parse composition from CIF (_chemical_formula_sum) or JSON (crystal_structure.atomic_positions), then combine isotope-level <i>T</i><sub>2</sub> by natural abundance and atomic fraction.</p>
+      <p id="cif-result" class="result"></p>
+      <p id="cif-meta" class="meta"></p>
+    </section>
+
+    <section class="card" aria-labelledby="references-title">
+      <h2 id="references-title">References</h2>
+      <p class="meta">
+        S. Kanai, F. J. Heremans, H. Seo, G. Wolfowicz, C. P. Anderson, S. E. Sullivan, M. Onizhuk, G. Galli, D. D. Awschalom, and H. Ohno, Proc. Natl. Acad. Sci. U.S.A. 119, e2121808119(1)-(8) (2022). DOI:
+        <a href="https://doi.org/10.1073/pnas.2121808119" target="_blank" rel="noopener noreferrer">https://doi.org/10.1073/pnas.2121808119</a>
+      </p>
+    </section>
+
+    <section class="card" aria-labelledby="disclaimer-title">
+      <h2 id="disclaimer-title">Disclaimer</h2>
+      <p class="meta">This website is a research/demo calculator for quick estimates.</p>
+      <p class="meta">Do not use these results as the sole basis for medical, safety-critical, legal, or regulatory decisions.</p>
+      <p class="meta">No warranty is provided for completeness, accuracy, or fitness for a particular purpose.</p>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
