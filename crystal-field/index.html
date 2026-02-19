@@ -69,15 +69,21 @@
     .back-link {
       display: inline-flex;
       align-items: center;
-      height: 32px;
-      padding: 0 12px;
+      justify-content: center;
+      min-height: 28px;
+      min-width: 56px;
+      padding: 0 10px;
       border-radius: 8px;
-      border: 1px solid var(--line);
-      background: #fff;
-      color: var(--text);
+      border: 1px solid #d5c1ee;
+      background: linear-gradient(180deg, #ffffff, #f4ecfd);
+      color: #3c2660;
       text-decoration: none;
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 700;
+    }
+
+    .back-link:hover {
+      filter: brightness(1.02);
     }
 
     h1 {
