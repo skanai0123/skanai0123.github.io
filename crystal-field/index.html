@@ -3,17 +3,24 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Crystal Field Calculator</title>
+  <title>1電子系の結晶場分裂</title>
   <link rel="icon" href="../fabicons/color center.svg" type="image/svg+xml">
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-118J91MG59"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-118J91MG59');
+  </script>
   <style>
     :root {
-      --bg: #f3f6fb;
+      --bg: #f4edf9;
       --panel: #ffffff;
-      --line: #d3dceb;
-      --text: #10213b;
-      --sub: #4f627f;
-      --accent: #0a66c2;
-      --accent-soft: #e8f1ff;
+      --line: #dccbe9;
+      --text: #241636;
+      --sub: #6a5583;
+      --accent: #9455cf;
+      --accent-soft: #f1e8fb;
     }
 
     * { box-sizing: border-box; }
@@ -22,7 +29,7 @@
       margin: 0;
       font-family: "Segoe UI", "Noto Sans JP", sans-serif;
       color: var(--text);
-      background: radial-gradient(circle at 12% 10%, #e6efff 0, #f3f6fb 35%, #edf2fa 100%);
+      background: radial-gradient(circle at 12% 10%, #efe2fb 0, #f4edf9 38%, #eee3f7 100%);
       min-height: 100vh;
     }
 
@@ -83,9 +90,10 @@
 
     .form {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      grid-template-columns: minmax(220px, 1.5fr) repeat(3, minmax(160px, 1fr));
       gap: 14px;
       margin-top: 16px;
+      align-items: end;
     }
 
     label {
@@ -94,26 +102,6 @@
       color: var(--sub);
       margin-bottom: 6px;
       font-weight: 600;
-    }
-
-    .inline-check {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      height: 40px;
-      padding: 0 10px;
-      border: 1px solid var(--line);
-      border-radius: 10px;
-      background: #fff;
-      color: var(--text);
-      font-size: 14px;
-      font-weight: 600;
-    }
-
-    .inline-check input[type="checkbox"] {
-      width: 16px;
-      height: 16px;
-      margin: 0;
     }
 
     select, input {
@@ -125,19 +113,6 @@
       font-size: 15px;
       color: var(--text);
       background: #fff;
-    }
-
-    button {
-      margin-top: 16px;
-      height: 42px;
-      border: 0;
-      border-radius: 10px;
-      background: var(--accent);
-      color: #fff;
-      font-size: 15px;
-      font-weight: 700;
-      cursor: pointer;
-      padding: 0 18px;
     }
 
     .result {
@@ -194,6 +169,15 @@
       display: block;
     }
 
+    #diagram * {
+      pointer-events: none;
+    }
+
+    #diagram .orbital-hit,
+    #diagram .orbital-hit * {
+      pointer-events: all;
+    }
+
     .diagram-label {
       fill: #334a6f;
       font-size: 12px;
@@ -216,7 +200,7 @@
 
     #orbitalPreview {
       width: 100%;
-      max-width: 560px;
+      max-width: 100%;
       height: auto;
       display: block;
       margin-top: 8px;
@@ -227,8 +211,58 @@
       cursor: grab;
     }
 
+    .preview-grid {
+      margin-top: 8px;
+      display: grid;
+      grid-template-columns: minmax(360px, 1.35fr) minmax(280px, 1fr);
+      gap: 10px;
+      align-items: start;
+    }
+
+    .coef-chart {
+      margin-top: 0;
+      border: 1px solid #d5deee;
+      border-radius: 8px;
+      background: #f8fbff;
+      padding: 8px;
+      display: grid;
+      gap: 6px;
+    }
+
+    .coef-title {
+      font-size: 12px;
+      color: #5f7190;
+      font-weight: 800;
+      margin: 2px 0 0;
+    }
+
+    .coef-row {
+      display: grid;
+      grid-template-columns: 56px 1fr 52px;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: #4f627f;
+      font-weight: 700;
+    }
+
+    .coef-track {
+      height: 10px;
+      border-radius: 999px;
+      background: #e3ebf7;
+      overflow: hidden;
+    }
+
+    .coef-bar {
+      height: 100%;
+      background: linear-gradient(90deg, #639de3 0%, #7d74db 100%);
+      border-radius: 999px;
+    }
+
     @media (max-width: 740px) {
       .split { grid-template-columns: 1fr; }
+      .form { grid-template-columns: 1fr; }
+      .preview-grid { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -236,91 +270,77 @@
   <main class="wrap">
     <section class="card">
       <div class="topbar">
-        <div class="version">v0.0.0</div>
-        <a class="back-link" href="../index.html">ハブへ戻る</a>
+        <div class="version">v0.01</div>
+        <a class="back-link" href="../index.html">Back to Hub</a>
       </div>
-      <h1>結晶場分裂 計算ツール</h1>
-      <p>d電子数と結晶場パラメータから、占有状態・不対電子数・CFSE を計算します。</p>
+      <h1>Single-Electron Crystal Field Splitting</h1>
       <div class="form">
         <div>
-          <label for="geometry">配位場</label>
+          <label for="geometry">Coordination Field</label>
           <select id="geometry">
-            <option value="octa">八面体 (Oh)</option>
-            <option value="tetra">四面体 (Td)</option>
-            <option value="square_planar">正方平面 (D4h)</option>
-            <option value="square_pyramidal">正方錐 (C4v)</option>
-            <option value="trigonal_bipyramidal">三角両錐 (D3h)</option>
-            <option value="trigonal_planar">三角平面 (D3h')</option>
-            <option value="linear">直線 (Dinfh)</option>
+            <option value="octa">Octahedral (Oh)</option>
+            <option value="tetra">Tetrahedral (Td)</option>
+            <option value="square_planar">Square Planar (D4h)</option>
+            <option value="square_pyramidal">Square Pyramidal (C4v)</option>
+            <option value="trigonal_bipyramidal">Trigonal Bipyramidal (D3h)</option>
+            <option value="trigonal_planar">Trigonal Planar (D3h')</option>
+            <option value="linear">Linear (Dinfh)</option>
           </select>
-        </div>
-        <div>
-          <label for="dCount">d電子数</label>
-          <select id="dCount"></select>
         </div>
         <div>
           <label for="delta">Δ (eV)</label>
           <input id="delta" type="number" min="0" step="0.01" value="1.00">
         </div>
         <div>
-          <label for="soiEnable">SOI</label>
-          <label class="inline-check"><input id="soiEnable" type="checkbox">結晶場の後で有効化</label>
+          <label for="lambda">λ (eV)</label>
+          <input id="lambda" type="number" min="0" step="0.01" value="0.10">
         </div>
         <div>
-          <label for="lambda">λ (eV)</label>
-          <input id="lambda" type="number" min="0" step="0.01" value="0.10" disabled>
+          <label for="bField">B (T)</label>
+          <input id="bField" type="number" min="0" step="0.1" value="1.0">
         </div>
       </div>
-      <button id="run">計算する</button>
     </section>
 
     <section class="card result">
-      <div><span id="status" class="pill">準備完了</span></div>
-      <div class="box">
-        <strong>準位一覧</strong>
-        <div id="levelList"></div>
-      </div>
-      <div class="box">
-        <div class="level"><span>CFSE</span><strong id="cfse">-</strong></div>
-        <div class="level"><span>SOI補正後エネルギー</span><strong id="totalEnergy">-</strong></div>
-        <div class="level"><span>不対電子数</span><strong id="unpaired">-</strong></div>
-        <div class="level"><span>スピンのみ磁気モーメント μ (BM)</span><strong id="mu">-</strong></div>
-      </div>
+      <div><span id="status" class="pill">Ready</span></div>
       <div class="diagram-wrap">
-        <svg id="diagram" viewBox="0 0 840 300" role="img" aria-label="結晶場分裂図"></svg>
+        <svg id="diagram" viewBox="0 0 1260 400" role="img" aria-label="Crystal-field splitting diagram"></svg>
       </div>
       <div class="box">
-        <strong>軌道プレビュー</strong>
-        <div id="orbitalHint" class="muted">分裂した軌道線をクリックすると、3D関数として固定表示します。</div>
-        <canvas id="orbitalPreview" width="560" height="300" role="img" aria-label="軌道プレビュー"></canvas>
+        <strong>Orbital Preview</strong>
+        <div id="orbitalHint" class="muted">Click a split orbital line to pin a 3D orbital-function view.</div>
+        <div class="preview-grid">
+          <canvas id="orbitalPreview" width="560" height="300" role="img" aria-label="Orbital preview"></canvas>
+          <div id="orbitalCoeff" class="coef-chart"></div>
+        </div>
+      </div>
+      <div class="box">
+        <strong>Level List (Final: CF + SOI + B)</strong>
+        <div id="levelList"></div>
       </div>
       <p class="muted" id="note"></p>
     </section>
   </main>
 
   <script>
-    const dCount = document.getElementById("dCount");
-    for (let i = 0; i <= 10; i += 1) {
-      const op = document.createElement("option");
-      op.value = String(i);
-      op.textContent = `d${i}`;
-      dCount.appendChild(op);
-    }
-
     const geometryEl = document.getElementById("geometry");
     const deltaEl = document.getElementById("delta");
-    const soiEnableEl = document.getElementById("soiEnable");
     const lambdaEl = document.getElementById("lambda");
+    const bFieldEl = document.getElementById("bField");
     const diagramEl = document.getElementById("diagram");
     const orbitalPreviewEl = document.getElementById("orbitalPreview");
     const orbitalCtx = orbitalPreviewEl.getContext("2d");
+    const orbitalCoeffEl = document.getElementById("orbitalCoeff");
     const orbitalHintEl = document.getElementById("orbitalHint");
     const levelListEl = document.getElementById("levelList");
     const DEFAULT_VIEW_AX = -Math.atan(1 / Math.sqrt(2)); // [111] view tilt
     const DEFAULT_VIEW_AY = Math.PI / 4; // [111] view azimuth
+    const MU_B_EV_T = 5.788381806e-5;
     const orbitalView = {
       name: null,
       label: "",
+      mixSpec: "",
       ax: DEFAULT_VIEW_AX,
       ay: DEFAULT_VIEW_AY,
       dragging: false,
@@ -329,134 +349,691 @@
       lastY: 0
     };
 
+    const ORBITAL_BASIS = ["dxy", "dyz", "dzx", "dx2-y2", "dz2"];
+
     const FIELD_PRESETS = {
       octa: {
-        label: "八面体 (Oh)",
+        label: "Octahedral (Oh)",
         deltaLabel: "Δo",
         levels: [
           { label: "eg", coeff: 0.6, orbitals: ["dz2", "dx2-y2"], color: "#b4441d" },
           { label: "t2g", coeff: -0.4, orbitals: ["dxy", "dyz", "dzx"], color: "#1f4f8f" }
-        ]
+        ],
+        mixings: []
       },
       tetra: {
-        label: "四面体 (Td)",
+        label: "Tetrahedral (Td)",
         deltaLabel: "Δt",
         levels: [
           { label: "t2", coeff: 0.4, orbitals: ["dxy", "dyz", "dzx"], color: "#b4441d" },
           { label: "e", coeff: -0.6, orbitals: ["dz2", "dx2-y2"], color: "#1f4f8f" }
-        ]
+        ],
+        mixings: []
       },
       square_planar: {
-        label: "正方平面 (D4h)",
+        label: "Square Planar (D4h)",
         deltaLabel: "Δsp",
         levels: [
           { label: "b1g", coeff: 1.2, orbitals: ["dx2-y2"], color: "#b4441d" },
           { label: "b2g", coeff: 0.2, orbitals: ["dxy"], color: "#9d5a20" },
           { label: "a1g", coeff: -0.4, orbitals: ["dz2"], color: "#2f7f61" },
           { label: "eg", coeff: -0.5, orbitals: ["dyz", "dzx"], color: "#1f4f8f" }
+        ],
+        mixings: [
+          { a: "dz2", b: "dx2-y2", coeff: 0.04 }
         ]
       },
       square_pyramidal: {
-        label: "正方錐 (C4v)",
+        label: "Square Pyramidal (C4v)",
         deltaLabel: "Δspyr",
         levels: [
           { label: "b1", coeff: 0.8, orbitals: ["dx2-y2"], color: "#b4441d" },
           { label: "b2", coeff: 0.2, orbitals: ["dxy"], color: "#9d5a20" },
           { label: "a1", coeff: 0.0, orbitals: ["dz2"], color: "#2f7f61" },
           { label: "e", coeff: -0.5, orbitals: ["dyz", "dzx"], color: "#1f4f8f" }
+        ],
+        mixings: [
+          { a: "dz2", b: "dx2-y2", coeff: 0.08 },
+          { a: "dxy", b: "dx2-y2", coeff: 0.03 }
         ]
       },
       trigonal_bipyramidal: {
-        label: "三角両錐 (D3h)",
+        label: "Trigonal Bipyramidal (D3h)",
         deltaLabel: "Δtbp",
         levels: [
           { label: "a1'", coeff: 0.8, orbitals: ["dz2"], color: "#b4441d" },
           { label: "e'", coeff: 0.1, orbitals: ["dxy", "dx2-y2"], color: "#9d5a20" },
           { label: "e''", coeff: -0.5, orbitals: ["dyz", "dzx"], color: "#1f4f8f" }
+        ],
+        mixings: [
+          { a: "dxy", b: "dx2-y2", coeff: 0.06 },
+          { a: "dyz", b: "dzx", coeff: 0.05 }
         ]
       },
       trigonal_planar: {
-        label: "三角平面 (D3h')",
+        label: "Trigonal Planar (D3h')",
         deltaLabel: "Δtp",
         levels: [
           { label: "e'", coeff: 0.6, orbitals: ["dxy", "dx2-y2"], color: "#b4441d" },
           { label: "a1'", coeff: -0.2, orbitals: ["dz2"], color: "#2f7f61" },
           { label: "e''", coeff: -0.5, orbitals: ["dyz", "dzx"], color: "#1f4f8f" }
+        ],
+        mixings: [
+          { a: "dxy", b: "dx2-y2", coeff: 0.04 },
+          { a: "dz2", b: "dx2-y2", coeff: 0.02 }
         ]
       },
       linear: {
-        label: "直線 (Dinfh)",
+        label: "Linear (Dinfh)",
         deltaLabel: "Δlin",
         levels: [
           { label: "sigma*", coeff: 1.0, orbitals: ["dz2"], color: "#b4441d" },
           { label: "pi*", coeff: 0.25, orbitals: ["dyz", "dzx"], color: "#9d5a20" },
           { label: "delta", coeff: -0.75, orbitals: ["dxy", "dx2-y2"], color: "#1f4f8f" }
-        ]
+        ],
+        mixings: []
       }
     };
 
-    function allocateElectrons(levels, totalElectrons) {
-      const slots = [];
-      for (let li = 0; li < levels.length; li += 1) {
-        for (let oi = 0; oi < levels[li].orbitals.length; oi += 1) {
-          slots.push({ levelIndex: li, orbitalIndex: oi, occ: 0 });
+    function makeZeroMatrix(n) {
+      return Array.from({ length: n }, () => Array(n).fill(0));
+    }
+
+    function identityMatrix(n) {
+      const m = makeZeroMatrix(n);
+      for (let i = 0; i < n; i += 1) m[i][i] = 1;
+      return m;
+    }
+
+    function jacobiEigenSymmetric(inputA, maxIter = 80, eps = 1e-12) {
+      const n = inputA.length;
+      const A = inputA.map((row) => [...row]);
+      const V = identityMatrix(n);
+
+      for (let iter = 0; iter < maxIter; iter += 1) {
+        let p = 0;
+        let q = 1;
+        let maxAbs = Math.abs(A[p][q]);
+        for (let i = 0; i < n; i += 1) {
+          for (let j = i + 1; j < n; j += 1) {
+            const v = Math.abs(A[i][j]);
+            if (v > maxAbs) {
+              maxAbs = v;
+              p = i;
+              q = j;
+            }
+          }
+        }
+        if (maxAbs < eps) break;
+
+        const app = A[p][p];
+        const aqq = A[q][q];
+        const apq = A[p][q];
+        const phi = 0.5 * Math.atan2(2 * apq, aqq - app);
+        const c = Math.cos(phi);
+        const s = Math.sin(phi);
+
+        for (let k = 0; k < n; k += 1) {
+          if (k === p || k === q) continue;
+          const aik = A[k][p];
+          const akq = A[k][q];
+          A[k][p] = c * aik - s * akq;
+          A[p][k] = A[k][p];
+          A[k][q] = s * aik + c * akq;
+          A[q][k] = A[k][q];
+        }
+
+        A[p][p] = c * c * app - 2 * s * c * apq + s * s * aqq;
+        A[q][q] = s * s * app + 2 * s * c * apq + c * c * aqq;
+        A[p][q] = 0;
+        A[q][p] = 0;
+
+        for (let k = 0; k < n; k += 1) {
+          const vip = V[k][p];
+          const viq = V[k][q];
+          V[k][p] = c * vip - s * viq;
+          V[k][q] = s * vip + c * viq;
         }
       }
-      let e = totalElectrons;
-      for (const slot of slots) {
-        if (e <= 0) break;
-        slot.occ = 1;
-        e -= 1;
+
+      const eigenvalues = Array.from({ length: n }, (_, i) => A[i][i]);
+      return { eigenvalues, eigenvectors: V };
+    }
+
+    function buildCrystalFieldHamiltonian(preset, delta) {
+      const H = makeZeroMatrix(5);
+      for (const level of preset.levels) {
+        for (const orbital of level.orbitals) {
+          const i = ORBITAL_BASIS.indexOf(orbital);
+          if (i >= 0) H[i][i] = level.coeff * delta;
+        }
       }
-      for (const slot of slots) {
-        if (e <= 0) break;
-        slot.occ = 2;
-        e -= 1;
+      for (const mix of (preset.mixings || [])) {
+        const i = ORBITAL_BASIS.indexOf(mix.a);
+        const j = ORBITAL_BASIS.indexOf(mix.b);
+        if (i >= 0 && j >= 0 && i !== j) {
+          const v = mix.coeff * delta;
+          H[i][j] = v;
+          H[j][i] = v;
+        }
       }
-      return slots;
+      return H;
+    }
+
+    function assignTemplate(levelEnergy, delta, preset) {
+      if (Math.abs(delta) < 1e-12) {
+        return preset.levels[0];
+      }
+      const coeff = levelEnergy / delta;
+      let best = preset.levels[0];
+      let bestDist = Math.abs(coeff - best.coeff);
+      for (let i = 1; i < preset.levels.length; i += 1) {
+        const d = Math.abs(coeff - preset.levels[i].coeff);
+        if (d < bestDist) {
+          bestDist = d;
+          best = preset.levels[i];
+        }
+      }
+      return best;
+    }
+
+    function formatMixedOrbital(components) {
+      const weighted = components
+        .map((c, i) => ({ idx: i, w: c * c }))
+        .sort((a, b) => b.w - a.w);
+      const picked = weighted.filter((x) => x.w > 0.12).slice(0, 3);
+      if (picked.length <= 1) return ORBITAL_BASIS[weighted[0].idx];
+      return `mix(${picked.map((x) => ORBITAL_BASIS[x.idx]).join("+")})`;
+    }
+
+    function buildMixSpecFromComponents(components) {
+      const parts = [];
+      for (let i = 0; i < ORBITAL_BASIS.length; i += 1) {
+        const c = components[i];
+        if (Math.abs(c) > 1e-8) {
+          parts.push(`${ORBITAL_BASIS[i]}:${c.toFixed(8)}`);
+        }
+      }
+      return parts.join("+");
+    }
+
+    function buildDegenerateMixSpec(states) {
+      const w = new Array(ORBITAL_BASIS.length).fill(0);
+      if (!states || states.length === 0) return "";
+      for (const st of states) {
+        for (let i = 0; i < ORBITAL_BASIS.length; i += 1) {
+          const c = st.components[i] || 0;
+          w[i] += c * c;
+        }
+      }
+      const total = w.reduce((s, v) => s + v, 0) || 1;
+      const parts = [];
+      for (let i = 0; i < ORBITAL_BASIS.length; i += 1) {
+        const wi = w[i] / total;
+        if (wi > 1e-8) parts.push(`${ORBITAL_BASIS[i]}:${Math.sqrt(wi).toFixed(8)}`);
+      }
+      return parts.join("+");
+    }
+
+    function buildMixSpecFromWeights(weights) {
+      const total = weights.reduce((s, v) => s + v, 0) || 1;
+      const parts = [];
+      for (let i = 0; i < ORBITAL_BASIS.length; i += 1) {
+        const wi = weights[i] / total;
+        if (wi > 1e-9) parts.push(`${ORBITAL_BASIS[i]}:${Math.sqrt(wi).toFixed(8)}`);
+      }
+      return parts.join("+");
+    }
+
+    function buildMzSpecFromWeights(weights) {
+      const mMap = { "-2": 0, "-1": 0, "0": 0, "1": 0, "2": 0 };
+      for (let i = 0; i < ORBITAL_BASIS.length; i += 1) {
+        const m = String(orbitalM(ORBITAL_BASIS[i]));
+        mMap[m] += weights[i] || 0;
+      }
+      const s = Object.values(mMap).reduce((a, b) => a + b, 0) || 1;
+      return [`m-2:${(mMap["-2"] / s).toFixed(8)}`, `m-1:${(mMap["-1"] / s).toFixed(8)}`, `m0:${(mMap["0"] / s).toFixed(8)}`, `m1:${(mMap["1"] / s).toFixed(8)}`, `m2:${(mMap["2"] / s).toFixed(8)}`].join("+");
+    }
+
+    function buildSpinSpec(up, down) {
+      const s = (up + down) || 1;
+      return `up:${(up / s).toFixed(8)}+down:${(down / s).toFixed(8)}`;
+    }
+
+    function buildSpinOrbitalSpec(upByOrbital, downByOrbital) {
+      const total = upByOrbital.reduce((s, v) => s + v, 0) + downByOrbital.reduce((s, v) => s + v, 0) || 1;
+      const parts = [];
+      for (let i = 0; i < ORBITAL_BASIS.length; i += 1) {
+        const orb = ORBITAL_BASIS[i];
+        parts.push(`${orb}_up:${(upByOrbital[i] / total).toFixed(8)}`);
+        parts.push(`${orb}_down:${(downByOrbital[i] / total).toFixed(8)}`);
+      }
+      return parts.join("+");
+    }
+
+    function formatMixedOrbitalFromWeights(weights) {
+      const weighted = weights
+        .map((w, i) => ({ idx: i, w }))
+        .sort((a, b) => b.w - a.w);
+      const picked = weighted.filter((x) => x.w > 0.12).slice(0, 3);
+      if (picked.length <= 1) return ORBITAL_BASIS[weighted[0].idx];
+      return `mix(${picked.map((x) => ORBITAL_BASIS[x.idx]).join("+")})`;
+    }
+
+    function buildDegenerateMixSpecFromWeights(states) {
+      if (!states || states.length === 0) return "";
+      const w = new Array(ORBITAL_BASIS.length).fill(0);
+      for (const st of states) {
+        for (let i = 0; i < ORBITAL_BASIS.length; i += 1) {
+          w[i] += st.orbitalWeights[i] || 0;
+        }
+      }
+      const total = w.reduce((s, v) => s + v, 0) || 1;
+      for (let i = 0; i < w.length; i += 1) w[i] /= total;
+      return buildMixSpecFromWeights(w);
+    }
+
+    function buildDegenerateMzSpec(states) {
+      if (!states || states.length === 0) return "";
+      const w = new Array(ORBITAL_BASIS.length).fill(0);
+      for (const st of states) {
+        for (let i = 0; i < 5; i += 1) w[i] += st.orbitalWeights[i] || 0;
+      }
+      const total = w.reduce((s, v) => s + v, 0) || 1;
+      for (let i = 0; i < 5; i += 1) w[i] /= total;
+      return buildMzSpecFromWeights(w);
+    }
+
+    function buildDegenerateSpinSpec(states) {
+      if (!states || states.length === 0) return "";
+      let up = 0;
+      let down = 0;
+      for (const st of states) {
+        up += st.spinUpWeight || 0;
+        down += st.spinDownWeight || 0;
+      }
+      return buildSpinSpec(up, down);
+    }
+
+    function buildDegenerateSpinOrbitalSpec(states) {
+      if (!states || states.length === 0) return "";
+      const up = new Array(5).fill(0);
+      const down = new Array(5).fill(0);
+      for (const st of states) {
+        for (let i = 0; i < 5; i += 1) {
+          up[i] += st.spinUpByOrbital ? (st.spinUpByOrbital[i] || 0) : 0;
+          down[i] += st.spinDownByOrbital ? (st.spinDownByOrbital[i] || 0) : 0;
+        }
+      }
+      return buildSpinOrbitalSpec(up, down);
+    }
+
+    function inferTemplateFromWeights(weights, preset) {
+      if (!preset || !preset.levels || preset.levels.length === 0) {
+        return { label: "state", color: "#1f4f8f" };
+      }
+      let best = preset.levels[0];
+      let bestScore = -1;
+      for (const level of preset.levels) {
+        let score = 0;
+        for (const orb of level.orbitals) {
+          const idx = ORBITAL_BASIS.indexOf(orb);
+          if (idx >= 0) score += weights[idx] || 0;
+        }
+        if (score > bestScore) {
+          bestScore = score;
+          best = level;
+        }
+      }
+      return best;
     }
 
     function buildOccupiedLevels(preset, dElectrons, delta) {
-      const sorted = [...preset.levels].sort((a, b) => a.coeff - b.coeff);
-      const slots = allocateElectrons(sorted, dElectrons);
-      const levels = sorted.map((level, idx) => {
-        const orbitalOcc = level.orbitals.map((_, oi) => {
-          const slot = slots.find((s) => s.levelIndex === idx && s.orbitalIndex === oi);
-          return slot ? slot.occ : 0;
-        });
-        const electrons = orbitalOcc.reduce((sum, v) => sum + v, 0);
+      const H = buildCrystalFieldHamiltonian(preset, delta);
+      const { eigenvalues, eigenvectors } = jacobiEigenSymmetric(H);
+      const states = eigenvalues.map((energy, idx) => {
+        const components = ORBITAL_BASIS.map((_, i) => eigenvectors[i][idx]);
+        let dominant = 0;
+        let maxComp = Math.abs(components[0]);
+        for (let i = 1; i < components.length; i += 1) {
+          const v = Math.abs(components[i]);
+          if (v > maxComp) {
+            maxComp = v;
+            dominant = i;
+          }
+        }
+        const purity = maxComp * maxComp;
+        const orbitalLabel = purity >= 0.88 ? ORBITAL_BASIS[dominant] : formatMixedOrbital(components);
         return {
-          ...level,
-          energy: level.coeff * delta,
+          energy,
+          idx,
+          components,
+          dominantOrbital: ORBITAL_BASIS[dominant],
+          orbitalLabel,
+          mixSpec: purity < 0.88 ? buildMixSpecFromComponents(components) : "",
+          isMixed: purity < 0.88
+        };
+      }).sort((a, b) => a.energy - b.energy);
+
+      const occState = new Array(states.length).fill(0);
+      let e = dElectrons;
+      for (let i = 0; i < states.length && e > 0; i += 1) {
+        occState[i] = 1;
+        e -= 1;
+      }
+      for (let i = 0; i < states.length && e > 0; i += 1) {
+        occState[i] += 1;
+        e -= 1;
+      }
+
+      const tol = Math.max(1e-9, Math.abs(delta) * 1e-6);
+      const groups = [];
+      for (let i = 0; i < states.length; i += 1) {
+        const st = states[i];
+        const occ = occState[i];
+        const prev = groups[groups.length - 1];
+        if (!prev || Math.abs(st.energy - prev.energy) > tol) {
+          groups.push({
+            energy: st.energy,
+            states: [{ ...st, occ }],
+          });
+        } else {
+          prev.states.push({ ...st, occ });
+          prev.energy = prev.states.reduce((s, x) => s + x.energy, 0) / prev.states.length;
+        }
+      }
+
+      const levels = groups.map((g) => {
+        const orbitals = g.states.map((s) => s.orbitalLabel);
+        const hoverOrbitals = g.states.map((s) => (s.isMixed ? "mixed" : s.dominantOrbital));
+        const mixSpecs = g.states.map((s) => s.mixSpec || "");
+        const degenerateMixSpec = buildDegenerateMixSpec(g.states);
+        const orbitalOcc = g.states.map((s) => s.occ);
+        const electrons = orbitalOcc.reduce((s, v) => s + v, 0);
+        const tmpl = assignTemplate(g.energy, delta, preset);
+        return {
+          label: tmpl.label,
+          color: tmpl.color,
+          coeff: Math.abs(delta) < 1e-12 ? 0 : g.energy / delta,
+          energy: g.energy,
+          orbitals,
+          hoverOrbitals,
+          mixSpecs,
+          degenerateMixSpec,
           orbitalOcc,
           electrons
         };
       });
-      const cfse = levels.reduce((sum, level) => sum + level.electrons * level.energy, 0);
-      const unpaired = slots.reduce((sum, slot) => sum + (slot.occ === 1 ? 1 : 0), 0);
+
+      const cfse = states.reduce((sum, st, i) => sum + st.energy * occState[i], 0);
+      const unpaired = occState.reduce((sum, occ) => sum + (occ === 1 ? 1 : 0), 0);
       return { levels, cfse, unpaired };
     }
 
-    function applySOIAfterCrystalField(levels, lambdaValue, enabled) {
-      if (!enabled) {
-        return { levelsWithSOI: levels, soiCorrection: 0, totalEnergy: levels.reduce((s, l) => s + l.electrons * l.energy, 0) };
+    function orbitalM(orbital) {
+      if (orbital === "dz2") return 0;
+      if (orbital === "dyz") return 1;
+      if (orbital === "dzx") return -1;
+      if (orbital === "dxy") return 2;
+      if (orbital === "dx2-y2") return -2;
+      return 0;
+    }
+
+    function buildSpinHamiltonian(level, lambdaValue, bField, soiEnabled, magneticEnabled) {
+      const g = level.orbitals.length;
+      const size = 2 * g;
+      const H = makeZeroMatrix(size);
+      const states = [];
+
+      for (let i = 0; i < g; i += 1) {
+        states.push({ orbital: i, spin: 1, m: orbitalM(level.orbitals[i]) });
       }
-      const half = lambdaValue * 0.5;
+      for (let i = 0; i < g; i += 1) {
+        states.push({ orbital: i, spin: -1, m: orbitalM(level.orbitals[i]) });
+      }
+
+      for (let i = 0; i < size; i += 1) {
+        let e = level.energy;
+        if (soiEnabled) e += 0.25 * lambdaValue * states[i].m * states[i].spin;
+        if (magneticEnabled) e += MU_B_EV_T * bField * states[i].spin;
+        H[i][i] = e;
+      }
+
+      if (soiEnabled) {
+        for (let i = 0; i < size; i += 1) {
+          for (let j = i + 1; j < size; j += 1) {
+            const si = states[i];
+            const sj = states[j];
+            let v = 0;
+            if (si.spin === sj.spin && si.orbital !== sj.orbital) {
+              const dm = Math.abs(si.m - sj.m);
+              if (dm === 2) v = 0.04 * lambdaValue;
+              if (dm === 1) v = 0.02 * lambdaValue;
+            }
+            if (si.spin !== sj.spin) {
+              const dm = Math.abs(si.m - sj.m);
+              if (dm === 1) v = 0.12 * lambdaValue;
+              if (dm === 2) v = 0.06 * lambdaValue;
+              if (dm === 0 && si.orbital === sj.orbital) v = 0.03 * lambdaValue;
+            }
+            if (v !== 0) {
+              H[i][j] = v;
+              H[j][i] = v;
+            }
+          }
+        }
+      }
+      return H;
+    }
+
+    function applySOIAfterCrystalField(levels, lambdaValue, enabled) {
       let soiCorrection = 0;
       const levelsWithSOI = levels.map((level) => {
-        const orbitalSOI = level.orbitals.map((orbital, idx) => {
-          const occ = level.orbitalOcc[idx];
-          const lowerOcc = Math.min(occ, 1);
-          const upperOcc = Math.max(occ - 1, 0);
-          const lowerEnergy = level.energy - half;
-          const upperEnergy = level.energy + half;
-          soiCorrection += lowerOcc * (lowerEnergy - level.energy) + upperOcc * (upperEnergy - level.energy);
-          return { orbital, lowerOcc, upperOcc, lowerEnergy, upperEnergy };
-        });
-        return { ...level, orbitalSOI };
+        if (!enabled) {
+          return { ...level, soiMin: level.energy, soiMax: level.energy, soiHalf: 0 };
+        }
+        const H = buildSpinHamiltonian(level, lambdaValue, 0, true, false);
+        const { eigenvalues } = jacobiEigenSymmetric(H);
+        const sorted = [...eigenvalues].sort((a, b) => a - b);
+        const occCount = Math.max(0, Math.min(level.electrons, sorted.length));
+        const occupiedEnergy = sorted.slice(0, occCount).reduce((s, e) => s + e, 0);
+        const refEnergy = occCount * level.energy;
+        soiCorrection += occupiedEnergy - refEnergy;
+        return {
+          ...level,
+          soiMin: sorted[0],
+          soiMax: sorted[sorted.length - 1],
+          soiHalf: (sorted[sorted.length - 1] - sorted[0]) * 0.5
+        };
       });
       const totalEnergy = levels.reduce((s, l) => s + l.electrons * l.energy, 0) + soiCorrection;
       return { levelsWithSOI, soiCorrection, totalEnergy };
+    }
+
+    function applyMagneticAfterSOI(levelsWithSOI, lambdaValue, bField, soiEnabled, magneticEnabled) {
+      let magneticCorrection = 0;
+      const levelsWithMagnetic = levelsWithSOI.map((level) => {
+        if (!magneticEnabled) {
+          return { ...level, bMin: level.soiMin, bMax: level.soiMax, bHalf: level.soiHalf };
+        }
+        const H = buildSpinHamiltonian(level, lambdaValue, bField, soiEnabled, true);
+        const { eigenvalues } = jacobiEigenSymmetric(H);
+        const sorted = [...eigenvalues].sort((a, b) => a - b);
+        const occCount = Math.max(0, Math.min(level.electrons, sorted.length));
+        const occupiedEnergy = sorted.slice(0, occCount).reduce((s, e) => s + e, 0);
+        const refEnergy = occCount * level.energy;
+        magneticCorrection += occupiedEnergy - refEnergy;
+        return {
+          ...level,
+          bMin: sorted[0],
+          bMax: sorted[sorted.length - 1],
+          bHalf: (sorted[sorted.length - 1] - sorted[0]) * 0.5
+        };
+      });
+      const totalEnergyB = levelsWithSOI.reduce((s, l) => s + l.electrons * l.energy, 0) + magneticCorrection;
+      return { levelsWithMagnetic, magneticCorrection, totalEnergyB };
+    }
+
+    function spinSignFromIndex(spinIdx) {
+      return spinIdx === 0 ? 1 : -1; // 2*sz
+    }
+
+    function stateIndex(orbIdx, spinIdx) {
+      return orbIdx * 2 + spinIdx;
+    }
+
+    function buildTotalHamiltonian(preset, delta, lambdaValue, bField, opts) {
+      const { cf, soi, magnetic } = opts;
+      const H = makeZeroMatrix(10);
+
+      if (cf) {
+        const Hcf = buildCrystalFieldHamiltonian(preset, delta);
+        for (let i = 0; i < 5; i += 1) {
+          for (let j = 0; j < 5; j += 1) {
+            for (let s = 0; s < 2; s += 1) {
+              H[stateIndex(i, s)][stateIndex(j, s)] += Hcf[i][j];
+            }
+          }
+        }
+      }
+
+      if (soi) {
+        for (let i = 0; i < 5; i += 1) {
+          const m = orbitalM(ORBITAL_BASIS[i]);
+          for (let s = 0; s < 2; s += 1) {
+            const s2 = spinSignFromIndex(s);
+            H[stateIndex(i, s)][stateIndex(i, s)] += 0.5 * lambdaValue * m * s2;
+          }
+        }
+        for (let i = 0; i < 5; i += 1) {
+          const mi = orbitalM(ORBITAL_BASIS[i]);
+          for (let j = i + 1; j < 5; j += 1) {
+            const mj = orbitalM(ORBITAL_BASIS[j]);
+            if (Math.abs(mj - mi) !== 1) continue;
+            const mLower = Math.min(mi, mj);
+            const lPlusCoeff = Math.sqrt(Math.max(0, 6 - mLower * (mLower + 1)));
+            const v = 0.5 * lambdaValue * lPlusCoeff;
+            const iu = stateIndex(i, 0);
+            const id = stateIndex(i, 1);
+            const ju = stateIndex(j, 0);
+            const jd = stateIndex(j, 1);
+            if (mi < mj) {
+              H[id][ju] += v;
+              H[ju][id] += v;
+            } else {
+              H[iu][jd] += v;
+              H[jd][iu] += v;
+            }
+          }
+        }
+      }
+
+      if (magnetic) {
+        for (let i = 0; i < 5; i += 1) {
+          const m = orbitalM(ORBITAL_BASIS[i]);
+          for (let s = 0; s < 2; s += 1) {
+            const s2 = spinSignFromIndex(s);
+            H[stateIndex(i, s)][stateIndex(i, s)] += MU_B_EV_T * bField * (m + s2);
+          }
+        }
+      }
+
+      return H;
+    }
+
+    function solveLevelStage(preset, delta, lambdaValue, bField, opts, dElectrons = 1) {
+      const H = buildTotalHamiltonian(preset, delta, lambdaValue, bField, opts);
+      const { eigenvalues, eigenvectors } = jacobiEigenSymmetric(H, 140, 1e-13);
+      const order = eigenvalues.map((e, i) => ({ e, i })).sort((a, b) => a.e - b.e);
+      const states = [];
+      for (const { e, i: idx } of order) {
+        const vec = eigenvectors.map((row) => row[idx]);
+        const weights = new Array(5).fill(0);
+        const spinUpByOrbital = new Array(5).fill(0);
+        const spinDownByOrbital = new Array(5).fill(0);
+        let spinUpWeight = 0;
+        let spinDownWeight = 0;
+        for (let o = 0; o < 5; o += 1) {
+          const up = vec[stateIndex(o, 0)] * vec[stateIndex(o, 0)];
+          const down = vec[stateIndex(o, 1)] * vec[stateIndex(o, 1)];
+          spinUpByOrbital[o] = up;
+          spinDownByOrbital[o] = down;
+          spinUpWeight += up;
+          spinDownWeight += down;
+          weights[o] = up + down;
+        }
+        const norm = weights.reduce((s, v) => s + v, 0) || 1;
+        for (let o = 0; o < 5; o += 1) weights[o] /= norm;
+        let dominant = 0;
+        for (let o = 1; o < 5; o += 1) {
+          if (weights[o] > weights[dominant]) dominant = o;
+        }
+        const purity = weights[dominant];
+        states.push({
+          energy: e,
+          orbitalWeights: weights,
+          spinUpByOrbital,
+          spinDownByOrbital,
+          spinUpWeight,
+          spinDownWeight,
+          dominantOrbital: ORBITAL_BASIS[dominant],
+          isMixed: purity < 0.88,
+          mixSpec: buildMixSpecFromWeights(weights),
+          mzSpec: buildMzSpecFromWeights(weights),
+          spinSpec: buildSpinSpec(spinUpWeight, spinDownWeight),
+          spinOrbSpec: buildSpinOrbitalSpec(spinUpByOrbital, spinDownByOrbital),
+          orbitalLabel: purity < 0.88 ? formatMixedOrbitalFromWeights(weights) : ORBITAL_BASIS[dominant]
+        });
+      }
+
+      const occ = new Array(states.length).fill(0);
+      let eLeft = dElectrons;
+      for (let i = 0; i < states.length && eLeft > 0; i += 1) {
+        occ[i] = 1;
+        eLeft -= 1;
+      }
+
+      const scale = Math.max(1e-4, Math.abs(delta), Math.abs(lambdaValue), Math.abs(MU_B_EV_T * bField));
+      const tol = scale * 1e-7;
+      const groups = [];
+      for (let i = 0; i < states.length; i += 1) {
+        const st = states[i];
+        const prev = groups[groups.length - 1];
+        if (!prev || Math.abs(st.energy - prev.energy) > tol) {
+          groups.push({ energy: st.energy, states: [{ ...st, occ: occ[i] }] });
+        } else {
+          prev.states.push({ ...st, occ: occ[i] });
+          prev.energy = prev.states.reduce((s, x) => s + x.energy, 0) / prev.states.length;
+        }
+      }
+
+      const levels = groups.map((g) => {
+        const avgW = new Array(5).fill(0);
+        for (const st of g.states) {
+          for (let i = 0; i < 5; i += 1) avgW[i] += st.orbitalWeights[i];
+        }
+        for (let i = 0; i < 5; i += 1) avgW[i] /= g.states.length;
+        const tmpl = inferTemplateFromWeights(avgW, preset);
+        return {
+          label: tmpl.label,
+          color: tmpl.color,
+          energy: g.energy,
+          orbitals: g.states.map((s) => s.orbitalLabel),
+          hoverOrbitals: g.states.map((s) => (s.isMixed ? "mixed" : s.dominantOrbital)),
+          mixSpecs: g.states.map((s) => s.mixSpec),
+          mzSpecs: g.states.map((s) => s.mzSpec),
+          spinSpecs: g.states.map((s) => s.spinSpec),
+          spinOrbSpecs: g.states.map((s) => s.spinOrbSpec),
+          degenerateMixSpec: buildDegenerateMixSpecFromWeights(g.states),
+          degenerateMzSpec: buildDegenerateMzSpec(g.states),
+          degenerateSpinSpec: buildDegenerateSpinSpec(g.states),
+          degenerateSpinOrbSpec: buildDegenerateSpinOrbitalSpec(g.states),
+          orbitalOcc: g.states.map((s) => s.occ),
+          electrons: g.states.reduce((s, x) => s + x.occ, 0)
+        };
+      });
+
+      return { levels, eigenStates: states };
     }
 
     function drawArrow(x, y, up) {
@@ -472,21 +1049,82 @@
       ].join("");
     }
 
-    function drawLevelGroup({ y, label, energy, orbitalNames, orbitalOcc, color, x0, x1, showElectrons, soiSplitPx }) {
+    function drawLevelGroup({
+      y,
+      label,
+      energy,
+      orbitalNames,
+      hoverOrbitalNames,
+      mixSpecs,
+      mzSpecs,
+      spinSpecs,
+      spinOrbSpecs,
+      degenerateMixSpec,
+      degenerateMzSpec,
+      degenerateSpinSpec,
+      degenerateSpinOrbSpec,
+      orbitalOcc,
+      color,
+      x0,
+      x1,
+      showElectrons,
+      soiSplitPx,
+      showLabel = true,
+      showEnergy = true
+    }) {
       const content = [];
-      content.push(`<text x="${x0 - 40}" y="${y + 4}" class="diagram-label">${label}</text>`);
-      content.push(`<text x="${x1 + 10}" y="${y + 4}" class="diagram-energy">${energy.toFixed(3)} eV</text>`);
+      if (showLabel) {
+        content.push(`<text x="${x0 - 34}" y="${y + 4}" class="diagram-label">${label}</text>`);
+      }
+      if (showEnergy) {
+        content.push(`<text x="${x1 + 8}" y="${y + 4}" class="diagram-energy">${energy.toFixed(3)} eV</text>`);
+      }
 
       const width = x1 - x0;
       const orbitalCount = orbitalNames.length;
+      const collapsed = orbitalCount > 1;
+
+      if (collapsed) {
+        const cx = x0 + width * 0.5;
+        const lx0 = cx - 38;
+        const lx1 = cx + 38;
+        const mixSpec = degenerateMixSpec || "";
+        const mzSpec = degenerateMzSpec || "";
+        const spinSpec = degenerateSpinSpec || "";
+        const spinOrbSpec = degenerateSpinOrbSpec || "";
+        content.push(`<g class="orbital-hit" data-orbital="mixed" data-label="${label}" data-mix="${mixSpec}" data-mz="${mzSpec}" data-spin="${spinSpec}" data-spinorb="${spinOrbSpec}">`);
+        const hitPadY = 14 + Math.max(0, soiSplitPx);
+        content.push(`<rect x="${cx - 48}" y="${y - hitPadY}" width="96" height="${2 * hitPadY}" fill="rgba(0,0,0,0.001)"/>`);
+        if (soiSplitPx > 0) {
+          const yLower = y + soiSplitPx;
+          const yUpper = y - soiSplitPx;
+          content.push(`<line x1="${lx0}" y1="${yLower}" x2="${lx1}" y2="${yLower}" stroke="${color}" stroke-width="2.4" stroke-linecap="round"/>`);
+          content.push(`<line x1="${lx0}" y1="${yUpper}" x2="${lx1}" y2="${yUpper}" stroke="${color}" stroke-width="2.4" stroke-linecap="round" opacity="0.78"/>`);
+        } else {
+          content.push(`<line x1="${lx0}" y1="${y}" x2="${lx1}" y2="${y}" stroke="${color}" stroke-width="3.2" stroke-linecap="round"/>`);
+        }
+        content.push(`</g>`);
+        return content.join("");
+      }
+
       const orbitalGap = width / orbitalCount;
 
       for (let i = 0; i < orbitalCount; i += 1) {
         const cx = x0 + orbitalGap * (i + 0.5);
         const lx0 = cx - 24;
         const lx1 = cx + 24;
-        const orbital = orbitalNames[i] || "d";
-        content.push(`<g class="orbital-hit" data-orbital="${orbital}" data-label="${label}">`);
+        const orbital = (hoverOrbitalNames && hoverOrbitalNames[i]) ? hoverOrbitalNames[i] : "mixed";
+        const orbitalName = orbitalNames[i] || "d";
+        let mixSpec = (mixSpecs && mixSpecs[i]) ? mixSpecs[i] : "";
+        let mzSpec = (mzSpecs && mzSpecs[i]) ? mzSpecs[i] : "";
+        let spinSpec = (spinSpecs && spinSpecs[i]) ? spinSpecs[i] : "";
+        let spinOrbSpec = (spinOrbSpecs && spinOrbSpecs[i]) ? spinOrbSpecs[i] : "";
+        if (!mixSpec && orbital === "mixed" && orbitalName.startsWith("mix(") && orbitalName.endsWith(")")) {
+          mixSpec = orbitalName.slice(4, -1);
+        }
+        content.push(`<g class="orbital-hit" data-orbital="${orbital}" data-label="${label}" data-mix="${mixSpec}" data-mz="${mzSpec}" data-spin="${spinSpec}" data-spinorb="${spinOrbSpec}">`);
+        const hitPadY = 14 + Math.max(0, soiSplitPx);
+        content.push(`<rect x="${cx - 34}" y="${y - hitPadY}" width="68" height="${2 * hitPadY}" fill="rgba(0,0,0,0.001)"/>`);
         if (soiSplitPx > 0) {
           const yLower = y + soiSplitPx;
           const yUpper = y - soiSplitPx;
@@ -515,6 +1153,18 @@
       if (name === "dx2-y2") return nx * nx - ny * ny;
       if (name === "dz2") return 0.5 * (3.0 * nz * nz - 1.0);
       return nx * nx - ny * ny;
+    }
+
+    function orbitalAngularNormalized(name, nx, ny, nz) {
+      const cA = Math.sqrt(15 / 4);
+      const cB = Math.sqrt(15 / 16);
+      const cC = Math.sqrt(5 / 16);
+      if (name === "dxy") return cA * nx * ny;
+      if (name === "dyz") return cA * ny * nz;
+      if (name === "dzx") return cA * nz * nx;
+      if (name === "dx2-y2") return cB * (nx * nx - ny * ny);
+      if (name === "dz2") return cC * (3.0 * nz * nz - 1.0);
+      return cB * (nx * nx - ny * ny);
     }
 
     function rotateXYZ(x, y, z, ax, ay) {
@@ -557,19 +1207,48 @@
       }
     }
 
-    function renderOrbital3D(name) {
-      const w = orbitalPreviewEl.width;
-      const h = orbitalPreviewEl.height;
-      const ax = orbitalView.ax;
-      const ay = orbitalView.ay;
-      const tSteps = 24;
-      const pSteps = 44;
+    function clearCanvas(ctx, w, h) {
+      ctx.clearRect(0, 0, w, h);
+      ctx.fillStyle = "#f3f7ff";
+      ctx.fillRect(0, 0, w, h);
+    }
+
+    function combinedAngular(coeffByOrbital, nx, ny, nz) {
+      let v = 0;
+      for (const [orb, c] of Object.entries(coeffByOrbital)) {
+        v += c * orbitalAngular(orb, nx, ny, nz);
+      }
+      return v;
+    }
+
+    function renderOrbitalSurface(ctx, w, h, name, ax, ay, withAxes = true, withLegend = true, coeffByOrbital = null) {
+      const tSteps = 40;
+      const pSteps = 80;
       const vertices = [];
       const row = pSteps + 1;
       const light = { x: 0.45, y: 0.7, z: 0.55 };
 
-      clearPreviewCanvas();
-      drawAxes(ax, ay);
+      clearCanvas(ctx, w, h);
+      if (withAxes) {
+        const axes = [
+          { a: [-85, 0, 0], b: [85, 0, 0], name: "x" },
+          { a: [0, -85, 0], b: [0, 85, 0], name: "y" },
+          { a: [0, 0, -85], b: [0, 0, 85], name: "z" }
+        ];
+        ctx.strokeStyle = "#a5b5cd";
+        ctx.lineWidth = 1.2;
+        for (const axis of axes) {
+          const a = projectPoint(rotateXYZ(axis.a[0], axis.a[1], axis.a[2], ax, ay), w, h);
+          const b = projectPoint(rotateXYZ(axis.b[0], axis.b[1], axis.b[2], ax, ay), w, h);
+          ctx.beginPath();
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(b.x, b.y);
+          ctx.stroke();
+          ctx.fillStyle = "#6a7f9f";
+          ctx.font = "12px 'Segoe UI', sans-serif";
+          ctx.fillText(axis.name, b.x + 4, b.y - 4);
+        }
+      }
 
       for (let ti = 0; ti <= tSteps; ti += 1) {
         const theta = Math.PI * (ti / tSteps);
@@ -580,7 +1259,7 @@
           const nx = st * Math.cos(phi);
           const ny = st * Math.sin(phi);
           const nz = ct;
-          const value = orbitalAngular(name, nx, ny, nz);
+          const value = coeffByOrbital ? combinedAngular(coeffByOrbital, nx, ny, nz) : orbitalAngular(name, nx, ny, nz);
           const radius = 20 + 105 * Math.abs(value);
           const rot = rotateXYZ(radius * nx, radius * ny, radius * nz, ax, ay);
           const pr = projectPoint(rot, w, h);
@@ -629,6 +1308,161 @@
           ? `rgba(24, 103, 194, ${0.28 + 0.42 * shade})`
           : `rgba(214, 109, 52, ${0.28 + 0.42 * shade})`;
 
+        ctx.beginPath();
+        ctx.moveTo(v0.x, v0.y);
+        ctx.lineTo(v1.x, v1.y);
+        ctx.lineTo(v2.x, v2.y);
+        ctx.closePath();
+        ctx.fillStyle = c;
+        ctx.fill();
+      }
+
+      if (withLegend) {
+        ctx.fillStyle = "#2f466c";
+        ctx.font = "bold 18px 'Segoe UI', sans-serif";
+        ctx.fillText(name, 14, 24);
+        ctx.fillStyle = "#5f7190";
+        ctx.font = "12px 'Segoe UI', sans-serif";
+        ctx.fillText("3D angular function surface", 14, 42);
+        ctx.fillStyle = "rgba(24,103,194,0.8)";
+        ctx.fillRect(14, 52, 10, 10);
+        ctx.fillStyle = "#5f7190";
+        ctx.fillText("positive phase", 29, 61);
+        ctx.fillStyle = "rgba(214,109,52,0.8)";
+        ctx.fillRect(88, 52, 10, 10);
+        ctx.fillStyle = "#5f7190";
+        ctx.fillText("negative phase", 103, 61);
+      }
+    }
+
+    function parseMixSpec(mixSpec) {
+      if (!mixSpec) {
+        const c = 1 / Math.sqrt(5);
+        return { dxy: c, dyz: c, dzx: c, "dx2-y2": c, dz2: c };
+      }
+      const items = mixSpec.split("+").map((x) => x.trim()).filter(Boolean);
+      const coeffOut = {};
+      let hasCoeff = false;
+      for (const item of items) {
+        const kv = item.split(":");
+        if (kv.length !== 2) continue;
+        const key = kv[0].trim();
+        const val = Number(kv[1]);
+        if (!ORBITAL_BASIS.includes(key) || !Number.isFinite(val)) continue;
+        coeffOut[key] = val;
+        hasCoeff = true;
+      }
+      if (hasCoeff) {
+        const norm = Math.sqrt(Object.values(coeffOut).reduce((s, v) => s + v * v, 0)) || 1;
+        const normalized = {};
+        for (const [k, v] of Object.entries(coeffOut)) normalized[k] = v / norm;
+        return normalized;
+      }
+      const known = items.filter((x) => ORBITAL_BASIS.includes(x));
+      if (known.length === 0) {
+        const c = 1 / Math.sqrt(5);
+        return { dxy: c, dyz: c, dzx: c, "dx2-y2": c, dz2: c };
+      }
+      const c = 1 / Math.sqrt(known.length);
+      const out = {};
+      for (const k of known) out[k] = c;
+      return out;
+    }
+
+    function lzWeightsFromMix(mixSpec = "") {
+      const coeff = parseMixSpec(mixSpec);
+      let w0 = 0;
+      let w1 = 0;
+      let w2 = 0;
+      for (const [orb, c] of Object.entries(coeff)) {
+        const w = c * c;
+        if (orb === "dz2") w0 += w;
+        if (orb === "dyz" || orb === "dzx") w1 += w;
+        if (orb === "dxy" || orb === "dx2-y2") w2 += w;
+      }
+      const s = w0 + w1 + w2 || 1;
+      return { w0: w0 / s, w1: w1 / s, w2: w2 / s };
+    }
+
+    function renderMixedLzDensity3D(mixSpec = "") {
+      const w = orbitalPreviewEl.width;
+      const h = orbitalPreviewEl.height;
+      const ax = orbitalView.ax;
+      const ay = orbitalView.ay;
+      const tSteps = 40;
+      const pSteps = 80;
+      const row = pSteps + 1;
+      const vertices = [];
+      const tris = [];
+      const light = { x: 0.45, y: 0.7, z: 0.55 };
+      const { w0, w1, w2 } = lzWeightsFromMix(mixSpec);
+
+      clearPreviewCanvas();
+      drawAxes(ax, ay);
+
+      for (let ti = 0; ti <= tSteps; ti += 1) {
+        const theta = Math.PI * (ti / tSteps);
+        const st = Math.sin(theta);
+        const ct = Math.cos(theta);
+        for (let pi = 0; pi <= pSteps; pi += 1) {
+          const phi = 2 * Math.PI * (pi / pSteps);
+          const nx = st * Math.cos(phi);
+          const ny = st * Math.sin(phi);
+          const nz = ct;
+
+          const f0 = orbitalAngularNormalized("dz2", nx, ny, nz);
+          const f1a = orbitalAngularNormalized("dyz", nx, ny, nz);
+          const f1b = orbitalAngularNormalized("dzx", nx, ny, nz);
+          const f2a = orbitalAngularNormalized("dxy", nx, ny, nz);
+          const f2b = orbitalAngularNormalized("dx2-y2", nx, ny, nz);
+          const density =
+            w0 * (f0 * f0) +
+            w1 * 0.5 * (f1a * f1a + f1b * f1b) +
+            w2 * 0.5 * (f2a * f2a + f2b * f2b);
+
+          const radius = 24 + 120 * Math.sqrt(Math.max(0, density));
+          const rot = rotateXYZ(radius * nx, radius * ny, radius * nz, ax, ay);
+          const pr = projectPoint(rot, w, h);
+          vertices.push({ ...pr, rx: rot.x, ry: rot.y, rz: rot.z });
+        }
+      }
+
+      for (let ti = 0; ti < tSteps; ti += 1) {
+        for (let pi = 0; pi < pSteps; pi += 1) {
+          const a = ti * row + pi;
+          const b = (ti + 1) * row + pi;
+          const c = (ti + 1) * row + pi + 1;
+          const d = ti * row + pi + 1;
+          tris.push([a, b, c]);
+          tris.push([a, c, d]);
+        }
+      }
+
+      tris.sort((t1, t2) => {
+        const z1 = (vertices[t1[0]].z + vertices[t1[1]].z + vertices[t1[2]].z) / 3;
+        const z2 = (vertices[t2[0]].z + vertices[t2[1]].z + vertices[t2[2]].z) / 3;
+        return z1 - z2;
+      });
+
+      for (const tri of tris) {
+        const v0 = vertices[tri[0]];
+        const v1 = vertices[tri[1]];
+        const v2 = vertices[tri[2]];
+        const ux = v1.rx - v0.rx;
+        const uy = v1.ry - v0.ry;
+        const uz = v1.rz - v0.rz;
+        const vx = v2.rx - v0.rx;
+        const vy = v2.ry - v0.ry;
+        const vz = v2.rz - v0.rz;
+        let nx = uy * vz - uz * vy;
+        let ny = uz * vx - ux * vz;
+        let nz = ux * vy - uy * vx;
+        const nNorm = Math.hypot(nx, ny, nz) || 1;
+        nx /= nNorm;
+        ny /= nNorm;
+        nz /= nNorm;
+        const shade = Math.max(0.2, nx * light.x + ny * light.y + nz * light.z);
+        const c = `rgba(130, 86, 190, ${0.24 + 0.45 * shade})`;
         orbitalCtx.beginPath();
         orbitalCtx.moveTo(v0.x, v0.y);
         orbitalCtx.lineTo(v1.x, v1.y);
@@ -640,35 +1474,126 @@
 
       orbitalCtx.fillStyle = "#2f466c";
       orbitalCtx.font = "bold 18px 'Segoe UI', sans-serif";
-      orbitalCtx.fillText(name, 14, 24);
+      orbitalCtx.fillText("mixed", 14, 24);
       orbitalCtx.fillStyle = "#5f7190";
       orbitalCtx.font = "12px 'Segoe UI', sans-serif";
-      orbitalCtx.fillText("3D angular function surface", 14, 42);
-      orbitalCtx.fillStyle = "rgba(24,103,194,0.8)";
-      orbitalCtx.fillRect(14, 52, 10, 10);
-      orbitalCtx.fillStyle = "#5f7190";
-      orbitalCtx.fillText("正位相", 29, 61);
-      orbitalCtx.fillStyle = "rgba(214,109,52,0.8)";
-      orbitalCtx.fillRect(88, 52, 10, 10);
-      orbitalCtx.fillStyle = "#5f7190";
-      orbitalCtx.fillText("負位相", 103, 61);
+      orbitalCtx.fillText("Lz-summed density", 14, 42);
+      orbitalCtx.fillText(`m=0:${w0.toFixed(2)} |m|=1:${w1.toFixed(2)} |m|=2:${w2.toFixed(2)}`, 14, 60);
     }
 
-    function showOrbital(name, levelLabel) {
+    function coeffByOrbitalForDisplay(name, mixSpec) {
+      const coeff = {};
+      if (name && ORBITAL_BASIS.includes(name)) {
+        for (const orb of ORBITAL_BASIS) coeff[orb] = orb === name ? 1 : 0;
+        return coeff;
+      }
+      const parsed = parseMixSpec(mixSpec || "");
+      for (const orb of ORBITAL_BASIS) coeff[orb] = parsed[orb] || 0;
+      return coeff;
+    }
+
+    function parseWeightedSpec(spec = "") {
+      const out = {};
+      const items = spec.split("+").map((x) => x.trim()).filter(Boolean);
+      for (const item of items) {
+        const kv = item.split(":");
+        if (kv.length !== 2) continue;
+        const key = kv[0].trim();
+        const val = Number(kv[1]);
+        if (!Number.isFinite(val)) continue;
+        out[key] = val;
+      }
+      return out;
+    }
+
+    function updateCoefficientChart(name, mixSpec = "", mzSpec = "", spinSpec = "", spinOrbSpec = "") {
+      const coeff = coeffByOrbitalForDisplay(name, mixSpec);
+      const orbitalRows = ORBITAL_BASIS.map((orb) => {
+        const c = coeff[orb] || 0;
+        const w = c * c;
+        const width = Math.max(0, Math.min(100, w * 100));
+        return `<div class="coef-row"><span>${orb}</span><div class="coef-track"><div class="coef-bar" style="width:${width.toFixed(1)}%"></div></div><span>${w.toFixed(3)}</span></div>`;
+      }).join("");
+      const mzParsed = parseWeightedSpec(mzSpec);
+      const spinParsed = parseWeightedSpec(spinSpec);
+      const mzFallback = {
+        "m-2": (coeff["dx2-y2"] || 0) ** 2,
+        "m-1": (coeff.dzx || 0) ** 2,
+        "m0": (coeff.dz2 || 0) ** 2,
+        "m1": (coeff.dyz || 0) ** 2,
+        "m2": (coeff.dxy || 0) ** 2
+      };
+      const mz = [
+        { label: "m=-2", key: "m-2" },
+        { label: "m=-1", key: "m-1" },
+        { label: "m=0", key: "m0" },
+        { label: "m=+1", key: "m1" },
+        { label: "m=+2", key: "m2" }
+      ].map((row) => ({ label: row.label, v: (row.key in mzParsed) ? mzParsed[row.key] : mzFallback[row.key] }));
+      const mzNorm = mz.reduce((s, r) => s + r.v, 0) || 1;
+      for (const r of mz) r.v /= mzNorm;
+      const spin = [
+        { label: "spin up", v: ("up" in spinParsed) ? spinParsed.up : 0.5 },
+        { label: "spin down", v: ("down" in spinParsed) ? spinParsed.down : 0.5 }
+      ];
+      const spinNorm = spin.reduce((s, r) => s + r.v, 0) || 1;
+      for (const r of spin) r.v /= spinNorm;
+      const spinOrbParsed = parseWeightedSpec(spinOrbSpec);
+      const mzRows = mz.map((row) => {
+        const width = Math.max(0, Math.min(100, row.v * 100));
+        return `<div class="coef-row"><span>${row.label}</span><div class="coef-track"><div class="coef-bar" style="width:${width.toFixed(1)}%"></div></div><span>${row.v.toFixed(3)}</span></div>`;
+      }).join("");
+      const spinRows = spin.map((row) => {
+        const width = Math.max(0, Math.min(100, row.v * 100));
+        return `<div class="coef-row"><span>${row.label}</span><div class="coef-track"><div class="coef-bar" style="width:${width.toFixed(1)}%"></div></div><span>${row.v.toFixed(3)}</span></div>`;
+      }).join("");
+      const spinOrbRows = ORBITAL_BASIS.flatMap((orb) => {
+        const upKey = `${orb}_up`;
+        const downKey = `${orb}_down`;
+        const fallbackUp = ((coeff[orb] || 0) ** 2) * spin[0].v;
+        const fallbackDown = ((coeff[orb] || 0) ** 2) * spin[1].v;
+        const up = (upKey in spinOrbParsed) ? spinOrbParsed[upKey] : fallbackUp;
+        const down = (downKey in spinOrbParsed) ? spinOrbParsed[downKey] : fallbackDown;
+        return [
+          { label: `${orb} up`, v: up },
+          { label: `${orb} down`, v: down }
+        ].map((row) => {
+          const width = Math.max(0, Math.min(100, row.v * 100));
+          return `<div class="coef-row"><span>${row.label}</span><div class="coef-track"><div class="coef-bar" style="width:${width.toFixed(1)}%"></div></div><span>${row.v.toFixed(3)}</span></div>`;
+        });
+      }).join("");
+      orbitalCoeffEl.innerHTML = `<div class="coef-title">Real-orbital weights</div>${orbitalRows}<div class="coef-title">m_z weights</div>${mzRows}<div class="coef-title">Spin weights (total)</div>${spinRows}<div class="coef-title">Spin-resolved orbital weights</div>${spinOrbRows}`;
+    }
+
+    function renderOrbital3D(name, mixSpec = "") {
+      const isMixedName = name === "mixed" || (typeof name === "string" && name.startsWith("mix(") && name.endsWith(")"));
+      if (isMixedName) {
+        const spec = mixSpec || (name.startsWith("mix(") ? name.slice(4, -1) : "");
+        renderMixedLzDensity3D(spec);
+      } else {
+        renderOrbitalSurface(orbitalCtx, orbitalPreviewEl.width, orbitalPreviewEl.height, name, orbitalView.ax, orbitalView.ay, true, true);
+      }
+    }
+
+    function showOrbital(name, levelLabel, mixSpec = "", mzSpec = "", spinSpec = "", spinOrbSpec = "") {
       orbitalView.name = name;
       orbitalView.label = levelLabel;
-      orbitalHintEl.textContent = `${levelLabel} に含まれる ${name} 軌道の3D関数表示（ドラッグで回転）`;
-      renderOrbital3D(name);
+      orbitalView.mixSpec = mixSpec || "";
+      orbitalHintEl.textContent = `Mixed and separated views: ${name} in ${levelLabel} (drag to rotate main view)`;
+      renderOrbital3D(name, mixSpec);
+      updateCoefficientChart(name, mixSpec, mzSpec, spinSpec, spinOrbSpec);
     }
 
     function clearOrbitalPreview() {
       orbitalView.name = null;
       orbitalView.label = "";
-      orbitalHintEl.textContent = "分裂した軌道線をクリックすると、3D関数として固定表示します。";
+      orbitalView.mixSpec = "";
+      orbitalHintEl.textContent = "Click a split orbital line to pin a 3D orbital-function view.";
       clearPreviewCanvas();
       orbitalCtx.fillStyle = "#7a8eaf";
       orbitalCtx.font = "14px 'Segoe UI', sans-serif";
       orbitalCtx.fillText("Click an orbital line to render 3D surface", 120, 155);
+      orbitalCoeffEl.innerHTML = `<div class="muted">Coefficient bars appear here after you click a level.</div>`;
     }
 
     function freeIonOccupancy(dElectrons) {
@@ -685,138 +1610,248 @@
       return occ;
     }
 
-    function renderDiagram({ preset, levels, dElectrons, delta, soiEnabled, lambdaValue }) {
-      const maxCoeff = Math.max(...levels.map((l) => l.coeff), 0.001);
-      const minCoeff = Math.min(...levels.map((l) => l.coeff), -0.001);
-      const freeOcc = freeIonOccupancy(dElectrons);
-      const yMid = 150;
+    function buildFreeIonOrbitalLevels(dElectrons) {
+      const occ = freeIonOccupancy(dElectrons);
+      return ORBITAL_BASIS.map((orbital, i) => ({
+        label: orbital,
+        color: "#5b6f90",
+        coeff: 0,
+        energy: 0,
+        orbitals: [orbital],
+        hoverOrbitals: [orbital],
+        orbitalOcc: [occ[i]],
+        electrons: occ[i]
+      }));
+    }
+
+    function crystalFieldEnergyMap(preset, delta) {
+      const m = {};
+      for (const level of preset.levels) {
+        for (const orbital of level.orbitals) {
+          m[orbital] = level.coeff * delta;
+        }
+      }
+      return m;
+    }
+
+    function applyCrystalFieldAfterSOI(levelsWithSOI, preset, delta) {
+      const eMap = crystalFieldEnergyMap(preset, delta);
+      let cfShiftEnergy = 0;
+      const shifted = levelsWithSOI.map((level) => {
+        const orbital = level.orbitals[0];
+        const shift = eMap[orbital] || 0;
+        cfShiftEnergy += shift * level.electrons;
+        return {
+          ...level,
+          label: orbital,
+          color: "#1f4f8f",
+          coeff: Math.abs(delta) < 1e-12 ? 0 : (level.energy + shift) / delta,
+          energy: level.energy + shift,
+          soiMin: level.soiMin + shift,
+          soiMax: level.soiMax + shift
+        };
+      });
+      return { shiftedLevels: shifted, cfShiftEnergy };
+    }
+
+    function renderDiagram({ stage1Levels, stage1Label, stage2Levels, stage3Levels, lambdaValue, bField }) {
+      const freeOcc = freeIonOccupancy(1);
+      const yMid = 200;
       const yTop = 80;
-      const yBottom = 230;
-      const positiveExtent = Math.max(maxCoeff * delta, 0.001);
-      const negativeExtent = Math.max(-minCoeff * delta, 0.001);
+      const yBottom = 330;
+      const SPLIT_GAIN = 2.6;
+      const MIN_HALF_SPAN_PX = 22;
+      const allEnergies = [...stage1Levels, ...stage2Levels, ...stage3Levels].map((l) => l.energy);
+      const maxE = Math.max(...allEnergies, 0.001);
+      const minE = Math.min(...allEnergies, -0.001);
+      const positiveExtent = Math.max(maxE, 0.001);
+      const negativeExtent = Math.max(-minE, 0.001);
       const scale = Math.min((yMid - yTop) / positiveExtent, (yBottom - yMid) / negativeExtent);
-      const soiSplitPx = soiEnabled ? Math.max(3, Math.abs(lambdaValue * 0.5 * scale)) : 0;
-      const xFree1 = 280;
-      const xSplitStart = 300;
-      const xSplitEnd = 390;
-      const xLevel0 = 420;
-      const xLevel1 = 740;
+
+      const xFree0 = 110;
+      const xFree1 = 230;
+      const x1a = 320;
+      const x1b = 470;
+      const x2a = 560;
+      const x2b = 710;
+      const x3a = 800;
+      const x3b = 960;
       const parts = [];
-      parts.push(`<line x1="80" y1="260" x2="80" y2="40" stroke="#8aa0c2" stroke-width="1.5"/>`);
+      parts.push(`<line x1="80" y1="350" x2="80" y2="40" stroke="#8aa0c2" stroke-width="1.5"/>`);
       parts.push(`<text x="58" y="36" class="diagram-note">E</text>`);
-      parts.push(`<text x="158" y="128" class="diagram-label">自由イオン 3d (5重縮退)</text>`);
+      parts.push(`<line x1="140" y1="150" x2="1130" y2="150" stroke="#b2bfd4" stroke-width="1.5" stroke-dasharray="6 5"/>`);
+      parts.push(`<text x="980" y="144" class="diagram-note">Barycenter</text>`);
+
+      parts.push(`<text x="${xFree0}" y="66" class="diagram-label">Free Ion</text>`);
+      parts.push(`<text x="${x1a}" y="66" class="diagram-label">${stage1Label}</text>`);
+      parts.push(`<text x="${x2a}" y="66" class="diagram-label">Crystal Field + SOI</text>`);
+      parts.push(`<text x="${x3a}" y="66" class="diagram-label">Crystal Field + SOI + B Field</text>`);
+      parts.push(`<text x="${xFree0}" y="128" class="diagram-note">3d (fivefold degenerate)</text>`);
+
       for (let i = 0; i < 5; i += 1) {
-        const cx = 176 + i * 22;
+        const cx = xFree0 + 18 + i * 22;
+        parts.push(`<g class="orbital-hit" data-orbital="mixed" data-label="Free Ion" data-mix="dxy+dyz+dzx+dx2-y2+dz2" data-mz="m-2:0.2+m-1:0.2+m0:0.2+m1:0.2+m2:0.2" data-spin="up:0.5+down:0.5" data-spinorb="dxy_up:0.1+dxy_down:0.1+dyz_up:0.1+dyz_down:0.1+dzx_up:0.1+dzx_down:0.1+dx2-y2_up:0.1+dx2-y2_down:0.1+dz2_up:0.1+dz2_down:0.1">`);
+        parts.push(`<rect x="${cx - 16}" y="${yMid - 14}" width="32" height="28" fill="rgba(0,0,0,0.001)"/>`);
         parts.push(`<line x1="${cx - 10}" y1="${yMid}" x2="${cx + 10}" y2="${yMid}" stroke="#5b6f90" stroke-width="2.2" stroke-linecap="round"/>`);
         if (freeOcc[i] >= 1) parts.push(drawArrow(cx - 4, yMid - 2, true));
         if (freeOcc[i] >= 2) parts.push(drawArrow(cx + 4, yMid + 2, false));
+        parts.push(`</g>`);
       }
-      parts.push(`<line x1="${xFree1}" y1="${yMid}" x2="${xSplitStart}" y2="${yMid}" stroke="#8fa2c0" stroke-width="1.5"/>`);
-      parts.push(`<line x1="140" y1="150" x2="760" y2="150" stroke="#b2bfd4" stroke-width="1.5" stroke-dasharray="6 5"/>`);
-      parts.push(`<text x="600" y="144" class="diagram-note">重心 (barycenter)</text>`);
 
-      const yValues = [];
-      for (const level of levels) {
-        const y = yMid - level.energy * scale;
-        if (soiEnabled) {
-          yValues.push(y - soiSplitPx);
-          yValues.push(y + soiSplitPx);
-        } else {
-          yValues.push(y);
+      function buildStageYMapper(levels) {
+        if (!levels || levels.length === 0) return () => yMid;
+        const center = levels.reduce((s, lv) => s + lv.energy, 0) / levels.length;
+        let halfRange = 0;
+        for (const lv of levels) {
+          halfRange = Math.max(halfRange, Math.abs(lv.energy - center));
         }
-        parts.push(`<line x1="${xSplitStart}" y1="${yMid}" x2="${xSplitEnd}" y2="${y}" stroke="#91a4c2" stroke-width="1.5" stroke-dasharray="5 4"/>`);
-        parts.push(`<text x="${xSplitEnd + 8}" y="${y - 8}" class="diagram-note">${level.orbitals.length}軌道</text>`);
-        parts.push(drawLevelGroup({
-          y,
-          label: level.label,
-          energy: level.energy,
-          orbitalNames: level.orbitals,
-          orbitalOcc: level.orbitalOcc,
-          color: level.color,
-          x0: xLevel0,
-          x1: xLevel1,
-          showElectrons: false,
-          soiSplitPx
-        }));
+        const baseHalfPx = Math.max(1e-6, halfRange * scale);
+        const targetAmp = Math.max(SPLIT_GAIN, MIN_HALF_SPAN_PX / baseHalfPx);
+        const base = center * scale;
+        const low = yMid - (yBottom - 8);
+        const high = yMid - (yTop + 8);
+        let maxAmpFit = Number.POSITIVE_INFINITY;
+        for (const lv of levels) {
+          const d = (lv.energy - center) * scale;
+          if (d > 1e-12) {
+            maxAmpFit = Math.min(maxAmpFit, (high - base) / d);
+          } else if (d < -1e-12) {
+            maxAmpFit = Math.min(maxAmpFit, (base - low) / (-d));
+          }
+        }
+        if (!Number.isFinite(maxAmpFit) || maxAmpFit <= 0) {
+          maxAmpFit = targetAmp;
+        }
+        const amp = Math.max(0.35, Math.min(targetAmp, maxAmpFit));
+        return (energy) => yMid - (center * scale + (energy - center) * scale * amp);
       }
 
-      const yMax = Math.max(...yValues);
-      const yMin = Math.min(...yValues);
-      parts.push(`<line x1="770" y1="${yMin}" x2="770" y2="${yMax}" stroke="#7488ab" stroke-width="1.4"/>`);
-      parts.push(`<line x1="764" y1="${yMin}" x2="776" y2="${yMin}" stroke="#7488ab" stroke-width="1.4"/>`);
-      parts.push(`<line x1="764" y1="${yMax}" x2="776" y2="${yMax}" stroke="#7488ab" stroke-width="1.4"/>`);
-      parts.push(`<text x="780" y="${(yMin + yMax) / 2 - 6}" class="diagram-note">${preset.deltaLabel}</text>`);
-      parts.push(`<text x="780" y="${(yMin + yMax) / 2 + 10}" class="diagram-note">${(yMax === yMin ? 0 : Math.abs((yMax - yMin) / scale)).toFixed(3)} eV</text>`);
-      if (soiEnabled) {
-        parts.push(`<text x="780" y="${(yMin + yMax) / 2 + 26}" class="diagram-note">SOI: ±${(lambdaValue * 0.5).toFixed(3)} eV</text>`);
+      function drawStage(levels, x0, x1, showEnergy) {
+        const yOf = buildStageYMapper(levels);
+        for (const lv of levels) {
+          const y = yOf(lv.energy);
+          parts.push(drawLevelGroup({
+            y,
+            label: lv.label,
+            energy: lv.energy,
+            orbitalNames: lv.orbitals,
+            hoverOrbitalNames: lv.hoverOrbitals || lv.orbitals,
+            mixSpecs: lv.mixSpecs || [],
+            mzSpecs: lv.mzSpecs || [],
+            spinSpecs: lv.spinSpecs || [],
+            spinOrbSpecs: lv.spinOrbSpecs || [],
+            degenerateMixSpec: lv.degenerateMixSpec || "",
+            degenerateMzSpec: lv.degenerateMzSpec || "",
+            degenerateSpinSpec: lv.degenerateSpinSpec || "",
+            degenerateSpinOrbSpec: lv.degenerateSpinOrbSpec || "",
+            orbitalOcc: lv.orbitalOcc || lv.orbitals.map(() => 0),
+            color: lv.color || "#1f4f8f",
+            x0,
+            x1,
+            showElectrons: false,
+            soiSplitPx: 0,
+            showLabel: false,
+            showEnergy
+          }));
+        }
       }
 
-      parts.push(`<text x="160" y="286" class="diagram-note">左は自由イオン占有、右は教科書的な分裂準位表示</text>`);
+      drawStage(stage1Levels, x1a, x1b, true);
+      drawStage(stage2Levels, x2a, x2b, false);
+      drawStage(stage3Levels, x3a, x3b, true);
+
+      const c1 = (x1a + x1b) * 0.5;
+      const c2 = (x2a + x2b) * 0.5;
+      const c3 = (x3a + x3b) * 0.5;
+      parts.push(`<line x1="${xFree1}" y1="${yMid}" x2="${c1 - 55}" y2="${yMid}" stroke="#8fa2c0" stroke-width="1.5"/>`);
+      parts.push(`<line x1="${c1 + 55}" y1="${yMid}" x2="${c2 - 55}" y2="${yMid}" stroke="#8fa2c0" stroke-width="1.2" stroke-dasharray="4 4"/>`);
+      parts.push(`<line x1="${c2 + 55}" y1="${yMid}" x2="${c3 - 55}" y2="${yMid}" stroke="#8fa2c0" stroke-width="1.2" stroke-dasharray="4 4"/>`);
+
+      parts.push(`<text x="110" y="376" class="diagram-note">Free Ion -> ${stage1Label} -> Crystal Field + SOI -> Crystal Field + SOI + B Field</text>`);
+      parts.push(`<text x="980" y="356" class="diagram-note">lambda=${lambdaValue.toFixed(3)} eV, B=${bField.toFixed(2)} T</text>`);
       diagramEl.innerHTML = parts.join("");
     }
 
-    function calculate() {
+    function calculate(trackEvent = true, trigger = "user") {
       const geometry = geometryEl.value;
-      const n = Number(dCount.value);
+      const n = 1;
       const delta = Number(deltaEl.value);
-      const soiEnabled = soiEnableEl.checked;
       const lambdaValue = Number(lambdaEl.value);
-
+      const bField = Number(bFieldEl.value);
       if (!Number.isFinite(delta) || delta < 0) {
-        document.getElementById("status").textContent = "Δ は 0 以上で入力してください";
+        document.getElementById("status").textContent = "Delta must be >= 0.";
         return;
       }
       if (!Number.isFinite(lambdaValue) || lambdaValue < 0) {
-        document.getElementById("status").textContent = "λ は 0 以上で入力してください";
+        document.getElementById("status").textContent = "Lambda must be >= 0.";
+        return;
+      }
+      if (!Number.isFinite(bField) || bField < 0) {
+        document.getElementById("status").textContent = "B must be >= 0.";
         return;
       }
 
       const preset = FIELD_PRESETS[geometry] || FIELD_PRESETS.octa;
-      const { levels, cfse, unpaired } = buildOccupiedLevels(preset, n, delta);
-      const { levelsWithSOI, soiCorrection, totalEnergy } = applySOIAfterCrystalField(levels, lambdaValue, soiEnabled);
-      const mu = Math.sqrt(unpaired * (unpaired + 2));
+      const soiFirst = lambdaValue > delta;
+      const stage1 = soiFirst
+        ? solveLevelStage(preset, delta, lambdaValue, 0, { cf: false, soi: true, magnetic: false }, n)
+        : solveLevelStage(preset, delta, 0, 0, { cf: true, soi: false, magnetic: false }, n);
+      const stage2 = solveLevelStage(preset, delta, lambdaValue, 0, { cf: true, soi: true, magnetic: false }, n);
+      const stage3 = solveLevelStage(preset, delta, lambdaValue, bField, { cf: true, soi: true, magnetic: true }, n);
+      const stage1Label = soiFirst ? "SOI" : "Crystal Field";
 
-      document.getElementById("status").textContent = `${preset.label} / d${n}`;
-      document.getElementById("cfse").textContent = `${cfse.toFixed(3)} eV`;
-      document.getElementById("totalEnergy").textContent = `${totalEnergy.toFixed(3)} eV`;
-      document.getElementById("unpaired").textContent = String(unpaired);
-      document.getElementById("mu").textContent = `${mu.toFixed(3)} BM`;
-      levelListEl.innerHTML = levelsWithSOI
-        .map((level) => {
-          const soiPart = soiEnabled
-            ? ` | SOI: ${(level.energy - lambdaValue * 0.5).toFixed(3)} / ${(level.energy + lambdaValue * 0.5).toFixed(3)} eV`
-            : "";
-          return `<div class="level"><span>${level.label} (${level.orbitals.join(", ")})</span><strong>${level.energy.toFixed(3)} eV / ${level.electrons} e-${soiPart}</strong></div>`;
-        })
+      document.getElementById("status").textContent = `${preset.label} / d1`;
+      levelListEl.innerHTML = stage3.levels
+        .map((level) => `<div class="level"><span>${level.label} (g=${level.orbitals.length})</span><strong>${level.energy.toFixed(4)} eV</strong></div>`)
         .join("");
-      renderDiagram({ preset, levels: levelsWithSOI, dElectrons: n, delta, soiEnabled, lambdaValue });
 
-      const note = soiEnabled
-        ? `注: 簡易モデル。結晶場で占有を決めた後に SOI (λ=${lambdaValue.toFixed(3)} eV) を各軌道へ付加しています。補正量: ${soiCorrection.toFixed(3)} eV`
-        : "注: ここでは単純化した結晶場モデルを使用しています。";
-      document.getElementById("note").textContent = note;
+      renderDiagram({
+        stage1Levels: stage1.levels,
+        stage1Label,
+        stage2Levels: stage2.levels,
+        stage3Levels: stage3.levels,
+        lambdaValue,
+        bField
+      });
+
+      document.getElementById("note").textContent = "Note: 10x10 single-electron Hamiltonian in orbital-spin basis; stages are solved by direct diagonalization.";
+
+      if (trackEvent && typeof window.gtag === "function") {
+        window.gtag("event", "crystal_field_calculated", {
+          geometry,
+          d_count: 1,
+          delta_ev: Number(delta.toFixed(4)),
+          lambda_ev: Number(lambdaValue.toFixed(4)),
+          b_field_t: Number(bField.toFixed(4)),
+          soi_first: soiFirst ? 1 : 0,
+          trigger
+        });
+      }
     }
 
-    geometryEl.addEventListener("change", calculate);
-    dCount.addEventListener("change", calculate);
-    deltaEl.addEventListener("input", calculate);
-    soiEnableEl.addEventListener("change", () => {
-      lambdaEl.disabled = !soiEnableEl.checked;
-      calculate();
-    });
-    lambdaEl.addEventListener("input", calculate);
-    document.getElementById("run").addEventListener("click", calculate);
+    geometryEl.addEventListener("change", () => calculate(true, "geometry_change"));
+    deltaEl.addEventListener("input", () => calculate(true, "delta_input"));
+    lambdaEl.addEventListener("input", () => calculate(true, "lambda_input"));
+    bFieldEl.addEventListener("input", () => calculate(true, "b_field_input"));
     diagramEl.addEventListener("click", (event) => {
       const target = event.target.closest(".orbital-hit");
       if (!target) return;
       orbitalView.ax = DEFAULT_VIEW_AX;
       orbitalView.ay = DEFAULT_VIEW_AY;
-      showOrbital(target.dataset.orbital || "d", target.dataset.label || "");
+      showOrbital(
+        target.dataset.orbital || "d",
+        target.dataset.label || "",
+        target.dataset.mix || "",
+        target.dataset.mz || "",
+        target.dataset.spin || "",
+        target.dataset.spinorb || ""
+      );
     });
     document.addEventListener("click", (event) => {
       const inOrbitalLine = event.target.closest(".orbital-hit");
       const inPreview = event.target.closest("#orbitalPreview");
-      if (inOrbitalLine || inPreview) return;
+      const inCoeff = event.target.closest("#orbitalCoeff");
+      if (inOrbitalLine || inPreview || inCoeff) return;
       clearOrbitalPreview();
     });
 
@@ -840,7 +1875,7 @@
       orbitalView.ay += dx * 0.01;
       orbitalView.ax += dy * 0.01;
       orbitalView.ax = Math.max(-1.45, Math.min(1.45, orbitalView.ax));
-      renderOrbital3D(orbitalView.name);
+      renderOrbital3D(orbitalView.name, orbitalView.mixSpec);
     });
 
     function stopDrag(event) {
@@ -857,7 +1892,8 @@
     orbitalPreviewEl.addEventListener("pointercancel", stopDrag);
 
     clearOrbitalPreview();
-    calculate();
+    calculate(false, "init");
   </script>
 </body>
 </html>
+
