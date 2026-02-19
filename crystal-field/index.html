@@ -54,7 +54,7 @@
     .topbar {
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      justify-content: flex-start;
       gap: 12px;
       margin-bottom: 8px;
     }
@@ -64,6 +64,11 @@
       color: var(--sub);
       font-weight: 700;
       letter-spacing: 0.04em;
+    }
+
+    .hub-panel {
+      display: inline-block;
+      margin-bottom: 8px;
     }
 
     .back-link {
@@ -99,27 +104,88 @@
 
     .form {
       display: grid;
-      grid-template-columns: minmax(88px, 0.7fr) minmax(96px, 0.8fr) minmax(220px, 1.5fr) repeat(4, minmax(140px, 1fr));
-      gap: 14px;
-      margin-top: 16px;
+      grid-template-columns: minmax(100px, 0.8fr) minmax(300px, 2fr) minmax(120px, 0.9fr) minmax(230px, 1.4fr) minmax(130px, 1fr);
+      gap: 10px;
+      margin-top: 10px;
+      align-items: start;
+    }
+
+    .form-block {
+      display: grid;
+      gap: 7px;
+      border: 1px solid #e5d9f3;
+      border-radius: 10px;
+      background: #fcf8ff;
+      padding: 8px;
+    }
+
+    .delta-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .delta-row #delta2Wrap {
+      margin: 0;
+    }
+
+    .bdir-row {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .bdir-btn {
+      height: 24px;
+      min-width: 28px;
+      padding: 0 8px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: #fff;
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .bangle-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .bangle-item {
+      width: 72px;
+    }
+
+    .bangle-item label {
+      margin-bottom: 4px;
+      font-size: 11px;
+    }
+
+    .b-top-row {
+      display: flex;
       align-items: end;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
     }
 
     label {
       display: block;
-      font-size: 13px;
+      font-size: 12px;
       color: var(--sub);
-      margin-bottom: 6px;
+      margin-bottom: 4px;
       font-weight: 600;
     }
 
     select, input {
       width: 100%;
-      height: 40px;
+      height: 36px;
       border-radius: 10px;
       border: 1px solid var(--line);
-      padding: 0 11px;
-      font-size: 15px;
+      padding: 0 10px;
+      font-size: 14px;
       color: var(--text);
       background: #fff;
     }
@@ -466,61 +532,98 @@
 <body>
   <main class="wrap">
     <section class="card">
+      <nav class="hub-panel" aria-label="Navigation">
+        <a class="back-link" href="../index.html">Hub</a>
+      </nav>
       <div class="topbar">
         <div class="version">v0.0.1</div>
-        <a class="back-link" href="../index.html">Back to Hub</a>
       </div>
       <h1>Single-Electron Crystal Field Splitting</h1>
       <div class="form">
-        <div>
-          <label for="n">n</label>
-          <select id="n">
-            <option value="1">1</option>
-            <option value="2">2</option>
-            <option value="3" selected>3</option>
-            <option value="4">4</option>
-            <option value="5">5</option>
-          </select>
+        <div class="form-block">
+          <div>
+            <label for="n">n</label>
+            <select id="n">
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3" selected>3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+            </select>
+          </div>
+          <div>
+            <label for="l">l</label>
+            <select id="l">
+              <option value="s">s</option>
+              <option value="p">p</option>
+              <option value="d" selected>d</option>
+              <option value="f">f</option>
+              <option value="g">g</option>
+            </select>
+          </div>
         </div>
-        <div>
-          <label for="l">l</label>
-          <select id="l">
-            <option value="s">s</option>
-            <option value="p">p</option>
-            <option value="d" selected>d</option>
-            <option value="f">f</option>
-            <option value="g">g</option>
-          </select>
+        <div class="form-block">
+          <div>
+            <label for="geometry">Coordination Field</label>
+            <select id="geometry">
+              <option value="octa">Octahedral (Oh)</option>
+              <option value="tetra">Tetrahedral (Td)</option>
+              <option value="square_planar">Square Planar (D4h)</option>
+              <option value="square_pyramidal">Square Pyramidal (C4v)</option>
+              <option value="trigonal_bipyramidal">Trigonal Bipyramidal (D3h)</option>
+              <option value="trigonal_prismatic">Trigonal Prism (D3h)</option>
+              <option value="trigonal_pyramidal">Trigonal Pyramidal (C3v)</option>
+              <option value="trigonal_planar">Trigonal Planar (D3h')</option>
+              <option value="rhombic_octa">Rhombic Octahedral (D2h)</option>
+              <option value="seesaw">Seesaw (C2v)</option>
+              <option value="square_antiprismatic">Square Antiprismatic (D4d)</option>
+              <option value="pentagonal_bipyramidal">Pentagonal Bipyramidal (D5h)</option>
+              <option value="linear">Linear (Dinfh)</option>
+            </select>
+          </div>
+          <div class="delta-row">
+            <div>
+              <label for="delta">Δ1 (eV)</label>
+              <input id="delta" type="number" min="0" step="0.01" value="1.00">
+            </div>
+            <div id="delta2Wrap">
+              <label for="delta2">Δ2 (eV)</label>
+              <input id="delta2" type="number" min="0" step="0.01" value="0.20">
+            </div>
+          </div>
         </div>
-        <div>
-          <label for="geometry">Coordination Field</label>
-          <select id="geometry">
-            <option value="octa">Octahedral (Oh)</option>
-            <option value="tetra">Tetrahedral (Td)</option>
-            <option value="square_planar">Square Planar (D4h)</option>
-            <option value="square_pyramidal">Square Pyramidal (C4v)</option>
-            <option value="trigonal_bipyramidal">Trigonal Bipyramidal (D3h)</option>
-            <option value="trigonal_planar">Trigonal Planar (D3h')</option>
-            <option value="linear">Linear (Dinfh)</option>
-          </select>
-        </div>
-        <div>
-          <label for="delta">Δ (eV)</label>
-          <input id="delta" type="number" min="0" step="0.01" value="1.00">
-        </div>
-        <div>
+        <div class="form-block">
           <label for="lambda">λ (eV)</label>
-          <input id="lambda" type="number" min="0" step="0.01" value="0.10">
+          <input id="lambda" type="number" min="0" step="0.01" value="0.05">
         </div>
-        <div>
-          <label for="bField">B (T)</label>
-          <input id="bField" type="number" min="0" step="0.01" value="0.01">
+        <div class="form-block">
+          <div class="b-top-row">
+            <div class="bdir-row">
+              <button type="button" class="bdir-btn" id="bDirX">x</button>
+              <button type="button" class="bdir-btn" id="bDirY">y</button>
+              <button type="button" class="bdir-btn" id="bDirZ">z</button>
+            </div>
+            <div class="bangle-row">
+              <div class="bangle-item">
+                <label for="bTheta">θ</label>
+                <input id="bTheta" type="number" step="1" value="0">
+              </div>
+              <div class="bangle-item">
+                <label for="bPhi">φ</label>
+                <input id="bPhi" type="number" step="1" value="0">
+              </div>
+            </div>
+          </div>
+          <div>
+            <label for="bField">B (T)</label>
+            <input id="bField" type="number" min="0" step="0.01" value="0.01">
+          </div>
         </div>
-        <div>
+        <div class="form-block">
           <label for="scaleMode">Scale View</label>
           <select id="scaleMode">
-            <option value="deformed" selected>Deformed</option>
-            <option value="accurate">Accurate</option>
+            <option value="deformed">Deformed</option>
+            <option value="accurate" selected>Accurate</option>
           </select>
         </div>
       </div>
@@ -574,8 +677,15 @@
     const lEl = document.getElementById("l");
     const geometryEl = document.getElementById("geometry");
     const deltaEl = document.getElementById("delta");
+    const delta2El = document.getElementById("delta2");
+    const delta2WrapEl = document.getElementById("delta2Wrap");
     const lambdaEl = document.getElementById("lambda");
     const bFieldEl = document.getElementById("bField");
+    const bThetaEl = document.getElementById("bTheta");
+    const bPhiEl = document.getElementById("bPhi");
+    const bDirXEl = document.getElementById("bDirX");
+    const bDirYEl = document.getElementById("bDirY");
+    const bDirZEl = document.getElementById("bDirZ");
     const scaleModeEl = document.getElementById("scaleMode");
     const diagramEl = document.getElementById("diagram");
     const orbitalPreviewEl = document.getElementById("orbitalPreview");
@@ -656,7 +766,14 @@
       square_planar: [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0]],
       square_pyramidal: [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1]],
       trigonal_bipyramidal: [[1, 0, 0], [-0.5, Math.sqrt(3) / 2, 0], [-0.5, -Math.sqrt(3) / 2, 0], [0, 0, 1], [0, 0, -1]],
+      trigonal_prismatic: [[1, 0, 1], [-0.5, Math.sqrt(3) / 2, 1], [-0.5, -Math.sqrt(3) / 2, 1], [1, 0, -1], [-0.5, Math.sqrt(3) / 2, -1], [-0.5, -Math.sqrt(3) / 2, -1]],
+      trigonal_pyramidal: [[1, 0, 0], [-0.5, Math.sqrt(3) / 2, 0], [-0.5, -Math.sqrt(3) / 2, 0], [0, 0, 1]],
       trigonal_planar: [[1, 0, 0], [-0.5, Math.sqrt(3) / 2, 0], [-0.5, -Math.sqrt(3) / 2, 0]],
+      // Repeated directions intentionally introduce anisotropic weighting in generic mode.
+      rhombic_octa: [[1, 0, 0], [-1, 0, 0], [1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]],
+      seesaw: [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, 0, 1]],
+      square_antiprismatic: [[1, 0, 1], [0, 1, 1], [-1, 0, 1], [0, -1, 1], [Math.SQRT1_2, Math.SQRT1_2, -1], [-Math.SQRT1_2, Math.SQRT1_2, -1], [-Math.SQRT1_2, -Math.SQRT1_2, -1], [Math.SQRT1_2, -Math.SQRT1_2, -1]],
+      pentagonal_bipyramidal: [[1, 0, 0], [Math.cos(2 * Math.PI / 5), Math.sin(2 * Math.PI / 5), 0], [Math.cos(4 * Math.PI / 5), Math.sin(4 * Math.PI / 5), 0], [Math.cos(6 * Math.PI / 5), Math.sin(6 * Math.PI / 5), 0], [Math.cos(8 * Math.PI / 5), Math.sin(8 * Math.PI / 5), 0], [0, 0, 1], [0, 0, -1]],
       linear: [[0, 0, 1], [0, 0, -1]]
     };
     let activeSubshell = SUBSHELLS.d;
@@ -679,6 +796,7 @@
       octa: {
         label: "Octahedral (Oh)",
         deltaLabel: "Δo",
+        twoDelta: false,
         levels: [
           { label: "eg", coeff: 0.6, orbitals: ["dz2", "dx2-y2"], color: "#b4441d" },
           { label: "t2g", coeff: -0.4, orbitals: ["dxy", "dyz", "dzx"], color: "#1f4f8f" }
@@ -688,6 +806,7 @@
       tetra: {
         label: "Tetrahedral (Td)",
         deltaLabel: "Δt",
+        twoDelta: false,
         levels: [
           { label: "t2", coeff: 0.4, orbitals: ["dxy", "dyz", "dzx"], color: "#b4441d" },
           { label: "e", coeff: -0.6, orbitals: ["dz2", "dx2-y2"], color: "#1f4f8f" }
@@ -697,59 +816,141 @@
       square_planar: {
         label: "Square Planar (D4h)",
         deltaLabel: "Δsp",
+        twoDelta: true,
         levels: [
-          { label: "b1g", coeff: 1.2, orbitals: ["dx2-y2"], color: "#b4441d" },
-          { label: "b2g", coeff: 0.2, orbitals: ["dxy"], color: "#9d5a20" },
-          { label: "a1g", coeff: -0.4, orbitals: ["dz2"], color: "#2f7f61" },
-          { label: "eg", coeff: -0.5, orbitals: ["dyz", "dzx"], color: "#1f4f8f" }
+          { label: "b1g", coeff: 1.0, coeff2: 0.6, orbitals: ["dx2-y2"], color: "#b4441d" },
+          { label: "b2g", coeff: 0.2, coeff2: 0.2, orbitals: ["dxy"], color: "#9d5a20" },
+          { label: "a1g", coeff: -0.4, coeff2: 0.2, orbitals: ["dz2"], color: "#2f7f61" },
+          { label: "eg", coeff: -0.5, coeff2: -0.3, orbitals: ["dyz", "dzx"], color: "#1f4f8f" }
         ],
         mixings: [
-          { a: "dz2", b: "dx2-y2", coeff: 0.04 }
+          { a: "dz2", b: "dx2-y2", coeff: 0.03, coeff2: 0.02 }
         ]
       },
       square_pyramidal: {
         label: "Square Pyramidal (C4v)",
         deltaLabel: "Δspyr",
+        twoDelta: true,
         levels: [
-          { label: "b1", coeff: 0.8, orbitals: ["dx2-y2"], color: "#b4441d" },
-          { label: "b2", coeff: 0.2, orbitals: ["dxy"], color: "#9d5a20" },
-          { label: "a1", coeff: 0.0, orbitals: ["dz2"], color: "#2f7f61" },
-          { label: "e", coeff: -0.5, orbitals: ["dyz", "dzx"], color: "#1f4f8f" }
+          { label: "b1", coeff: 0.7, coeff2: 0.35, orbitals: ["dx2-y2"], color: "#b4441d" },
+          { label: "b2", coeff: 0.15, coeff2: 0.10, orbitals: ["dxy"], color: "#9d5a20" },
+          { label: "a1", coeff: 0.0, coeff2: 0.30, orbitals: ["dz2"], color: "#2f7f61" },
+          { label: "e", coeff: -0.425, coeff2: -0.375, orbitals: ["dyz", "dzx"], color: "#1f4f8f" }
         ],
         mixings: [
-          { a: "dz2", b: "dx2-y2", coeff: 0.08 },
-          { a: "dxy", b: "dx2-y2", coeff: 0.03 }
+          { a: "dz2", b: "dx2-y2", coeff: 0.05, coeff2: 0.03 },
+          { a: "dxy", b: "dx2-y2", coeff: 0.02, coeff2: 0.01 }
         ]
       },
       trigonal_bipyramidal: {
         label: "Trigonal Bipyramidal (D3h)",
         deltaLabel: "Δtbp",
+        twoDelta: true,
         levels: [
-          { label: "a1'", coeff: 0.8, orbitals: ["dz2"], color: "#b4441d" },
-          { label: "e'", coeff: 0.1, orbitals: ["dxy", "dx2-y2"], color: "#9d5a20" },
-          { label: "e''", coeff: -0.5, orbitals: ["dyz", "dzx"], color: "#1f4f8f" }
+          { label: "a1'", coeff: 0.7, coeff2: 0.25, orbitals: ["dz2"], color: "#b4441d" },
+          { label: "e'", coeff: 0.1, coeff2: 0.15, orbitals: ["dxy", "dx2-y2"], color: "#9d5a20" },
+          { label: "e''", coeff: -0.45, coeff2: -0.275, orbitals: ["dyz", "dzx"], color: "#1f4f8f" }
         ],
         mixings: [
-          { a: "dxy", b: "dx2-y2", coeff: 0.06 },
-          { a: "dyz", b: "dzx", coeff: 0.05 }
+          { a: "dxy", b: "dx2-y2", coeff: 0.04, coeff2: 0.02 },
+          { a: "dyz", b: "dzx", coeff: 0.03, coeff2: 0.02 }
         ]
+      },
+      trigonal_prismatic: {
+        label: "Trigonal Prism (D3h)",
+        deltaLabel: "Δtpr",
+        twoDelta: true,
+        levels: [
+          { label: "a1'", coeff: 0.45, coeff2: 0.35, orbitals: ["dz2"], color: "#b4441d" },
+          { label: "e''", coeff: 0.05, coeff2: 0.25, orbitals: ["dyz", "dzx"], color: "#9d5a20" },
+          { label: "e'", coeff: -0.30, coeff2: -0.45, orbitals: ["dxy", "dx2-y2"], color: "#1f4f8f" }
+        ],
+        mixings: [
+          { a: "dxy", b: "dx2-y2", coeff: 0.02, coeff2: 0.01 },
+          { a: "dyz", b: "dzx", coeff: 0.02, coeff2: 0.01 }
+        ]
+      },
+      trigonal_pyramidal: {
+        label: "Trigonal Pyramidal (C3v)",
+        deltaLabel: "Δtpyr",
+        twoDelta: true,
+        levels: [
+          { label: "e2", coeff: 0.30, coeff2: 0.20, orbitals: ["dxy", "dx2-y2"], color: "#b4441d" },
+          { label: "a1", coeff: 0.10, coeff2: 0.20, orbitals: ["dz2"], color: "#9d5a20" },
+          { label: "e1", coeff: -0.35, coeff2: -0.30, orbitals: ["dyz", "dzx"], color: "#1f4f8f" }
+        ],
+        mixings: []
       },
       trigonal_planar: {
         label: "Trigonal Planar (D3h')",
         deltaLabel: "Δtp",
+        twoDelta: true,
         levels: [
-          { label: "e'", coeff: 0.6, orbitals: ["dxy", "dx2-y2"], color: "#b4441d" },
-          { label: "a1'", coeff: -0.2, orbitals: ["dz2"], color: "#2f7f61" },
-          { label: "e''", coeff: -0.5, orbitals: ["dyz", "dzx"], color: "#1f4f8f" }
+          { label: "e'", coeff: 0.5, coeff2: 0.25, orbitals: ["dxy", "dx2-y2"], color: "#b4441d" },
+          { label: "a1'", coeff: -0.2, coeff2: 0.1, orbitals: ["dz2"], color: "#2f7f61" },
+          { label: "e''", coeff: -0.4, coeff2: -0.35, orbitals: ["dyz", "dzx"], color: "#1f4f8f" }
         ],
         mixings: [
-          { a: "dxy", b: "dx2-y2", coeff: 0.04 },
-          { a: "dz2", b: "dx2-y2", coeff: 0.02 }
+          { a: "dxy", b: "dx2-y2", coeff: 0.03, coeff2: 0.01 },
+          { a: "dz2", b: "dx2-y2", coeff: 0.01, coeff2: 0.01 }
         ]
+      },
+      rhombic_octa: {
+        label: "Rhombic Octahedral (D2h)",
+        deltaLabel: "Δrh",
+        twoDelta: true,
+        levels: [
+          { label: "a1", coeff: 0.55, coeff2: 0.10, orbitals: ["dx2-y2"], color: "#b4441d" },
+          { label: "b1", coeff: 0.20, coeff2: 0.25, orbitals: ["dz2"], color: "#9d5a20" },
+          { label: "b2", coeff: -0.05, coeff2: 0.20, orbitals: ["dxy"], color: "#2f7f61" },
+          { label: "b3", coeff: -0.25, coeff2: -0.20, orbitals: ["dzx"], color: "#3767a1" },
+          { label: "a2", coeff: -0.45, coeff2: -0.35, orbitals: ["dyz"], color: "#1f4f8f" }
+        ],
+        mixings: []
+      },
+      seesaw: {
+        label: "Seesaw (C2v)",
+        deltaLabel: "Δss",
+        twoDelta: true,
+        levels: [
+          { label: "a1", coeff: 0.65, coeff2: 0.20, orbitals: ["dx2-y2"], color: "#b4441d" },
+          { label: "a1'", coeff: 0.10, coeff2: 0.30, orbitals: ["dz2"], color: "#9d5a20" },
+          { label: "b1", coeff: -0.05, coeff2: 0.20, orbitals: ["dxy"], color: "#2f7f61" },
+          { label: "b2", coeff: -0.30, coeff2: -0.15, orbitals: ["dzx"], color: "#3767a1" },
+          { label: "a2", coeff: -0.40, coeff2: -0.35, orbitals: ["dyz"], color: "#1f4f8f" }
+        ],
+        mixings: [
+          { a: "dz2", b: "dx2-y2", coeff: 0.03, coeff2: 0.02 }
+        ]
+      },
+      square_antiprismatic: {
+        label: "Square Antiprismatic (D4d)",
+        deltaLabel: "Δsap",
+        twoDelta: true,
+        levels: [
+          { label: "e2", coeff: 0.45, coeff2: 0.30, orbitals: ["dx2-y2", "dxy"], color: "#b4441d" },
+          { label: "a1", coeff: 0.10, coeff2: 0.25, orbitals: ["dz2"], color: "#9d5a20" },
+          { label: "e1", coeff: -0.275, coeff2: -0.425, orbitals: ["dyz", "dzx"], color: "#1f4f8f" }
+        ],
+        mixings: [
+          { a: "dxy", b: "dx2-y2", coeff: 0.02, coeff2: 0.02 }
+        ]
+      },
+      pentagonal_bipyramidal: {
+        label: "Pentagonal Bipyramidal (D5h)",
+        deltaLabel: "Δpbp",
+        twoDelta: true,
+        levels: [
+          { label: "a1'", coeff: 0.60, coeff2: 0.30, orbitals: ["dz2"], color: "#b4441d" },
+          { label: "e1''", coeff: 0.10, coeff2: 0.20, orbitals: ["dyz", "dzx"], color: "#9d5a20" },
+          { label: "e2'", coeff: -0.35, coeff2: -0.40, orbitals: ["dxy", "dx2-y2"], color: "#1f4f8f" }
+        ],
+        mixings: []
       },
       linear: {
         label: "Linear (Dinfh)",
         deltaLabel: "Δlin",
+        twoDelta: false,
         levels: [
           { label: "sigma*", coeff: 1.0, orbitals: ["dz2"], color: "#b4441d" },
           { label: "pi*", coeff: 0.25, orbitals: ["dyz", "dzx"], color: "#9d5a20" },
@@ -896,20 +1097,26 @@
       return H;
     }
 
-    function buildCrystalFieldHamiltonian(preset, delta, geometry) {
-      if (ACTIVE_L !== 2) return buildGenericCrystalFieldHamiltonian(geometry, delta);
+    function weightedCoeff(base, second, delta1, delta2) {
+      const c1 = Number.isFinite(base) ? base : 0;
+      const c2 = Number.isFinite(second) ? second : 0;
+      return c1 * delta1 + c2 * delta2;
+    }
+
+    function buildCrystalFieldHamiltonian(preset, delta1, delta2, geometry) {
+      if (ACTIVE_L !== 2) return buildGenericCrystalFieldHamiltonian(geometry, delta1);
       const H = makeZeroMatrix(ORBITAL_BASIS.length);
       for (const level of preset.levels) {
         for (const orbital of level.orbitals) {
           const i = ORBITAL_BASIS.indexOf(orbital);
-          if (i >= 0) H[i][i] = level.coeff * delta;
+          if (i >= 0) H[i][i] = weightedCoeff(level.coeff, level.coeff2, delta1, delta2);
         }
       }
       for (const mix of (preset.mixings || [])) {
         const i = ORBITAL_BASIS.indexOf(mix.a);
         const j = ORBITAL_BASIS.indexOf(mix.b);
         if (i >= 0 && j >= 0 && i !== j) {
-          const v = mix.coeff * delta;
+          const v = weightedCoeff(mix.coeff, mix.coeff2, delta1, delta2);
           H[i][j] = v;
           H[j][i] = v;
         }
@@ -917,15 +1124,17 @@
       return H;
     }
 
-    function assignTemplate(levelEnergy, delta, preset) {
-      if (Math.abs(delta) < 1e-12) {
+    function assignTemplate(levelEnergy, delta1, delta2, preset) {
+      const denom = Math.max(1e-12, Math.abs(delta1) + Math.abs(delta2));
+      if (denom < 1e-12) {
         return preset.levels[0];
       }
-      const coeff = levelEnergy / delta;
+      const coeff = levelEnergy / denom;
       let best = preset.levels[0];
-      let bestDist = Math.abs(coeff - best.coeff);
+      let bestDist = Math.abs(coeff - ((Number.isFinite(best.coeff) ? best.coeff : 0) + (Number.isFinite(best.coeff2) ? best.coeff2 : 0)));
       for (let i = 1; i < preset.levels.length; i += 1) {
-        const d = Math.abs(coeff - preset.levels[i].coeff);
+        const cRef = (Number.isFinite(preset.levels[i].coeff) ? preset.levels[i].coeff : 0) + (Number.isFinite(preset.levels[i].coeff2) ? preset.levels[i].coeff2 : 0);
+        const d = Math.abs(coeff - cRef);
         if (d < bestDist) {
           bestDist = d;
           best = preset.levels[i];
@@ -1093,8 +1302,8 @@
       return best;
     }
 
-    function buildOccupiedLevels(preset, dElectrons, delta, geometry = "octa") {
-      const H = buildCrystalFieldHamiltonian(preset, delta, geometry);
+    function buildOccupiedLevels(preset, dElectrons, delta1, delta2 = 0, geometry = "octa") {
+      const H = buildCrystalFieldHamiltonian(preset, delta1, delta2, geometry);
       const { eigenvalues, eigenvectors } = jacobiEigenSymmetric(H);
       const states = eigenvalues.map((energy, idx) => {
         const components = ORBITAL_BASIS.map((_, i) => eigenvectors[i][idx]);
@@ -1131,7 +1340,7 @@
         e -= 1;
       }
 
-      const tol = Math.max(1e-9, Math.abs(delta) * 1e-6);
+      const tol = Math.max(1e-9, Math.abs(delta1) * 1e-6);
       const groups = [];
       for (let i = 0; i < states.length; i += 1) {
         const st = states[i];
@@ -1155,11 +1364,11 @@
         const degenerateMixSpec = buildDegenerateMixSpec(g.states);
         const orbitalOcc = g.states.map((s) => s.occ);
         const electrons = orbitalOcc.reduce((s, v) => s + v, 0);
-        const tmpl = assignTemplate(g.energy, delta, preset);
+        const tmpl = assignTemplate(g.energy, delta1, delta2, preset);
         return {
           label: tmpl.label,
           color: tmpl.color,
-          coeff: Math.abs(delta) < 1e-12 ? 0 : g.energy / delta,
+          coeff: Math.abs(delta1) + Math.abs(delta2) < 1e-12 ? 0 : g.energy / (Math.abs(delta1) + Math.abs(delta2)),
           energy: g.energy,
           orbitals,
           hoverOrbitals,
@@ -1282,13 +1491,24 @@
       return orbIdx * 2 + spinIdx;
     }
 
-    function buildTotalHamiltonian(preset, delta, lambdaValue, bField, opts, geometry = "octa") {
+    function magneticUnitVector(thetaDeg, phiDeg) {
+      const th = (Number(thetaDeg) || 0) * Math.PI / 180;
+      const ph = (Number(phiDeg) || 0) * Math.PI / 180;
+      const st = Math.sin(th);
+      return {
+        x: st * Math.cos(ph),
+        y: st * Math.sin(ph),
+        z: Math.cos(th)
+      };
+    }
+
+    function buildTotalHamiltonian(preset, delta1, delta2, lambdaValue, bField, thetaDeg, phiDeg, opts, geometry = "octa") {
       const { cf, soi, magnetic } = opts;
       const nOrb = ORBITAL_BASIS.length;
       const H = makeZeroMatrix(2 * nOrb);
 
       if (cf) {
-        const Hcf = buildCrystalFieldHamiltonian(preset, delta, geometry);
+        const Hcf = buildCrystalFieldHamiltonian(preset, delta1, delta2, geometry);
         for (let i = 0; i < nOrb; i += 1) {
           for (let j = 0; j < nOrb; j += 1) {
             for (let s = 0; s < 2; s += 1) {
@@ -1330,12 +1550,18 @@
       }
 
       if (magnetic) {
+        const nB = magneticUnitVector(thetaDeg, phiDeg);
+        const bz = nB.z;
+        const bxy = Math.hypot(nB.x, nB.y);
         for (let i = 0; i < nOrb; i += 1) {
           const m = orbitalM(ORBITAL_BASIS[i]);
-          for (let s = 0; s < 2; s += 1) {
-            const s2 = spinSignFromIndex(s);
-            H[stateIndex(i, s)][stateIndex(i, s)] += MU_B_EV_T * bField * (m + s2);
-          }
+          const iu = stateIndex(i, 0);
+          const id = stateIndex(i, 1);
+          H[iu][iu] += MU_B_EV_T * bField * (m * bz + bz);
+          H[id][id] += MU_B_EV_T * bField * (m * bz - bz);
+          const v = MU_B_EV_T * bField * bxy;
+          H[iu][id] += v;
+          H[id][iu] += v;
         }
       }
 
@@ -1489,26 +1715,26 @@
       transitionPanelEl.innerHTML = html.join("");
     }
 
-    function sortedEigenvaluesForB(preset, delta, lambdaValue, bField, geometry = "octa") {
-      const H = buildTotalHamiltonian(preset, delta, lambdaValue, bField, { cf: true, soi: true, magnetic: true }, geometry);
+    function sortedEigenvaluesForB(preset, delta1, delta2, lambdaValue, bField, thetaDeg, phiDeg, geometry = "octa") {
+      const H = buildTotalHamiltonian(preset, delta1, delta2, lambdaValue, bField, thetaDeg, phiDeg, { cf: true, soi: true, magnetic: true }, geometry);
       const { eigenvalues } = jacobiEigenSymmetric(H, 140, 1e-13);
       return [...eigenvalues].sort((a, b) => a - b);
     }
 
-    function computeStateGFactors(preset, delta, lambdaValue, bField, geometry = "octa") {
+    function computeStateGFactors(preset, delta1, delta2, lambdaValue, bField, thetaDeg, phiDeg, geometry = "octa") {
       const db = Math.max(1e-4, Math.abs(bField) * 0.02);
-      const ePlus = sortedEigenvaluesForB(preset, delta, lambdaValue, bField + db, geometry);
+      const ePlus = sortedEigenvaluesForB(preset, delta1, delta2, lambdaValue, bField + db, thetaDeg, phiDeg, geometry);
       if (bField >= db) {
-        const eMinus = sortedEigenvaluesForB(preset, delta, lambdaValue, bField - db, geometry);
+        const eMinus = sortedEigenvaluesForB(preset, delta1, delta2, lambdaValue, bField - db, thetaDeg, phiDeg, geometry);
         return ePlus.map((ep, i) => (ep - eMinus[i]) / (2 * db * MU_B_EV_T));
       }
-      const e0 = sortedEigenvaluesForB(preset, delta, lambdaValue, bField, geometry);
+      const e0 = sortedEigenvaluesForB(preset, delta1, delta2, lambdaValue, bField, thetaDeg, phiDeg, geometry);
       return ePlus.map((ep, i) => (ep - e0[i]) / (db * MU_B_EV_T));
     }
 
-    function solveLevelStage(preset, delta, lambdaValue, bField, opts, dElectrons = 1, geometry = "octa") {
+    function solveLevelStage(preset, delta1, delta2, lambdaValue, bField, thetaDeg, phiDeg, opts, dElectrons = 1, geometry = "octa") {
       const nOrb = ORBITAL_BASIS.length;
-      const H = buildTotalHamiltonian(preset, delta, lambdaValue, bField, opts, geometry);
+      const H = buildTotalHamiltonian(preset, delta1, delta2, lambdaValue, bField, thetaDeg, phiDeg, opts, geometry);
       const { eigenvalues, eigenvectors } = jacobiEigenSymmetric(H, 140, 1e-13);
       const order = eigenvalues.map((e, i) => ({ e, i })).sort((a, b) => a.e - b.e);
       const states = [];
@@ -1561,7 +1787,7 @@
         eLeft -= 1;
       }
 
-      const scale = Math.max(1e-4, Math.abs(delta), Math.abs(lambdaValue), Math.abs(MU_B_EV_T * bField));
+      const scale = Math.max(1e-4, Math.abs(delta1), Math.abs(delta2), Math.abs(lambdaValue), Math.abs(MU_B_EV_T * bField));
       const tol = scale * 1e-7;
       const groups = [];
       for (let i = 0; i < states.length; i += 1) {
@@ -2310,7 +2536,9 @@
 
     function renderDiagram({ nl, scaleMode = "deformed", stage1Levels, stage1Label, stage1Tag, stage2Levels, stage2Label, stage2Tag, stage3Levels, lambdaValue, bField, selectedStage = null, selectedIndex = null }) {
       const yMid = 226;
-      const yTop = 20;
+      const labelBandTop = 18;
+      const labelBandBottom = 62;
+      const yTop = labelBandBottom + 4;
       const yBottom = 432;
       const SPLIT_GAIN = 2.6;
       const MIN_HALF_SPAN_PX = 22;
@@ -2504,14 +2732,17 @@
       function stageLabelPos(stageData, fallbackX) {
         const yList = (stageData && stageData.yList) ? stageData.yList : [];
         const nodes = (stageData && stageData.nodes) ? stageData.nodes : [];
-        if (!yList.length) return { x: fallbackX, y: 66 };
+        if (!yList.length) return { x: fallbackX, y: (labelBandTop + labelBandBottom) * 0.5 };
         let xCenter = fallbackX;
         if (nodes.length) {
           const sum = nodes.reduce((acc, node) => acc + (node.xLeft + node.xRight) * 0.5, 0);
           xCenter = sum / nodes.length;
         }
-        // Keep stage titles clear from the nearest level line.
-        return { x: xCenter, y: Math.max(20, Math.min(...yList) - 42) };
+        // Keep stage titles in reserved top band, always above highest level.
+        const yTopLevel = Math.min(...yList);
+        const preferred = yTopLevel - 18;
+        const y = Math.max(labelBandTop, Math.min(labelBandBottom, preferred));
+        return { x: xCenter, y };
       }
 
       const stage1LabelPos = stageLabelPos(stageA, (x1a + x1b) * 0.5);
@@ -2582,8 +2813,11 @@
       const nOrb = ORBITAL_BASIS.length;
       const n = 1;
       const delta = Number(deltaEl.value);
+      const delta2 = Number(delta2El.value);
       const lambdaValue = Number(lambdaEl.value);
       const bField = Number(bFieldEl.value);
+      const bTheta = Number(bThetaEl.value);
+      const bPhi = Number(bPhiEl.value);
       if (!Number.isFinite(delta) || delta < 0) {
         document.getElementById("status").textContent = "Delta must be >= 0.";
         return;
@@ -2596,22 +2830,36 @@
         document.getElementById("status").textContent = "B must be >= 0.";
         return;
       }
+      if (!Number.isFinite(bTheta)) {
+        document.getElementById("status").textContent = "Theta must be a number.";
+        return;
+      }
+      if (!Number.isFinite(bPhi)) {
+        document.getElementById("status").textContent = "Phi must be a number.";
+        return;
+      }
 
       const preset = FIELD_PRESETS[geometry] || FIELD_PRESETS.octa;
-      const soiFirst = lambdaValue > delta;
+      const useDelta2 = !!preset.twoDelta;
+      if (useDelta2 && (!Number.isFinite(delta2) || delta2 < 0)) {
+        document.getElementById("status").textContent = "Delta2 must be >= 0.";
+        return;
+      }
+      const d2 = useDelta2 ? delta2 : 0;
+      const soiFirst = lambdaValue > Math.max(delta, d2);
       const stage1 = soiFirst
-        ? solveLevelStage(preset, delta, lambdaValue, 0, { cf: false, soi: true, magnetic: false }, n, geometry)
-        : solveLevelStage(preset, delta, 0, 0, { cf: true, soi: false, magnetic: false }, n, geometry);
-      const stage2 = solveLevelStage(preset, delta, lambdaValue, 0, { cf: true, soi: true, magnetic: false }, n, geometry);
-      const stage3 = solveLevelStage(preset, delta, lambdaValue, bField, { cf: true, soi: true, magnetic: true }, n, geometry);
+        ? solveLevelStage(preset, delta, d2, lambdaValue, 0, bTheta, bPhi, { cf: false, soi: true, magnetic: false }, n, geometry)
+        : solveLevelStage(preset, delta, d2, 0, 0, bTheta, bPhi, { cf: true, soi: false, magnetic: false }, n, geometry);
+      const stage2 = solveLevelStage(preset, delta, d2, lambdaValue, 0, bTheta, bPhi, { cf: true, soi: true, magnetic: false }, n, geometry);
+      const stage3 = solveLevelStage(preset, delta, d2, lambdaValue, bField, bTheta, bPhi, { cf: true, soi: true, magnetic: true }, n, geometry);
       const dim = 2 * nOrb;
       const Hfree = makeZeroMatrix(dim);
       const H1 = soiFirst
-        ? buildTotalHamiltonian(preset, delta, lambdaValue, 0, { cf: false, soi: true, magnetic: false }, geometry)
-        : buildTotalHamiltonian(preset, delta, 0, 0, { cf: true, soi: false, magnetic: false }, geometry);
-      const H2 = buildTotalHamiltonian(preset, delta, lambdaValue, 0, { cf: true, soi: true, magnetic: false }, geometry);
-      const H3 = buildTotalHamiltonian(preset, delta, lambdaValue, bField, { cf: true, soi: true, magnetic: true }, geometry);
-      const gByState = computeStateGFactors(preset, delta, lambdaValue, bField, geometry);
+        ? buildTotalHamiltonian(preset, delta, d2, lambdaValue, 0, bTheta, bPhi, { cf: false, soi: true, magnetic: false }, geometry)
+        : buildTotalHamiltonian(preset, delta, d2, 0, 0, bTheta, bPhi, { cf: true, soi: false, magnetic: false }, geometry);
+      const H2 = buildTotalHamiltonian(preset, delta, d2, lambdaValue, 0, bTheta, bPhi, { cf: true, soi: true, magnetic: false }, geometry);
+      const H3 = buildTotalHamiltonian(preset, delta, d2, lambdaValue, bField, bTheta, bPhi, { cf: true, soi: true, magnetic: true }, geometry);
+      const gByState = computeStateGFactors(preset, delta, d2, lambdaValue, bField, bTheta, bPhi, geometry);
       for (const lv of stage3.levels) {
         const idxs = lv.stateIndices || [];
         const vals = idxs.map((i) => gByState[i]).filter((v) => Number.isFinite(v));
@@ -2709,8 +2957,11 @@
           geometry,
           d_count: 1,
           delta_ev: Number(delta.toFixed(4)),
+          delta2_ev: Number(d2.toFixed(4)),
           lambda_ev: Number(lambdaValue.toFixed(4)),
           b_field_t: Number(bField.toFixed(4)),
+          b_theta_deg: Number(bTheta.toFixed(2)),
+          b_phi_deg: Number(bPhi.toFixed(2)),
           soi_first: soiFirst ? 1 : 0,
           trigger
         });
@@ -2721,11 +2972,36 @@
       syncLSelectorByN();
       calculate(true, "n_change");
     });
+    function syncDelta2Visibility() {
+      const preset = FIELD_PRESETS[geometryEl.value] || FIELD_PRESETS.octa;
+      delta2WrapEl.style.display = preset.twoDelta ? "" : "none";
+    }
     lEl.addEventListener("change", () => calculate(true, "l_change"));
-    geometryEl.addEventListener("change", () => calculate(true, "geometry_change"));
+    geometryEl.addEventListener("change", () => {
+      syncDelta2Visibility();
+      calculate(true, "geometry_change");
+    });
     deltaEl.addEventListener("input", () => calculate(true, "delta_input"));
+    delta2El.addEventListener("input", () => calculate(true, "delta2_input"));
     lambdaEl.addEventListener("input", () => calculate(true, "lambda_input"));
     bFieldEl.addEventListener("input", () => calculate(true, "b_field_input"));
+    bThetaEl.addEventListener("input", () => calculate(true, "b_theta_input"));
+    bPhiEl.addEventListener("input", () => calculate(true, "b_phi_input"));
+    bDirXEl.addEventListener("click", () => {
+      bThetaEl.value = "90";
+      bPhiEl.value = "0";
+      calculate(true, "b_dir_x");
+    });
+    bDirYEl.addEventListener("click", () => {
+      bThetaEl.value = "90";
+      bPhiEl.value = "90";
+      calculate(true, "b_dir_y");
+    });
+    bDirZEl.addEventListener("click", () => {
+      bThetaEl.value = "0";
+      bPhiEl.value = "0";
+      calculate(true, "b_dir_z");
+    });
     scaleModeEl.addEventListener("change", () => calculate(true, "scale_mode_change"));
     diagramEl.addEventListener("click", (event) => {
       const target = event.target.closest(".orbital-hit");
@@ -2854,6 +3130,7 @@
     orbitalPreviewEl.addEventListener("pointercancel", stopDrag);
 
     syncLSelectorByN();
+    syncDelta2Visibility();
     clearOrbitalPreview();
     calculate(false, "init");
   </script>
