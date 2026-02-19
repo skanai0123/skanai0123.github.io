@@ -1,0 +1,863 @@
+﻿<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Crystal Field Calculator</title>
+  <link rel="icon" href="../../fabicons/color center.svg" type="image/svg+xml">
+  <style>
+    :root {
+      --bg: #f3f6fb;
+      --panel: #ffffff;
+      --line: #d3dceb;
+      --text: #10213b;
+      --sub: #4f627f;
+      --accent: #0a66c2;
+      --accent-soft: #e8f1ff;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "Noto Sans JP", sans-serif;
+      color: var(--text);
+      background: radial-gradient(circle at 12% 10%, #e6efff 0, #f3f6fb 35%, #edf2fa 100%);
+      min-height: 100vh;
+    }
+
+    .wrap {
+      width: min(980px, 94vw);
+      margin: 36px auto;
+      display: grid;
+      gap: 20px;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 20px;
+      box-shadow: 0 8px 28px rgba(16, 33, 59, 0.08);
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+
+    .version {
+      font-size: 12px;
+      color: var(--sub);
+      font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      height: 32px;
+      padding: 0 12px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--text);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: clamp(24px, 3.5vw, 34px);
+      line-height: 1.15;
+    }
+
+    p {
+      margin: 0;
+      color: var(--sub);
+    }
+
+    .form {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px;
+      margin-top: 16px;
+    }
+
+    label {
+      display: block;
+      font-size: 13px;
+      color: var(--sub);
+      margin-bottom: 6px;
+      font-weight: 600;
+    }
+
+    .inline-check {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      height: 40px;
+      padding: 0 10px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fff;
+      color: var(--text);
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .inline-check input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      margin: 0;
+    }
+
+    select, input {
+      width: 100%;
+      height: 40px;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      padding: 0 11px;
+      font-size: 15px;
+      color: var(--text);
+      background: #fff;
+    }
+
+    button {
+      margin-top: 16px;
+      height: 42px;
+      border: 0;
+      border-radius: 10px;
+      background: var(--accent);
+      color: #fff;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      padding: 0 18px;
+    }
+
+    .result {
+      display: grid;
+      gap: 12px;
+    }
+
+    .pill {
+      display: inline-block;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-weight: 700;
+      font-size: 13px;
+    }
+
+    .split {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .box {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px;
+      background: #fcfdff;
+    }
+
+    .level {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px dashed #dfE5f0;
+      font-size: 14px;
+    }
+
+    .level:last-child { border-bottom: 0; }
+
+    .muted { color: var(--sub); font-size: 13px; }
+
+    .diagram-wrap {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px;
+      background: #fcfdff;
+    }
+
+    #diagram {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    .diagram-label {
+      fill: #334a6f;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .diagram-energy {
+      fill: #4f627f;
+      font-size: 11px;
+    }
+
+    .diagram-note {
+      fill: #5f7190;
+      font-size: 11px;
+    }
+
+    .orbital-hit {
+      cursor: pointer;
+    }
+
+    #orbitalPreview {
+      width: 100%;
+      max-width: 560px;
+      height: auto;
+      display: block;
+      margin-top: 8px;
+      border: 1px solid #d5deee;
+      border-radius: 10px;
+      background: linear-gradient(180deg, #f9fbff 0%, #eef3fb 100%);
+      touch-action: none;
+      cursor: grab;
+    }
+
+    @media (max-width: 740px) {
+      .split { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="card">
+      <div class="topbar">
+        <div class="version">v0.0.0</div>
+        <a class="back-link" href="../index.html">ハブへ戻る</a>
+      </div>
+      <h1>結晶場分裂 計算ツール</h1>
+      <p>d電子数と結晶場パラメータから、占有状態・不対電子数・CFSE を計算します。</p>
+      <div class="form">
+        <div>
+          <label for="geometry">配位場</label>
+          <select id="geometry">
+            <option value="octa">八面体 (Oh)</option>
+            <option value="tetra">四面体 (Td)</option>
+            <option value="square_planar">正方平面 (D4h)</option>
+            <option value="square_pyramidal">正方錐 (C4v)</option>
+            <option value="trigonal_bipyramidal">三角両錐 (D3h)</option>
+            <option value="trigonal_planar">三角平面 (D3h')</option>
+            <option value="linear">直線 (Dinfh)</option>
+          </select>
+        </div>
+        <div>
+          <label for="dCount">d電子数</label>
+          <select id="dCount"></select>
+        </div>
+        <div>
+          <label for="delta">Δ (eV)</label>
+          <input id="delta" type="number" min="0" step="0.01" value="1.00">
+        </div>
+        <div>
+          <label for="soiEnable">SOI</label>
+          <label class="inline-check"><input id="soiEnable" type="checkbox">結晶場の後で有効化</label>
+        </div>
+        <div>
+          <label for="lambda">λ (eV)</label>
+          <input id="lambda" type="number" min="0" step="0.01" value="0.10" disabled>
+        </div>
+      </div>
+      <button id="run">計算する</button>
+    </section>
+
+    <section class="card result">
+      <div><span id="status" class="pill">準備完了</span></div>
+      <div class="box">
+        <strong>準位一覧</strong>
+        <div id="levelList"></div>
+      </div>
+      <div class="box">
+        <div class="level"><span>CFSE</span><strong id="cfse">-</strong></div>
+        <div class="level"><span>SOI補正後エネルギー</span><strong id="totalEnergy">-</strong></div>
+        <div class="level"><span>不対電子数</span><strong id="unpaired">-</strong></div>
+        <div class="level"><span>スピンのみ磁気モーメント μ (BM)</span><strong id="mu">-</strong></div>
+      </div>
+      <div class="diagram-wrap">
+        <svg id="diagram" viewBox="0 0 840 300" role="img" aria-label="結晶場分裂図"></svg>
+      </div>
+      <div class="box">
+        <strong>軌道プレビュー</strong>
+        <div id="orbitalHint" class="muted">分裂した軌道線をクリックすると、3D関数として固定表示します。</div>
+        <canvas id="orbitalPreview" width="560" height="300" role="img" aria-label="軌道プレビュー"></canvas>
+      </div>
+      <p class="muted" id="note"></p>
+    </section>
+  </main>
+
+  <script>
+    const dCount = document.getElementById("dCount");
+    for (let i = 0; i <= 10; i += 1) {
+      const op = document.createElement("option");
+      op.value = String(i);
+      op.textContent = `d${i}`;
+      dCount.appendChild(op);
+    }
+
+    const geometryEl = document.getElementById("geometry");
+    const deltaEl = document.getElementById("delta");
+    const soiEnableEl = document.getElementById("soiEnable");
+    const lambdaEl = document.getElementById("lambda");
+    const diagramEl = document.getElementById("diagram");
+    const orbitalPreviewEl = document.getElementById("orbitalPreview");
+    const orbitalCtx = orbitalPreviewEl.getContext("2d");
+    const orbitalHintEl = document.getElementById("orbitalHint");
+    const levelListEl = document.getElementById("levelList");
+    const DEFAULT_VIEW_AX = -Math.atan(1 / Math.sqrt(2)); // [111] view tilt
+    const DEFAULT_VIEW_AY = Math.PI / 4; // [111] view azimuth
+    const orbitalView = {
+      name: null,
+      label: "",
+      ax: DEFAULT_VIEW_AX,
+      ay: DEFAULT_VIEW_AY,
+      dragging: false,
+      pointerId: null,
+      lastX: 0,
+      lastY: 0
+    };
+
+    const FIELD_PRESETS = {
+      octa: {
+        label: "八面体 (Oh)",
+        deltaLabel: "Δo",
+        levels: [
+          { label: "eg", coeff: 0.6, orbitals: ["dz2", "dx2-y2"], color: "#b4441d" },
+          { label: "t2g", coeff: -0.4, orbitals: ["dxy", "dyz", "dzx"], color: "#1f4f8f" }
+        ]
+      },
+      tetra: {
+        label: "四面体 (Td)",
+        deltaLabel: "Δt",
+        levels: [
+          { label: "t2", coeff: 0.4, orbitals: ["dxy", "dyz", "dzx"], color: "#b4441d" },
+          { label: "e", coeff: -0.6, orbitals: ["dz2", "dx2-y2"], color: "#1f4f8f" }
+        ]
+      },
+      square_planar: {
+        label: "正方平面 (D4h)",
+        deltaLabel: "Δsp",
+        levels: [
+          { label: "b1g", coeff: 1.2, orbitals: ["dx2-y2"], color: "#b4441d" },
+          { label: "b2g", coeff: 0.2, orbitals: ["dxy"], color: "#9d5a20" },
+          { label: "a1g", coeff: -0.4, orbitals: ["dz2"], color: "#2f7f61" },
+          { label: "eg", coeff: -0.5, orbitals: ["dyz", "dzx"], color: "#1f4f8f" }
+        ]
+      },
+      square_pyramidal: {
+        label: "正方錐 (C4v)",
+        deltaLabel: "Δspyr",
+        levels: [
+          { label: "b1", coeff: 0.8, orbitals: ["dx2-y2"], color: "#b4441d" },
+          { label: "b2", coeff: 0.2, orbitals: ["dxy"], color: "#9d5a20" },
+          { label: "a1", coeff: 0.0, orbitals: ["dz2"], color: "#2f7f61" },
+          { label: "e", coeff: -0.5, orbitals: ["dyz", "dzx"], color: "#1f4f8f" }
+        ]
+      },
+      trigonal_bipyramidal: {
+        label: "三角両錐 (D3h)",
+        deltaLabel: "Δtbp",
+        levels: [
+          { label: "a1'", coeff: 0.8, orbitals: ["dz2"], color: "#b4441d" },
+          { label: "e'", coeff: 0.1, orbitals: ["dxy", "dx2-y2"], color: "#9d5a20" },
+          { label: "e''", coeff: -0.5, orbitals: ["dyz", "dzx"], color: "#1f4f8f" }
+        ]
+      },
+      trigonal_planar: {
+        label: "三角平面 (D3h')",
+        deltaLabel: "Δtp",
+        levels: [
+          { label: "e'", coeff: 0.6, orbitals: ["dxy", "dx2-y2"], color: "#b4441d" },
+          { label: "a1'", coeff: -0.2, orbitals: ["dz2"], color: "#2f7f61" },
+          { label: "e''", coeff: -0.5, orbitals: ["dyz", "dzx"], color: "#1f4f8f" }
+        ]
+      },
+      linear: {
+        label: "直線 (Dinfh)",
+        deltaLabel: "Δlin",
+        levels: [
+          { label: "sigma*", coeff: 1.0, orbitals: ["dz2"], color: "#b4441d" },
+          { label: "pi*", coeff: 0.25, orbitals: ["dyz", "dzx"], color: "#9d5a20" },
+          { label: "delta", coeff: -0.75, orbitals: ["dxy", "dx2-y2"], color: "#1f4f8f" }
+        ]
+      }
+    };
+
+    function allocateElectrons(levels, totalElectrons) {
+      const slots = [];
+      for (let li = 0; li < levels.length; li += 1) {
+        for (let oi = 0; oi < levels[li].orbitals.length; oi += 1) {
+          slots.push({ levelIndex: li, orbitalIndex: oi, occ: 0 });
+        }
+      }
+      let e = totalElectrons;
+      for (const slot of slots) {
+        if (e <= 0) break;
+        slot.occ = 1;
+        e -= 1;
+      }
+      for (const slot of slots) {
+        if (e <= 0) break;
+        slot.occ = 2;
+        e -= 1;
+      }
+      return slots;
+    }
+
+    function buildOccupiedLevels(preset, dElectrons, delta) {
+      const sorted = [...preset.levels].sort((a, b) => a.coeff - b.coeff);
+      const slots = allocateElectrons(sorted, dElectrons);
+      const levels = sorted.map((level, idx) => {
+        const orbitalOcc = level.orbitals.map((_, oi) => {
+          const slot = slots.find((s) => s.levelIndex === idx && s.orbitalIndex === oi);
+          return slot ? slot.occ : 0;
+        });
+        const electrons = orbitalOcc.reduce((sum, v) => sum + v, 0);
+        return {
+          ...level,
+          energy: level.coeff * delta,
+          orbitalOcc,
+          electrons
+        };
+      });
+      const cfse = levels.reduce((sum, level) => sum + level.electrons * level.energy, 0);
+      const unpaired = slots.reduce((sum, slot) => sum + (slot.occ === 1 ? 1 : 0), 0);
+      return { levels, cfse, unpaired };
+    }
+
+    function applySOIAfterCrystalField(levels, lambdaValue, enabled) {
+      if (!enabled) {
+        return { levelsWithSOI: levels, soiCorrection: 0, totalEnergy: levels.reduce((s, l) => s + l.electrons * l.energy, 0) };
+      }
+      const half = lambdaValue * 0.5;
+      let soiCorrection = 0;
+      const levelsWithSOI = levels.map((level) => {
+        const orbitalSOI = level.orbitals.map((orbital, idx) => {
+          const occ = level.orbitalOcc[idx];
+          const lowerOcc = Math.min(occ, 1);
+          const upperOcc = Math.max(occ - 1, 0);
+          const lowerEnergy = level.energy - half;
+          const upperEnergy = level.energy + half;
+          soiCorrection += lowerOcc * (lowerEnergy - level.energy) + upperOcc * (upperEnergy - level.energy);
+          return { orbital, lowerOcc, upperOcc, lowerEnergy, upperEnergy };
+        });
+        return { ...level, orbitalSOI };
+      });
+      const totalEnergy = levels.reduce((s, l) => s + l.electrons * l.energy, 0) + soiCorrection;
+      return { levelsWithSOI, soiCorrection, totalEnergy };
+    }
+
+    function drawArrow(x, y, up) {
+      const dir = up ? -1 : 1;
+      const stemY = y + dir * 14;
+      const headY = y + dir * 19;
+      const headLeft = x - 4;
+      const headRight = x + 4;
+      return [
+        `<line x1="${x}" y1="${y}" x2="${x}" y2="${stemY}" stroke="#0a66c2" stroke-width="2"/>`,
+        `<line x1="${headLeft}" y1="${headY}" x2="${x}" y2="${stemY}" stroke="#0a66c2" stroke-width="2"/>`,
+        `<line x1="${headRight}" y1="${headY}" x2="${x}" y2="${stemY}" stroke="#0a66c2" stroke-width="2"/>`
+      ].join("");
+    }
+
+    function drawLevelGroup({ y, label, energy, orbitalNames, orbitalOcc, color, x0, x1, showElectrons, soiSplitPx }) {
+      const content = [];
+      content.push(`<text x="${x0 - 40}" y="${y + 4}" class="diagram-label">${label}</text>`);
+      content.push(`<text x="${x1 + 10}" y="${y + 4}" class="diagram-energy">${energy.toFixed(3)} eV</text>`);
+
+      const width = x1 - x0;
+      const orbitalCount = orbitalNames.length;
+      const orbitalGap = width / orbitalCount;
+
+      for (let i = 0; i < orbitalCount; i += 1) {
+        const cx = x0 + orbitalGap * (i + 0.5);
+        const lx0 = cx - 24;
+        const lx1 = cx + 24;
+        const orbital = orbitalNames[i] || "d";
+        content.push(`<g class="orbital-hit" data-orbital="${orbital}" data-label="${label}">`);
+        if (soiSplitPx > 0) {
+          const yLower = y + soiSplitPx;
+          const yUpper = y - soiSplitPx;
+          content.push(`<line x1="${lx0}" y1="${yLower}" x2="${lx1}" y2="${yLower}" stroke="${color}" stroke-width="2.3" stroke-linecap="round"/>`);
+          content.push(`<line x1="${lx0}" y1="${yUpper}" x2="${lx1}" y2="${yUpper}" stroke="${color}" stroke-width="2.3" stroke-linecap="round" opacity="0.75"/>`);
+        } else {
+          content.push(`<line x1="${lx0}" y1="${y}" x2="${lx1}" y2="${y}" stroke="${color}" stroke-width="3" stroke-linecap="round"/>`);
+        }
+        if (showElectrons && orbitalOcc[i] >= 1) content.push(drawArrow(cx - 7, y - 2, true));
+        if (showElectrons && orbitalOcc[i] >= 2) content.push(drawArrow(cx + 7, y + 2, false));
+        content.push(`</g>`);
+      }
+      return content.join("");
+    }
+
+    function clearPreviewCanvas() {
+      orbitalCtx.clearRect(0, 0, orbitalPreviewEl.width, orbitalPreviewEl.height);
+      orbitalCtx.fillStyle = "#f3f7ff";
+      orbitalCtx.fillRect(0, 0, orbitalPreviewEl.width, orbitalPreviewEl.height);
+    }
+
+    function orbitalAngular(name, nx, ny, nz) {
+      if (name === "dxy") return 2.0 * nx * ny;
+      if (name === "dyz") return 2.0 * ny * nz;
+      if (name === "dzx") return 2.0 * nz * nx;
+      if (name === "dx2-y2") return nx * nx - ny * ny;
+      if (name === "dz2") return 0.5 * (3.0 * nz * nz - 1.0);
+      return nx * nx - ny * ny;
+    }
+
+    function rotateXYZ(x, y, z, ax, ay) {
+      const cx = Math.cos(ax);
+      const sx = Math.sin(ax);
+      const cy = Math.cos(ay);
+      const sy = Math.sin(ay);
+      const y1 = y * cx - z * sx;
+      const z1 = y * sx + z * cx;
+      const x2 = x * cy + z1 * sy;
+      const z2 = -x * sy + z1 * cy;
+      return { x: x2, y: y1, z: z2 };
+    }
+
+    function projectPoint(p, w, h) {
+      const f = 310 / (310 - p.z);
+      return { x: w * 0.5 + p.x * f, y: h * 0.55 - p.y * f, z: p.z };
+    }
+
+    function drawAxes(ax, ay) {
+      const w = orbitalPreviewEl.width;
+      const h = orbitalPreviewEl.height;
+      const axes = [
+        { a: [-85, 0, 0], b: [85, 0, 0], name: "x" },
+        { a: [0, -85, 0], b: [0, 85, 0], name: "y" },
+        { a: [0, 0, -85], b: [0, 0, 85], name: "z" }
+      ];
+      orbitalCtx.strokeStyle = "#a5b5cd";
+      orbitalCtx.lineWidth = 1.2;
+      for (const axis of axes) {
+        const a = projectPoint(rotateXYZ(axis.a[0], axis.a[1], axis.a[2], ax, ay), w, h);
+        const b = projectPoint(rotateXYZ(axis.b[0], axis.b[1], axis.b[2], ax, ay), w, h);
+        orbitalCtx.beginPath();
+        orbitalCtx.moveTo(a.x, a.y);
+        orbitalCtx.lineTo(b.x, b.y);
+        orbitalCtx.stroke();
+        orbitalCtx.fillStyle = "#6a7f9f";
+        orbitalCtx.font = "12px 'Segoe UI', sans-serif";
+        orbitalCtx.fillText(axis.name, b.x + 4, b.y - 4);
+      }
+    }
+
+    function renderOrbital3D(name) {
+      const w = orbitalPreviewEl.width;
+      const h = orbitalPreviewEl.height;
+      const ax = orbitalView.ax;
+      const ay = orbitalView.ay;
+      const tSteps = 24;
+      const pSteps = 44;
+      const vertices = [];
+      const row = pSteps + 1;
+      const light = { x: 0.45, y: 0.7, z: 0.55 };
+
+      clearPreviewCanvas();
+      drawAxes(ax, ay);
+
+      for (let ti = 0; ti <= tSteps; ti += 1) {
+        const theta = Math.PI * (ti / tSteps);
+        const st = Math.sin(theta);
+        const ct = Math.cos(theta);
+        for (let pi = 0; pi <= pSteps; pi += 1) {
+          const phi = 2 * Math.PI * (pi / pSteps);
+          const nx = st * Math.cos(phi);
+          const ny = st * Math.sin(phi);
+          const nz = ct;
+          const value = orbitalAngular(name, nx, ny, nz);
+          const radius = 20 + 105 * Math.abs(value);
+          const rot = rotateXYZ(radius * nx, radius * ny, radius * nz, ax, ay);
+          const pr = projectPoint(rot, w, h);
+          vertices.push({ ...pr, rx: rot.x, ry: rot.y, rz: rot.z, sign: value >= 0 ? 1 : -1 });
+        }
+      }
+
+      const tris = [];
+      for (let ti = 0; ti < tSteps; ti += 1) {
+        for (let pi = 0; pi < pSteps; pi += 1) {
+          const a = ti * row + pi;
+          const b = (ti + 1) * row + pi;
+          const c = (ti + 1) * row + pi + 1;
+          const d = ti * row + pi + 1;
+          tris.push([a, b, c]);
+          tris.push([a, c, d]);
+        }
+      }
+
+      tris.sort((t1, t2) => {
+        const z1 = (vertices[t1[0]].z + vertices[t1[1]].z + vertices[t1[2]].z) / 3;
+        const z2 = (vertices[t2[0]].z + vertices[t2[1]].z + vertices[t2[2]].z) / 3;
+        return z1 - z2;
+      });
+
+      for (const tri of tris) {
+        const v0 = vertices[tri[0]];
+        const v1 = vertices[tri[1]];
+        const v2 = vertices[tri[2]];
+        const ux = v1.rx - v0.rx;
+        const uy = v1.ry - v0.ry;
+        const uz = v1.rz - v0.rz;
+        const vx = v2.rx - v0.rx;
+        const vy = v2.ry - v0.ry;
+        const vz = v2.rz - v0.rz;
+        let nx = uy * vz - uz * vy;
+        let ny = uz * vx - ux * vz;
+        let nz = ux * vy - uy * vx;
+        const nNorm = Math.hypot(nx, ny, nz) || 1;
+        nx /= nNorm;
+        ny /= nNorm;
+        nz /= nNorm;
+        const shade = Math.max(0.15, nx * light.x + ny * light.y + nz * light.z);
+        const sign = v0.sign + v1.sign + v2.sign >= 0 ? 1 : -1;
+        const c = sign > 0
+          ? `rgba(24, 103, 194, ${0.28 + 0.42 * shade})`
+          : `rgba(214, 109, 52, ${0.28 + 0.42 * shade})`;
+
+        orbitalCtx.beginPath();
+        orbitalCtx.moveTo(v0.x, v0.y);
+        orbitalCtx.lineTo(v1.x, v1.y);
+        orbitalCtx.lineTo(v2.x, v2.y);
+        orbitalCtx.closePath();
+        orbitalCtx.fillStyle = c;
+        orbitalCtx.fill();
+      }
+
+      orbitalCtx.fillStyle = "#2f466c";
+      orbitalCtx.font = "bold 18px 'Segoe UI', sans-serif";
+      orbitalCtx.fillText(name, 14, 24);
+      orbitalCtx.fillStyle = "#5f7190";
+      orbitalCtx.font = "12px 'Segoe UI', sans-serif";
+      orbitalCtx.fillText("3D angular function surface", 14, 42);
+      orbitalCtx.fillStyle = "rgba(24,103,194,0.8)";
+      orbitalCtx.fillRect(14, 52, 10, 10);
+      orbitalCtx.fillStyle = "#5f7190";
+      orbitalCtx.fillText("正位相", 29, 61);
+      orbitalCtx.fillStyle = "rgba(214,109,52,0.8)";
+      orbitalCtx.fillRect(88, 52, 10, 10);
+      orbitalCtx.fillStyle = "#5f7190";
+      orbitalCtx.fillText("負位相", 103, 61);
+    }
+
+    function showOrbital(name, levelLabel) {
+      orbitalView.name = name;
+      orbitalView.label = levelLabel;
+      orbitalHintEl.textContent = `${levelLabel} に含まれる ${name} 軌道の3D関数表示（ドラッグで回転）`;
+      renderOrbital3D(name);
+    }
+
+    function clearOrbitalPreview() {
+      orbitalView.name = null;
+      orbitalView.label = "";
+      orbitalHintEl.textContent = "分裂した軌道線をクリックすると、3D関数として固定表示します。";
+      clearPreviewCanvas();
+      orbitalCtx.fillStyle = "#7a8eaf";
+      orbitalCtx.font = "14px 'Segoe UI', sans-serif";
+      orbitalCtx.fillText("Click an orbital line to render 3D surface", 120, 155);
+    }
+
+    function freeIonOccupancy(dElectrons) {
+      const occ = [0, 0, 0, 0, 0];
+      let e = dElectrons;
+      for (let i = 0; i < 5 && e > 0; i += 1) {
+        occ[i] += 1;
+        e -= 1;
+      }
+      for (let i = 0; i < 5 && e > 0; i += 1) {
+        occ[i] += 1;
+        e -= 1;
+      }
+      return occ;
+    }
+
+    function renderDiagram({ preset, levels, dElectrons, delta, soiEnabled, lambdaValue }) {
+      const maxCoeff = Math.max(...levels.map((l) => l.coeff), 0.001);
+      const minCoeff = Math.min(...levels.map((l) => l.coeff), -0.001);
+      const freeOcc = freeIonOccupancy(dElectrons);
+      const yMid = 150;
+      const yTop = 80;
+      const yBottom = 230;
+      const positiveExtent = Math.max(maxCoeff * delta, 0.001);
+      const negativeExtent = Math.max(-minCoeff * delta, 0.001);
+      const scale = Math.min((yMid - yTop) / positiveExtent, (yBottom - yMid) / negativeExtent);
+      const soiSplitPx = soiEnabled ? Math.max(3, Math.abs(lambdaValue * 0.5 * scale)) : 0;
+      const xFree1 = 280;
+      const xSplitStart = 300;
+      const xSplitEnd = 390;
+      const xLevel0 = 420;
+      const xLevel1 = 740;
+      const parts = [];
+      parts.push(`<line x1="80" y1="260" x2="80" y2="40" stroke="#8aa0c2" stroke-width="1.5"/>`);
+      parts.push(`<text x="58" y="36" class="diagram-note">E</text>`);
+      parts.push(`<text x="158" y="128" class="diagram-label">自由イオン 3d (5重縮退)</text>`);
+      for (let i = 0; i < 5; i += 1) {
+        const cx = 176 + i * 22;
+        parts.push(`<line x1="${cx - 10}" y1="${yMid}" x2="${cx + 10}" y2="${yMid}" stroke="#5b6f90" stroke-width="2.2" stroke-linecap="round"/>`);
+        if (freeOcc[i] >= 1) parts.push(drawArrow(cx - 4, yMid - 2, true));
+        if (freeOcc[i] >= 2) parts.push(drawArrow(cx + 4, yMid + 2, false));
+      }
+      parts.push(`<line x1="${xFree1}" y1="${yMid}" x2="${xSplitStart}" y2="${yMid}" stroke="#8fa2c0" stroke-width="1.5"/>`);
+      parts.push(`<line x1="140" y1="150" x2="760" y2="150" stroke="#b2bfd4" stroke-width="1.5" stroke-dasharray="6 5"/>`);
+      parts.push(`<text x="600" y="144" class="diagram-note">重心 (barycenter)</text>`);
+
+      const yValues = [];
+      for (const level of levels) {
+        const y = yMid - level.energy * scale;
+        if (soiEnabled) {
+          yValues.push(y - soiSplitPx);
+          yValues.push(y + soiSplitPx);
+        } else {
+          yValues.push(y);
+        }
+        parts.push(`<line x1="${xSplitStart}" y1="${yMid}" x2="${xSplitEnd}" y2="${y}" stroke="#91a4c2" stroke-width="1.5" stroke-dasharray="5 4"/>`);
+        parts.push(`<text x="${xSplitEnd + 8}" y="${y - 8}" class="diagram-note">${level.orbitals.length}軌道</text>`);
+        parts.push(drawLevelGroup({
+          y,
+          label: level.label,
+          energy: level.energy,
+          orbitalNames: level.orbitals,
+          orbitalOcc: level.orbitalOcc,
+          color: level.color,
+          x0: xLevel0,
+          x1: xLevel1,
+          showElectrons: false,
+          soiSplitPx
+        }));
+      }
+
+      const yMax = Math.max(...yValues);
+      const yMin = Math.min(...yValues);
+      parts.push(`<line x1="770" y1="${yMin}" x2="770" y2="${yMax}" stroke="#7488ab" stroke-width="1.4"/>`);
+      parts.push(`<line x1="764" y1="${yMin}" x2="776" y2="${yMin}" stroke="#7488ab" stroke-width="1.4"/>`);
+      parts.push(`<line x1="764" y1="${yMax}" x2="776" y2="${yMax}" stroke="#7488ab" stroke-width="1.4"/>`);
+      parts.push(`<text x="780" y="${(yMin + yMax) / 2 - 6}" class="diagram-note">${preset.deltaLabel}</text>`);
+      parts.push(`<text x="780" y="${(yMin + yMax) / 2 + 10}" class="diagram-note">${(yMax === yMin ? 0 : Math.abs((yMax - yMin) / scale)).toFixed(3)} eV</text>`);
+      if (soiEnabled) {
+        parts.push(`<text x="780" y="${(yMin + yMax) / 2 + 26}" class="diagram-note">SOI: ±${(lambdaValue * 0.5).toFixed(3)} eV</text>`);
+      }
+
+      parts.push(`<text x="160" y="286" class="diagram-note">左は自由イオン占有、右は教科書的な分裂準位表示</text>`);
+      diagramEl.innerHTML = parts.join("");
+    }
+
+    function calculate() {
+      const geometry = geometryEl.value;
+      const n = Number(dCount.value);
+      const delta = Number(deltaEl.value);
+      const soiEnabled = soiEnableEl.checked;
+      const lambdaValue = Number(lambdaEl.value);
+
+      if (!Number.isFinite(delta) || delta < 0) {
+        document.getElementById("status").textContent = "Δ は 0 以上で入力してください";
+        return;
+      }
+      if (!Number.isFinite(lambdaValue) || lambdaValue < 0) {
+        document.getElementById("status").textContent = "λ は 0 以上で入力してください";
+        return;
+      }
+
+      const preset = FIELD_PRESETS[geometry] || FIELD_PRESETS.octa;
+      const { levels, cfse, unpaired } = buildOccupiedLevels(preset, n, delta);
+      const { levelsWithSOI, soiCorrection, totalEnergy } = applySOIAfterCrystalField(levels, lambdaValue, soiEnabled);
+      const mu = Math.sqrt(unpaired * (unpaired + 2));
+
+      document.getElementById("status").textContent = `${preset.label} / d${n}`;
+      document.getElementById("cfse").textContent = `${cfse.toFixed(3)} eV`;
+      document.getElementById("totalEnergy").textContent = `${totalEnergy.toFixed(3)} eV`;
+      document.getElementById("unpaired").textContent = String(unpaired);
+      document.getElementById("mu").textContent = `${mu.toFixed(3)} BM`;
+      levelListEl.innerHTML = levelsWithSOI
+        .map((level) => {
+          const soiPart = soiEnabled
+            ? ` | SOI: ${(level.energy - lambdaValue * 0.5).toFixed(3)} / ${(level.energy + lambdaValue * 0.5).toFixed(3)} eV`
+            : "";
+          return `<div class="level"><span>${level.label} (${level.orbitals.join(", ")})</span><strong>${level.energy.toFixed(3)} eV / ${level.electrons} e-${soiPart}</strong></div>`;
+        })
+        .join("");
+      renderDiagram({ preset, levels: levelsWithSOI, dElectrons: n, delta, soiEnabled, lambdaValue });
+
+      const note = soiEnabled
+        ? `注: 簡易モデル。結晶場で占有を決めた後に SOI (λ=${lambdaValue.toFixed(3)} eV) を各軌道へ付加しています。補正量: ${soiCorrection.toFixed(3)} eV`
+        : "注: ここでは単純化した結晶場モデルを使用しています。";
+      document.getElementById("note").textContent = note;
+    }
+
+    geometryEl.addEventListener("change", calculate);
+    dCount.addEventListener("change", calculate);
+    deltaEl.addEventListener("input", calculate);
+    soiEnableEl.addEventListener("change", () => {
+      lambdaEl.disabled = !soiEnableEl.checked;
+      calculate();
+    });
+    lambdaEl.addEventListener("input", calculate);
+    document.getElementById("run").addEventListener("click", calculate);
+    diagramEl.addEventListener("click", (event) => {
+      const target = event.target.closest(".orbital-hit");
+      if (!target) return;
+      orbitalView.ax = DEFAULT_VIEW_AX;
+      orbitalView.ay = DEFAULT_VIEW_AY;
+      showOrbital(target.dataset.orbital || "d", target.dataset.label || "");
+    });
+    document.addEventListener("click", (event) => {
+      const inOrbitalLine = event.target.closest(".orbital-hit");
+      const inPreview = event.target.closest("#orbitalPreview");
+      if (inOrbitalLine || inPreview) return;
+      clearOrbitalPreview();
+    });
+
+    orbitalPreviewEl.addEventListener("pointerdown", (event) => {
+      if (!orbitalView.name) return;
+      orbitalView.dragging = true;
+      orbitalView.pointerId = event.pointerId;
+      orbitalView.lastX = event.clientX;
+      orbitalView.lastY = event.clientY;
+      orbitalPreviewEl.style.cursor = "grabbing";
+      orbitalPreviewEl.setPointerCapture(event.pointerId);
+      event.preventDefault();
+    });
+
+    orbitalPreviewEl.addEventListener("pointermove", (event) => {
+      if (!orbitalView.dragging || orbitalView.pointerId !== event.pointerId || !orbitalView.name) return;
+      const dx = event.clientX - orbitalView.lastX;
+      const dy = event.clientY - orbitalView.lastY;
+      orbitalView.lastX = event.clientX;
+      orbitalView.lastY = event.clientY;
+      orbitalView.ay += dx * 0.01;
+      orbitalView.ax += dy * 0.01;
+      orbitalView.ax = Math.max(-1.45, Math.min(1.45, orbitalView.ax));
+      renderOrbital3D(orbitalView.name);
+    });
+
+    function stopDrag(event) {
+      if (orbitalView.pointerId !== event.pointerId) return;
+      orbitalView.dragging = false;
+      orbitalView.pointerId = null;
+      orbitalPreviewEl.style.cursor = "grab";
+      if (orbitalPreviewEl.hasPointerCapture(event.pointerId)) {
+        orbitalPreviewEl.releasePointerCapture(event.pointerId);
+      }
+    }
+
+    orbitalPreviewEl.addEventListener("pointerup", stopDrag);
+    orbitalPreviewEl.addEventListener("pointercancel", stopDrag);
+
+    clearOrbitalPreview();
+    calculate();
+  </script>
+</body>
+</html>
