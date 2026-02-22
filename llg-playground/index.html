@@ -8,7 +8,7 @@
 <head>
   <meta charset="UTF-8" />
   <title>LLG Playground</title>
-  <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+  <link rel="icon" href="../fabicons/magnetic.svg" type="image/svg+xml" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-118J91MG59"></script>
   <script>
@@ -16,7 +16,10 @@
     function gtag(){dataLayer.push(arguments);}
     gtag('js', new Date());
     gtag('config', 'G-118J91MG59');
-  </script><style>
+  </script>
+  <link rel="stylesheet" href="../shared/back-to-hub.css" />
+  <script defer src="../shared/back-to-hub.js"></script>
+  <style>
     :root {
       --bg-main: #edf2ff;
       --bg-sub: #f8faff;
@@ -48,38 +51,6 @@
         linear-gradient(180deg, #f3f7ff 0%, #edf2ff 48%, #f7fbff 100%);
       font-family: "Aptos", "Bahnschrift", "Yu Gothic UI", sans-serif;
       color: var(--text);
-    }
-
-    .hub-panel {
-      position: fixed;
-      top: 12px;
-      left: 12px;
-      z-index: 10;
-      padding: 6px 8px;
-      border: 1px solid #c8d6f7;
-      border-radius: 10px;
-      background: rgba(255, 255, 255, 0.74);
-      backdrop-filter: blur(2px);
-    }
-
-    .hub-panel a {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 28px;
-      min-width: 56px;
-      padding: 0 10px;
-      border: 1px solid #c5d5fb;
-      border-radius: 8px;
-      text-decoration: none;
-      color: #223358;
-      background: linear-gradient(180deg, #ffffff, #eef4ff);
-      font-size: 12px;
-      font-weight: 700;
-    }
-
-    .hub-panel a:hover {
-      filter: brightness(1.02);
     }
 
     .app {
@@ -467,9 +438,6 @@
   </style>
 </head>
 <body>
-  <nav class="hub-panel" aria-label="Navigation">
-    <a href="https://skanai0123.github.io/">Hub</a>
-  </nav>
   <div class="app">
     <div class="page-title">LLG Playground</div>
     <div class="toolbar">

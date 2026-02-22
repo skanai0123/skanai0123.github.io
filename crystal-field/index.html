@@ -15,6 +15,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../shared/back-to-hub.css">
+  <script defer src="../shared/back-to-hub.js"></script>
   <style>
     :root {
       --bg: #f4edf9;
@@ -64,31 +66,6 @@
       color: var(--sub);
       font-weight: 700;
       letter-spacing: 0.04em;
-    }
-
-    .hub-panel {
-      display: inline-block;
-      margin-bottom: 8px;
-    }
-
-    .back-link {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 28px;
-      min-width: 56px;
-      padding: 0 10px;
-      border-radius: 8px;
-      border: 1px solid #d5c1ee;
-      background: linear-gradient(180deg, #ffffff, #f4ecfd);
-      color: #3c2660;
-      text-decoration: none;
-      font-size: 12px;
-      font-weight: 700;
-    }
-
-    .back-link:hover {
-      filter: brightness(1.02);
     }
 
     h1 {
@@ -532,9 +509,6 @@
 <body>
   <main class="wrap">
     <section class="card">
-      <nav class="hub-panel" aria-label="Navigation">
-        <a class="back-link" href="../index.html">Hub</a>
-      </nav>
       <div class="topbar">
         <div class="version">v0.0.1</div>
       </div>
