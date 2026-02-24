@@ -5,12 +5,14 @@
     length2: document.getElementById("length2"),
     mass2: document.getElementById("mass2"),
     gravity: document.getElementById("gravity"),
-    damping: document.getElementById("damping"),
+    damping1: document.getElementById("damping1"),
+    damping2: document.getElementById("damping2"),
     springK: document.getElementById("springK"),
     springK2: document.getElementById("springK2"),
     smallAngleMode: document.getElementById("smallAngleMode"),
     useSpring: document.getElementById("useSpring"),
-    radialDamping: document.getElementById("radialDamping"),
+    radialDamping1: document.getElementById("radialDamping1"),
+    radialDamping2: document.getElementById("radialDamping2"),
     theta0: document.getElementById("theta0"),
     omega0: document.getElementById("omega0"),
     r0: document.getElementById("r0"),
@@ -26,6 +28,10 @@
     toggleBtn: document.getElementById("toggleBtn"),
     resetBtn: document.getElementById("resetBtn"),
     captureBtn: document.getElementById("captureBtn"),
+    toggleMotionBtn: document.getElementById("toggleMotionBtn"),
+    togglePhaseBtn: document.getElementById("togglePhaseBtn"),
+    toggleEnergyBtn: document.getElementById("toggleEnergyBtn"),
+    togglePoincareBtn: document.getElementById("togglePoincareBtn"),
     status: document.getElementById("status"),
     tNow: document.getElementById("tNow"),
     rNow: document.getElementById("rNow"),
@@ -34,15 +40,18 @@
     rNow2: document.getElementById("rNow2"),
     thetaNow2: document.getElementById("thetaNow2"),
     omegaNow2: document.getElementById("omegaNow2"),
-    kNow: document.getElementById("kNow"),
-    ugNow: document.getElementById("ugNow"),
-    usNow: document.getElementById("usNow"),
-    uNow: document.getElementById("uNow"),
     metric2: document.getElementById("metric2"),
+    motionSection: document.getElementById("motionSection"),
     simCanvas: document.getElementById("simCanvas"),
+    phaseSection: document.getElementById("phaseSection"),
     phaseCanvas: document.getElementById("phaseCanvas"),
     poincareCanvas: document.getElementById("poincareCanvas"),
-    energyCanvas: document.getElementById("energyCanvas")
+    poincareSection: document.getElementById("poincareSection"),
+    energyCanvas: document.getElementById("energyCanvas"),
+    energySection: document.getElementById("energySection"),
+    equationMode: document.getElementById("equation-mode"),
+    equationLagrangian: document.getElementById("equation-lagrangian"),
+    equationImpl: document.getElementById("equation-impl")
   };
 
   const ctxSim = els.simCanvas.getContext("2d");
@@ -70,8 +79,11 @@
   let lastFrameTs = 0;
   let accumulator = 0;
   let pendulumGeom = null;
-  let energyAxis = { yMin: -10, yMax: 10 };
   let motionMaxReach = 1;
+  let showMotionPlot = true;
+  let showPhasePlot = true;
+  let showEnergyPlot = true;
+  let showPoincarePlot = true;
 
   function clampPositive(value, fallback) {
     return Number.isFinite(value) && value > 0 ? value : fallback;
@@ -110,12 +122,14 @@
       m1: clampPositive(Number(els.mass.value), 1.0),
       m2: clampPositive(Number(els.mass2.value), 1.0),
       g: clampPositive(Number(els.gravity.value), 9.81),
-      cTheta: Math.max(0, Number(els.damping.value) || 0),
+      cTheta1: Math.max(0, Number(els.damping1.value) || 0),
+      cTheta2: Math.max(0, Number(els.damping2.value) || 0),
       k1: Math.max(0, Number(els.springK.value) || 0),
       k2: Math.max(0, Number(els.springK2.value) || 0),
       useSpring: !!els.useSpring.checked,
       smallAngleMode: !!els.smallAngleMode.checked && !els.useSpring.checked,
-      cR: Math.max(0, Number(els.radialDamping.value) || 0),
+      cR1: Math.max(0, Number(els.radialDamping1.value) || 0),
+      cR2: Math.max(0, Number(els.radialDamping2.value) || 0),
       theta0: toRad(Number(els.theta0.value) || 0),
       omega0: Number(els.omega0.value) || 0,
       r0: Math.max(MIN_LEN, Number(els.r0.value) || L01),
@@ -136,13 +150,15 @@
     els.length2.value = p.L02;
     els.mass2.value = p.m2;
     els.gravity.value = p.g;
-    els.damping.value = p.cTheta;
+    els.damping1.value = p.cTheta1;
+    els.damping2.value = p.cTheta2;
     els.springK.value = p.k1;
     els.springK2.value = p.k2;
     els.useSpring.checked = p.useSpring;
     els.smallAngleMode.checked = p.smallAngleMode;
     syncLinearizedAvailability();
-    els.radialDamping.value = p.cR;
+    els.radialDamping1.value = p.cR1;
+    els.radialDamping2.value = p.cR2;
     els.theta0.value = toDeg(p.theta0).toFixed(3);
     els.omega0.value = p.omega0.toFixed(6);
     els.r0.value = p.r0.toFixed(4);
@@ -226,7 +242,8 @@
   }
 
   function derivCartesian(s, p) {
-    const drag = p.cTheta + p.cR;
+    const drag1 = p.cTheta1 + p.cR1;
+    const drag2 = p.cTheta2 + p.cR2;
     const k1Eff = p.useSpring ? p.k1 : 0;
     const k2Eff = p.useSpring ? p.k2 : 0;
     const m1 = p.m1;
@@ -279,15 +296,15 @@
         fg2y = ft2 * t2y;
       }
 
-      a1x = (f1x + f2on1x + fg1x) / m1 - drag * s.vx1;
-      a1y = (f1y + f2on1y + fg1y) / m1 - drag * s.vy1;
-      a2x = p.enableSecond ? (f1on2x + fg2x) / m2 - drag * s.vx2 : a1x;
-      a2y = p.enableSecond ? (f1on2y + fg2y) / m2 - drag * s.vy2 : a1y;
+      a1x = (f1x + f2on1x + fg1x) / m1 - drag1 * s.vx1;
+      a1y = (f1y + f2on1y + fg1y) / m1 - drag1 * s.vy1;
+      a2x = p.enableSecond ? (f1on2x + fg2x) / m2 - drag2 * s.vx2 : a1x;
+      a2y = p.enableSecond ? (f1on2y + fg2y) / m2 - drag2 * s.vy2 : a1y;
     } else {
-      a1x = (f1x + f2on1x) / m1 - drag * s.vx1;
-      a1y = (f1y + f2on1y) / m1 + p.g - drag * s.vy1;
-      a2x = p.enableSecond ? f1on2x / m2 - drag * s.vx2 : a1x;
-      a2y = p.enableSecond ? f1on2y / m2 + p.g - drag * s.vy2 : a1y;
+      a1x = (f1x + f2on1x) / m1 - drag1 * s.vx1;
+      a1y = (f1y + f2on1y) / m1 + p.g - drag1 * s.vy1;
+      a2x = p.enableSecond ? f1on2x / m2 - drag2 * s.vx2 : a1x;
+      a2y = p.enableSecond ? f1on2y / m2 + p.g - drag2 * s.vy2 : a1y;
     }
 
     return {
@@ -409,12 +426,26 @@
     const L1 = p.L01;
     const L2 = p.L02;
     const g = p.g;
-    const c = p.cTheta;
+    const c1 = p.cTheta1;
+    const c2 = p.cTheta2;
 
     if (!p.enableSecond) {
       const dtheta1 = u.omega1;
-      const domega1 = -(g / L1) * Math.sin(u.theta1) - c * u.omega1;
+      const restoring1 = p.smallAngleMode ? u.theta1 : Math.sin(u.theta1);
+      const domega1 = -(g / L1) * restoring1 - c1 * u.omega1;
       return { dtheta1, domega1, dtheta2: dtheta1, domega2: domega1 };
+    }
+
+    if (p.smallAngleMode) {
+      // Small-angle linearized double pendulum (rigid rods, point masses).
+      const domega1 = -(g / (m1 * L1)) * ((m1 + m2) * u.theta1 - m2 * u.theta2) - c1 * u.omega1;
+      const domega2 = ((m1 + m2) * g / (m1 * L2)) * (u.theta1 - u.theta2) - c2 * u.omega2;
+      return {
+        dtheta1: u.omega1,
+        domega1,
+        dtheta2: u.omega2,
+        domega2
+      };
     }
 
     let alpha1;
@@ -444,9 +475,9 @@
 
     return {
       dtheta1: u.omega1,
-      domega1: alpha1 - c * u.omega1,
+      domega1: alpha1 - c1 * u.omega1,
       dtheta2: u.omega2,
-      domega2: alpha2 - c * u.omega2
+      domega2: alpha2 - c2 * u.omega2
     };
   }
 
@@ -565,9 +596,140 @@
     poincarePoints.push({ theta: wrapAngle(theta), omega });
   }
 
+  function updateEquationView() {
+    if (!els.equationMode || !els.equationLagrangian || !els.equationImpl || !params) return;
+    function setMathBlock(el, tex) {
+      el.textContent = `\\[${tex}\\]`;
+    }
+    function typesetMathBlocks() {
+      if (window.MathJax && typeof window.MathJax.typesetPromise === "function") {
+        window.MathJax.typesetPromise([els.equationLagrangian, els.equationImpl]).catch(() => {});
+      }
+    }
+
+    if (params.useSpring) {
+      if (params.enableSecond) {
+        els.equationMode.textContent = "Mode: Spring (Cartesian), two bob chain";
+        setMathBlock(els.equationLagrangian,
+`\\begin{aligned}
+q &= (x_1,y_1,x_2,y_2),\\;
+r_1=\\sqrt{x_1^2+y_1^2},\\;
+r_2=\\sqrt{(x_2-x_1)^2+(y_2-y_1)^2}\\\\
+T &= \\tfrac12 m_1(\\dot x_1^2+\\dot y_1^2)+\\tfrac12 m_2(\\dot x_2^2+\\dot y_2^2)\\\\
+U &= -m_1 g y_1 - m_2 g y_2 + \\tfrac12 k_1(r_1-L_1)^2 + \\tfrac12 k_2(r_2-L_2)^2\\\\
+L &= T-U,\\qquad
+\\frac{d}{dt}\\frac{\\partial L}{\\partial \\dot q_i}-\\frac{\\partial L}{\\partial q_i}=Q_i,\\;
+Q_i=-c_{\\mathrm{eff}}\\dot q_i
+\\end{aligned}`);
+        setMathBlock(els.equationImpl,
+`\\begin{aligned}
+\\mathbf u_1&=(x_1,y_1)/r_1,\\quad \\mathbf u_{12}=(x_2-x_1,y_2-y_1)/r_2\\\\
+\\mathbf F_{1s}&=-k_1(r_1-L_1)\\mathbf u_1,\\quad \\mathbf F_{12}=k_2(r_2-L_2)\\mathbf u_{12}\\\\
+m_1\\ddot{\\mathbf r}_1 &= \\mathbf F_{1s}+\\mathbf F_{12}-c_{\\mathrm{eff}}m_1\\dot{\\mathbf r}_1+(0,m_1 g)\\\\
+m_2\\ddot{\\mathbf r}_2 &= -\\mathbf F_{12}-c_{\\mathrm{eff}}m_2\\dot{\\mathbf r}_2+(0,m_2 g)
+\\end{aligned}`);
+        typesetMathBlocks();
+      } else {
+        els.equationMode.textContent = "Mode: Spring (Cartesian), single bob";
+        setMathBlock(els.equationLagrangian,
+`\\begin{aligned}
+q&=(x_1,y_1),\\quad r_1=\\sqrt{x_1^2+y_1^2}\\\\
+T&=\\tfrac12 m_1(\\dot x_1^2+\\dot y_1^2),\\quad
+U=-m_1 g y_1+\\tfrac12 k_1(r_1-L_1)^2\\\\
+L&=T-U,\\qquad
+\\frac{d}{dt}\\frac{\\partial L}{\\partial \\dot q_i}-\\frac{\\partial L}{\\partial q_i}=Q_i,\\;
+Q_i=-c_{\\mathrm{eff}}\\dot q_i
+\\end{aligned}`);
+        setMathBlock(els.equationImpl,
+`\\begin{aligned}
+\\mathbf u_1&=(x_1,y_1)/r_1,\\quad \\mathbf F_{1s}=-k_1(r_1-L_1)\\mathbf u_1\\\\
+m_1\\ddot{\\mathbf r}_1&=\\mathbf F_{1s}-c_{\\mathrm{eff}}m_1\\dot{\\mathbf r}_1+(0,m_1 g)
+\\end{aligned}`);
+        typesetMathBlocks();
+      }
+      return;
+    }
+
+    if (!params.enableSecond) {
+      if (params.smallAngleMode) {
+        els.equationMode.textContent = "Mode: No-spring, single bob, linearized";
+        setMathBlock(els.equationLagrangian,
+`\\begin{aligned}
+q&=\\theta_1\\\\
+T&=\\tfrac12 m_1L_1^2\\omega_1^2,\\quad
+U\\approx\\tfrac12 m_1 g L_1\\theta_1^2\\\\
+L&=T-U,\\qquad
+\\frac{d}{dt}\\frac{\\partial L}{\\partial \\omega_1}-\\frac{\\partial L}{\\partial \\theta_1}=-c\\omega_1
+\\end{aligned}`);
+        setMathBlock(els.equationImpl,
+`\\begin{aligned}
+\\dot\\theta_1&=\\omega_1\\\\
+\\dot\\omega_1&=-\\frac{g}{L_1}\\theta_1-c\\omega_1
+\\end{aligned}`);
+      } else {
+        els.equationMode.textContent = "Mode: No-spring, single bob, nonlinear";
+        setMathBlock(els.equationLagrangian,
+`\\begin{aligned}
+q&=\\theta_1\\\\
+T&=\\tfrac12 m_1L_1^2\\omega_1^2,\\quad
+U=m_1 g L_1(1-\\cos\\theta_1)\\\\
+L&=T-U,\\qquad
+\\frac{d}{dt}\\frac{\\partial L}{\\partial \\omega_1}-\\frac{\\partial L}{\\partial \\theta_1}=-c\\omega_1
+\\end{aligned}`);
+        setMathBlock(els.equationImpl,
+`\\begin{aligned}
+\\dot\\theta_1&=\\omega_1\\\\
+\\dot\\omega_1&=-\\frac{g}{L_1}\\sin\\theta_1-c\\omega_1
+\\end{aligned}`);
+      }
+      typesetMathBlocks();
+      return;
+    }
+
+    if (params.smallAngleMode) {
+      els.equationMode.textContent = "Mode: No-spring, two bob linearized double pendulum";
+      setMathBlock(els.equationLagrangian,
+`\\begin{aligned}
+T&\\approx\\tfrac12(m_1+m_2)L_1^2\\dot\\theta_1^2+\\tfrac12m_2L_2^2\\dot\\theta_2^2+m_2L_1L_2\\dot\\theta_1\\dot\\theta_2\\\\
+U&\\approx\\tfrac12(m_1+m_2)gL_1\\theta_1^2+\\tfrac12m_2gL_2\\theta_2^2
+\\end{aligned}`);
+      setMathBlock(els.equationImpl,
+`\\begin{aligned}
+\\dot\\theta_1&=\\omega_1,\\quad \\dot\\theta_2=\\omega_2\\\\
+\\dot\\omega_1&=-\\frac{g}{m_1L_1}\\left[(m_1+m_2)\\theta_1-m_2\\theta_2\\right]-c\\omega_1\\\\
+\\dot\\omega_2&=\\frac{(m_1+m_2)g}{m_1L_2}(\\theta_1-\\theta_2)-c\\omega_2
+\\end{aligned}`);
+    } else {
+      els.equationMode.textContent = "Mode: No-spring, two bob nonlinear double pendulum";
+      setMathBlock(els.equationLagrangian,
+`\\begin{aligned}
+q&=(\\theta_1,\\theta_2),\\quad
+T=\\tfrac12(m_1+m_2)L_1^2\\omega_1^2+\\tfrac12m_2L_2^2\\omega_2^2
++m_2L_1L_2\\omega_1\\omega_2\\cos(\\theta_1-\\theta_2)\\\\
+U&=-(m_1+m_2)gL_1\\cos\\theta_1-m_2gL_2\\cos\\theta_2,\\quad
+L=T-U\\\\
+\\frac{d}{dt}\\frac{\\partial L}{\\partial \\omega_i}-\\frac{\\partial L}{\\partial \\theta_i}&=-c\\omega_i
+\\end{aligned}`);
+      setMathBlock(els.equationImpl,
+`\\begin{aligned}
+\\delta&=\\theta_1-\\theta_2,\\quad
+\\mathrm{den}=2m_1+m_2-m_2\\cos(2\\delta)\\\\
+\\dot\\theta_1&=\\omega_1,\\quad \\dot\\theta_2=\\omega_2\\\\
+\\dot\\omega_1&=
+\\frac{-g(2m_1+m_2)\\sin\\theta_1-m_2g\\sin(\\theta_1-2\\theta_2)-2m_2\\sin\\delta(\\omega_2^2L_2+\\omega_1^2L_1\\cos\\delta)}
+{L_1\\,\\mathrm{den}}-c\\omega_1\\\\
+\\dot\\omega_2&=
+\\frac{2\\sin\\delta\\left[\\omega_1^2L_1(m_1+m_2)+g(m_1+m_2)\\cos\\theta_1+\\omega_2^2L_2m_2\\cos\\delta\\right]}
+{L_2\\,\\mathrm{den}}-c\\omega_2
+\\end{aligned}`);
+    }
+    typesetMathBlocks();
+  }
+
   function resetSimulation() {
     params = parseParams();
     updateInputViews(params);
+    updateEquationView();
     state = initStateFromParams(params);
     if (!params.useSpring) {
       enforceRodConstraints(state, params);
@@ -581,19 +743,8 @@
     accumulator = 0;
     motionMaxReach = Math.max(params.L01, params.enableSecond ? (params.L01 + params.L02) : params.L01, MIN_LEN);
     pushHistory();
-    setFixedEnergyAxis();
     drawAll();
     updateReadout();
-  }
-
-  function setFixedEnergyAxis() {
-    const base = energyHistory.length ? energyHistory[energyHistory.length - 1] : null;
-    if (!base) {
-      energyAxis = { yMin: 0, yMax: 10 };
-      return;
-    }
-    const uTotal = Math.max(1e-9, Math.abs(base.ug + base.us));
-    energyAxis = { yMin: 0, yMax: uTotal };
   }
 
   function updateReadout() {
@@ -606,22 +757,6 @@
     els.rNow2.textContent = q2.r.toFixed(3);
     els.thetaNow2.textContent = toDeg(q2.theta).toFixed(2);
     els.omegaNow2.textContent = q2.omega.toFixed(3);
-    updateEnergyStats();
-  }
-
-  function updateEnergyStats() {
-    const last = energyHistory.length ? energyHistory[energyHistory.length - 1] : null;
-    if (!last) {
-      els.kNow.textContent = "0.000";
-      els.ugNow.textContent = "0.000";
-      els.usNow.textContent = "0.000";
-      els.uNow.textContent = "0.000";
-      return;
-    }
-    els.kNow.textContent = last.k.toFixed(3);
-    els.ugNow.textContent = last.ug.toFixed(3);
-    els.usNow.textContent = last.us.toFixed(3);
-    els.uNow.textContent = last.et.toFixed(3);
   }
 
   function fitCanvas(canvas, ctx) {
@@ -689,28 +824,43 @@
     const endPad = 16;
     const bodyLen = Math.max(8, len - startPad - endPad);
 
-    ctx.save();
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 2.5;
-    ctx.beginPath();
-    ctx.moveTo(x0, y0);
-    ctx.lineTo(x0 + ux * startPad, y0 + uy * startPad);
-    for (let i = 0; i <= coils; i += 1) {
-      const t = i / coils;
-      const bx = x0 + ux * (startPad + bodyLen * t);
-      const by = y0 + uy * (startPad + bodyLen * t);
-      const sign = i % 2 === 0 ? 1 : -1;
-      ctx.lineTo(bx + sign * nx * amplitude, by + sign * ny * amplitude);
+    function strokePath(strokeStyle, lineWidth) {
+      ctx.save();
+      ctx.strokeStyle = strokeStyle;
+      ctx.lineWidth = lineWidth;
+      ctx.beginPath();
+      ctx.moveTo(x0, y0);
+      ctx.lineTo(x0 + ux * startPad, y0 + uy * startPad);
+      for (let i = 0; i <= coils; i += 1) {
+        const t = i / coils;
+        const bx = x0 + ux * (startPad + bodyLen * t);
+        const by = y0 + uy * (startPad + bodyLen * t);
+        const sign = i % 2 === 0 ? 1 : -1;
+        ctx.lineTo(bx + sign * nx * amplitude, by + sign * ny * amplitude);
+      }
+      ctx.lineTo(x1, y1);
+      ctx.stroke();
+      ctx.restore();
     }
-    ctx.lineTo(x1, y1);
-    ctx.stroke();
-    ctx.restore();
+
+    strokePath("rgba(8, 26, 44, 0.5)", 5.2);
+    const grad = ctx.createLinearGradient(x0, y0, x1, y1);
+    grad.addColorStop(0, color);
+    grad.addColorStop(0.5, "#dce8f4");
+    grad.addColorStop(1, color);
+    strokePath(grad, 2.6);
   }
 
   function drawPendulum() {
     const { w, h } = fitCanvas(els.simCanvas, ctxSim);
     ctxSim.clearRect(0, 0, w, h);
     drawGrid(ctxSim, w, h, 8, 5);
+
+    const vignette = ctxSim.createRadialGradient(w * 0.5, h * 0.48, Math.min(w, h) * 0.1, w * 0.5, h * 0.5, Math.max(w, h) * 0.72);
+    vignette.addColorStop(0, "rgba(255,255,255,0)");
+    vignette.addColorStop(1, "rgba(11,37,61,0.09)");
+    ctxSim.fillStyle = vignette;
+    ctxSim.fillRect(0, 0, w, h);
 
     const lengthRef = Math.max(params.L01, params.L02, MIN_LEN);
     const baseScale = (Math.min(w, h) * 0.36) / lengthRef;
@@ -741,22 +891,43 @@
     const bob1Y = pivotY + meterToPx * state.y1;
     const bob2X = pivotX + meterToPx * state.x2;
     const bob2Y = pivotY + meterToPx * state.y2;
-    pendulumGeom = { pivotX, pivotY, meterToPx, bob1X, bob1Y, bob2X, bob2Y, bobR: 13 };
+    pendulumGeom = { pivotX, pivotY, meterToPx, bob1X, bob1Y, bob2X, bob2Y, bobR: 14 };
 
     drawTrail(ctxSim, bobTrail1, pivotX, pivotY, meterToPx, "rgba(12, 125, 123, 0.3)");
     if (params.enableSecond) drawTrail(ctxSim, bobTrail2, pivotX, pivotY, meterToPx, "rgba(221, 91, 39, 0.25)");
 
     ctxSim.save();
+    ctxSim.fillStyle = "rgba(15, 44, 74, 0.24)";
+    ctxSim.fillRect(pivotX - 38, pivotY - 7, 76, 14);
+    ctxSim.restore();
+
+    ctxSim.save();
     ctxSim.fillStyle = "#0f385e";
     ctxSim.beginPath();
-    ctxSim.arc(pivotX, pivotY, 6, 0, Math.PI * 2);
+    ctxSim.arc(pivotX, pivotY, 7, 0, Math.PI * 2);
     ctxSim.fill();
+    ctxSim.strokeStyle = "#c8dff0";
+    ctxSim.lineWidth = 1.4;
+    ctxSim.stroke();
     ctxSim.restore();
 
     function drawRod(x0, y0, x1, y1, color) {
       ctxSim.save();
-      ctxSim.strokeStyle = color;
-      ctxSim.lineWidth = 3;
+      ctxSim.strokeStyle = "rgba(8, 26, 44, 0.45)";
+      ctxSim.lineWidth = 5;
+      ctxSim.beginPath();
+      ctxSim.moveTo(x0, y0);
+      ctxSim.lineTo(x1, y1);
+      ctxSim.stroke();
+      ctxSim.restore();
+
+      ctxSim.save();
+      const grad = ctxSim.createLinearGradient(x0, y0, x1, y1);
+      grad.addColorStop(0, color);
+      grad.addColorStop(0.5, "#dce8f4");
+      grad.addColorStop(1, color);
+      ctxSim.strokeStyle = grad;
+      ctxSim.lineWidth = 2.6;
       ctxSim.beginPath();
       ctxSim.moveTo(x0, y0);
       ctxSim.lineTo(x1, y1);
@@ -773,15 +944,37 @@
     }
 
     function drawBob(x, y, color, label) {
+      const r = 14;
+      const shadow = ctxSim.createRadialGradient(x + 2, y + 4, 1, x + 2, y + 4, r + 12);
+      shadow.addColorStop(0, "rgba(8, 20, 33, 0.22)");
+      shadow.addColorStop(1, "rgba(8, 20, 33, 0)");
       ctxSim.save();
-      ctxSim.fillStyle = color;
+      ctxSim.fillStyle = shadow;
       ctxSim.beginPath();
-      ctxSim.arc(x, y, 13, 0, Math.PI * 2);
+      ctxSim.arc(x + 2, y + 4, r + 10, 0, Math.PI * 2);
       ctxSim.fill();
       ctxSim.restore();
-      ctxSim.fillStyle = "#4e6782";
-      ctxSim.font = "12px sans-serif";
-      ctxSim.fillText(label, x + 12, y - 8);
+
+      const grad = ctxSim.createRadialGradient(x - r * 0.35, y - r * 0.35, r * 0.2, x, y, r);
+      grad.addColorStop(0, "#f5fbff");
+      grad.addColorStop(0.35, color);
+      grad.addColorStop(1, "rgba(8, 38, 64, 0.95)");
+      ctxSim.save();
+      ctxSim.fillStyle = grad;
+      ctxSim.beginPath();
+      ctxSim.arc(x, y, r, 0, Math.PI * 2);
+      ctxSim.fill();
+      ctxSim.strokeStyle = "rgba(240, 248, 255, 0.72)";
+      ctxSim.lineWidth = 1.2;
+      ctxSim.stroke();
+      ctxSim.beginPath();
+      ctxSim.fillStyle = "rgba(255,255,255,0.6)";
+      ctxSim.arc(x - r * 0.35, y - r * 0.35, r * 0.2, 0, Math.PI * 2);
+      ctxSim.fill();
+      ctxSim.restore();
+      ctxSim.fillStyle = "#35536f";
+      ctxSim.font = "700 12px 'Noto Sans JP', 'Noto Sans', sans-serif";
+      ctxSim.fillText(label, x + 14, y - 10);
     }
 
     drawBob(bob1X, bob1Y, "#0c7d7b", "Bob1");
@@ -875,8 +1068,27 @@
 
     if (energyHistory.length < 2) return;
 
-    const yMin = energyAxis.yMin;
-    const yMax = energyAxis.yMax;
+    const keys = ["k1", "ug1", "us1", "e1", "k2", "ug2", "us2", "e2", "et"];
+    let yMin = Infinity;
+    let yMax = -Infinity;
+    for (const p of energyHistory) {
+      for (const key of keys) {
+        const v = p[key];
+        if (v === null || !Number.isFinite(v)) continue;
+        if (v < yMin) yMin = v;
+        if (v > yMax) yMax = v;
+      }
+    }
+    if (!Number.isFinite(yMin) || !Number.isFinite(yMax)) return;
+    if (Math.abs(yMax - yMin) < 1e-9) {
+      const e = Math.max(1e-6, Math.abs(yMax) * 0.05);
+      yMin -= e;
+      yMax += e;
+    } else {
+      const pad = (yMax - yMin) * 0.08;
+      yMin -= pad;
+      yMax += pad;
+    }
     const tMin = 0;
     const tMax = Math.max(1e-6, energyHistory[energyHistory.length - 1].t);
     const tSpan = Math.max(1e-6, tMax - tMin);
@@ -925,6 +1137,7 @@
     drawSeries("#bcbd22", "ug2");
     drawSeries("#8c564b", "us2");
     drawSeries("#d62728", "e2");
+    drawSeries("#111827", "et");
   }
 
   function drawPoincare() {
@@ -979,10 +1192,16 @@
   }
 
   function drawAll() {
-    drawPendulum();
-    drawPhase();
-    drawPoincare();
-    drawEnergy();
+    if (showMotionPlot) drawPendulum();
+    if (showPhasePlot) drawPhase();
+    if (showPoincarePlot) drawPoincare();
+    if (showEnergyPlot) drawEnergy();
+  }
+
+  function syncCardVisibility(sectionEl, buttonEl, visible, hideText, showText) {
+    if (!sectionEl || !buttonEl) return;
+    sectionEl.classList.toggle("is-collapsed", !visible);
+    buttonEl.textContent = visible ? hideText : showText;
   }
 
   function runFrame(ts) {
@@ -1115,6 +1334,34 @@
     setRunning(!isRunning);
   });
 
+  els.toggleMotionBtn.addEventListener("click", () => {
+    showMotionPlot = !showMotionPlot;
+    syncCardVisibility(els.motionSection, els.toggleMotionBtn, showMotionPlot, "Hide", "Show");
+    drawAll();
+    els.status.textContent = showMotionPlot ? "Motion is shown." : "Motion is hidden.";
+  });
+
+  els.togglePhaseBtn.addEventListener("click", () => {
+    showPhasePlot = !showPhasePlot;
+    syncCardVisibility(els.phaseSection, els.togglePhaseBtn, showPhasePlot, "Hide", "Show");
+    drawAll();
+    els.status.textContent = showPhasePlot ? "Phase plot is shown." : "Phase plot is hidden.";
+  });
+
+  els.toggleEnergyBtn.addEventListener("click", () => {
+    showEnergyPlot = !showEnergyPlot;
+    syncCardVisibility(els.energySection, els.toggleEnergyBtn, showEnergyPlot, "Hide", "Show");
+    drawAll();
+    els.status.textContent = showEnergyPlot ? "E vs Time is shown." : "E vs Time is hidden.";
+  });
+
+  els.togglePoincareBtn.addEventListener("click", () => {
+    showPoincarePlot = !showPoincarePlot;
+    syncCardVisibility(els.poincareSection, els.togglePoincareBtn, showPoincarePlot, "Hide", "Show");
+    drawAll();
+    els.status.textContent = showPoincarePlot ? "Poincare section is shown." : "Poincare section is hidden.";
+  });
+
   els.enableSecond.addEventListener("change", () => {
     syncSecondVisibility(els.enableSecond.checked);
     resetSimulation();
@@ -1129,7 +1376,7 @@
 
   els.smallAngleMode.addEventListener("change", () => {
     resetSimulation();
-    els.status.textContent = els.smallAngleMode.checked ? "Linearized mode enabled (spring model)." : "Full sin(theta) mode enabled.";
+    els.status.textContent = els.smallAngleMode.checked ? "Linearized mode enabled (no-spring model)." : "Full sin(theta) mode enabled.";
   });
 
   window.addEventListener("resize", () => {
@@ -1173,6 +1420,10 @@
   els.simCanvas.addEventListener("pointercancel", (ev) => endDrag(ev.pointerId));
 
   resetSimulation();
+  syncCardVisibility(els.motionSection, els.toggleMotionBtn, showMotionPlot, "Hide", "Show");
+  syncCardVisibility(els.phaseSection, els.togglePhaseBtn, showPhasePlot, "Hide", "Show");
+  syncCardVisibility(els.energySection, els.toggleEnergyBtn, showEnergyPlot, "Hide", "Show");
+  syncCardVisibility(els.poincareSection, els.togglePoincareBtn, showPoincarePlot, "Hide", "Show");
   syncSecondVisibility(els.enableSecond.checked);
   setRunning(false);
   cancelAnimationFrame(rafId);
