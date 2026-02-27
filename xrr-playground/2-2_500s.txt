@@ -1,0 +1,440 @@
+;RAW4.00
+[RawHeader]
+Date=07/15/2025
+EstimatedTotalTime=0
+FurtherDQLReading=0
+HardwareIndicator=65519
+MeasuredTotalTime=0
+MeasurementFlag=1
+NumberOfMeasuredRanges=1
+NumberOfRanges=1
+Time=19:32:20
+
+[HardwareConfiguration]
+AbsorptionFactor=7.98
+ActivateAbsorber=200000
+Alpha1=1.5406
+Alpha2=1.54439
+AlphaAverage=1.54184
+AlphaRatio=0.5
+Analyzer=0
+Anode=Cu
+AntiScatteringSlit=35
+BeamOpticsFlags=1153
+Beta=1.39222
+BetaRelativeIntensity=0
+DeactivateAbsorber=150000
+DetectorSlit=50
+DivergenceSlit=1
+GoniometerControl=9999
+GoniometerDiameter=600
+GoniometerModel=260
+GoniometerStage=4
+Monochromator=0
+NearSampleSlit=0
+PrimarySollerSlit=4
+SampleChanger=0
+SecondSollerSlit=2.5
+SynchronousAxis=0
+ThinFilmAttachment=0
+WaveUnit=A
+
+[VarInfo]
+Type=OSUSER
+Flags=0
+Value=Tohoku-U
+
+[VarInfo]
+Type=USER
+Flags=0
+Value=Tohoku University
+
+[VarInfo]
+Type=SITE
+Flags=0
+Value=
+
+[VarInfo]
+Type=CREATOR
+Flags=0
+Value=XRD Commander
+
+[VarInfo]
+Type=SAMPLEID
+Flags=0
+Value=20Pt(Kr 10 200W)
+
+[RangeHeader]
+ActuallyUsedLambda=1.5406
+AdditionalDetectorMask=0
+DataRecordLength=4
+DelayTime=0
+DisplayPlaneNumber=0
+EstimatedScanTime=0
+ExtraParametersMask=0
+GeneratorCurrent=22
+GeneratorVoltage=50
+Increment=0.02
+Increment3=0
+NumberOfCompletedData=226
+NumberOfCounts=1
+NumberOfDetectors=1
+NumberOfDrives=9
+NumberOfEncoderDrives=0
+NumberOfMeasuredData=226
+NumberOfVaryingParameters=0
+RangeStartTime=1065353216
+RotationSpeed=0
+ScanMode=0
+ScanType=Unlocked Coupled
+SimulatedMeasConditions=0
+SlitChangerIn=9999
+SmootingWidth=0
+Start=0.5
+Steps=226
+SynchronousRotation=0
+Time=3
+
+[Drive]
+DriveFlags=1
+DriveName=Theta
+DriveNumber=1
+DriveOffset=0
+OffsetIndex=0
+OscillationAmplitude=0
+OscillationSpeed=0
+StartPosition=0.25
+
+[Drive]
+DriveFlags=1
+DriveName=2Theta
+DriveNumber=2
+DriveOffset=0.5434
+OffsetIndex=0
+OscillationAmplitude=0
+OscillationSpeed=0
+StartPosition=0.5
+
+[Drive]
+DriveFlags=1
+DriveName=Phi
+DriveNumber=3
+DriveOffset=0
+OffsetIndex=0
+OscillationAmplitude=0
+OscillationSpeed=0
+StartPosition=0
+
+[Drive]
+DriveFlags=1
+DriveName=Chi
+DriveNumber=4
+DriveOffset=0
+OffsetIndex=0
+OscillationAmplitude=0
+OscillationSpeed=0
+StartPosition=0
+
+[Drive]
+DriveFlags=0
+DriveName=X-Drive
+DriveNumber=5
+DriveOffset=0
+OffsetIndex=0
+OscillationAmplitude=0
+OscillationSpeed=0
+StartPosition=0
+
+[Drive]
+DriveFlags=0
+DriveName=Y-Drive
+DriveNumber=6
+DriveOffset=0
+OffsetIndex=0
+OscillationAmplitude=0
+OscillationSpeed=0
+StartPosition=0
+
+[Drive]
+DriveFlags=0
+DriveName=Z-Drive
+DriveNumber=7
+DriveOffset=0
+OffsetIndex=0
+OscillationAmplitude=0
+OscillationSpeed=0
+StartPosition=1.7537
+
+[Drive]
+DriveFlags=0
+DriveName=ZOOM
+DriveNumber=14
+DriveOffset=0
+OffsetIndex=0
+OscillationAmplitude=0
+OscillationSpeed=0
+StartPosition=0
+
+[Drive]
+DriveFlags=1025
+DriveName=Rotary Absorber
+DriveNumber=20
+DriveOffset=0
+OffsetIndex=0
+OscillationAmplitude=0
+OscillationSpeed=0
+StartPosition=0
+
+[Detector]
+AmplifierGain=80
+ConstantDeadTime=0
+DetectorFlags=256
+DetectorName=Detector 1
+DetectorNumber=1
+DetectorType=1
+Discriminator1LowerLevel=0.788
+Discriminator1WindowWidth=1.47
+Discriminator2LowerLevel=0
+Discriminator2WindowWidth=0
+HighVoltage=732.5
+PileUpTime=0
+PulseShaping=9999
+TTLDetectorName=
+
+[Temperature]
+HeatingRate=0
+RampingFlag=0
+Temperature=296.15
+TemperatureController=2
+TemperatureDelay=-1
+TemperatureSensor=9999
+TemperatureStage=9999
+
+[Data]
+     Angle, Det1Disc1,
+       0.5,    595013,
+      0.52,    618689,
+      0.54,    642933,
+      0.56,    662364,
+      0.58,    685522,
+       0.6,    708616,
+      0.62,    724448,
+      0.64,    743568,
+      0.66,    760223,
+      0.68,    774212,
+       0.7,    785009,
+      0.72,    790148,
+      0.74,    788232,
+      0.76,    779566,
+      0.78,    755339,
+       0.8,    704714,
+      0.82,    608443,
+      0.84,    458682,
+      0.86,    403475,
+      0.88,    234354,
+       0.9,    172500,
+      0.92,    189085,
+      0.94,    218788,
+      0.96,    216274,
+      0.98,    178063,
+         1,    123023,
+      1.02,     70624,
+      1.04,     36567,
+      1.06,     23611,
+      1.08,     28299,
+       1.1,     42736,
+      1.12,     58111,
+      1.14,     68212,
+      1.16,     68912,
+      1.18,     62177,
+       1.2,     49048,
+      1.22,     34137,
+      1.24,     20510,
+      1.26,     10932,
+      1.28,      5856,
+       1.3,      5398,
+      1.32,      8404,
+      1.34,     13468,
+      1.36,     18672,
+      1.38,     22681,
+       1.4,     24049,
+      1.42,     23450,
+      1.44,     20633,
+      1.46,     16137,
+      1.48,     11344,
+       1.5,      7111,
+      1.52,      3822,
+      1.54,      1864,
+      1.56,      1407,
+      1.58,      2209,
+       1.6,      3956,
+      1.62,      5695,
+      1.64,      7651,
+      1.66,      9163,
+      1.68,      9248,
+       1.7,      8824,
+      1.72,      7675,
+      1.74,      6177,
+      1.76,      4488,
+      1.78,      2824,
+       1.8,      1551,
+      1.82,       770,
+      1.84,       490,
+      1.86,       672,
+      1.88,      1232,
+       1.9,      2023,
+      1.92,      2728,
+      1.94,      3294,
+      1.96,      3652,
+      1.98,      3701,
+         2,      3394,
+      2.02,      2968,
+      2.04,      2310,
+      2.06,      1747,
+      2.08,      1069,
+       2.1,       632,
+      2.12,       368,
+      2.14,       270,
+      2.16,       310,
+      2.18,       593,
+       2.2,       858,
+      2.22,      1202,
+      2.24,      1487,
+      2.26,      1607,
+      2.28,      1604,
+       2.3,      1523,
+      2.32,      1349,
+      2.34,      1151,
+      2.36,       787,
+      2.38,       570,
+       2.4,       363,
+      2.42,       215,
+      2.44,       159,
+      2.46,       193,
+      2.48,       281,
+       2.5,       408,
+      2.52,       550,
+      2.54,       629,
+      2.56,       739,
+      2.58,       758,
+       2.6,       768,
+      2.62,       765,
+      2.64,       584,
+      2.66,       480,
+      2.68,       353,
+       2.7,       275,
+      2.72,       190,
+      2.74,       109,
+      2.76,       121,
+      2.78,       138,
+       2.8,       222,
+      2.82,       286,
+      2.84,       317,
+      2.86,       388,
+      2.88,       417,
+       2.9,       412,
+      2.92,       403,
+      2.94,       375,
+      2.96,       306,
+      2.98,       219,
+         3,       195,
+      3.02,       141,
+      3.04,       129,
+      3.06,        92,
+      3.08,       107,
+       3.1,       133,
+      3.12,       138,
+      3.14,       170,
+      3.16,       213,
+      3.18,       236,
+       3.2,       260,
+      3.22,       251,
+      3.24,       244,
+      3.26,       210,
+      3.28,       180,
+       3.3,       140,
+      3.32,       126,
+      3.34,        85,
+      3.36,        77,
+      3.38,        79,
+       3.4,        98,
+      3.42,        92,
+      3.44,       117,
+      3.46,       128,
+      3.48,       166,
+       3.5,       172,
+      3.52,       188,
+      3.54,       156,
+      3.56,       163,
+      3.58,       122,
+       3.6,       101,
+      3.62,        94,
+      3.64,        80,
+      3.66,        67,
+      3.68,        62,
+       3.7,        76,
+      3.72,        69,
+      3.74,        86,
+      3.76,        93,
+      3.78,       112,
+       3.8,       108,
+      3.82,       113,
+      3.84,       124,
+      3.86,       120,
+      3.88,        93,
+       3.9,        87,
+      3.92,        65,
+      3.94,        53,
+      3.96,        50,
+      3.98,        46,
+         4,        39,
+      4.02,        51,
+      4.04,        42,
+      4.06,        67,
+      4.08,        66,
+       4.1,        73,
+      4.12,       100,
+      4.14,        91,
+      4.16,        82,
+      4.18,        61,
+       4.2,        58,
+      4.22,        56,
+      4.24,        58,
+      4.26,        44,
+      4.28,        45,
+       4.3,        31,
+      4.32,        39,
+      4.34,        46,
+      4.36,        51,
+      4.38,        56,
+       4.4,        65,
+      4.42,        42,
+      4.44,        55,
+      4.46,        77,
+      4.48,        60,
+       4.5,        49,
+      4.52,        42,
+      4.54,        39,
+      4.56,        30,
+      4.58,        32,
+       4.6,        39,
+      4.62,        32,
+      4.64,        31,
+      4.66,        42,
+      4.68,        44,
+       4.7,        45,
+      4.72,        49,
+      4.74,        52,
+      4.76,        40,
+      4.78,        41,
+       4.8,        47,
+      4.82,        40,
+      4.84,        35,
+      4.86,        27,
+      4.88,        24,
+       4.9,        17,
+      4.92,        29,
+      4.94,        27,
+      4.96,        24,
+      4.98,        34,
+         5,        20,
