@@ -464,10 +464,6 @@
       <a href="https://skanai0123.github.io/bit-rng-playground/">Bit RNG</a>
       <a href="https://skanai0123.github.io/qubo-ising-playground/">QUBO</a>
       <a href="https://skanai0123.github.io/xrr-playground/">XRR</a>
-      <a href="https://skanai0123.github.io/opamp-summing-circuit/">OpAmp Sum</a>
-      <a href="https://skanai0123.github.io/youtube-dual-playground/">2xYT</a>
-      <a href="https://skanai0123.github.io/parenting-audio-playground/">Kids Audio</a>
-      <a href="https://skanai0123.github.io/youtube-embed-checker/">YT Check</a>
     </nav>
   <div id="wallClock" class="wall-clock" aria-hidden="true">
     <span id="wallClockTime" class="wall-clock-time">--:--</span>
@@ -1009,6 +1005,32 @@
       if (!clockToggleBtn) return;
       const bhArrowToggleBtn = document.getElementById('bhArrowToggleBtn');
       if (!bhArrowToggleBtn) return;
+
+      async function filterUnavailableBookmarkLinks() {
+        const anchors = Array.from(bookmarkBarEl.querySelectorAll('a[href]'));
+        if (!anchors.length) return;
+        await Promise.all(anchors.map(async (anchor) => {
+          let url;
+          try {
+            url = new URL(anchor.getAttribute('href'), window.location.href);
+          } catch (_err) {
+            anchor.style.display = 'none';
+            return;
+          }
+          if (url.origin !== window.location.origin) return;
+          if (url.pathname === '/') return;
+          try {
+            let res = await fetch(url.href, { method: 'HEAD', cache: 'no-store' });
+            if (!res.ok && res.status === 405) {
+              res = await fetch(url.href, { method: 'GET', cache: 'no-store' });
+            }
+            if (!res.ok) anchor.style.display = 'none';
+          } catch (_err) {
+            anchor.style.display = 'none';
+          }
+        }));
+      }
+      filterUnavailableBookmarkLinks();
       const preset1Btn = document.getElementById('preset1Btn');
       if (!preset1Btn) return;
       const preset2Btn = document.getElementById('preset2Btn');
