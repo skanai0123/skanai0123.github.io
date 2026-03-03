@@ -457,6 +457,10 @@
       <div class="left">
         <section class="panel">
           <h2 class="section-title">Run Control</h2>
+          <div class="field">
+            <label for="steadyMaxIters">Steady max iterations</label>
+            <input id="steadyMaxIters" type="number" step="1" min="1" value="100" />
+          </div>
           <div class="mini-actions">
             <button id="latchFinalBtn" type="button">Use Final As Init (1-shot)</button>
             <button id="findSteadyBtn" type="button">Find Steady State</button>
@@ -478,13 +482,13 @@
           <div class="grid-3">
             <div class="field">
               <label for="endTime">End time (ns)</label>
-              <input id="endTime" type="number" step="any" value="1" />
+              <input id="endTime" type="number" step="any" value="10" />
             </div>
             <div class="field">
               <label for="dt">Time step dt (s)</label>
               <select id="dt">
-                <option value="1e-14" selected>10 fs (1e-14 s)</option>
-                <option value="1e-13">100 fs (1e-13 s)</option>
+                <option value="1e-14">10 fs (1e-14 s)</option>
+                <option value="1e-13" selected>100 fs (1e-13 s)</option>
                 <option value="1e-12">1 ps (1e-12 s)</option>
                 <option value="1e-11">10 ps (1e-11 s)</option>
               </select>
@@ -607,7 +611,7 @@
             </div>
             <div class="field">
               <label for="sweepEnd">Sweep J end</label>
-              <input id="sweepEnd" type="number" step="any" value="20" />
+              <input id="sweepEnd" type="number" step="any" value="0" />
             </div>
             <div class="field">
               <label for="sweepPoints">Sweep points</label>
@@ -778,7 +782,6 @@
     let suppressDirty = false;
     let autoRunTimer = null;
     const AUTO_RUN_DELAY_MS = 250;
-    const MAX_FIND_STEADY_ITERS = 30;
     const view3d = {
       yaw: Math.PI / 4,
       pitch: Math.atan(1 / Math.sqrt(2)),
@@ -1526,15 +1529,15 @@
       const areaRate = (areaDrift * 100) / deltaNs;
       const freqRate = (freqDrift * 100) / deltaNs;
 
-      // Primary: first/last orbit-area rate threshold.
+      // Primary: first/last mx,my amplitude-rate threshold.
       const THRESH_RATE = 0.05; // %/ns
-      const areaOk = areaRate <= THRESH_RATE;
-      const isStable = areaOk;
+      const ampXYOk = ampXRate <= THRESH_RATE && ampYRate <= THRESH_RATE;
+      const isStable = ampXYOk;
       const isOsc = Math.max(f1, f2) > 0;
       const label = isStable
         ? (isOsc ? 'steady oscillation' : 'steady (quasi-static)')
         : 'transient / not steady';
-      const detail = `rate[area=${areaRate.toFixed(3)}%/ns, ampX=${ampXRate.toFixed(3)}%/ns, ampY=${ampYRate.toFixed(3)}%/ns, freq=${freqRate.toFixed(3)}%/ns], area_threshold=${THRESH_RATE.toFixed(2)}%/ns`;
+      const detail = `rate[ampX=${ampXRate.toFixed(3)}%/ns, ampY=${ampYRate.toFixed(3)}%/ns, area=${areaRate.toFixed(3)}%/ns, freq=${freqRate.toFixed(3)}%/ns], amp_threshold=${THRESH_RATE.toFixed(2)}%/ns`;
 
       return {
         label,
@@ -2003,6 +2006,8 @@
         clearTimeout(autoRunTimer);
         autoRunTimer = null;
       }
+      const maxItersRaw = Number($('steadyMaxIters').value);
+      const maxIters = Number.isFinite(maxItersRaw) ? Math.max(1, Math.floor(maxItersRaw)) : 100;
 
       let iter = 0;
       if (!state.hasResult) {
@@ -2011,13 +2016,13 @@
         iter += 1;
       }
 
-      while (!isSteadyLabel(state.steadyLabel) && iter < MAX_FIND_STEADY_ITERS) {
+      while (!isSteadyLabel(state.steadyLabel) && iter < maxIters) {
         if (!state.hasResult || state.mx.length === 0) break;
         const last = state.mx.length - 1;
         state.latchedInit = [state.mx[last], state.my[last], state.mz[last]];
         state.useFinalOncePending = true;
         updateLatchStateText();
-        setStatus(`Find steady: iteration ${iter + 1}/${MAX_FIND_STEADY_ITERS}...`);
+        setStatus(`Find steady: iteration ${iter + 1}/${maxIters}...`);
         await runSimulation();
         iter += 1;
       }
@@ -2025,7 +2030,7 @@
       if (isSteadyLabel(state.steadyLabel)) {
         setStatus(`Find steady: reached ${state.steadyLabel} in ${iter} run(s).`);
       } else {
-        setStatus(`Find steady: not reached within ${MAX_FIND_STEADY_ITERS} run(s).`);
+        setStatus(`Find steady: not reached within ${maxIters} run(s).`);
       }
     }
 
@@ -2329,6 +2334,8 @@
       const sweepEnd = getNum('sweepEnd');
       const sweepPointsRaw = getNum('sweepPoints');
       const sweepPoints = Math.max(2, Math.round(sweepPointsRaw));
+      const steadyMaxItersRaw = getNum('steadyMaxIters');
+      const steadyMaxIters = Math.max(1, Math.floor(steadyMaxItersRaw));
       const currentDensity = currentDensityUnit * 1e10;
       const sotEfficiency = getNum('sotEfficiency');
       const xiDL = getNum('xiDL');
@@ -2352,7 +2359,7 @@
         ![
           alpha, gFactor, gamma, dt, endTime, saveDt,
           hMag, hThetaDeg, hPhiDeg,
-          currentDensityUnit, currentDensity, currentMode === 'sweep' ? sweepStart : 0, currentMode === 'sweep' ? sweepEnd : 0, sweepPointsRaw,
+          currentDensityUnit, currentDensity, currentMode === 'sweep' ? sweepStart : 0, currentMode === 'sweep' ? sweepEnd : 0, sweepPointsRaw, steadyMaxItersRaw,
           sotEfficiency, xiDL, xiFL, amrRatio, r0Ohm, deviceAreaNm2, deviceArea, tauSot, betaSot,
           thermal.temperature, thermal.ms, thermal.volume, ...H,
           aniso.hk1, aniso.hk2, aniso.hu, aniso.phiEasyDeg
@@ -2365,6 +2372,11 @@
       }
       if (currentMode === 'sweep' && (sweepPoints < 2 || sweepPoints > 300)) {
         setStatus('Sweep points must be between 2 and 300.');
+        setCalculatingUi(false);
+        return;
+      }
+      if (steadyMaxIters < 1 || steadyMaxIters > 1000) {
+        setStatus('Steady max iterations must be between 1 and 1000.');
         setCalculatingUi(false);
         return;
       }
@@ -2477,6 +2489,7 @@
       const t0 = performance.now();
       let result = null;
       let runCount = 1;
+      let runCalls = 0;
       state.fftMode = currentMode;
       state.sweepJ = [];
       state.sweepFreq = [];
@@ -2488,14 +2501,31 @@
         runCount = sweepPoints;
         let freqAxis = null;
         let peakAmp = 0;
+        let carryInit = latchedStart;
         const progressEvery = Math.max(1, Math.floor(sweepPoints / 20));
         setStatus(`Sweep running... 0/${sweepPoints}`);
         await new Promise((resolve) => requestAnimationFrame(resolve));
         for (let i = 0; i < sweepPoints; i += 1) {
           const frac = sweepPoints === 1 ? 0 : i / (sweepPoints - 1);
           const jUnit = sweepStart + (sweepEnd - sweepStart) * frac;
-          const r = runOneCurrent(jUnit, latchedStart);
+          let seed = carryInit;
+          let steadyRes = null;
+          let steadyIter = 0;
+          do {
+            steadyRes = runOneCurrent(jUnit, seed);
+            runCalls += 1;
+            steadyIter += 1;
+            const li = steadyRes.mx.length - 1;
+            seed = [steadyRes.mx[li], steadyRes.my[li], steadyRes.mz[li]];
+            if (isSteadyLabel(steadyRes.steady.label)) break;
+          } while (steadyIter < steadyMaxIters);
+
+          // After steady-search loop, run one mapping pass from the latest final state.
+          const r = runOneCurrent(jUnit, seed);
+          runCalls += 1;
           result = r;
+          const liMap = r.mx.length - 1;
+          carryInit = [r.mx[liMap], r.my[liMap], r.mz[liMap]];
           if (!freqAxis) {
             freqAxis = r.fftFreq.slice();
           }
@@ -2514,17 +2544,41 @@
           }
           state.sweepFreq = freqAxis || [];
           if (((i + 1) % progressEvery === 0) || i === 0 || i === sweepPoints - 1) {
+            state.t = r.t;
+            state.mx = r.mx;
+            state.my = r.my;
+            state.mz = r.mz;
+            state.v = r.v;
+            state.vac = r.vac;
+            state.vdc = r.vdc;
+            state.vacRms = r.vacRms;
+            state.ellipseA = r.ellipse.a;
+            state.ellipseB = r.ellipse.b;
+            state.ellipseAngleDeg = r.ellipse.angleDeg;
+            state.ellipseAspect = r.ellipse.aspect;
+            state.ellipseArea = r.ellipseArea;
+            state.orbitFreqHz = r.orbitFreqHz;
+            state.steadyLabel = r.steady.label;
+            state.steadyDetail = r.steady.detail;
+            state.ampXRate = r.steady.ampXRate || 0;
+            state.ampYRate = r.steady.ampYRate || 0;
+            state.areaRate = r.steady.areaRate || 0;
             state.fftFreq = r.fftFreq;
             state.fftAmp = r.fftAmp;
             state.fftPeakHz = r.fftPeakHz;
+            draw3DTrajectory();
+            drawTimeSeries();
+            drawOutputVoltageSeries();
             drawOutputFftSeries();
-            setStatus(`Sweep running... ${i + 1}/${sweepPoints}`);
+            renderTableAndSummary();
+            setStatus(`Sweep running... ${i + 1}/${sweepPoints} (steady iters: ${steadyIter}/${steadyMaxIters})`);
             await new Promise((resolve) => requestAnimationFrame(resolve));
           }
         }
         state.sweepFreq = freqAxis || [];
       } else {
         result = runOneCurrent(currentDensityUnit, latchedStart);
+        runCalls += 1;
       }
 
       const t1 = performance.now();
@@ -2535,7 +2589,7 @@
       state.mz = result.mz;
       state.v = result.v;
       state.vac = result.vac;
-      state.iterations = steps * runCount;
+      state.iterations = steps * runCalls;
       state.elapsedMs = t1 - t0;
       state.thermalSigma = sigmaTh;
       state.thermalRms = result.thermalRms;
@@ -2596,11 +2650,12 @@ if (typeof gtag === 'function') {
       }
       $('alpha').value = '0.02';
       $('gamma').value = '2.0';
+      $('steadyMaxIters').value = '100';
       $('hMag').value = '0.3';
       $('hThetaDeg').value = '20';
       $('hPhiDeg').value = '278';
-      $('dt').value = '1e-14';
-      $('endTime').value = '1';
+      $('dt').value = '1e-13';
+      $('endTime').value = '10';
       $('saveDt').value = '1e-12';
       $('hk1').value = '-0.1';
       $('hk2').value = '0';
@@ -2609,7 +2664,7 @@ if (typeof gtag === 'function') {
       $('currentDensity').value = '-12';
       $('currentMode').value = 'single';
       $('sweepStart').value = '-20';
-      $('sweepEnd').value = '20';
+      $('sweepEnd').value = '0';
       $('sweepPoints').value = '41';
       $('sotEfficiency').value = '1e-12';
       $('xiDL').value = '0.1';
