@@ -420,6 +420,12 @@
       border-radius: var(--radius-sm);
     }
 
+    .orbit-metrics {
+      margin-bottom: 8px;
+      white-space: normal;
+      font-size: 12px;
+    }
+
     @media (max-width: 1700px) {
       .workspace { grid-template-columns: minmax(460px, 38%) minmax(760px, 62%); }
       .right > .panel { grid-template-columns: 1fr; }
@@ -451,11 +457,10 @@
       <div class="left">
         <section class="panel">
           <h2 class="section-title">Run Control</h2>
-          <div class="actions">
-            <button id="downloadBtn" type="button" disabled>DL CSV</button>
-          </div>
           <div class="mini-actions">
-            <label><input id="reuseFinalCheck" type="checkbox" checked /> Use Final As Init (2-pass)</label>
+            <button id="latchFinalBtn" type="button">Use Final As Init (1-shot)</button>
+            <button id="findSteadyBtn" type="button">Find Steady State</button>
+            <span id="latchState">latched: off</span>
           </div>
           <div class="status" id="statusLine"></div>
         </section>
@@ -473,14 +478,14 @@
           <div class="grid-3">
             <div class="field">
               <label for="endTime">End time (ns)</label>
-              <input id="endTime" type="number" step="any" value="50" />
+              <input id="endTime" type="number" step="any" value="1" />
             </div>
             <div class="field">
               <label for="dt">Time step dt (s)</label>
               <select id="dt">
-                <option value="1e-14">10 fs (1e-14 s)</option>
+                <option value="1e-14" selected>10 fs (1e-14 s)</option>
                 <option value="1e-13">100 fs (1e-13 s)</option>
-                <option value="1e-12" selected>1 ps (1e-12 s)</option>
+                <option value="1e-12">1 ps (1e-12 s)</option>
                 <option value="1e-11">10 ps (1e-11 s)</option>
               </select>
             </div>
@@ -535,7 +540,7 @@
           <div class="xyz-row">
             <div class="field">
               <label for="hMag">|H| (T)</label>
-              <input id="hMag" type="number" step="any" value="0.5" />
+              <input id="hMag" type="number" step="any" value="0.3" />
             </div>
             <div class="field">
               <label for="hThetaDeg">theta_H (deg)</label>
@@ -553,7 +558,7 @@
           <div class="grid-3">
             <div class="field">
               <label for="hk1">Hk1_eff (T)</label>
-              <input id="hk1" type="number" step="any" value="-0.3" />
+              <input id="hk1" type="number" step="any" value="-0.1" />
             </div>
             <div class="field">
               <label for="hk2">Hk2 (T)</label>
@@ -561,7 +566,7 @@
             </div>
             <div class="field">
               <label for="hu">Hu in-plane (T)</label>
-              <input id="hu" type="number" step="any" value="0" />
+              <input id="hu" type="number" step="any" value="0.05" />
             </div>
             <div class="field">
               <label for="phiEasyDeg">phi_easy (deg)</label>
@@ -574,8 +579,15 @@
           <h2 class="section-title">Spin Torque (SOT)</h2>
           <div class="grid-3">
             <div class="field">
+              <label for="currentMode">Current mode</label>
+              <select id="currentMode">
+                <option value="single" selected>single</option>
+                <option value="sweep">sweep</option>
+              </select>
+            </div>
+            <div class="field">
               <label for="currentDensity">Current density J (10^10 A/m^2 = MA/cm^2)</label>
-              <input id="currentDensity" type="number" step="any" value="30000" />
+              <input id="currentDensity" type="number" step="any" value="-12" />
             </div>
             <div class="field">
               <label for="sotEfficiency">SOT efficiency eta (T/(A/m^2))</label>
@@ -589,6 +601,18 @@
               <label for="xiFL">xi_FL (field-like)</label>
               <input id="xiFL" type="number" step="any" value="0.0" />
             </div>
+            <div class="field">
+              <label for="sweepStart">Sweep J start</label>
+              <input id="sweepStart" type="number" step="any" value="-20" />
+            </div>
+            <div class="field">
+              <label for="sweepEnd">Sweep J end</label>
+              <input id="sweepEnd" type="number" step="any" value="20" />
+            </div>
+            <div class="field">
+              <label for="sweepPoints">Sweep points</label>
+              <input id="sweepPoints" type="number" step="1" value="41" />
+            </div>
           </div>
         </section>
 
@@ -599,15 +623,25 @@
               <label for="amrRatio">AMR ratio</label>
               <input id="amrRatio" type="number" step="any" value="0.02" />
             </div>
+            <div class="field">
+              <label for="r0Ohm">R0 (ohm)</label>
+              <input id="r0Ohm" type="number" step="any" value="100" />
+            </div>
+            <div class="field">
+              <label for="deviceArea">Device area (nm^2)</label>
+              <input id="deviceArea" type="number" step="any" value="10000" />
+            </div>
           </div>
         </section>
       </div>
 
       <div class="right">
         <section class="panel">
+          <div class="summary orbit-metrics" id="orbitMetrics">orbit ellipse(mx-my): -</div>
           <div class="tabs">
             <button class="tab-btn active" data-tab="tab3d" type="button">3DPlot</button>
             <button class="tab-btn" data-tab="tabTime" type="button">x,y,z</button>
+            <button class="tab-btn" data-tab="tabOutput" type="button">output V</button>
             <button class="tab-btn" data-tab="tabResult" type="button">saved result</button>
           </div>
 
@@ -622,6 +656,7 @@
             </div>
             <div class="view-actions">
               <button id="resetViewBtn" type="button">Reset View</button>
+              <button id="download3dBtn" type="button">DL 3D CSV</button>
               <select id="projectionMode" aria-label="3D projection mode" title="3D projection mode">
                 <option value="iso" selected>Isometric</option>
                 <option value="perspective">Perspective</option>
@@ -640,6 +675,28 @@
             </div>
             <div class="view-actions">
               <button id="resetTimeViewBtn" type="button">Reset XYZ View</button>
+              <button id="downloadTimeBtn" type="button">DL XYZ CSV</button>
+            </div>
+          </div>
+
+          <div class="tab" id="tabOutput">
+            <div class="plot-wrap">
+              <canvas id="plotOutput" width="760" height="300"></canvas>
+            </div>
+            <div class="legend">
+              <span><span class="dot dot-mz"></span>v_ac(t)</span>
+            </div>
+            <div class="view-actions">
+              <button id="downloadOutputBtn" type="button">DL Output CSV</button>
+            </div>
+            <div class="plot-wrap">
+              <canvas id="plotOutputFft" width="760" height="260"></canvas>
+            </div>
+            <div class="legend">
+              <span><span class="dot dot-my"></span>|FFT(v_ac)|</span>
+            </div>
+            <div class="view-actions">
+              <button id="downloadFftBtn" type="button">DL FFT CSV</button>
             </div>
           </div>
 
@@ -648,15 +705,19 @@
               <thead>
                 <tr>
                   <th>#</th>
-                  <th>t (s)</th>
+                  <th>t (ns)</th>
                   <th>mx</th>
                   <th>my</th>
                   <th>mz</th>
                   <th>|m|</th>
+                  <th>v_ac (V)</th>
                 </tr>
               </thead>
               <tbody id="resultBody"></tbody>
             </table>
+            <div class="view-actions">
+              <button id="downloadBtn" type="button" disabled>DL CSV</button>
+            </div>
             <div class="summary" id="summary"></div>
           </div>
         </section>
@@ -673,6 +734,8 @@
       mx: [],
       my: [],
       mz: [],
+      v: [],
+      vac: [],
       elapsedMs: 0,
       iterations: 0,
       hasResult: false,
@@ -683,11 +746,39 @@
       relaxTime: 0,
       sotTau: 0,
       sotBeta: 0,
-      initSource: 'random'
+      idcA: 0,
+      r0Ohm: 0,
+      deviceAreaM2: 0,
+      vdc: 0,
+      vacRms: 0,
+      fftFreq: [],
+      fftAmp: [],
+      fftPeakHz: 0,
+      fftMode: 'single',
+      sweepJ: [],
+      sweepFreq: [],
+      sweepAmp2d: [],
+      sweepPeakHz: 0,
+      sweepPeakJ: 0,
+      ellipseA: 0,
+      ellipseB: 0,
+      ellipseAngleDeg: 0,
+      ellipseAspect: 0,
+      ellipseArea: 0,
+      orbitFreqHz: 0,
+      steadyLabel: '-',
+      steadyDetail: '-',
+      ampXRate: 0,
+      ampYRate: 0,
+      areaRate: 0,
+      initSource: 'random',
+      latchedInit: null,
+      useFinalOncePending: false
     };
     let suppressDirty = false;
     let autoRunTimer = null;
     const AUTO_RUN_DELAY_MS = 250;
+    const MAX_FIND_STEADY_ITERS = 30;
     const view3d = {
       yaw: Math.PI / 4,
       pitch: Math.atan(1 / Math.sqrt(2)),
@@ -854,7 +945,7 @@
         ctx.fillStyle = '#4b3d76';
         ctx.font = '12px sans-serif';
         ctx.fillText('m', 12, 16);
-        ctx.fillText('time', W - 42, H - 8);
+        ctx.fillText('time (ns)', W - 66, H - 8);
         return;
       }
 
@@ -890,10 +981,716 @@
       ctx.fillText('m', 12, 16);
       ctx.fillText(yMin.toFixed(2), 8, y0 + 2);
       ctx.fillText(yMax.toFixed(2), 8, 18);
-      ctx.fillText('time', W - 42, H - 8);
-      ctx.fillText(state.t[iStart].toExponential(2), x0, H - 8);
-      ctx.fillText(state.t[iEnd].toExponential(2), W - 110, H - 8);
+      ctx.fillText('time (ns)', W - 66, H - 8);
+      ctx.fillText((state.t[iStart] * 1e9).toFixed(3), x0, H - 8);
+      ctx.fillText((state.t[iEnd] * 1e9).toFixed(3), W - 110, H - 8);
       ctx.fillText('Drag: pan | Wheel: X zoom | Shift+Wheel: Y zoom', 130, 18);
+    }
+
+    function drawOutputVoltageSeries() {
+      const canvas = $('plotOutput');
+      const ctx = canvas.getContext('2d');
+      const W = canvas.width;
+      const H = canvas.height;
+      const x0 = 44;
+      const y0 = H - 28;
+      const pw = W - 56;
+      const ph = H - 42;
+
+      ctx.clearRect(0, 0, W, H);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, W, H);
+      ctx.strokeStyle = '#d8d2ea';
+      for (let i = 0; i <= 4; i += 1) {
+        const y = 14 + (ph / 4) * i;
+        ctx.beginPath();
+        ctx.moveTo(x0, y);
+        ctx.lineTo(W - 12, y);
+        ctx.stroke();
+      }
+
+      ctx.strokeStyle = '#9389b5';
+      ctx.beginPath();
+      ctx.moveTo(x0, 14);
+      ctx.lineTo(x0, y0);
+      ctx.lineTo(W - 12, y0);
+      ctx.stroke();
+
+      const n = state.t.length;
+      if (n < 2 || state.vac.length !== n) {
+        ctx.fillStyle = '#4b3d76';
+        ctx.font = '12px sans-serif';
+        ctx.fillText('Output v_ac (V)', 10, 16);
+        ctx.fillText('time (ns)', W - 66, H - 8);
+        return;
+      }
+
+      let vMin = Infinity;
+      let vMax = -Infinity;
+      for (let i = 0; i < n; i += 1) {
+        const a = state.vac[i];
+        if (a < vMin) vMin = a;
+        if (a > vMax) vMax = a;
+      }
+      if (!Number.isFinite(vMin) || !Number.isFinite(vMax)) return;
+      if (Math.abs(vMax - vMin) < 1e-15) {
+        vMin -= 1e-6;
+        vMax += 1e-6;
+      }
+      const yDen = vMax - vMin;
+      const xDen = Math.max(1, n - 1);
+
+      function draw(values, color) {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        for (let i = 0; i < n; i += 1) {
+          const x = x0 + (i / xDen) * pw;
+          const y = y0 - ((values[i] - vMin) / yDen) * ph;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      }
+
+      draw(state.vac, '#2457c5');
+
+      ctx.fillStyle = '#4b3d76';
+      ctx.font = '12px sans-serif';
+      ctx.fillText('Output v_ac (V)', 10, 16);
+      ctx.fillText(vMin.toExponential(1), 6, y0 + 2);
+      ctx.fillText(vMax.toExponential(1), 6, 18);
+      ctx.fillText('time (ns)', W - 66, H - 8);
+      ctx.fillText((state.t[0] * 1e9).toFixed(3), x0, H - 8);
+      ctx.fillText((state.t[n - 1] * 1e9).toFixed(3), W - 110, H - 8);
+    }
+
+    function fftInPlace(re, im) {
+      const n = re.length;
+      let j = 0;
+      for (let i = 1; i < n; i += 1) {
+        let bit = n >> 1;
+        while (j & bit) {
+          j ^= bit;
+          bit >>= 1;
+        }
+        j ^= bit;
+        if (i < j) {
+          const tr = re[i]; re[i] = re[j]; re[j] = tr;
+          const ti = im[i]; im[i] = im[j]; im[j] = ti;
+        }
+      }
+      for (let len = 2; len <= n; len <<= 1) {
+        const ang = -2 * Math.PI / len;
+        const wlenR = Math.cos(ang);
+        const wlenI = Math.sin(ang);
+        for (let i = 0; i < n; i += len) {
+          let wr = 1;
+          let wi = 0;
+          for (let k = 0; k < (len >> 1); k += 1) {
+            const uR = re[i + k];
+            const uI = im[i + k];
+            const vR = re[i + k + (len >> 1)] * wr - im[i + k + (len >> 1)] * wi;
+            const vI = re[i + k + (len >> 1)] * wi + im[i + k + (len >> 1)] * wr;
+            re[i + k] = uR + vR;
+            im[i + k] = uI + vI;
+            re[i + k + (len >> 1)] = uR - vR;
+            im[i + k + (len >> 1)] = uI - vI;
+            const nextWr = wr * wlenR - wi * wlenI;
+            wi = wr * wlenI + wi * wlenR;
+            wr = nextWr;
+          }
+        }
+      }
+    }
+
+    function computeFftFromSeries(vac, t) {
+      const out = { freq: [], amp: [], peakHz: 0 };
+      const nRaw = vac.length;
+      if (nRaw < 4 || t.length !== nRaw) return out;
+
+      const maxN = 4096;
+      let n = 1;
+      while ((n << 1) <= Math.min(maxN, nRaw)) n <<= 1;
+      if (n < 4) return out;
+
+      const stride = Math.max(1, Math.floor(nRaw / n));
+      const dtRaw = (t[nRaw - 1] - t[0]) / Math.max(1, nRaw - 1);
+      const dtEff = dtRaw * stride;
+      if (!Number.isFinite(dtEff) || dtEff <= 0) return out;
+
+      const re = new Array(n).fill(0);
+      const im = new Array(n).fill(0);
+      for (let i = 0; i < n; i += 1) {
+        const idx = Math.min(nRaw - 1, i * stride);
+        re[i] = vac[idx];
+      }
+      const mean = re.reduce((s, x) => s + x, 0) / n;
+      for (let i = 0; i < n; i += 1) {
+        const w = 0.5 * (1 - Math.cos((2 * Math.PI * i) / (n - 1)));
+        re[i] = (re[i] - mean) * w;
+      }
+
+      fftInPlace(re, im);
+      const half = n >> 1;
+      let peakAmp = 0;
+      let peakHz = 0;
+      for (let k = 1; k < half; k += 1) {
+        const freq = k / (n * dtEff);
+        const amp = (2 / n) * Math.hypot(re[k], im[k]);
+        out.freq.push(freq);
+        out.amp.push(amp);
+        if (amp > peakAmp) {
+          peakAmp = amp;
+          peakHz = freq;
+        }
+      }
+      out.peakHz = peakHz;
+      return out;
+    }
+
+    function computeOutputFft() {
+      const out = computeFftFromSeries(state.vac, state.t);
+      state.fftFreq = out.freq;
+      state.fftAmp = out.amp;
+      state.fftPeakHz = out.peakHz;
+    }
+
+    function computeOrbitEllipseFromSeries(mxArr, myArr) {
+      const out = { a: 0, b: 0, angleDeg: 0, aspect: 0 };
+      const nAll = mxArr.length;
+      if (nAll < 32) return out;
+
+      // Use the tail segment to reduce transient influence.
+      const start = Math.floor(nAll * 0.5);
+      const n = nAll - start;
+      if (n < 16) return out;
+
+      let mxMean = 0;
+      let myMean = 0;
+      for (let i = start; i < nAll; i += 1) {
+        mxMean += mxArr[i];
+        myMean += myArr[i];
+      }
+      mxMean /= n;
+      myMean /= n;
+
+      let sxx = 0;
+      let syy = 0;
+      let sxy = 0;
+      for (let i = start; i < nAll; i += 1) {
+        const x = mxArr[i] - mxMean;
+        const y = myArr[i] - myMean;
+        sxx += x * x;
+        syy += y * y;
+        sxy += x * y;
+      }
+      sxx /= n;
+      syy /= n;
+      sxy /= n;
+
+      const tr = sxx + syy;
+      const detTerm = Math.max(0, ((sxx - syy) * (sxx - syy)) / 4 + sxy * sxy);
+      const root = Math.sqrt(detTerm);
+      const l1 = Math.max(0, tr / 2 + root);
+      const l2 = Math.max(0, tr / 2 - root);
+
+      // For harmonic ellipse, var ~= axis^2 / 2.
+      const a = Math.sqrt(2 * l1);
+      const b = Math.sqrt(2 * l2);
+      const ang = 0.5 * Math.atan2(2 * sxy, sxx - syy) * 180 / Math.PI;
+
+      out.a = a;
+      out.b = b;
+      out.angleDeg = ang;
+      out.aspect = b > 1e-15 ? a / b : 0;
+      return out;
+    }
+
+    function computeOrbitEllipse() {
+      const out = computeOrbitEllipseFromSeries(state.mx, state.my);
+      state.ellipseA = out.a;
+      state.ellipseB = out.b;
+      state.ellipseAngleDeg = out.angleDeg;
+      state.ellipseAspect = out.aspect;
+    }
+
+    function computeOrbitSimilarity(mx1, my1, mx2, my2, bins = 96) {
+      const n1 = Math.min(mx1.length, my1.length);
+      const n2 = Math.min(mx2.length, my2.length);
+      if (n1 < 32 || n2 < 32) return 0;
+
+      const buildRadiusProfile = (mx, my, n) => {
+        let cx = 0;
+        let cy = 0;
+        for (let i = 0; i < n; i += 1) {
+          cx += mx[i];
+          cy += my[i];
+        }
+        cx /= n;
+        cy /= n;
+
+        const sum = new Array(bins).fill(0);
+        const cnt = new Array(bins).fill(0);
+        for (let i = 0; i < n; i += 1) {
+          const x = mx[i] - cx;
+          const y = my[i] - cy;
+          const ang = Math.atan2(y, x);
+          const idx = Math.floor((((ang + Math.PI) / (2 * Math.PI)) * bins)) % bins;
+          const r = Math.hypot(x, y);
+          sum[idx] += r;
+          cnt[idx] += 1;
+        }
+
+        const prof = new Array(bins).fill(0);
+        let meanR = 0;
+        let used = 0;
+        for (let i = 0; i < bins; i += 1) {
+          if (cnt[i] > 0) {
+            prof[i] = sum[i] / cnt[i];
+            meanR += prof[i];
+            used += 1;
+          }
+        }
+        meanR = used > 0 ? meanR / used : 0;
+        for (let i = 0; i < bins; i += 1) {
+          if (cnt[i] === 0) prof[i] = meanR;
+        }
+
+        // Circular smoothing to suppress binning noise.
+        const sm = new Array(bins).fill(0);
+        for (let i = 0; i < bins; i += 1) {
+          const im1 = (i - 1 + bins) % bins;
+          const ip1 = (i + 1) % bins;
+          sm[i] = 0.25 * prof[im1] + 0.5 * prof[i] + 0.25 * prof[ip1];
+        }
+        return sm;
+      };
+
+      const p1 = buildRadiusProfile(mx1, my1, n1);
+      const p2 = buildRadiusProfile(mx2, my2, n2);
+
+      const mean = (arr) => arr.reduce((s, x) => s + x, 0) / arr.length;
+      const m1 = mean(p1);
+      const m2 = mean(p2);
+      const q1 = p1.map((x) => x - m1);
+      const q2 = p2.map((x) => x - m2);
+      const nrm1 = Math.sqrt(q1.reduce((s, x) => s + x * x, 0));
+      const nrm2 = Math.sqrt(q2.reduce((s, x) => s + x * x, 0));
+      if (nrm1 <= 1e-18 || nrm2 <= 1e-18) return 0;
+
+      let bestShift = 0;
+      let bestCorr = -1;
+      for (let sh = 0; sh < bins; sh += 1) {
+        let dot = 0;
+        for (let i = 0; i < bins; i += 1) {
+          dot += q1[i] * q2[(i + sh) % bins];
+        }
+        const corr = dot / (nrm1 * nrm2);
+        if (corr > bestCorr) {
+          bestCorr = corr;
+          bestShift = sh;
+        }
+      }
+
+      let absDiff = 0;
+      let ref = 0;
+      for (let i = 0; i < bins; i += 1) {
+        const a = p1[i];
+        const b = p2[(i + bestShift) % bins];
+        absDiff += Math.abs(a - b);
+        ref += Math.abs(a);
+      }
+      const relErr = absDiff / Math.max(ref, 1e-18);
+      const simCorr = Math.max(0, Math.min(1, 0.5 * (bestCorr + 1)));
+      const simErr = Math.max(0, 1 - relErr / 0.15);
+      let sim = 0.55 * simCorr + 0.45 * simErr;
+      if (sim > 0.999) sim = 1;
+      return Math.max(0, Math.min(1, sim));
+    }
+
+    function computeFftSimilarityXY(mx1, my1, t1, mx2, my2, t2, fMin = 0, fMax = 30e9) {
+      const sx1 = computeFftFromSeries(mx1, t1);
+      const sy1 = computeFftFromSeries(my1, t1);
+      const sx2 = computeFftFromSeries(mx2, t2);
+      const sy2 = computeFftFromSeries(my2, t2);
+
+      const n = Math.min(
+        sx1.freq.length, sy1.freq.length, sx2.freq.length, sy2.freq.length,
+        sx1.amp.length, sy1.amp.length, sx2.amp.length, sy2.amp.length
+      );
+      if (n < 1) return { sim: 0, peak1: 0, peak2: 0 };
+
+      let max1 = 0;
+      let max2 = 0;
+      let nIn = 0;
+      for (let i = 0; i < n; i += 1) {
+        const f = sx1.freq[i];
+        if (f < fMin || f > fMax) continue;
+        const a1 = Math.hypot(sx1.amp[i], sy1.amp[i]);
+        const a2 = Math.hypot(sx2.amp[i], sy2.amp[i]);
+        if (a1 > max1) max1 = a1;
+        if (a2 > max2) max2 = a2;
+        nIn += 1;
+      }
+      if (nIn < 1 || max1 <= 0 || max2 <= 0) return { sim: 0, peak1: 0, peak2: 0 };
+
+      const x = [];
+      const y = [];
+      let p1 = 0;
+      let p2 = 0;
+      let a1p = -1;
+      let a2p = -1;
+      for (let i = 0; i < n; i += 1) {
+        const f = sx1.freq[i];
+        if (f < fMin || f > fMax) continue;
+        const a1 = Math.hypot(sx1.amp[i], sy1.amp[i]);
+        const a2 = Math.hypot(sx2.amp[i], sy2.amp[i]);
+        x.push(Math.log10(1 + a1 / max1));
+        y.push(Math.log10(1 + a2 / max2));
+        if (a1 > a1p) {
+          a1p = a1;
+          p1 = f;
+        }
+        if (a2 > a2p) {
+          a2p = a2;
+          p2 = f;
+        }
+      }
+
+      const mean = (arr) => arr.reduce((s, v) => s + v, 0) / arr.length;
+      const mx = mean(x);
+      const my = mean(y);
+      let num = 0;
+      let dx2 = 0;
+      let dy2 = 0;
+      for (let i = 0; i < x.length; i += 1) {
+        const dx = x[i] - mx;
+        const dy = y[i] - my;
+        num += dx * dy;
+        dx2 += dx * dx;
+        dy2 += dy * dy;
+      }
+      const corr = (dx2 > 0 && dy2 > 0) ? num / Math.sqrt(dx2 * dy2) : -1;
+      const simCorr = Math.max(0, Math.min(1, 0.5 * (corr + 1)));
+
+      const peakRel = (p1 > 0 && p2 > 0) ? Math.abs(p2 - p1) / Math.max(p1, p2) : 1;
+      const simPeak = Math.max(0, 1 - peakRel / 0.03);
+      const sim = Math.max(0, Math.min(1, 0.75 * simCorr + 0.25 * simPeak));
+      return { sim, peak1: p1, peak2: p2 };
+    }
+
+    function computeCrossCorrelationSimilarity(a1, a2, maxLagFrac = 0.5) {
+      const n = Math.min(a1.length, a2.length);
+      if (n < 8) return { sim: 0, lag: 0 };
+
+      const x1 = a1.slice(0, n);
+      const x2 = a2.slice(0, n);
+      const mean = (arr) => arr.reduce((s, v) => s + v, 0) / arr.length;
+      const m1 = mean(x1);
+      const m2 = mean(x2);
+      for (let i = 0; i < n; i += 1) {
+        x1[i] -= m1;
+        x2[i] -= m2;
+      }
+
+      let s1 = 0;
+      let s2 = 0;
+      for (let i = 0; i < n; i += 1) {
+        s1 += x1[i] * x1[i];
+        s2 += x2[i] * x2[i];
+      }
+      const d1 = Math.sqrt(s1);
+      const d2 = Math.sqrt(s2);
+      if (d1 <= 1e-18 || d2 <= 1e-18) return { sim: 0, lag: 0 };
+      for (let i = 0; i < n; i += 1) {
+        x1[i] /= d1;
+        x2[i] /= d2;
+      }
+
+      const maxLag = Math.max(0, Math.min(n - 2, Math.floor(n * maxLagFrac)));
+      let best = -1;
+      let bestLag = 0;
+      for (let lag = -maxLag; lag <= maxLag; lag += 1) {
+        let dot = 0;
+        let cnt = 0;
+        for (let i = 0; i < n; i += 1) {
+          const j = i + lag;
+          if (j < 0 || j >= n) continue;
+          dot += x1[i] * x2[j];
+          cnt += 1;
+        }
+        if (cnt < 4) continue;
+        const corr = dot;
+        if (corr > best) {
+          best = corr;
+          bestLag = lag;
+        }
+      }
+      return { sim: Math.max(0, Math.min(1, best)), lag: bestLag };
+    }
+
+    function evaluateSteadyState(tArr, mxArr, myArr, vacArr) {
+      const unknown = {
+        label: 'undetermined',
+        detail: 'not enough samples',
+        stable: false,
+        ampDrift: 0,
+        areaDrift: 0,
+        freqDrift: 0,
+        cycles: 0,
+        orbitSimilarity: 0,
+        fftSimilarity: 0,
+        xcorrSimilarity: 0,
+        xcorrLag: 0,
+        ampXDrift: 0,
+        ampYDrift: 0,
+        ampXRate: 0,
+        ampYRate: 0,
+        areaRate: 0
+      };
+      const n = tArr.length;
+      if (n < 16 || mxArr.length !== n || myArr.length !== n || vacArr.length !== n) return unknown;
+
+      const winN = Math.max(8, Math.floor(n * 0.25));
+      if (n < 2 * winN) return unknown;
+      const iStart1 = 0;
+      const iEnd1 = winN;
+      const iStart2 = n - winN;
+      const iEnd2 = n;
+
+      const t1 = tArr.slice(iStart1, iEnd1);
+      const t2 = tArr.slice(iStart2, iEnd2);
+      const mx1 = mxArr.slice(iStart1, iEnd1);
+      const mx2 = mxArr.slice(iStart2, iEnd2);
+      const my1 = myArr.slice(iStart1, iEnd1);
+      const my2 = myArr.slice(iStart2, iEnd2);
+      const v1 = vacArr.slice(iStart1, iEnd1);
+      const v2 = vacArr.slice(iStart2, iEnd2);
+
+      const rms = (arr) => {
+        if (arr.length === 0) return 0;
+        const s = arr.reduce((acc, x) => acc + x * x, 0);
+        return Math.sqrt(s / arr.length);
+      };
+      const halfP2P = (arr) => {
+        if (arr.length === 0) return 0;
+        let mn = Infinity;
+        let mx = -Infinity;
+        for (let i = 0; i < arr.length; i += 1) {
+          const v = arr[i];
+          if (v < mn) mn = v;
+          if (v > mx) mx = v;
+        }
+        return 0.5 * (mx - mn);
+      };
+      const r1 = rms(v1);
+      const r2 = rms(v2);
+      const ampDrift = Math.abs(r2 - r1) / Math.max(Math.max(r1, r2), 1e-18);
+      const ax1 = halfP2P(mx1);
+      const ax2 = halfP2P(mx2);
+      const ay1 = halfP2P(my1);
+      const ay2 = halfP2P(my2);
+      const ampXDrift = Math.abs(ax2 - ax1) / Math.max(Math.max(ax1, ax2), 1e-18);
+      const ampYDrift = Math.abs(ay2 - ay1) / Math.max(Math.max(ay1, ay2), 1e-18);
+
+      const ell1 = computeOrbitEllipseFromSeries(mx1, my1);
+      const ell2 = computeOrbitEllipseFromSeries(mx2, my2);
+      const a1 = Math.PI * ell1.a * ell1.b;
+      const a2 = Math.PI * ell2.a * ell2.b;
+      const areaDrift = Math.abs(a2 - a1) / Math.max(Math.max(Math.abs(a1), Math.abs(a2)), 1e-18);
+
+      const fftXY = computeFftSimilarityXY(mx1, my1, t1, mx2, my2, t2);
+      const f1 = fftXY.peak1;
+      const f2 = fftXY.peak2;
+      const orbitSimilarity = computeOrbitSimilarity(mx1, my1, mx2, my2);
+      const fftSimilarity = fftXY.sim;
+      const xcorr = computeCrossCorrelationSimilarity(v1, v2, 0.5);
+      const orbitSimilarityPct = `${(orbitSimilarity * 100).toFixed(1)}%`;
+      const fftSimilarityPct = `${(fftSimilarity * 100).toFixed(1)}%`;
+      const xcorrSimilarityPct = `${(xcorr.sim * 100).toFixed(1)}%`;
+      let freqDrift = 0;
+      if (f1 > 0 && f2 > 0) {
+        freqDrift = Math.abs(f2 - f1) / Math.max(Math.max(f1, f2), 1);
+      }
+      const fMean = (f1 > 0 && f2 > 0) ? 0.5 * (f1 + f2) : Math.max(f1, f2);
+      const fullDuration = Math.max(0, tArr[n - 1] - tArr[0]);
+      const cycles = fMean > 0 ? fullDuration * fMean : 0;
+      const dt1 = t1.length > 1 ? (t1[t1.length - 1] - t1[0]) / (t1.length - 1) : 0;
+      const lagNs = dt1 > 0 ? xcorr.lag * dt1 * 1e9 : 0;
+      const c1 = t1.length > 0 ? 0.5 * (t1[0] + t1[t1.length - 1]) : 0;
+      const c2 = t2.length > 0 ? 0.5 * (t2[0] + t2[t2.length - 1]) : 0;
+      const deltaNs = Math.max(1e-12, (c2 - c1) * 1e9);
+      const ampXRate = (ampXDrift * 100) / deltaNs;
+      const ampYRate = (ampYDrift * 100) / deltaNs;
+      const areaRate = (areaDrift * 100) / deltaNs;
+      const freqRate = (freqDrift * 100) / deltaNs;
+
+      // Primary: first/last orbit-area rate threshold.
+      const THRESH_RATE = 0.05; // %/ns
+      const areaOk = areaRate <= THRESH_RATE;
+      const isStable = areaOk;
+      const isOsc = Math.max(f1, f2) > 0;
+      const label = isStable
+        ? (isOsc ? 'steady oscillation' : 'steady (quasi-static)')
+        : 'transient / not steady';
+      const detail = `rate[area=${areaRate.toFixed(3)}%/ns, ampX=${ampXRate.toFixed(3)}%/ns, ampY=${ampYRate.toFixed(3)}%/ns, freq=${freqRate.toFixed(3)}%/ns], area_threshold=${THRESH_RATE.toFixed(2)}%/ns`;
+
+      return {
+        label,
+        detail,
+        stable: isStable,
+        ampDrift,
+        areaDrift,
+        freqDrift,
+        cycles,
+        orbitSimilarity,
+        fftSimilarity,
+        xcorrSimilarity: xcorr.sim,
+        xcorrLag: xcorr.lag,
+        ampXDrift,
+        ampYDrift,
+        ampXRate,
+        ampYRate,
+        areaRate
+      };
+    }
+
+    function drawOutputFftSeries() {
+      const canvas = $('plotOutputFft');
+      const ctx = canvas.getContext('2d');
+      const W = canvas.width;
+      const H = canvas.height;
+      const x0 = 44;
+      const y0 = H - 28;
+      const pw = W - 56;
+      const ph = H - 42;
+
+      ctx.clearRect(0, 0, W, H);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, W, H);
+      ctx.strokeStyle = '#d8d2ea';
+      for (let i = 0; i <= 4; i += 1) {
+        const y = 14 + (ph / 4) * i;
+        ctx.beginPath();
+        ctx.moveTo(x0, y);
+        ctx.lineTo(W - 12, y);
+        ctx.stroke();
+      }
+      ctx.strokeStyle = '#9389b5';
+      ctx.beginPath();
+      ctx.moveTo(x0, 14);
+      ctx.lineTo(x0, y0);
+      ctx.lineTo(W - 12, y0);
+      ctx.stroke();
+
+      const fMin = 0;
+      const fMax = 40e9;
+      const fDen = fMax - fMin;
+
+      if (state.fftMode === 'sweep' && state.sweepJ.length > 1 && state.sweepFreq.length > 1 && state.sweepAmp2d.length === state.sweepJ.length) {
+        const nJ = state.sweepJ.length;
+        const nF = state.sweepFreq.length;
+        let aMax = 0;
+        for (let j = 0; j < nJ; j += 1) {
+          const row = state.sweepAmp2d[j] || [];
+          for (let k = 0; k < nF; k += 1) {
+            const f = state.sweepFreq[k];
+            if (f < fMin || f > fMax) continue;
+            const a = row[k] || 0;
+            if (a > aMax) aMax = a;
+          }
+        }
+        if (aMax <= 0) aMax = 1;
+        const aFloor = aMax * 1e-6;
+        const logDen = Math.log10(aMax / aFloor + 1);
+        const rowH = ph / nJ;
+
+        for (let j = 0; j < nJ; j += 1) {
+          const row = state.sweepAmp2d[j] || [];
+          const y = y0 - (j + 1) * rowH;
+          for (let k = 0; k < nF; k += 1) {
+            const f = state.sweepFreq[k];
+            if (f < fMin || f > fMax) continue;
+            const a = row[k] || 0;
+            const nrm = Math.max(0, Math.min(1, Math.log10(a / aFloor + 1) / logDen));
+            const hue = 240 - 240 * nrm;
+            const x = x0 + ((f - fMin) / fDen) * pw;
+            const xNextF = (k + 1 < nF) ? state.sweepFreq[k + 1] : f + (state.sweepFreq[1] - state.sweepFreq[0]);
+            const x2 = x0 + ((Math.min(fMax, xNextF) - fMin) / fDen) * pw;
+            const w = Math.max(1, x2 - x);
+            ctx.fillStyle = `hsl(${hue}, 92%, 52%)`;
+            ctx.fillRect(x, y, w, rowH + 1);
+          }
+        }
+
+        ctx.fillStyle = '#4b3d76';
+        ctx.font = '12px sans-serif';
+        ctx.fillText('FFT map |V_ac| vs J', 10, 16);
+        ctx.fillText('0', 20, y0 + 2);
+        ctx.fillText(aMax.toExponential(1), 6, 18);
+        ctx.fillText('freq (GHz)', W - 72, H - 8);
+        ctx.fillText('0.00', x0, H - 8);
+        ctx.fillText('40.00', W - 110, H - 8);
+        const jMin = Math.min(state.sweepJ[0], state.sweepJ[nJ - 1]);
+        const jMax = Math.max(state.sweepJ[0], state.sweepJ[nJ - 1]);
+        ctx.fillText(`J: ${jMin.toFixed(2)} to ${jMax.toFixed(2)}`, x0 + 120, 16);
+        return;
+      }
+
+      const n = state.fftFreq.length;
+      if (n < 2) {
+        ctx.fillStyle = '#4b3d76';
+        ctx.font = '12px sans-serif';
+        ctx.fillText('FFT |V_ac|', 10, 16);
+        ctx.fillText('freq (GHz)', W - 72, H - 8);
+        return;
+      }
+
+      let aMax = 0;
+      let inRangeCount = 0;
+      for (let i = 0; i < n; i += 1) {
+        const f = state.fftFreq[i];
+        if (f < fMin || f > fMax) continue;
+        if (state.fftAmp[i] > aMax) aMax = state.fftAmp[i];
+        inRangeCount += 1;
+      }
+      if (inRangeCount < 2) {
+        ctx.fillStyle = '#4b3d76';
+        ctx.font = '12px sans-serif';
+        ctx.fillText('FFT |V_ac|', 10, 16);
+        ctx.fillText('freq (GHz)', W - 72, H - 8);
+        ctx.fillText('0.00', x0, H - 8);
+        ctx.fillText('40.00', W - 110, H - 8);
+        return;
+      }
+      const aDen = Math.max(1e-18, aMax);
+
+      ctx.strokeStyle = '#1e8c55';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      let started = false;
+      for (let i = 0; i < n; i += 1) {
+        const f = state.fftFreq[i];
+        if (f < fMin || f > fMax) continue;
+        const x = x0 + ((f - fMin) / fDen) * pw;
+        const y = y0 - (state.fftAmp[i] / aDen) * ph;
+        if (!started) {
+          ctx.moveTo(x, y);
+          started = true;
+        }
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+
+      ctx.fillStyle = '#4b3d76';
+      ctx.font = '12px sans-serif';
+      ctx.fillText('FFT |V_ac|', 10, 16);
+      ctx.fillText('0', 20, y0 + 2);
+      ctx.fillText(aMax.toExponential(1), 6, 18);
+      ctx.fillText('freq (GHz)', W - 72, H - 8);
+      ctx.fillText('0.00', x0, H - 8);
+      ctx.fillText('40.00', W - 110, H - 8);
     }
 
     function project3d(x, y, z, cx, cy, s) {
@@ -1107,11 +1904,12 @@
         const tr = document.createElement('tr');
         tr.innerHTML = [
           `<td>${i}</td>`,
-          `<td>${state.t[i].toExponential(4)}</td>`,
+          `<td>${(state.t[i] * 1e9).toFixed(4)}</td>`,
           `<td>${m[0].toFixed(6)}</td>`,
           `<td>${m[1].toFixed(6)}</td>`,
           `<td>${m[2].toFixed(6)}</td>`,
-          `<td>${norm(m).toFixed(6)}</td>`
+          `<td>${norm(m).toFixed(6)}</td>`,
+          `<td>${(state.vac[i] || 0).toExponential(4)}</td>`
         ].join('');
         body.appendChild(tr);
       }
@@ -1120,9 +1918,18 @@
       if (last < 0) return;
       const final = [state.mx[last], state.my[last], state.mz[last]];
       const speed = state.elapsedMs > 0 ? Math.round((state.iterations * 1000) / state.elapsedMs) : 0;
+      const orbitFreqText = state.orbitFreqHz > 0 ? `${(state.orbitFreqHz * 1e-9).toFixed(3)} GHz` : '-';
+      const orbitText = `orbit ellipse(mx-my): a=${state.ellipseA.toExponential(3)}, b=${state.ellipseB.toExponential(3)}, area=${state.ellipseArea.toExponential(3)}, angle=${state.ellipseAngleDeg.toFixed(2)} deg, a/b=${state.ellipseAspect.toFixed(3)}, f_orbit=${orbitFreqText}, area_rate=${state.areaRate.toFixed(3)}%/ns, mx_amp_rate=${state.ampXRate.toFixed(3)}%/ns, my_amp_rate=${state.ampYRate.toFixed(3)}%/ns, steady=${state.steadyLabel}`;
+      $('orbitMetrics').textContent = orbitText;
+      const modeText = state.fftMode === 'sweep'
+        ? `current mode: sweep, J=[${(state.sweepJ[0] || 0).toFixed(2)}, ${(state.sweepJ[state.sweepJ.length - 1] || 0).toFixed(2)}], points=${state.sweepJ.length}`
+        : `current mode: single, J=${getNum('currentDensity').toFixed(2)}`;
+      const peakText = state.fftMode === 'sweep'
+        ? `FFT map peak: ${state.sweepPeakHz > 0 ? (state.sweepPeakHz * 1e-9).toFixed(3) + ' GHz @ J=' + state.sweepPeakJ.toFixed(2) : '-'}`
+        : `FFT peak: ${state.fftPeakHz > 0 ? (state.fftPeakHz * 1e-9).toFixed(3) + ' GHz' : '-'}`;
 
       $('summary').textContent = [
-        `t_final: ${state.t[last].toExponential(6)} s`,
+        `t_final: ${(state.t[last] * 1e9).toFixed(4)} ns`,
         `m_final: (${final[0].toFixed(6)}, ${final[1].toFixed(6)}, ${final[2].toFixed(6)})`,
         `|m_final|: ${norm(final).toFixed(6)}`,
         `elapsed: ${state.elapsedMs.toFixed(2)} ms`,
@@ -1131,8 +1938,13 @@
         `field: |H|=${getNum('hMag').toExponential(3)} T, theta_H=${getNum('hThetaDeg').toFixed(2)} deg, phi_H=${getNum('hPhiDeg').toFixed(2)} deg`,
         `anisotropy(Hk1,Hk2,Hu,phi): (${getNum('hk1').toExponential(3)}, ${getNum('hk2').toExponential(3)}, ${getNum('hu').toExponential(3)}, ${getNum('phiEasyDeg').toFixed(2)} deg)`,
         `SOT input: J=${getNum('currentDensity').toExponential(3)} x(10^10 A/m^2), eta=${getNum('sotEfficiency').toExponential(3)} T/(A/m^2), xi_DL=${getNum('xiDL').toFixed(3)}, xi_FL=${getNum('xiFL').toFixed(3)}, IDC=+X fixed, sigma=+/-Y`,
+        modeText,
         `SOT(tau,beta): (${state.sotTau.toExponential(3)}, ${state.sotBeta.toExponential(3)}) T`,
-        `AMR ratio: ${getNum('amrRatio').toExponential(3)}`,
+        `AMR params: ratio=${getNum('amrRatio').toExponential(3)}, R0=${state.r0Ohm.toExponential(3)} ohm, area=${getNum('deviceArea').toExponential(3)} nm^2`,
+        `IDC: ${state.idcA.toExponential(3)} A`,
+        `Vac_rms: ${state.vacRms.toExponential(3)} V`,
+        `steady-state: ${state.steadyLabel} (${state.steadyDetail})`,
+        peakText,
         `thermal mode: ${$('noise').value}`,
         `thermal sigma/component: ${state.thermalSigma.toExponential(3)} T`,
         `thermal sampled rms/component: ${state.thermalRms.toExponential(3)} T`
@@ -1143,6 +1955,10 @@
 
     function setStatus(text) {
       $('statusLine').textContent = text;
+    }
+
+    function updateLatchStateText() {
+      $('latchState').textContent = `latched: ${state.useFinalOncePending ? 'on' : 'off'}`;
     }
 
     function clearMetaDisplay() {
@@ -1173,6 +1989,44 @@
     function setCalculatingUi(isCalculating) {
       state.isCalculating = isCalculating;
       $('downloadBtn').disabled = isCalculating || !state.hasResult || state.isDirty;
+      $('latchFinalBtn').disabled = isCalculating;
+      $('findSteadyBtn').disabled = isCalculating;
+    }
+
+    function isSteadyLabel(label) {
+      return typeof label === 'string' && label.startsWith('steady');
+    }
+
+    async function findSteadyState() {
+      if (state.isCalculating) return;
+      if (autoRunTimer) {
+        clearTimeout(autoRunTimer);
+        autoRunTimer = null;
+      }
+
+      let iter = 0;
+      if (!state.hasResult) {
+        setStatus('Find steady: initial run...');
+        await runSimulation();
+        iter += 1;
+      }
+
+      while (!isSteadyLabel(state.steadyLabel) && iter < MAX_FIND_STEADY_ITERS) {
+        if (!state.hasResult || state.mx.length === 0) break;
+        const last = state.mx.length - 1;
+        state.latchedInit = [state.mx[last], state.my[last], state.mz[last]];
+        state.useFinalOncePending = true;
+        updateLatchStateText();
+        setStatus(`Find steady: iteration ${iter + 1}/${MAX_FIND_STEADY_ITERS}...`);
+        await runSimulation();
+        iter += 1;
+      }
+
+      if (isSteadyLabel(state.steadyLabel)) {
+        setStatus(`Find steady: reached ${state.steadyLabel} in ${iter} run(s).`);
+      } else {
+        setStatus(`Find steady: not reached within ${MAX_FIND_STEADY_ITERS} run(s).`);
+      }
     }
 
     function reset3DView() {
@@ -1286,11 +2140,44 @@
 
     function buildCsvText() {
       const rows = [];
-      rows.push('index,t_s,mx,my,mz');
+      rows.push('index,t_ns,mx,my,mz,vac_v');
       for (let i = 0; i < state.t.length; i += 1) {
         rows.push([
           i,
-          state.t[i].toExponential(10),
+          (state.t[i] * 1e9).toFixed(10),
+          state.mx[i].toFixed(10),
+          state.my[i].toFixed(10),
+          state.mz[i].toFixed(10),
+          (state.vac[i] || 0).toExponential(10)
+        ].join(','));
+      }
+      return rows.join('\n');
+    }
+
+    function buildCsv3dText() {
+      const rows = [];
+      rows.push('index,t_ns,mx,my,mz,norm_m');
+      for (let i = 0; i < state.t.length; i += 1) {
+        const m = [state.mx[i], state.my[i], state.mz[i]];
+        rows.push([
+          i,
+          (state.t[i] * 1e9).toFixed(10),
+          m[0].toFixed(10),
+          m[1].toFixed(10),
+          m[2].toFixed(10),
+          norm(m).toFixed(10)
+        ].join(','));
+      }
+      return rows.join('\n');
+    }
+
+    function buildCsvTimeText() {
+      const rows = [];
+      rows.push('index,t_ns,mx,my,mz');
+      for (let i = 0; i < state.t.length; i += 1) {
+        rows.push([
+          i,
+          (state.t[i] * 1e9).toFixed(10),
           state.mx[i].toFixed(10),
           state.my[i].toFixed(10),
           state.mz[i].toFixed(10)
@@ -1299,24 +2186,111 @@
       return rows.join('\n');
     }
 
-    function downloadCsv() {
-      if (!state.hasResult || state.t.length === 0) {
-        setStatus('Run calculation first, then download.');
-        return;
+    function buildCsvOutputText() {
+      const rows = [];
+      rows.push('index,t_ns,vac_v');
+      for (let i = 0; i < state.t.length; i += 1) {
+        rows.push([
+          i,
+          (state.t[i] * 1e9).toFixed(10),
+          (state.vac[i] || 0).toExponential(10)
+        ].join(','));
       }
+      return rows.join('\n');
+    }
 
-      const csv = buildCsvText();
+    function buildCsvFftText() {
+      const rows = [];
+      if (state.fftMode === 'sweep' && state.sweepJ.length > 0 && state.sweepFreq.length > 0) {
+        rows.push('j_index,j_unit_1e10Apm2,f_hz,f_ghz,amp_v');
+        for (let j = 0; j < state.sweepJ.length; j += 1) {
+          const row = state.sweepAmp2d[j] || [];
+          for (let i = 0; i < state.sweepFreq.length; i += 1) {
+            const f = state.sweepFreq[i];
+            const a = row[i] || 0;
+            rows.push([
+              j,
+              state.sweepJ[j].toFixed(10),
+              f.toExponential(10),
+              (f * 1e-9).toFixed(10),
+              a.toExponential(10)
+            ].join(','));
+          }
+        }
+        return rows.join('\n');
+      }
+      rows.push('index,f_hz,f_ghz,amp_v');
+      for (let i = 0; i < state.fftFreq.length; i += 1) {
+        const f = state.fftFreq[i];
+        const a = state.fftAmp[i];
+        rows.push([
+          i,
+          f.toExponential(10),
+          (f * 1e-9).toFixed(10),
+          a.toExponential(10)
+        ].join(','));
+      }
+      return rows.join('\n');
+    }
+
+    function downloadCsvWithName(csv, prefix) {
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       const stamp = new Date().toISOString().replace(/[:.]/g, '-');
       a.href = url;
-      a.download = `shno_result_${stamp}.csv`;
+      a.download = `${prefix}_${stamp}.csv`;
       document.body.appendChild(a);
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
+    }
+
+    function downloadCsv() {
+      if (!state.hasResult || state.t.length === 0) {
+        setStatus('Run calculation first, then download.');
+        return;
+      }
+      downloadCsvWithName(buildCsvText(), 'shno_result');
       setStatus('CSV downloaded.');
+    }
+
+    function download3dCsv() {
+      if (!state.hasResult || state.t.length === 0) {
+        setStatus('Run calculation first, then download 3D CSV.');
+        return;
+      }
+      downloadCsvWithName(buildCsv3dText(), 'shno_3d');
+      setStatus('3D CSV downloaded.');
+    }
+
+    function downloadTimeCsv() {
+      if (!state.hasResult || state.t.length === 0) {
+        setStatus('Run calculation first, then download XYZ CSV.');
+        return;
+      }
+      downloadCsvWithName(buildCsvTimeText(), 'shno_xyz');
+      setStatus('XYZ CSV downloaded.');
+    }
+
+    function downloadOutputCsv() {
+      if (!state.hasResult || state.t.length === 0) {
+        setStatus('Run calculation first, then download output CSV.');
+        return;
+      }
+      downloadCsvWithName(buildCsvOutputText(), 'shno_output');
+      setStatus('Output CSV downloaded.');
+    }
+
+    function downloadFftCsv() {
+      const hasSingle = state.fftFreq.length > 0;
+      const hasSweep = state.sweepJ.length > 0 && state.sweepFreq.length > 0 && state.sweepAmp2d.length > 0;
+      if (!state.hasResult || (!hasSingle && !hasSweep)) {
+        setStatus('No FFT data to download yet.');
+        return;
+      }
+      downloadCsvWithName(buildCsvFftText(), 'shno_fft');
+      setStatus('FFT CSV downloaded.');
     }
 
     async function runSimulation() {
@@ -1350,11 +2324,19 @@
         phiEasyDeg: getNum('phiEasyDeg')
       };
       const currentDensityUnit = getNum('currentDensity');
+      const currentMode = $('currentMode').value === 'sweep' ? 'sweep' : 'single';
+      const sweepStart = getNum('sweepStart');
+      const sweepEnd = getNum('sweepEnd');
+      const sweepPointsRaw = getNum('sweepPoints');
+      const sweepPoints = Math.max(2, Math.round(sweepPointsRaw));
       const currentDensity = currentDensityUnit * 1e10;
       const sotEfficiency = getNum('sotEfficiency');
       const xiDL = getNum('xiDL');
       const xiFL = getNum('xiFL');
       const amrRatio = getNum('amrRatio');
+      const r0Ohm = getNum('r0Ohm');
+      const deviceAreaNm2 = getNum('deviceArea');
+      const deviceArea = deviceAreaNm2 * 1e-18;
       const tauSot = currentDensity * sotEfficiency * xiDL;
       const betaSot = currentDensity * sotEfficiency * xiFL;
       const sigma = [0, 1, 0];
@@ -1370,13 +2352,24 @@
         ![
           alpha, gFactor, gamma, dt, endTime, saveDt,
           hMag, hThetaDeg, hPhiDeg,
-          currentDensityUnit, currentDensity, sotEfficiency, xiDL, xiFL, amrRatio, tauSot, betaSot,
+          currentDensityUnit, currentDensity, currentMode === 'sweep' ? sweepStart : 0, currentMode === 'sweep' ? sweepEnd : 0, sweepPointsRaw,
+          sotEfficiency, xiDL, xiFL, amrRatio, r0Ohm, deviceAreaNm2, deviceArea, tauSot, betaSot,
           thermal.temperature, thermal.ms, thermal.volume, ...H,
           aniso.hk1, aniso.hk2, aniso.hu, aniso.phiEasyDeg
         ].every(Number.isFinite) ||
         dt <= 0 || endTime <= 0 || saveDt <= 0
       ) {
         setStatus('Invalid input values.');
+        setCalculatingUi(false);
+        return;
+      }
+      if (currentMode === 'sweep' && (sweepPoints < 2 || sweepPoints > 300)) {
+        setStatus('Sweep points must be between 2 and 300.');
+        setCalculatingUi(false);
+        return;
+      }
+      if (r0Ohm <= 0 || deviceArea <= 0) {
+        setStatus('AMR params must satisfy R0>0 and area>0.');
         setCalculatingUi(false);
         return;
       }
@@ -1399,30 +2392,31 @@
       }
 
       const sampleEvery = Math.max(1, Math.round(saveDt / dt));
-      const cfg = { alpha, gamma, H, aniso, tauSot, betaSot, sigma };
-      const relaxCfg = { alpha: RELAX_ALPHA, gamma, H, aniso, tauSot: 0, betaSot: 0, sigma };
-      const useFinalInit = $('reuseFinalCheck').checked;
-      let passStart = randomUnitVector();
-      let thermalSq = 0;
-      let thermalCount = 0;
-      const t0 = performance.now();
+      const pendingFinalInit = state.useFinalOncePending && Array.isArray(state.latchedInit) && state.latchedInit.length === 3;
+      const latchedStart = pendingFinalInit ? normalize(state.latchedInit) : null;
 
-      for (let pass = 0; pass < (useFinalInit ? 2 : 1); pass += 1) {
-        const skipRelax = pass === 1;
-        state.initSource = pass === 0 ? 'random' : 'final(pass1)';
+      function runOneCurrent(jUnit, initialM = null) {
+        const jApm2 = jUnit * 1e10;
+        const tau = jApm2 * sotEfficiency * xiDL;
+        const beta = jApm2 * sotEfficiency * xiFL;
+        const cfg = { alpha, gamma, H, aniso, tauSot: tau, betaSot: beta, sigma };
+        const relaxCfg = { alpha: RELAX_ALPHA, gamma, H, aniso, tauSot: 0, betaSot: 0, sigma };
+        const skipRelax = Array.isArray(initialM) && initialM.length === 3;
+        let m = normalize(skipRelax ? initialM : randomUnitVector());
+        let thermalSq = 0;
+        let thermalCount = 0;
+        const initSource = skipRelax ? 'final(latched)' : 'random';
         const relaxSteps = skipRelax ? 0 : Math.max(1, Math.floor(Math.max(dt, Math.min(RELAX_TIME_S, endTime)) / dt));
-        state.relaxTime = relaxSteps * dt;
-        let m = normalize(passStart);
+        const relaxTime = relaxSteps * dt;
+
         for (let i = 0; i < relaxSteps; i += 1) {
           m = rk4Step(m, dt, relaxCfg, [0, 0, 0]);
         }
 
-        thermalSq = 0;
-        thermalCount = 0;
-        state.t = [0];
-        state.mx = [m[0]];
-        state.my = [m[1]];
-        state.mz = [m[2]];
+        const tArr = [0];
+        const mxArr = [m[0]];
+        const myArr = [m[1]];
+        const mzArr = [m[2]];
 
         for (let i = 1; i <= steps; i += 1) {
           const thermalField = sampleThermalField(sigmaTh);
@@ -1432,30 +2426,158 @@
           }
           m = rk4Step(m, dt, cfg, thermalField);
           if (i % sampleEvery === 0 || i === steps) {
-            state.t.push(i * dt);
-            state.mx.push(m[0]);
-            state.my.push(m[1]);
-            state.mz.push(m[2]);
+            tArr.push(i * dt);
+            mxArr.push(m[0]);
+            myArr.push(m[1]);
+            mzArr.push(m[2]);
           }
         }
-        passStart = [m[0], m[1], m[2]];
+
+        const idcA = jApm2 * deviceArea;
+        const vArr = mxArr.map((mx) => idcA * (r0Ohm * (1 + amrRatio * mx * mx)));
+        const vdc = vArr.length > 0 ? vArr.reduce((s, x) => s + x, 0) / vArr.length : 0;
+        const vacArr = vArr.map((v) => v - vdc);
+        const vacRms = vacArr.length > 0 ? Math.sqrt(vacArr.reduce((s, x) => s + x * x, 0) / vacArr.length) : 0;
+        const fft = computeFftFromSeries(vacArr, tArr);
+        const fmx = computeFftFromSeries(mxArr, tArr);
+        const fmy = computeFftFromSeries(myArr, tArr);
+        const ellipse = computeOrbitEllipseFromSeries(mxArr, myArr);
+        const ellipseArea = Math.PI * ellipse.a * ellipse.b;
+        const orbitFreqHz = (fmx.peakHz > 0 || fmy.peakHz > 0)
+          ? ((fmx.peakHz || 0) + (fmy.peakHz || 0)) * 0.5
+          : 0;
+        const steady = evaluateSteadyState(tArr, mxArr, myArr, vacArr);
+        return {
+          jUnit,
+          jApm2,
+          tau,
+          beta,
+          idcA,
+          t: tArr,
+          mx: mxArr,
+          my: myArr,
+          mz: mzArr,
+          v: vArr,
+          vac: vacArr,
+          vdc,
+          vacRms,
+          fftFreq: fft.freq,
+          fftAmp: fft.amp,
+          fftPeakHz: fft.peakHz,
+          ellipse,
+          ellipseArea,
+          orbitFreqHz,
+          steady,
+          initSource,
+          relaxTime,
+          thermalRms: thermalCount > 0 ? Math.sqrt(thermalSq / (3 * thermalCount)) : 0
+        };
       }
+
+      const t0 = performance.now();
+      let result = null;
+      let runCount = 1;
+      state.fftMode = currentMode;
+      state.sweepJ = [];
+      state.sweepFreq = [];
+      state.sweepAmp2d = [];
+      state.sweepPeakHz = 0;
+      state.sweepPeakJ = 0;
+
+      if (currentMode === 'sweep') {
+        runCount = sweepPoints;
+        let freqAxis = null;
+        let peakAmp = 0;
+        const progressEvery = Math.max(1, Math.floor(sweepPoints / 20));
+        setStatus(`Sweep running... 0/${sweepPoints}`);
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+        for (let i = 0; i < sweepPoints; i += 1) {
+          const frac = sweepPoints === 1 ? 0 : i / (sweepPoints - 1);
+          const jUnit = sweepStart + (sweepEnd - sweepStart) * frac;
+          const r = runOneCurrent(jUnit, latchedStart);
+          result = r;
+          if (!freqAxis) {
+            freqAxis = r.fftFreq.slice();
+          }
+          const len = Math.min(freqAxis.length, r.fftAmp.length);
+          if (freqAxis.length !== len) freqAxis = freqAxis.slice(0, len);
+          const row = r.fftAmp.slice(0, len);
+          state.sweepJ.push(jUnit);
+          state.sweepAmp2d.push(row);
+          for (let k = 0; k < len; k += 1) {
+            const a = row[k];
+            if (a > peakAmp) {
+              peakAmp = a;
+              state.sweepPeakHz = freqAxis[k];
+              state.sweepPeakJ = jUnit;
+            }
+          }
+          state.sweepFreq = freqAxis || [];
+          if (((i + 1) % progressEvery === 0) || i === 0 || i === sweepPoints - 1) {
+            state.fftFreq = r.fftFreq;
+            state.fftAmp = r.fftAmp;
+            state.fftPeakHz = r.fftPeakHz;
+            drawOutputFftSeries();
+            setStatus(`Sweep running... ${i + 1}/${sweepPoints}`);
+            await new Promise((resolve) => requestAnimationFrame(resolve));
+          }
+        }
+        state.sweepFreq = freqAxis || [];
+      } else {
+        result = runOneCurrent(currentDensityUnit, latchedStart);
+      }
+
       const t1 = performance.now();
 
-      state.iterations = steps * (useFinalInit ? 2 : 1);
+      state.t = result.t;
+      state.mx = result.mx;
+      state.my = result.my;
+      state.mz = result.mz;
+      state.v = result.v;
+      state.vac = result.vac;
+      state.iterations = steps * runCount;
       state.elapsedMs = t1 - t0;
       state.thermalSigma = sigmaTh;
-      state.thermalRms = thermalCount > 0 ? Math.sqrt(thermalSq / (3 * thermalCount)) : 0;
-      state.sotTau = tauSot;
-      state.sotBeta = betaSot;
+      state.thermalRms = result.thermalRms;
+      state.sotTau = result.tau;
+      state.sotBeta = result.beta;
+      state.idcA = result.idcA;
+      state.r0Ohm = r0Ohm;
+      state.deviceAreaM2 = deviceArea;
+      state.vdc = result.vdc;
+      state.vacRms = result.vacRms;
+      state.fftFreq = result.fftFreq;
+      state.fftAmp = result.fftAmp;
+      state.fftPeakHz = result.fftPeakHz;
+      state.ellipseA = result.ellipse.a;
+      state.ellipseB = result.ellipse.b;
+      state.ellipseAngleDeg = result.ellipse.angleDeg;
+      state.ellipseAspect = result.ellipse.aspect;
+      state.ellipseArea = result.ellipseArea;
+      state.orbitFreqHz = result.orbitFreqHz;
+      state.steadyLabel = result.steady.label;
+      state.steadyDetail = result.steady.detail;
+      state.ampXRate = result.steady.ampXRate || 0;
+      state.ampYRate = result.steady.ampYRate || 0;
+      state.areaRate = result.steady.areaRate || 0;
+      state.initSource = result.initSource;
+      state.relaxTime = result.relaxTime;
+      if (pendingFinalInit) {
+        state.useFinalOncePending = false;
+        updateLatchStateText();
+      }
 
       draw3DTrajectory();
       drawTimeSeries();
+      drawOutputVoltageSeries();
+      drawOutputFftSeries();
       renderTableAndSummary();
       state.hasResult = true;
       state.isDirty = false;
       setCalculatingUi(false);
-      setStatus(useFinalInit ? 'Calculation completed (2-pass).' : 'Calculation completed.');
+      setStatus(currentMode === 'sweep'
+        ? `Sweep completed (${sweepPoints} points).`
+        : 'Calculation completed.');
 
 // GA4: 計算完亁E��1回カウント（�E力エラー等でreturnしたケースは数えなぁE��E
 if (typeof gtag === 'function') {
@@ -1474,22 +2596,27 @@ if (typeof gtag === 'function') {
       }
       $('alpha').value = '0.02';
       $('gamma').value = '2.0';
-      $('hMag').value = '0.5';
+      $('hMag').value = '0.3';
       $('hThetaDeg').value = '20';
       $('hPhiDeg').value = '278';
-      $('dt').value = '1e-12';
-      $('endTime').value = '50';
+      $('dt').value = '1e-14';
+      $('endTime').value = '1';
       $('saveDt').value = '1e-12';
-      $('hk1').value = '-0.3';
+      $('hk1').value = '-0.1';
       $('hk2').value = '0';
-      $('hu').value = '0';
+      $('hu').value = '0.05';
       $('phiEasyDeg').value = '0';
-      $('currentDensity').value = '30000';
+      $('currentDensity').value = '-12';
+      $('currentMode').value = 'single';
+      $('sweepStart').value = '-20';
+      $('sweepEnd').value = '20';
+      $('sweepPoints').value = '41';
       $('sotEfficiency').value = '1e-12';
       $('xiDL').value = '0.1';
       $('xiFL').value = '0.0';
       $('amrRatio').value = '0.02';
-      $('reuseFinalCheck').checked = true;
+      $('r0Ohm').value = '100';
+      $('deviceArea').value = '10000';
       $('noise').value = 'none';
       $('temperature').value = '300';
       $('ms').value = '1.0';
@@ -1498,6 +2625,8 @@ if (typeof gtag === 'function') {
       state.mx = [];
       state.my = [];
       state.mz = [];
+      state.v = [];
+      state.vac = [];
       state.iterations = 0;
       state.elapsedMs = 0;
       state.hasResult = false;
@@ -1508,14 +2637,45 @@ if (typeof gtag === 'function') {
       state.relaxTime = 0;
       state.sotTau = 0;
       state.sotBeta = 0;
+      state.idcA = 0;
+      state.r0Ohm = 0;
+      state.deviceAreaM2 = 0;
+      state.vdc = 0;
+      state.vacRms = 0;
+      state.fftFreq = [];
+      state.fftAmp = [];
+      state.fftPeakHz = 0;
+      state.fftMode = 'single';
+      state.sweepJ = [];
+      state.sweepFreq = [];
+      state.sweepAmp2d = [];
+      state.sweepPeakHz = 0;
+      state.sweepPeakJ = 0;
+      state.ellipseA = 0;
+      state.ellipseB = 0;
+      state.ellipseAngleDeg = 0;
+      state.ellipseAspect = 0;
+      state.ellipseArea = 0;
+      state.orbitFreqHz = 0;
+      state.steadyLabel = '-';
+      state.steadyDetail = '-';
+      state.ampXRate = 0;
+      state.ampYRate = 0;
+      state.areaRate = 0;
       state.initSource = 'random';
+      state.latchedInit = null;
+      state.useFinalOncePending = false;
       $('resultBody').innerHTML = '';
       $('summary').textContent = '';
+      $('orbitMetrics').textContent = 'orbit ellipse(mx-my): -';
+      updateLatchStateText();
       clearMetaDisplay();
       setCalculatingUi(false);
       setStatus('Reset complete.');
       draw3DTrajectory();
       drawTimeSeries();
+      drawOutputVoltageSeries();
+      drawOutputFftSeries();
       suppressDirty = false;
     }
 
@@ -1537,6 +2697,26 @@ if (typeof gtag === 'function') {
     });
 
     $('downloadBtn').addEventListener('click', downloadCsv);
+    $('download3dBtn').addEventListener('click', download3dCsv);
+    $('downloadTimeBtn').addEventListener('click', downloadTimeCsv);
+    $('downloadOutputBtn').addEventListener('click', downloadOutputCsv);
+    $('downloadFftBtn').addEventListener('click', downloadFftCsv);
+    $('latchFinalBtn').addEventListener('click', () => {
+      if (state.isCalculating) return;
+      if (!state.hasResult || state.mx.length === 0) {
+        setStatus('No final state to latch yet.');
+        return;
+      }
+      const last = state.mx.length - 1;
+      state.latchedInit = [state.mx[last], state.my[last], state.mz[last]];
+      state.useFinalOncePending = true;
+      updateLatchStateText();
+      setStatus('Latched current final as next initial (1-shot).');
+      runSimulation();
+    });
+    $('findSteadyBtn').addEventListener('click', () => {
+      findSteadyState();
+    });
     $('resetViewBtn').addEventListener('click', reset3DView);
     $('resetTimeViewBtn').addEventListener('click', resetTimeView);
     $('projectionMode').addEventListener('change', () => {
@@ -1549,6 +2729,9 @@ if (typeof gtag === 'function') {
     setupTimeInteraction();
     draw3DTrajectory();
     resetTimeView();
+    drawOutputVoltageSeries();
+    drawOutputFftSeries();
+    updateLatchStateText();
     clearMetaDisplay();
     setStatus('Initializing auto-run...');
     runSimulation();
