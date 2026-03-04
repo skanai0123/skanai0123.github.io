@@ -1,4 +1,4 @@
-<!--
+﻿<!--
   Program: SHNO Playground
   Purpose: Macrospin-based SHNO simulator (single-file app)
   Note: This index is the simulator UI/logic entry point.
@@ -50,7 +50,7 @@
         radial-gradient(circle at 10% 5%, #cfeeda 0%, transparent 35%),
         radial-gradient(circle at 90% 0%, #d7f6e9 0%, transparent 28%),
         linear-gradient(180deg, #f4fff8 0%, #edf8f1 48%, #f8fffb 100%);
-      font-family: "Aptos", "Bahnschrift", "Yu Gothic UI", sans-serif;
+      font-family: "Noto Sans", "Noto Sans JP", "Yu Gothic UI", sans-serif;
       color: var(--text);
     }
 
@@ -167,6 +167,24 @@
       filter: none;
     }
 
+    #findSteadyBtn {
+      border-color: #d76a6a;
+      background: linear-gradient(180deg, #fff3f3, #ffd8d8);
+      color: #7a1f1f;
+      font-weight: 700;
+    }
+
+    #findSteadyBtn:hover {
+      box-shadow: 0 10px 18px rgba(190, 58, 58, 0.22);
+      filter: brightness(1.01);
+    }
+
+    #findSteadyBtn:disabled {
+      opacity: 0.55;
+      box-shadow: none;
+      filter: none;
+    }
+
     .workspace {
       display: grid;
       grid-template-columns: minmax(520px, 34%) minmax(980px, 66%);
@@ -231,6 +249,10 @@
       font-size: 11px;
     }
 
+    .hidden {
+      display: none !important;
+    }
+
     .xyz-row {
       display: grid;
       grid-template-columns: repeat(3, minmax(120px, 1fr));
@@ -257,6 +279,24 @@
       min-height: 28px;
       font-size: 12px;
       padding: 0 8px;
+    }
+
+    .run-inline {
+      align-items: center;
+      flex-wrap: nowrap;
+    }
+
+    .run-inline input {
+      width: 84px;
+      min-height: 28px;
+      font-size: 12px;
+      padding: 0 6px;
+      border: 1px solid #d5def3;
+      border-radius: var(--radius-sm);
+      background: #fbfdff;
+      color: var(--text);
+      text-align: center;
+      font-family: "Noto Sans", "Noto Sans JP", sans-serif;
     }
 
     .preset-grid {
@@ -347,9 +387,16 @@
     }
 
     #tab3d,
-    #tabTime {
+    #tabTime,
+    #tabOutput,
+    #tabFft {
       margin-bottom: 0;
     }
+
+    #tab3d { grid-column: 1; grid-row: 1; }
+    #tabTime { grid-column: 1; grid-row: 2; }
+    #tabOutput { grid-column: 2; grid-row: 1; }
+    #tabFft { grid-column: 2; grid-row: 2; }
 
     #tabResult {
       grid-column: 1 / -1;
@@ -420,6 +467,15 @@
       border-radius: var(--radius-sm);
     }
 
+    .summary,
+    .orbit-metrics,
+    table,
+    th,
+    td,
+    #calcMeta {
+      font-family: "Latin Modern Math", "STIX Two Math", "Cambria Math", "Noto Sans", "Noto Sans JP", sans-serif;
+    }
+
     .orbit-metrics {
       margin-bottom: 8px;
       white-space: normal;
@@ -457,24 +513,12 @@
       <div class="left">
         <section class="panel">
           <h2 class="section-title">Run Control</h2>
-          <div class="field">
-            <label for="steadyMaxIters">Steady max iterations</label>
-            <input id="steadyMaxIters" type="number" step="1" min="1" value="100" />
-          </div>
-          <div class="mini-actions">
-            <button id="latchFinalBtn" type="button">Use Final As Init (1-shot)</button>
+          <div class="mini-actions run-inline">
             <button id="findSteadyBtn" type="button">Find Steady State</button>
-            <span id="latchState">latched: off</span>
+            <input id="steadyMaxIters" type="number" step="1" min="1" max="1000" value="100" aria-label="Steady max iterations" title="Steady max iterations (upper limit: 1000)" />
+            <button id="latchFinalBtn" type="button">Use Final As Init (1-shot)</button>
           </div>
           <div class="status" id="statusLine"></div>
-        </section>
-
-        <section class="panel">
-          <h2 class="section-title">Info</h2>
-          <div class="about">
-            <div><strong>Version:</strong> beta-0.0.0</div>
-            <div><strong>Disclaimer:</strong> This is a simplified educational simulator (macrospin model). Do not use for safety-critical or production design decisions.</div>
-          </div>
         </section>
 
         <section class="panel">
@@ -555,10 +599,6 @@
               <input id="hPhiDeg" type="number" step="any" value="278" />
             </div>
           </div>
-          <div class="mini-actions">
-            <button id="hZeroBtn" type="button">Set H = 0</button>
-            <button id="anisZeroBtn" type="button">Set anisotropy = 0</button>
-          </div>
           <div class="grid-3">
             <div class="field">
               <label for="hk1">Hk1_eff (T)</label>
@@ -591,7 +631,7 @@
             </div>
             <div class="field">
               <label for="currentDensity">Current density J (10^10 A/m^2 = MA/cm^2)</label>
-              <input id="currentDensity" type="number" step="any" value="-12" />
+              <input id="currentDensity" type="number" step="any" value="-15" />
             </div>
             <div class="field">
               <label for="sotEfficiency">SOT efficiency eta (T/(A/m^2))</label>
@@ -605,18 +645,22 @@
               <label for="xiFL">xi_FL (field-like)</label>
               <input id="xiFL" type="number" step="any" value="0.0" />
             </div>
-            <div class="field">
+            <div id="sweepFieldStart" class="field hidden">
               <label for="sweepStart">Sweep J start</label>
               <input id="sweepStart" type="number" step="any" value="-20" />
             </div>
-            <div class="field">
+            <div id="sweepFieldEnd" class="field hidden">
               <label for="sweepEnd">Sweep J end</label>
               <input id="sweepEnd" type="number" step="any" value="0" />
             </div>
-            <div class="field">
+            <div id="sweepFieldPoints" class="field hidden">
               <label for="sweepPoints">Sweep points</label>
               <input id="sweepPoints" type="number" step="1" value="41" />
             </div>
+          </div>
+          <div class="mini-actions">
+            <button id="stopSweepBtn" class="hidden" type="button" disabled>Pause Sweep</button>
+            <button id="startSweepBtn" class="hidden" type="button">Restart Sweep</button>
           </div>
         </section>
 
@@ -637,18 +681,19 @@
             </div>
           </div>
         </section>
+
+        <section class="panel">
+          <h2 class="section-title">Info</h2>
+          <div class="about">
+            <div><strong>Version:</strong> beta-0.0.0</div>
+            <div><strong>Disclaimer:</strong> This is a simplified educational simulator (macrospin model). Do not use for safety-critical or production design decisions.</div>
+          </div>
+        </section>
       </div>
 
       <div class="right">
         <section class="panel">
-          <div class="summary orbit-metrics" id="orbitMetrics">orbit ellipse(mx-my): -</div>
-          <div class="tabs">
-            <button class="tab-btn active" data-tab="tab3d" type="button">3DPlot</button>
-            <button class="tab-btn" data-tab="tabTime" type="button">x,y,z</button>
-            <button class="tab-btn" data-tab="tabOutput" type="button">output V</button>
-            <button class="tab-btn" data-tab="tabResult" type="button">saved result</button>
-          </div>
-
+          <div class="summary orbit-metrics" id="orbitMetrics" style="display:none;"></div>
           <div class="tab active" id="tab3d">
             <div class="plot-wrap plot-wrap-3d">
               <canvas id="plot3d" width="560" height="560"></canvas>
@@ -693,6 +738,9 @@
             <div class="view-actions">
               <button id="downloadOutputBtn" type="button">DL Output CSV</button>
             </div>
+          </div>
+
+          <div class="tab" id="tabFft">
             <div class="plot-wrap">
               <canvas id="plotOutputFft" width="760" height="260"></canvas>
             </div>
@@ -705,22 +753,50 @@
           </div>
 
           <div class="tab" id="tabResult">
-            <table>
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>t (ns)</th>
-                  <th>mx</th>
-                  <th>my</th>
-                  <th>mz</th>
-                  <th>|m|</th>
-                  <th>v_ac (V)</th>
-                </tr>
-              </thead>
-              <tbody id="resultBody"></tbody>
-            </table>
-            <div class="view-actions">
-              <button id="downloadBtn" type="button" disabled>DL CSV</button>
+            <div id="trajBlock">
+              <table>
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>t (ns)</th>
+                    <th>mx</th>
+                    <th>my</th>
+                    <th>mz</th>
+                    <th>|m|</th>
+                    <th>v_ac (V)</th>
+                  </tr>
+                </thead>
+                <tbody id="resultBody"></tbody>
+              </table>
+              <div class="view-actions">
+                <button id="downloadBtn" type="button" disabled>DL CSV</button>
+              </div>
+            </div>
+            <div id="sweepBlock" style="display:none;">
+              <table>
+                <thead>
+                  <tr>
+                    <th>J idx</th>
+                    <th>J (10^10 A/m^2)</th>
+                    <th>FFT peak (GHz)</th>
+                    <th>FFT peak amp (V)</th>
+                    <th>ellipse a</th>
+                    <th>ellipse b</th>
+                    <th>ellipse area</th>
+                    <th>angle (deg)</th>
+                    <th>a/b</th>
+                    <th>f_orbit (GHz)</th>
+                    <th>mx rate (%/ns)</th>
+                    <th>my rate (%/ns)</th>
+                    <th>area rate (%/ns)</th>
+                    <th>steady</th>
+                  </tr>
+                </thead>
+                <tbody id="sweepBody"></tbody>
+              </table>
+              <div class="view-actions">
+                <button id="downloadSweepSummaryBtn" type="button">DL Sweep Table CSV</button>
+              </div>
             </div>
             <div class="summary" id="summary"></div>
           </div>
@@ -732,6 +808,8 @@
   <script>
     const $ = (id) => document.getElementById(id);
     const getNum = (id) => Number($(id).value);
+    const FONT_UI_12 = "12px 'Noto Sans', 'Noto Sans JP', sans-serif";
+    const FONT_MATH_12 = "12px 'Latin Modern Math', 'STIX Two Math', 'Cambria Math', 'Noto Sans', 'Noto Sans JP', sans-serif";
 
     const state = {
       t: [],
@@ -762,6 +840,7 @@
       sweepJ: [],
       sweepFreq: [],
       sweepAmp2d: [],
+      sweepRows: [],
       sweepPeakHz: 0,
       sweepPeakJ: 0,
       ellipseA: 0,
@@ -782,6 +861,8 @@
     let suppressDirty = false;
     let autoRunTimer = null;
     const AUTO_RUN_DELAY_MS = 250;
+    let stopSweepRequested = false;
+    let sweepResumeContext = null;
     const view3d = {
       yaw: Math.PI / 4,
       pitch: Math.atan(1 / Math.sqrt(2)),
@@ -923,6 +1004,8 @@
       const y0 = H - 28;
       const pw = W - 56;
       const ph = H - 42;
+      const xAxisLabelX = x0 + pw * 0.5 - 14;
+      const xAxisLabelY = H - 20;
 
       ctx.clearRect(0, 0, W, H);
       ctx.fillStyle = '#ffffff';
@@ -933,6 +1016,13 @@
         ctx.beginPath();
         ctx.moveTo(x0, y);
         ctx.lineTo(W - 12, y);
+        ctx.stroke();
+      }
+      for (let i = 0; i <= 4; i += 1) {
+        const x = x0 + (pw / 4) * i;
+        ctx.beginPath();
+        ctx.moveTo(x, 14);
+        ctx.lineTo(x, y0);
         ctx.stroke();
       }
 
@@ -946,9 +1036,9 @@
       const nTotal = state.mx.length;
       if (nTotal < 2) {
         ctx.fillStyle = '#4b3d76';
-        ctx.font = '12px sans-serif';
-        ctx.fillText('m', 12, 16);
-        ctx.fillText('time (ns)', W - 66, H - 8);
+        ctx.font = FONT_MATH_12;
+        ctx.fillText('m (norm)', 8, 16);
+        ctx.fillText('t (ns)', W * 0.5 - 18, H - 20);
         return;
       }
 
@@ -980,13 +1070,23 @@
       draw(state.mz, '#2457c5');
 
       ctx.fillStyle = '#4b3d76';
-      ctx.font = '12px sans-serif';
-      ctx.fillText('m', 12, 16);
-      ctx.fillText(yMin.toFixed(2), 8, y0 + 2);
-      ctx.fillText(yMax.toFixed(2), 8, 18);
-      ctx.fillText('time (ns)', W - 66, H - 8);
-      ctx.fillText((state.t[iStart] * 1e9).toFixed(3), x0, H - 8);
-      ctx.fillText((state.t[iEnd] * 1e9).toFixed(3), W - 110, H - 8);
+      ctx.font = FONT_MATH_12;
+      ctx.fillText('m (norm)', 8, 16);
+      ctx.fillText('t (ns)', W * 0.5 - 18, H - 20);
+      for (let ti = 0; ti <= 4; ti += 1) {
+        const frac = ti / 4;
+        const yTick = y0 - ph * frac;
+        const yVal = yMin + (yMax - yMin) * frac;
+        ctx.fillText(yVal.toFixed(2), 6, yTick + 4);
+      }
+      const tMinNs = state.t[iStart] * 1e9;
+      const tMaxNs = state.t[iEnd] * 1e9;
+      for (let ti = 0; ti <= 4; ti += 1) {
+        const frac = ti / 4;
+        const xTick = x0 + pw * frac;
+        const tVal = tMinNs + (tMaxNs - tMinNs) * frac;
+        ctx.fillText(tVal.toFixed(3), xTick - 14, H - 8);
+      }
       ctx.fillText('Drag: pan | Wheel: X zoom | Shift+Wheel: Y zoom', 130, 18);
     }
 
@@ -1011,6 +1111,13 @@
         ctx.lineTo(W - 12, y);
         ctx.stroke();
       }
+      for (let i = 0; i <= 4; i += 1) {
+        const x = x0 + (pw / 4) * i;
+        ctx.beginPath();
+        ctx.moveTo(x, 14);
+        ctx.lineTo(x, y0);
+        ctx.stroke();
+      }
 
       ctx.strokeStyle = '#9389b5';
       ctx.beginPath();
@@ -1022,9 +1129,9 @@
       const n = state.t.length;
       if (n < 2 || state.vac.length !== n) {
         ctx.fillStyle = '#4b3d76';
-        ctx.font = '12px sans-serif';
-        ctx.fillText('Output v_ac (V)', 10, 16);
-        ctx.fillText('time (ns)', W - 66, H - 8);
+        ctx.font = FONT_MATH_12;
+        ctx.fillText('v_ac (V)', 8, 16);
+        ctx.fillText('t (ns)', xAxisLabelX, xAxisLabelY);
         return;
       }
 
@@ -1059,13 +1166,23 @@
       draw(state.vac, '#2457c5');
 
       ctx.fillStyle = '#4b3d76';
-      ctx.font = '12px sans-serif';
-      ctx.fillText('Output v_ac (V)', 10, 16);
-      ctx.fillText(vMin.toExponential(1), 6, y0 + 2);
-      ctx.fillText(vMax.toExponential(1), 6, 18);
-      ctx.fillText('time (ns)', W - 66, H - 8);
-      ctx.fillText((state.t[0] * 1e9).toFixed(3), x0, H - 8);
-      ctx.fillText((state.t[n - 1] * 1e9).toFixed(3), W - 110, H - 8);
+      ctx.font = FONT_MATH_12;
+      ctx.fillText('v_ac (V)', 8, 16);
+      ctx.fillText('t (ns)', xAxisLabelX, xAxisLabelY);
+      for (let ti = 0; ti <= 4; ti += 1) {
+        const frac = ti / 4;
+        const yTick = y0 - ph * frac;
+        const yVal = vMin + (vMax - vMin) * frac;
+        ctx.fillText(yVal.toExponential(1), 2, yTick + 4);
+      }
+      const tMinNs = state.t[0] * 1e9;
+      const tMaxNs = state.t[n - 1] * 1e9;
+      for (let ti = 0; ti <= 4; ti += 1) {
+        const frac = ti / 4;
+        const xTick = x0 + pw * frac;
+        const tVal = tMinNs + (tMaxNs - tMinNs) * frac;
+        ctx.fillText(tVal.toFixed(3), xTick - 14, H - 8);
+      }
     }
 
     function fftInPlace(re, im) {
@@ -1568,6 +1685,8 @@
       const y0 = H - 28;
       const pw = W - 56;
       const ph = H - 42;
+      const xAxisLabelX = x0 + pw * 0.5 - 16;
+      const xAxisLabelY = H - 20;
 
       ctx.clearRect(0, 0, W, H);
       ctx.fillStyle = '#ffffff';
@@ -1628,25 +1747,40 @@
         }
 
         ctx.fillStyle = '#4b3d76';
-        ctx.font = '12px sans-serif';
+        ctx.font = FONT_MATH_12;
         ctx.fillText('FFT map |V_ac| vs J', 10, 16);
-        ctx.fillText('0', 20, y0 + 2);
-        ctx.fillText(aMax.toExponential(1), 6, 18);
-        ctx.fillText('freq (GHz)', W - 72, H - 8);
-        ctx.fillText('0.00', x0, H - 8);
-        ctx.fillText('40.00', W - 110, H - 8);
-        const jMin = Math.min(state.sweepJ[0], state.sweepJ[nJ - 1]);
-        const jMax = Math.max(state.sweepJ[0], state.sweepJ[nJ - 1]);
-        ctx.fillText(`J: ${jMin.toFixed(2)} to ${jMax.toFixed(2)}`, x0 + 120, 16);
+        ctx.fillText('f (GHz)', xAxisLabelX, xAxisLabelY);
+        for (let ti = 0; ti <= 4; ti += 1) {
+          const frac = ti / 4;
+          const xTick = x0 + pw * frac;
+          const fVal = (fMin + (fMax - fMin) * frac) * 1e-9;
+          ctx.fillText(fVal.toFixed(2), xTick - 14, H - 8);
+        }
+        const jStart = state.sweepJ[0];
+        const jEnd = state.sweepJ[nJ - 1];
+        for (let ti = 0; ti <= 4; ti += 1) {
+          const frac = ti / 4;
+          const yTick = y0 - ph * frac;
+          const jVal = jStart + (jEnd - jStart) * frac;
+          ctx.strokeStyle = '#9389b5';
+          ctx.beginPath();
+          ctx.moveTo(x0 - 4, yTick);
+          ctx.lineTo(x0, yTick);
+          ctx.stroke();
+          ctx.fillStyle = '#4b3d76';
+          ctx.fillText(jVal.toFixed(2), 4, yTick + 4);
+        }
+        ctx.fillText('J (10^10 A/m^2)', x0 + 4, 28);
+        ctx.fillText(`color(log): max=${aMax.toExponential(1)} V`, x0 + 120, 16);
         return;
       }
 
       const n = state.fftFreq.length;
       if (n < 2) {
         ctx.fillStyle = '#4b3d76';
-        ctx.font = '12px sans-serif';
-        ctx.fillText('FFT |V_ac|', 10, 16);
-        ctx.fillText('freq (GHz)', W - 72, H - 8);
+        ctx.font = FONT_MATH_12;
+        ctx.fillText('|FFT(v_ac)| (V)', 8, 16);
+        ctx.fillText('f (GHz)', xAxisLabelX, xAxisLabelY);
         return;
       }
 
@@ -1660,9 +1794,9 @@
       }
       if (inRangeCount < 2) {
         ctx.fillStyle = '#4b3d76';
-        ctx.font = '12px sans-serif';
-        ctx.fillText('FFT |V_ac|', 10, 16);
-        ctx.fillText('freq (GHz)', W - 72, H - 8);
+        ctx.font = FONT_MATH_12;
+        ctx.fillText('|FFT(v_ac)| (V)', 8, 16);
+        ctx.fillText('f (GHz)', xAxisLabelX, xAxisLabelY);
         ctx.fillText('0.00', x0, H - 8);
         ctx.fillText('40.00', W - 110, H - 8);
         return;
@@ -1687,13 +1821,21 @@
       ctx.stroke();
 
       ctx.fillStyle = '#4b3d76';
-      ctx.font = '12px sans-serif';
-      ctx.fillText('FFT |V_ac|', 10, 16);
-      ctx.fillText('0', 20, y0 + 2);
-      ctx.fillText(aMax.toExponential(1), 6, 18);
-      ctx.fillText('freq (GHz)', W - 72, H - 8);
-      ctx.fillText('0.00', x0, H - 8);
-      ctx.fillText('40.00', W - 110, H - 8);
+      ctx.font = FONT_MATH_12;
+      ctx.fillText('|FFT(v_ac)| (V)', 8, 16);
+      ctx.fillText('f (GHz)', xAxisLabelX, xAxisLabelY);
+      for (let ti = 0; ti <= 4; ti += 1) {
+        const frac = ti / 4;
+        const yTick = y0 - ph * frac;
+        const yVal = aMax * frac;
+        ctx.fillText(yVal.toExponential(1), 2, yTick + 4);
+      }
+      for (let ti = 0; ti <= 4; ti += 1) {
+        const frac = ti / 4;
+        const xTick = x0 + pw * frac;
+        const fVal = (fMin + (fMax - fMin) * frac) * 1e-9;
+        ctx.fillText(fVal.toFixed(2), xTick - 14, H - 8);
+      }
     }
 
     function project3d(x, y, z, cx, cy, s) {
@@ -1830,13 +1972,14 @@
       ctx.fill();
 
       ctx.fillStyle = '#4b3d76';
-      ctx.font = '12px sans-serif';
+      ctx.font = FONT_MATH_12;
       ctx.fillText('3D Graph (normalized m-space)', 14, 18);
       ctx.fillText('start', p0[0] + 8, p0[1] - 6);
       ctx.fillText('end', p1[0] + 8, p1[1] - 6);
       ctx.fillText('x', project3d(1.15, 0, 0, cx, cy, s)[0] + 3, project3d(1.15, 0, 0, cx, cy, s)[1]);
       ctx.fillText('y', project3d(0, 1.15, 0, cx, cy, s)[0] + 3, project3d(0, 1.15, 0, cx, cy, s)[1]);
       ctx.fillText('z', project3d(0, 0, 1.15, cx, cy, s)[0] + 3, project3d(0, 0, 1.15, cx, cy, s)[1]);
+      ctx.fillText('axis scale: x,y,z in [-1, 1]', 14, 34);
       ctx.fillText(`Mode: ${view3d.projection} | Drag: rotate | Shift+Drag: pan | Wheel: zoom`, 14, H - 10);
     }
 
@@ -1897,24 +2040,55 @@
 
     function renderTableAndSummary() {
       const body = $('resultBody');
+      const sweepBody = $('sweepBody');
+      const trajBlock = $('trajBlock');
+      const sweepBlock = $('sweepBlock');
       body.innerHTML = '';
+      sweepBody.innerHTML = '';
+      const inSweepTable = state.fftMode === 'sweep' && state.sweepRows.length > 0;
+      trajBlock.style.display = inSweepTable ? 'none' : 'block';
+      sweepBlock.style.display = inSweepTable ? 'block' : 'none';
       const maxRows = 5;
       const total = state.t.length;
       const start = Math.max(0, total - maxRows);
 
-      for (let i = start; i < total; i += 1) {
-        const m = [state.mx[i], state.my[i], state.mz[i]];
-        const tr = document.createElement('tr');
-        tr.innerHTML = [
-          `<td>${i}</td>`,
-          `<td>${(state.t[i] * 1e9).toFixed(4)}</td>`,
-          `<td>${m[0].toFixed(6)}</td>`,
-          `<td>${m[1].toFixed(6)}</td>`,
-          `<td>${m[2].toFixed(6)}</td>`,
-          `<td>${norm(m).toFixed(6)}</td>`,
-          `<td>${(state.vac[i] || 0).toExponential(4)}</td>`
-        ].join('');
-        body.appendChild(tr);
+      if (inSweepTable) {
+        for (let i = 0; i < state.sweepRows.length; i += 1) {
+          const r = state.sweepRows[i];
+          const tr = document.createElement('tr');
+          tr.innerHTML = [
+            `<td>${r.jIndex}</td>`,
+            `<td>${r.jUnit.toFixed(4)}</td>`,
+            `<td>${r.fftPeakGhz.toFixed(4)}</td>`,
+            `<td>${r.fftPeakAmp.toExponential(3)}</td>`,
+            `<td>${r.ellipseA.toExponential(3)}</td>`,
+            `<td>${r.ellipseB.toExponential(3)}</td>`,
+            `<td>${r.ellipseArea.toExponential(3)}</td>`,
+            `<td>${r.ellipseAngleDeg.toFixed(2)}</td>`,
+            `<td>${r.ellipseAspect.toFixed(3)}</td>`,
+            `<td>${r.orbitFreqGhz.toFixed(4)}</td>`,
+            `<td>${r.ampXRate.toFixed(3)}</td>`,
+            `<td>${r.ampYRate.toFixed(3)}</td>`,
+            `<td>${r.areaRate.toFixed(3)}</td>`,
+            `<td>${r.steadyLabel}</td>`
+          ].join('');
+          sweepBody.appendChild(tr);
+        }
+      } else {
+        for (let i = start; i < total; i += 1) {
+          const m = [state.mx[i], state.my[i], state.mz[i]];
+          const tr = document.createElement('tr');
+          tr.innerHTML = [
+            `<td>${i}</td>`,
+            `<td>${(state.t[i] * 1e9).toFixed(4)}</td>`,
+            `<td>${m[0].toFixed(6)}</td>`,
+            `<td>${m[1].toFixed(6)}</td>`,
+            `<td>${m[2].toFixed(6)}</td>`,
+            `<td>${norm(m).toFixed(6)}</td>`,
+            `<td>${(state.vac[i] || 0).toExponential(4)}</td>`
+          ].join('');
+          body.appendChild(tr);
+        }
       }
 
       const last = total - 1;
@@ -1923,7 +2097,6 @@
       const speed = state.elapsedMs > 0 ? Math.round((state.iterations * 1000) / state.elapsedMs) : 0;
       const orbitFreqText = state.orbitFreqHz > 0 ? `${(state.orbitFreqHz * 1e-9).toFixed(3)} GHz` : '-';
       const orbitText = `orbit ellipse(mx-my): a=${state.ellipseA.toExponential(3)}, b=${state.ellipseB.toExponential(3)}, area=${state.ellipseArea.toExponential(3)}, angle=${state.ellipseAngleDeg.toFixed(2)} deg, a/b=${state.ellipseAspect.toFixed(3)}, f_orbit=${orbitFreqText}, area_rate=${state.areaRate.toFixed(3)}%/ns, mx_amp_rate=${state.ampXRate.toFixed(3)}%/ns, my_amp_rate=${state.ampYRate.toFixed(3)}%/ns, steady=${state.steadyLabel}`;
-      $('orbitMetrics').textContent = orbitText;
       const modeText = state.fftMode === 'sweep'
         ? `current mode: sweep, J=[${(state.sweepJ[0] || 0).toFixed(2)}, ${(state.sweepJ[state.sweepJ.length - 1] || 0).toFixed(2)}], points=${state.sweepJ.length}`
         : `current mode: single, J=${getNum('currentDensity').toFixed(2)}`;
@@ -1960,8 +2133,23 @@
       $('statusLine').textContent = text;
     }
 
+    function updateSweepControlUi() {
+      const modeEl = $('currentMode');
+      const inSweepMode = !!modeEl && modeEl.value === 'sweep';
+      $('stopSweepBtn').classList.toggle('hidden', !inSweepMode);
+      $('startSweepBtn').classList.toggle('hidden', !inSweepMode);
+      $('startSweepBtn').disabled = state.isCalculating || !inSweepMode;
+    }
+
+    function updateSweepFieldsVisibility() {
+      const inSweepMode = $('currentMode').value === 'sweep';
+      $('sweepFieldStart').classList.toggle('hidden', !inSweepMode);
+      $('sweepFieldEnd').classList.toggle('hidden', !inSweepMode);
+      $('sweepFieldPoints').classList.toggle('hidden', !inSweepMode);
+    }
+
     function updateLatchStateText() {
-      $('latchState').textContent = `latched: ${state.useFinalOncePending ? 'on' : 'off'}`;
+      // latch text removed from UI; keep function as a no-op for call-site compatibility.
     }
 
     function clearMetaDisplay() {
@@ -1981,12 +2169,18 @@
 
     function markParameterChanged() {
       if (suppressDirty || state.isCalculating) return;
+      updateSweepFieldsVisibility();
+      sweepResumeContext = null;
       state.isDirty = true;
       state.hasResult = false;
       $('downloadBtn').disabled = true;
       clearMetaDisplay();
-      setStatus('Parameters changed (not calculated).');
-      scheduleAutoRun();
+      const inSweepMode = $('currentMode').value === 'sweep';
+      setStatus(inSweepMode
+        ? 'Parameters changed (not calculated). Sweep is manual; press Restart Sweep.'
+        : 'Parameters changed (not calculated).');
+      updateSweepControlUi();
+      if (!inSweepMode) scheduleAutoRun();
     }
 
     function setCalculatingUi(isCalculating) {
@@ -1994,6 +2188,8 @@
       $('downloadBtn').disabled = isCalculating || !state.hasResult || state.isDirty;
       $('latchFinalBtn').disabled = isCalculating;
       $('findSteadyBtn').disabled = isCalculating;
+      $('stopSweepBtn').disabled = !isCalculating;
+      updateSweepControlUi();
     }
 
     function isSteadyLabel(label) {
@@ -2238,6 +2434,31 @@
       return rows.join('\n');
     }
 
+    function buildCsvSweepSummaryText() {
+      const rows = [];
+      rows.push('j_index,j_unit_1e10Apm2,fft_peak_ghz,fft_peak_amp_v,ellipse_a,ellipse_b,ellipse_area,ellipse_angle_deg,ellipse_aspect,orbit_freq_ghz,mx_amp_rate_pct_per_ns,my_amp_rate_pct_per_ns,area_rate_pct_per_ns,steady_label');
+      for (let i = 0; i < state.sweepRows.length; i += 1) {
+        const r = state.sweepRows[i];
+        rows.push([
+          r.jIndex,
+          r.jUnit.toFixed(10),
+          r.fftPeakGhz.toFixed(10),
+          r.fftPeakAmp.toExponential(10),
+          r.ellipseA.toExponential(10),
+          r.ellipseB.toExponential(10),
+          r.ellipseArea.toExponential(10),
+          r.ellipseAngleDeg.toFixed(10),
+          r.ellipseAspect.toFixed(10),
+          r.orbitFreqGhz.toFixed(10),
+          r.ampXRate.toFixed(10),
+          r.ampYRate.toFixed(10),
+          r.areaRate.toFixed(10),
+          `"${(r.steadyLabel || '').replace(/"/g, '""')}"`
+        ].join(','));
+      }
+      return rows.join('\n');
+    }
+
     function downloadCsvWithName(csv, prefix) {
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
@@ -2252,6 +2473,10 @@
     }
 
     function downloadCsv() {
+      if (state.fftMode === 'sweep') {
+        setStatus('Trajectory CSV is disabled in sweep mode. Use DL Sweep Table CSV / DL FFT CSV.');
+        return;
+      }
       if (!state.hasResult || state.t.length === 0) {
         setStatus('Run calculation first, then download.');
         return;
@@ -2261,6 +2486,10 @@
     }
 
     function download3dCsv() {
+      if (state.fftMode === 'sweep') {
+        setStatus('3D CSV is disabled in sweep mode.');
+        return;
+      }
       if (!state.hasResult || state.t.length === 0) {
         setStatus('Run calculation first, then download 3D CSV.');
         return;
@@ -2270,6 +2499,10 @@
     }
 
     function downloadTimeCsv() {
+      if (state.fftMode === 'sweep') {
+        setStatus('XYZ CSV is disabled in sweep mode.');
+        return;
+      }
       if (!state.hasResult || state.t.length === 0) {
         setStatus('Run calculation first, then download XYZ CSV.');
         return;
@@ -2279,6 +2512,10 @@
     }
 
     function downloadOutputCsv() {
+      if (state.fftMode === 'sweep') {
+        setStatus('Output CSV is disabled in sweep mode.');
+        return;
+      }
       if (!state.hasResult || state.t.length === 0) {
         setStatus('Run calculation first, then download output CSV.');
         return;
@@ -2298,11 +2535,25 @@
       setStatus('FFT CSV downloaded.');
     }
 
-    async function runSimulation() {
+    function downloadSweepSummaryCsv() {
+      if (!state.hasResult || state.sweepRows.length === 0) {
+        setStatus('No sweep table data to download yet.');
+        return;
+      }
+      downloadCsvWithName(buildCsvSweepSummaryText(), 'shno_sweep_table');
+      setStatus('Sweep table CSV downloaded.');
+    }
+
+    async function runSimulation(resumeMode = false) {
       if (autoRunTimer) {
         clearTimeout(autoRunTimer);
         autoRunTimer = null;
       }
+      if (resumeMode && !sweepResumeContext) {
+        setStatus('No stopped sweep to resume.');
+        return;
+      }
+      stopSweepRequested = false;
       setCalculatingUi(true);
       setStatus('Calculating...');
       await new Promise((resolve) => requestAnimationFrame(resolve));
@@ -2374,6 +2625,23 @@
         setStatus('Sweep points must be between 2 and 300.');
         setCalculatingUi(false);
         return;
+      }
+      if (resumeMode) {
+        if (currentMode !== 'sweep') {
+          setStatus('Resume is available only in sweep mode.');
+          setCalculatingUi(false);
+          return;
+        }
+        if (
+          sweepResumeContext.sweepStart !== sweepStart ||
+          sweepResumeContext.sweepEnd !== sweepEnd ||
+          sweepResumeContext.sweepPoints !== sweepPoints ||
+          sweepResumeContext.steadyMaxIters !== steadyMaxIters
+        ) {
+          setStatus('Sweep settings changed. Resume canceled; run a new sweep.');
+          setCalculatingUi(false);
+          return;
+        }
       }
       if (steadyMaxIters < 1 || steadyMaxIters > 1000) {
         setStatus('Steady max iterations must be between 1 and 1000.');
@@ -2491,34 +2759,94 @@
       let runCount = 1;
       let runCalls = 0;
       state.fftMode = currentMode;
-      state.sweepJ = [];
-      state.sweepFreq = [];
-      state.sweepAmp2d = [];
-      state.sweepPeakHz = 0;
-      state.sweepPeakJ = 0;
+      if (!resumeMode) {
+        state.sweepJ = [];
+        state.sweepFreq = [];
+        state.sweepAmp2d = [];
+        state.sweepRows = [];
+        state.sweepPeakHz = 0;
+        state.sweepPeakJ = 0;
+      }
 
       if (currentMode === 'sweep') {
         runCount = sweepPoints;
-        let freqAxis = null;
-        let peakAmp = 0;
-        let carryInit = latchedStart;
+        let freqAxis = resumeMode && sweepResumeContext ? sweepResumeContext.freqAxis.slice() : null;
+        let peakAmp = resumeMode && sweepResumeContext ? sweepResumeContext.peakAmp : 0;
+        let carryInit = resumeMode && sweepResumeContext ? sweepResumeContext.carryInit : latchedStart;
+        let startIndex = resumeMode && sweepResumeContext ? sweepResumeContext.nextIndex : 0;
+        if (resumeMode && sweepResumeContext) {
+          state.sweepJ = sweepResumeContext.sweepJ.slice();
+          state.sweepFreq = sweepResumeContext.sweepFreq.slice();
+          state.sweepAmp2d = sweepResumeContext.sweepAmp2d.map((row) => row.slice());
+          state.sweepRows = (sweepResumeContext.sweepRows || []).map((row) => ({ ...row }));
+          state.sweepPeakHz = sweepResumeContext.sweepPeakHz;
+          state.sweepPeakJ = sweepResumeContext.sweepPeakJ;
+        } else {
+          sweepResumeContext = null;
+        }
+        let stopped = false;
+        let resumeNextIndex = startIndex;
+        let resumeCarryInit = carryInit;
         const progressEvery = Math.max(1, Math.floor(sweepPoints / 20));
-        setStatus(`Sweep running... 0/${sweepPoints}`);
+        setStatus(`Sweep running... ${startIndex}/${sweepPoints}`);
         await new Promise((resolve) => requestAnimationFrame(resolve));
-        for (let i = 0; i < sweepPoints; i += 1) {
+        for (let i = startIndex; i < sweepPoints; i += 1) {
+          if (stopSweepRequested) {
+            stopped = true;
+            resumeNextIndex = i;
+            resumeCarryInit = carryInit;
+            break;
+          }
           const frac = sweepPoints === 1 ? 0 : i / (sweepPoints - 1);
           const jUnit = sweepStart + (sweepEnd - sweepStart) * frac;
           let seed = carryInit;
           let steadyRes = null;
           let steadyIter = 0;
           do {
+            if (stopSweepRequested) {
+              stopped = true;
+              resumeNextIndex = i;
+              resumeCarryInit = seed;
+              break;
+            }
             steadyRes = runOneCurrent(jUnit, seed);
             runCalls += 1;
             steadyIter += 1;
             const li = steadyRes.mx.length - 1;
             seed = [steadyRes.mx[li], steadyRes.my[li], steadyRes.mz[li]];
+            // Show trajectory while finding steady state at each J.
+            state.t = steadyRes.t;
+            state.mx = steadyRes.mx;
+            state.my = steadyRes.my;
+            state.mz = steadyRes.mz;
+            state.v = steadyRes.v;
+            state.vac = steadyRes.vac;
+            state.vdc = steadyRes.vdc;
+            state.vacRms = steadyRes.vacRms;
+            state.ellipseA = steadyRes.ellipse.a;
+            state.ellipseB = steadyRes.ellipse.b;
+            state.ellipseAngleDeg = steadyRes.ellipse.angleDeg;
+            state.ellipseAspect = steadyRes.ellipse.aspect;
+            state.ellipseArea = steadyRes.ellipseArea;
+            state.orbitFreqHz = steadyRes.orbitFreqHz;
+            state.steadyLabel = steadyRes.steady.label;
+            state.steadyDetail = steadyRes.steady.detail;
+            state.ampXRate = steadyRes.steady.ampXRate || 0;
+            state.ampYRate = steadyRes.steady.ampYRate || 0;
+            state.areaRate = steadyRes.steady.areaRate || 0;
+            state.fftFreq = steadyRes.fftFreq;
+            state.fftAmp = steadyRes.fftAmp;
+            state.fftPeakHz = steadyRes.fftPeakHz;
+            draw3DTrajectory();
+            drawTimeSeries();
+            drawOutputVoltageSeries();
+            drawOutputFftSeries();
+            renderTableAndSummary();
+            setStatus(`Sweep steady-find... J=${jUnit.toFixed(2)} (${i + 1}/${sweepPoints}), iter=${steadyIter}/${steadyMaxIters}`);
+            await new Promise((resolve) => requestAnimationFrame(resolve));
             if (isSteadyLabel(steadyRes.steady.label)) break;
           } while (steadyIter < steadyMaxIters);
+          if (stopped || !steadyRes) break;
 
           // After steady-search loop, run one mapping pass from the latest final state.
           const r = runOneCurrent(jUnit, seed);
@@ -2526,6 +2854,8 @@
           result = r;
           const liMap = r.mx.length - 1;
           carryInit = [r.mx[liMap], r.my[liMap], r.mz[liMap]];
+          resumeCarryInit = carryInit;
+          resumeNextIndex = i + 1;
           if (!freqAxis) {
             freqAxis = r.fftFreq.slice();
           }
@@ -2534,6 +2864,26 @@
           const row = r.fftAmp.slice(0, len);
           state.sweepJ.push(jUnit);
           state.sweepAmp2d.push(row);
+          let localPeakAmp = 0;
+          for (let kk = 0; kk < row.length; kk += 1) {
+            if (row[kk] > localPeakAmp) localPeakAmp = row[kk];
+          }
+          state.sweepRows.push({
+            jIndex: i,
+            jUnit,
+            fftPeakGhz: r.fftPeakHz * 1e-9,
+            fftPeakAmp: localPeakAmp,
+            ellipseA: r.ellipse.a,
+            ellipseB: r.ellipse.b,
+            ellipseArea: r.ellipseArea,
+            ellipseAngleDeg: r.ellipse.angleDeg,
+            ellipseAspect: r.ellipse.aspect,
+            orbitFreqGhz: r.orbitFreqHz * 1e-9,
+            ampXRate: r.steady.ampXRate || 0,
+            ampYRate: r.steady.ampYRate || 0,
+            areaRate: r.steady.areaRate || 0,
+            steadyLabel: r.steady.label || '-'
+          });
           for (let k = 0; k < len; k += 1) {
             const a = row[k];
             if (a > peakAmp) {
@@ -2576,9 +2926,42 @@
           }
         }
         state.sweepFreq = freqAxis || [];
+        if (stopped) {
+          sweepResumeContext = {
+            sweepStart,
+            sweepEnd,
+            sweepPoints,
+            steadyMaxIters,
+            nextIndex: resumeNextIndex,
+            carryInit: resumeCarryInit,
+            freqAxis: (freqAxis || []).slice(),
+            peakAmp,
+            sweepJ: state.sweepJ.slice(),
+            sweepFreq: state.sweepFreq.slice(),
+            sweepAmp2d: state.sweepAmp2d.map((row) => row.slice()),
+            sweepRows: state.sweepRows.map((row) => ({ ...row })),
+            sweepPeakHz: state.sweepPeakHz,
+            sweepPeakJ: state.sweepPeakJ
+          };
+          setStatus(`Sweep paused (${state.sweepJ.length}/${sweepPoints} points). Press Restart Sweep to resume.`);
+          updateSweepControlUi();
+        } else {
+          sweepResumeContext = null;
+          updateSweepControlUi();
+        }
       } else {
+        sweepResumeContext = null;
+        updateSweepControlUi();
         result = runOneCurrent(currentDensityUnit, latchedStart);
         runCalls += 1;
+      }
+
+      if (!result) {
+        state.hasResult = state.t.length > 0;
+        state.isDirty = false;
+        setCalculatingUi(false);
+        updateSweepControlUi();
+        return;
       }
 
       const t1 = performance.now();
@@ -2629,11 +3012,16 @@
       state.hasResult = true;
       state.isDirty = false;
       setCalculatingUi(false);
-      setStatus(currentMode === 'sweep'
-        ? `Sweep completed (${sweepPoints} points).`
-        : 'Calculation completed.');
+      if (currentMode === 'sweep' && stopSweepRequested) {
+        setStatus(`Sweep paused (${state.sweepJ.length}/${sweepPoints} points). Press Restart Sweep to resume.`);
+      } else {
+        setStatus(currentMode === 'sweep'
+          ? `Sweep completed (${sweepPoints} points).`
+          : 'Calculation completed.');
+      }
+      updateSweepControlUi();
 
-// GA4: 計算完亁E��1回カウント（�E力エラー等でreturnしたケースは数えなぁE��E
+// GA4: 險育ｮ怜ｮ御ｺ・・ｽ・ｽ1蝗槭き繧ｦ繝ｳ繝茨ｼ茨ｿｽE蜉帙お繝ｩ繝ｼ遲峨〒return縺励◆繧ｱ繝ｼ繧ｹ縺ｯ謨ｰ縺医↑縺・・ｽ・ｽE
 if (typeof gtag === 'function') {
   gtag('event', 'run_shno_completed', {
     event_category: 'simulation',
@@ -2648,6 +3036,8 @@ if (typeof gtag === 'function') {
         clearTimeout(autoRunTimer);
         autoRunTimer = null;
       }
+      stopSweepRequested = false;
+      sweepResumeContext = null;
       $('alpha').value = '0.02';
       $('gamma').value = '2.0';
       $('steadyMaxIters').value = '100';
@@ -2661,8 +3051,9 @@ if (typeof gtag === 'function') {
       $('hk2').value = '0';
       $('hu').value = '0.05';
       $('phiEasyDeg').value = '0';
-      $('currentDensity').value = '-12';
+      $('currentDensity').value = '-15';
       $('currentMode').value = 'single';
+      updateSweepFieldsVisibility();
       $('sweepStart').value = '-20';
       $('sweepEnd').value = '0';
       $('sweepPoints').value = '41';
@@ -2704,6 +3095,7 @@ if (typeof gtag === 'function') {
       state.sweepJ = [];
       state.sweepFreq = [];
       state.sweepAmp2d = [];
+      state.sweepRows = [];
       state.sweepPeakHz = 0;
       state.sweepPeakJ = 0;
       state.ellipseA = 0;
@@ -2722,8 +3114,8 @@ if (typeof gtag === 'function') {
       state.useFinalOncePending = false;
       $('resultBody').innerHTML = '';
       $('summary').textContent = '';
-      $('orbitMetrics').textContent = 'orbit ellipse(mx-my): -';
       updateLatchStateText();
+      updateSweepControlUi();
       clearMetaDisplay();
       setCalculatingUi(false);
       setStatus('Reset complete.');
@@ -2756,6 +3148,7 @@ if (typeof gtag === 'function') {
     $('downloadTimeBtn').addEventListener('click', downloadTimeCsv);
     $('downloadOutputBtn').addEventListener('click', downloadOutputCsv);
     $('downloadFftBtn').addEventListener('click', downloadFftCsv);
+    $('downloadSweepSummaryBtn').addEventListener('click', downloadSweepSummaryCsv);
     $('latchFinalBtn').addEventListener('click', () => {
       if (state.isCalculating) return;
       if (!state.hasResult || state.mx.length === 0) {
@@ -2772,14 +3165,26 @@ if (typeof gtag === 'function') {
     $('findSteadyBtn').addEventListener('click', () => {
       findSteadyState();
     });
+    $('stopSweepBtn').addEventListener('click', () => {
+      if (!state.isCalculating) return;
+      stopSweepRequested = true;
+      setStatus('Pausing sweep at next checkpoint...');
+    });
+    $('startSweepBtn').addEventListener('click', () => {
+      if (state.isCalculating) return;
+      if (sweepResumeContext) runSimulation(true);
+      else runSimulation();
+    });
     $('resetViewBtn').addEventListener('click', reset3DView);
     $('resetTimeViewBtn').addEventListener('click', resetTimeView);
     $('projectionMode').addEventListener('change', () => {
       view3d.projection = $('projectionMode').value === 'perspective' ? 'perspective' : 'iso';
       draw3DTrajectory();
     });
-    $('hZeroBtn').addEventListener('click', () => setFieldMagnitude(0));
-    $('anisZeroBtn').addEventListener('click', () => setAnisotropyValues(0, 0, 0, 0));
+    $('currentMode').addEventListener('change', () => {
+      updateSweepFieldsVisibility();
+      updateSweepControlUi();
+    });
     setup3DInteraction();
     setupTimeInteraction();
     draw3DTrajectory();
@@ -2787,12 +3192,16 @@ if (typeof gtag === 'function') {
     drawOutputVoltageSeries();
     drawOutputFftSeries();
     updateLatchStateText();
+    updateSweepFieldsVisibility();
+    updateSweepControlUi();
     clearMetaDisplay();
     setStatus('Initializing auto-run...');
     runSimulation();
   </script>
 </body>
 </html>
+
+
 
 
 
