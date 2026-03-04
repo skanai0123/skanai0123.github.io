@@ -1,5 +1,5 @@
 ﻿<!--
-  Program: SHNO Playground
+  Program: SHNO
   Purpose: Macrospin-based SHNO simulator (single-file app)
   Note: This index is the simulator UI/logic entry point.
 -->
@@ -7,7 +7,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>SHNO Playground</title>
+  <title>SHNO</title>
   <link rel="icon" href="../fabicons/magnetic.svg" type="image/svg+xml" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-118J91MG59"></script>
@@ -502,7 +502,7 @@
 </head>
 <body>
   <div class="app">
-    <div class="page-title">SHNO Playground</div>
+    <div class="page-title">SHNO</div>
     <div class="toolbar">
       <div class="toolbar-row">
         <div class="meta" id="calcMeta">iterations: - | speed: -</div>
@@ -2662,6 +2662,7 @@
         ms: getNum('ms'),
         volume: getNum('volume')
       };
+      const disableSteadyCheckInSweep = thermal.enabled && thermal.temperature > 0;
       const sigmaTh = thermalSigma(dt, alpha, gamma, thermal);
 
       if (
@@ -2860,51 +2861,53 @@
           let seed = carryInit;
           let steadyRes = null;
           let steadyIter = 0;
-          do {
-            if (stopSweepRequested) {
-              stopped = true;
-              resumeNextIndex = i;
-              resumeCarryInit = seed;
-              break;
-            }
-            steadyRes = runOneCurrent(jUnit, seed);
-            runCalls += 1;
-            steadyIter += 1;
-            const li = steadyRes.mx.length - 1;
-            seed = [steadyRes.mx[li], steadyRes.my[li], steadyRes.mz[li]];
-            // Show trajectory while finding steady state at each J.
-            state.t = steadyRes.t;
-            state.mx = steadyRes.mx;
-            state.my = steadyRes.my;
-            state.mz = steadyRes.mz;
-            state.v = steadyRes.v;
-            state.vac = steadyRes.vac;
-            state.vdc = steadyRes.vdc;
-            state.vacRms = steadyRes.vacRms;
-            state.ellipseA = steadyRes.ellipse.a;
-            state.ellipseB = steadyRes.ellipse.b;
-            state.ellipseAngleDeg = steadyRes.ellipse.angleDeg;
-            state.ellipseAspect = steadyRes.ellipse.aspect;
-            state.ellipseArea = steadyRes.ellipseArea;
-            state.orbitFreqHz = steadyRes.orbitFreqHz;
-            state.steadyLabel = steadyRes.steady.label;
-            state.steadyDetail = steadyRes.steady.detail;
-            state.ampXRate = steadyRes.steady.ampXRate || 0;
-            state.ampYRate = steadyRes.steady.ampYRate || 0;
-            state.areaRate = steadyRes.steady.areaRate || 0;
-            state.fftFreq = steadyRes.fftFreq;
-            state.fftAmp = steadyRes.fftAmp;
-            state.fftPeakHz = steadyRes.fftPeakHz;
-            draw3DTrajectory();
-            drawTimeSeries();
-            drawOutputVoltageSeries();
-            drawOutputFftSeries();
-            renderTableAndSummary();
-            setStatus(`Sweep steady-find... J=${jUnit.toFixed(2)} (${i + 1}/${sweepPoints}), iter=${steadyIter}/${steadyMaxIters}`);
-            await new Promise((resolve) => requestAnimationFrame(resolve));
-            if (isSteadyLabel(steadyRes.steady.label)) break;
-          } while (steadyIter < steadyMaxIters);
-          if (stopped || !steadyRes) break;
+          if (!disableSteadyCheckInSweep) {
+            do {
+              if (stopSweepRequested) {
+                stopped = true;
+                resumeNextIndex = i;
+                resumeCarryInit = seed;
+                break;
+              }
+              steadyRes = runOneCurrent(jUnit, seed);
+              runCalls += 1;
+              steadyIter += 1;
+              const li = steadyRes.mx.length - 1;
+              seed = [steadyRes.mx[li], steadyRes.my[li], steadyRes.mz[li]];
+              // Show trajectory while finding steady state at each J.
+              state.t = steadyRes.t;
+              state.mx = steadyRes.mx;
+              state.my = steadyRes.my;
+              state.mz = steadyRes.mz;
+              state.v = steadyRes.v;
+              state.vac = steadyRes.vac;
+              state.vdc = steadyRes.vdc;
+              state.vacRms = steadyRes.vacRms;
+              state.ellipseA = steadyRes.ellipse.a;
+              state.ellipseB = steadyRes.ellipse.b;
+              state.ellipseAngleDeg = steadyRes.ellipse.angleDeg;
+              state.ellipseAspect = steadyRes.ellipse.aspect;
+              state.ellipseArea = steadyRes.ellipseArea;
+              state.orbitFreqHz = steadyRes.orbitFreqHz;
+              state.steadyLabel = steadyRes.steady.label;
+              state.steadyDetail = steadyRes.steady.detail;
+              state.ampXRate = steadyRes.steady.ampXRate || 0;
+              state.ampYRate = steadyRes.steady.ampYRate || 0;
+              state.areaRate = steadyRes.steady.areaRate || 0;
+              state.fftFreq = steadyRes.fftFreq;
+              state.fftAmp = steadyRes.fftAmp;
+              state.fftPeakHz = steadyRes.fftPeakHz;
+              draw3DTrajectory();
+              drawTimeSeries();
+              drawOutputVoltageSeries();
+              drawOutputFftSeries();
+              renderTableAndSummary();
+              setStatus(`Sweep steady-find... J=${jUnit.toFixed(2)} (${i + 1}/${sweepPoints}), iter=${steadyIter}/${steadyMaxIters}`);
+              await new Promise((resolve) => requestAnimationFrame(resolve));
+              if (isSteadyLabel(steadyRes.steady.label)) break;
+            } while (steadyIter < steadyMaxIters);
+            if (stopped || !steadyRes) break;
+          }
 
           // After steady-search loop, run one mapping pass from the latest final state.
           const r = runOneCurrent(jUnit, seed);
@@ -2940,7 +2943,7 @@
             ampXRate: r.steady.ampXRate || 0,
             ampYRate: r.steady.ampYRate || 0,
             areaRate: r.steady.areaRate || 0,
-            steadyLabel: r.steady.label || '-'
+            steadyLabel: disableSteadyCheckInSweep ? 'skipped (thermal sweep)' : (r.steady.label || '-')
           });
           for (let k = 0; k < len; k += 1) {
             const a = row[k];
@@ -2966,8 +2969,8 @@
             state.ellipseAspect = r.ellipse.aspect;
             state.ellipseArea = r.ellipseArea;
             state.orbitFreqHz = r.orbitFreqHz;
-            state.steadyLabel = r.steady.label;
-            state.steadyDetail = r.steady.detail;
+            state.steadyLabel = disableSteadyCheckInSweep ? 'not evaluated (thermal sweep)' : r.steady.label;
+            state.steadyDetail = disableSteadyCheckInSweep ? 'steady check disabled in sweep when thermal noise is enabled' : r.steady.detail;
             state.ampXRate = r.steady.ampXRate || 0;
             state.ampYRate = r.steady.ampYRate || 0;
             state.areaRate = r.steady.areaRate || 0;
@@ -2979,7 +2982,9 @@
             drawOutputVoltageSeries();
             drawOutputFftSeries();
             renderTableAndSummary();
-            setStatus(`Sweep running... ${i + 1}/${sweepPoints} (steady iters: ${steadyIter}/${steadyMaxIters})`);
+            setStatus(disableSteadyCheckInSweep
+              ? `Sweep running... ${i + 1}/${sweepPoints} (steady-check: off)`
+              : `Sweep running... ${i + 1}/${sweepPoints} (steady iters: ${steadyIter}/${steadyMaxIters})`);
             await new Promise((resolve) => requestAnimationFrame(resolve));
           }
         }
@@ -3050,8 +3055,12 @@
       state.ellipseAspect = result.ellipse.aspect;
       state.ellipseArea = result.ellipseArea;
       state.orbitFreqHz = result.orbitFreqHz;
-      state.steadyLabel = result.steady.label;
-      state.steadyDetail = result.steady.detail;
+      state.steadyLabel = (currentMode === 'sweep' && disableSteadyCheckInSweep)
+        ? 'not evaluated (thermal sweep)'
+        : result.steady.label;
+      state.steadyDetail = (currentMode === 'sweep' && disableSteadyCheckInSweep)
+        ? 'steady check disabled in sweep when thermal noise is enabled'
+        : result.steady.detail;
       state.ampXRate = result.steady.ampXRate || 0;
       state.ampYRate = result.steady.ampYRate || 0;
       state.areaRate = result.steady.areaRate || 0;
@@ -3266,6 +3275,7 @@ if (typeof gtag === 'function') {
   </script>
 </body>
 </html>
+
 
 
 

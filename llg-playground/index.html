@@ -1,5 +1,5 @@
-<!--
-  Program: LLG Playground
+﻿<!--
+  Program: LLG
   Purpose: Macrospin-based LLG simulator (single-file app)
   Note: This index is the simulator UI/logic entry point.
 -->
@@ -7,7 +7,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>LLG Playground</title>
+  <title>LLG</title>
   <link rel="icon" href="../fabicons/magnetic.svg" type="image/svg+xml" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-118J91MG59"></script>
@@ -440,7 +440,7 @@
 </head>
 <body>
   <div class="app">
-    <div class="page-title">LLG Playground</div>
+    <div class="page-title">LLG</div>
     <div class="toolbar">
       <div class="toolbar-row">
         <div class="meta" id="calcMeta">iterations: - | speed: -</div>
@@ -1581,7 +1581,7 @@
       setCalculatingUi(false);
 setStatus('Calculation completed.');
 
-// GA4: 計算完了を1回カウント（入力エラー等でreturnしたケースは数えない）
+// GA4: 險育ｮ怜ｮ御ｺ・ｒ1蝗槭き繧ｦ繝ｳ繝茨ｼ亥・蜉帙お繝ｩ繝ｼ遲峨〒return縺励◆繧ｱ繝ｼ繧ｹ縺ｯ謨ｰ縺医↑縺・ｼ・
 if (typeof gtag === 'function') {
   gtag('event', 'run_llg_completed', {
     event_category: 'simulation',
@@ -1666,7 +1666,7 @@ if (typeof gtag === 'function') {
     });
 
 $('runBtn').addEventListener('click', () => {
-  // GA4: Runボタン押下を1回カウント
+  // GA4: Run繝懊ち繝ｳ謚ｼ荳九ｒ1蝗槭き繧ｦ繝ｳ繝・
   if (typeof gtag === 'function') {
     gtag('event', 'run_llg', { event_category: 'simulation' });
   }
@@ -1705,5 +1705,6 @@ $('runBtn').addEventListener('click', () => {
   </script>
 </body>
 </html>
+
 
 
