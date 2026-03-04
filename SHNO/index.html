@@ -167,6 +167,40 @@
       filter: none;
     }
 
+    .report-bug-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 28px;
+      min-width: 108px;
+      padding: 0 10px;
+      border: 1px solid #c5d5fb;
+      border-radius: 8px;
+      text-decoration: none;
+      background: linear-gradient(180deg, #ffffff, #eef4ff);
+      color: #223358;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .report-bug-btn:hover {
+      filter: brightness(1.02);
+    }
+
+    #shared-back-to-hub-nav {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-width: 124px;
+    }
+
+    #shared-back-to-hub-nav .shared-back-link,
+    #shared-back-to-hub-nav .report-bug-btn {
+      width: 100%;
+      min-width: 0;
+      margin: 0;
+    }
+
     #findSteadyBtn {
       border-color: #d76a6a;
       background: linear-gradient(180deg, #fff3f3, #ffd8d8);
@@ -596,7 +630,7 @@
             </div>
             <div class="field">
               <label for="hPhiDeg">phi_H (deg)</label>
-              <input id="hPhiDeg" type="number" step="any" value="278" />
+              <input id="hPhiDeg" type="number" step="any" value="100" />
             </div>
           </div>
           <div class="grid-3">
@@ -629,9 +663,9 @@
                 <option value="sweep">sweep</option>
               </select>
             </div>
-            <div class="field">
+            <div id="currentDensityField" class="field">
               <label for="currentDensity">Current density J (10^10 A/m^2 = MA/cm^2)</label>
-              <input id="currentDensity" type="number" step="any" value="-15" />
+              <input id="currentDensity" type="number" step="any" value="15" />
             </div>
             <div class="field">
               <label for="sotEfficiency">SOT efficiency eta (T/(A/m^2))</label>
@@ -647,11 +681,11 @@
             </div>
             <div id="sweepFieldStart" class="field hidden">
               <label for="sweepStart">Sweep J start</label>
-              <input id="sweepStart" type="number" step="any" value="-20" />
+              <input id="sweepStart" type="number" step="any" value="11" />
             </div>
             <div id="sweepFieldEnd" class="field hidden">
               <label for="sweepEnd">Sweep J end</label>
-              <input id="sweepEnd" type="number" step="any" value="0" />
+              <input id="sweepEnd" type="number" step="any" value="20" />
             </div>
             <div id="sweepFieldPoints" class="field hidden">
               <label for="sweepPoints">Sweep points</label>
@@ -2199,6 +2233,7 @@
 
     function updateSweepFieldsVisibility() {
       const inSweepMode = $('currentMode').value === 'sweep';
+      $('currentDensityField').classList.toggle('hidden', inSweepMode);
       $('sweepFieldStart').classList.toggle('hidden', !inSweepMode);
       $('sweepFieldEnd').classList.toggle('hidden', !inSweepMode);
       $('sweepFieldPoints').classList.toggle('hidden', !inSweepMode);
@@ -2210,6 +2245,14 @@
 
     function clearMetaDisplay() {
       $('calcMeta').textContent = 'iterations: - | speed: -';
+    }
+
+    function placeReportBugButton(btnEl = null) {
+      const nav = document.getElementById('shared-back-to-hub-nav');
+      const btn = btnEl || $('reportBugBtn');
+      if (!nav || !btn) return false;
+      if (!nav.contains(btn)) nav.appendChild(btn);
+      return true;
     }
 
     function scheduleAutoRun() {
@@ -3108,7 +3151,7 @@ if (typeof gtag === 'function') {
       $('steadyMaxIters').value = '100';
       $('hMag').value = '0.3';
       $('hThetaDeg').value = '20';
-      $('hPhiDeg').value = '278';
+      $('hPhiDeg').value = '100';
       $('dt').value = '1e-13';
       $('endTime').value = '10';
       $('saveDt').value = '1e-12';
@@ -3116,11 +3159,11 @@ if (typeof gtag === 'function') {
       $('hk2').value = '0';
       $('hu').value = '0.05';
       $('phiEasyDeg').value = '0';
-      $('currentDensity').value = '-15';
+      $('currentDensity').value = '15';
       $('currentMode').value = 'single';
       updateSweepFieldsVisibility();
-      $('sweepStart').value = '-20';
-      $('sweepEnd').value = '0';
+      $('sweepStart').value = '11';
+      $('sweepEnd').value = '20';
       $('sweepPoints').value = '41';
       $('sotEfficiency').value = '1e-12';
       $('xiDL').value = '0.1';
@@ -3208,6 +3251,40 @@ if (typeof gtag === 'function') {
       el.addEventListener('change', markParameterChanged);
     });
 
+    const reportBugBtn = document.createElement('a');
+    reportBugBtn.id = 'reportBugBtn';
+    reportBugBtn.className = 'report-bug-btn';
+    reportBugBtn.target = '_blank';
+    reportBugBtn.rel = 'noopener noreferrer';
+    reportBugBtn.textContent = 'Report Bug';
+    const formBase = 'https://docs.google.com/forms/d/e/1FAIpQLSeeOYJFGdl41iEUR_sJ9tm7XFoa8xzdoNlXP7ZflNwjPkf8pQ/viewform';
+    const entryPlaygroundName = 'entry.1663149615';
+    const path = window.location.pathname.replace(/\/+$/, '');
+    const segs = path.split('/').filter(Boolean);
+    let pageName = 'Hub';
+    if (segs.length > 0) {
+      const last = segs[segs.length - 1];
+      if (/\.html?$/i.test(last)) {
+        if (/^index(\..+)?\.html?$/i.test(last) || /^index\.html?$/i.test(last)) {
+          pageName = segs.length >= 2 ? segs[segs.length - 2] : 'Hub';
+        } else {
+          pageName = last.replace(/\.html?$/i, '');
+        }
+      } else {
+        pageName = last;
+      }
+    }
+    const qs = new URLSearchParams({
+      usp: 'pp_url',
+      [entryPlaygroundName]: pageName
+    });
+    reportBugBtn.href = `${formBase}?${qs.toString()}`;
+    if (!placeReportBugButton(reportBugBtn)) {
+      window.addEventListener('DOMContentLoaded', () => placeReportBugButton(reportBugBtn), { once: true });
+      requestAnimationFrame(() => placeReportBugButton(reportBugBtn));
+      setTimeout(() => placeReportBugButton(reportBugBtn), 300);
+    }
+
     $('downloadBtn').addEventListener('click', downloadCsv);
     $('download3dBtn').addEventListener('click', download3dCsv);
     $('downloadTimeBtn').addEventListener('click', downloadTimeCsv);
@@ -3265,6 +3342,7 @@ if (typeof gtag === 'function') {
   </script>
 </body>
 </html>
+
 
 
 
