@@ -1005,7 +1005,7 @@
       const pw = W - 56;
       const ph = H - 42;
       const xAxisLabelX = x0 + pw * 0.5 - 14;
-      const xAxisLabelY = H - 20;
+      const xAxisLabelY = H - 2;
 
       ctx.clearRect(0, 0, W, H);
       ctx.fillStyle = '#ffffff';
@@ -1038,7 +1038,10 @@
         ctx.fillStyle = '#4b3d76';
         ctx.font = FONT_MATH_12;
         ctx.fillText('m (norm)', 8, 16);
-        ctx.fillText('t (ns)', W * 0.5 - 18, H - 20);
+        ctx.save();
+        ctx.textBaseline = 'bottom';
+        ctx.fillText('t (ns)', xAxisLabelX, xAxisLabelY);
+        ctx.restore();
         return;
       }
 
@@ -1072,7 +1075,10 @@
       ctx.fillStyle = '#4b3d76';
       ctx.font = FONT_MATH_12;
       ctx.fillText('m (norm)', 8, 16);
-      ctx.fillText('t (ns)', W * 0.5 - 18, H - 20);
+      ctx.save();
+      ctx.textBaseline = 'bottom';
+      ctx.fillText('t (ns)', xAxisLabelX, xAxisLabelY);
+      ctx.restore();
       for (let ti = 0; ti <= 4; ti += 1) {
         const frac = ti / 4;
         const yTick = y0 - ph * frac;
@@ -1085,7 +1091,7 @@
         const frac = ti / 4;
         const xTick = x0 + pw * frac;
         const tVal = tMinNs + (tMaxNs - tMinNs) * frac;
-        ctx.fillText(tVal.toFixed(3), xTick - 14, H - 8);
+        ctx.fillText(tVal.toFixed(3), xTick - 14, H - 16);
       }
       ctx.fillText('Drag: pan | Wheel: X zoom | Shift+Wheel: Y zoom', 130, 18);
     }
@@ -1099,6 +1105,11 @@
       const y0 = H - 28;
       const pw = W - 56;
       const ph = H - 42;
+      const xAxisLabelX = x0 + pw * 0.5 - 14;
+      const xAxisLabelY = H - 2;
+      const yTickLabelX = 24;
+      const yAxisLabelX = 6;
+      const yAxisLabelY = y0 - ph * 0.5;
 
       ctx.clearRect(0, 0, W, H);
       ctx.fillStyle = '#ffffff';
@@ -1130,8 +1141,17 @@
       if (n < 2 || state.vac.length !== n) {
         ctx.fillStyle = '#4b3d76';
         ctx.font = FONT_MATH_12;
-        ctx.fillText('v_ac (V)', 8, 16);
+        ctx.save();
+        ctx.translate(yAxisLabelX, yAxisLabelY);
+        ctx.rotate(-Math.PI / 2);
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.fillText('V_ac (V)', 0, 0);
+        ctx.restore();
+        ctx.save();
+        ctx.textBaseline = 'bottom';
         ctx.fillText('t (ns)', xAxisLabelX, xAxisLabelY);
+        ctx.restore();
         return;
       }
 
@@ -1167,13 +1187,22 @@
 
       ctx.fillStyle = '#4b3d76';
       ctx.font = FONT_MATH_12;
-      ctx.fillText('v_ac (V)', 8, 16);
+      ctx.save();
+      ctx.translate(yAxisLabelX, yAxisLabelY);
+      ctx.rotate(-Math.PI / 2);
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillText('V_ac (V)', 0, 0);
+      ctx.restore();
+      ctx.save();
+      ctx.textBaseline = 'bottom';
       ctx.fillText('t (ns)', xAxisLabelX, xAxisLabelY);
+      ctx.restore();
       for (let ti = 0; ti <= 4; ti += 1) {
         const frac = ti / 4;
         const yTick = y0 - ph * frac;
         const yVal = vMin + (vMax - vMin) * frac;
-        ctx.fillText(yVal.toExponential(1), 2, yTick + 4);
+        ctx.fillText(yVal.toExponential(1), yTickLabelX, yTick + 4);
       }
       const tMinNs = state.t[0] * 1e9;
       const tMaxNs = state.t[n - 1] * 1e9;
@@ -1687,6 +1716,9 @@
       const ph = H - 42;
       const xAxisLabelX = x0 + pw * 0.5 - 16;
       const xAxisLabelY = H - 20;
+      const yTickLabelX = 24;
+      const yAxisLabelX = 6;
+      const yAxisLabelY = y0 - ph * 0.5;
 
       ctx.clearRect(0, 0, W, H);
       ctx.fillStyle = '#ffffff';
@@ -1768,9 +1800,15 @@
           ctx.lineTo(x0, yTick);
           ctx.stroke();
           ctx.fillStyle = '#4b3d76';
-          ctx.fillText(jVal.toFixed(2), 4, yTick + 4);
+          ctx.fillText(jVal.toFixed(2), yTickLabelX, yTick + 4);
         }
-        ctx.fillText('J (10^10 A/m^2)', x0 + 4, 28);
+        ctx.save();
+        ctx.translate(yAxisLabelX, yAxisLabelY);
+        ctx.rotate(-Math.PI / 2);
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.fillText('J (10^10 A/m^2)', 0, 0);
+        ctx.restore();
         ctx.fillText(`color(log): max=${aMax.toExponential(1)} V`, x0 + 120, 16);
         return;
       }
@@ -1779,7 +1817,13 @@
       if (n < 2) {
         ctx.fillStyle = '#4b3d76';
         ctx.font = FONT_MATH_12;
-        ctx.fillText('|FFT(v_ac)| (V)', 8, 16);
+        ctx.save();
+        ctx.translate(yAxisLabelX, yAxisLabelY);
+        ctx.rotate(-Math.PI / 2);
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.fillText('|FFT(v_ac)| (V)', 0, 0);
+        ctx.restore();
         ctx.fillText('f (GHz)', xAxisLabelX, xAxisLabelY);
         return;
       }
@@ -1795,7 +1839,13 @@
       if (inRangeCount < 2) {
         ctx.fillStyle = '#4b3d76';
         ctx.font = FONT_MATH_12;
-        ctx.fillText('|FFT(v_ac)| (V)', 8, 16);
+        ctx.save();
+        ctx.translate(yAxisLabelX, yAxisLabelY);
+        ctx.rotate(-Math.PI / 2);
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.fillText('|FFT(v_ac)| (V)', 0, 0);
+        ctx.restore();
         ctx.fillText('f (GHz)', xAxisLabelX, xAxisLabelY);
         ctx.fillText('0.00', x0, H - 8);
         ctx.fillText('40.00', W - 110, H - 8);
@@ -1822,13 +1872,19 @@
 
       ctx.fillStyle = '#4b3d76';
       ctx.font = FONT_MATH_12;
-      ctx.fillText('|FFT(v_ac)| (V)', 8, 16);
+      ctx.save();
+      ctx.translate(yAxisLabelX, yAxisLabelY);
+      ctx.rotate(-Math.PI / 2);
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillText('|FFT(v_ac)| (V)', 0, 0);
+      ctx.restore();
       ctx.fillText('f (GHz)', xAxisLabelX, xAxisLabelY);
       for (let ti = 0; ti <= 4; ti += 1) {
         const frac = ti / 4;
         const yTick = y0 - ph * frac;
         const yVal = aMax * frac;
-        ctx.fillText(yVal.toExponential(1), 2, yTick + 4);
+        ctx.fillText(yVal.toExponential(1), yTickLabelX, yTick + 4);
       }
       for (let ti = 0; ti <= 4; ti += 1) {
         const frac = ti / 4;
@@ -2557,6 +2613,7 @@
       setCalculatingUi(true);
       setStatus('Calculating...');
       await new Promise((resolve) => requestAnimationFrame(resolve));
+      try {
 
       const RELAX_ALPHA = 0.1;
       const RELAX_TIME_S = 5e-9;
@@ -3028,6 +3085,14 @@ if (typeof gtag === 'function') {
     iterations: state.iterations
   });
 }
+      } catch (err) {
+        console.error(err);
+        const msg = err && err.message ? err.message : String(err);
+        setStatus(`Calculation error: ${msg}`);
+      } finally {
+        setCalculatingUi(false);
+        updateSweepControlUi();
+      }
     }
 
     function resetUI() {
