@@ -61,8 +61,16 @@
       backdrop-filter: blur(6px);
     }
 
+    .title-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
     h1 {
-      margin: 4px 0 10px;
+      margin: 4px 0 0;
       font-size: clamp(24px, 5vw, 34px);
       line-height: 1.15;
     }
@@ -82,6 +90,106 @@
 
     .controls-popover {
       margin-bottom: 12px;
+    }
+
+    .quantum-panel {
+      margin: 0 0 12px;
+      padding: 12px 14px;
+      border: 1px solid #e4c2a0;
+      border-radius: 14px;
+      background: #fff7efcc;
+    }
+
+    .quantum-panel.hidden {
+      display: none;
+    }
+
+    .quantum-panel-body.hidden {
+      display: none;
+    }
+
+    .quantum-panel strong {
+      display: block;
+      margin-bottom: 8px;
+      color: #4d2f19;
+    }
+
+    .quantum-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 14px;
+      align-items: center;
+    }
+
+    .quantum-row + .quantum-row {
+      margin-top: 10px;
+    }
+
+    .quantum-row label {
+      font-size: 13px;
+      font-weight: 700;
+      color: #5f4129;
+    }
+
+    .quantum-row input[type="range"] {
+      width: min(260px, 62vw);
+      accent-color: var(--accent);
+    }
+
+    .quantum-rounds-select {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--ink);
+      font: inherit;
+      font-weight: 700;
+      border-radius: 10px;
+      padding: 6px 10px;
+    }
+
+    .quantum-meta {
+      font-size: 13px;
+      color: #6a4a31;
+      font-weight: 700;
+    }
+
+    .quantum-graph-wrap {
+      margin-top: 12px;
+      padding-top: 10px;
+      border-top: 1px solid #ecd5b8;
+    }
+
+    .quantum-graph-wrap.hidden {
+      display: none;
+    }
+
+    .quantum-graph {
+      width: 100%;
+      height: auto;
+      display: block;
+      border: 1px solid #e4c2a0;
+      border-radius: 12px;
+      background: #fffdf9;
+    }
+
+    .quantum-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 14px;
+      margin-top: 8px;
+      font-size: 12px;
+      color: #6a4a31;
+      font-weight: 700;
+    }
+
+    .quantum-legend span::before {
+      content: "";
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      margin-right: 6px;
+      vertical-align: -1px;
+      background: currentColor;
     }
 
     .controls button {
@@ -577,6 +685,37 @@
       background: #fff4e8;
     }
 
+    .cell.quantum-empty {
+      position: relative;
+      color: transparent;
+      background: #fff;
+    }
+
+    .cell.quantum-b-empty {
+      white-space: pre-line;
+      font-size: 11px;
+      line-height: 1.05;
+      letter-spacing: 0;
+      padding: 8px 6px;
+      align-content: center;
+    }
+
+    .cell.quantum-b-empty.pending {
+      border-color: #7b57d6;
+      box-shadow: 0 0 0 3px #b7a7ef66;
+      background: #fbf8ff;
+    }
+
+    .cell.quantum-empty::after {
+      content: attr(data-prob);
+      position: absolute;
+      inset: auto 8px 8px auto;
+      font-size: 11px;
+      line-height: 1;
+      color: #ae8b64;
+      letter-spacing: 0.02em;
+    }
+
     .cell:disabled { cursor: default; }
     .cell.x { color: var(--x); }
     .cell.o { color: var(--o); }
@@ -780,21 +919,26 @@
 </head>
 <body>
   <main class="app">
-    <h1>Tic-Tac-Toe AI</h1>
+    <div class="title-bar">
+      <h1>Tic-Tac-Toe AI</h1>
+      <button id="statsBtn" type="button">Stats</button>
+    </div>
     <p id="subtext" class="sub">Switch between 2D and 3D. 2D uses optimal play, 3D uses a lightweight AI.</p>
 
     <div class="controls-popover">
       <div class="controls" aria-label="Game mode">
-        <button id="mode2d" class="active" type="button">2D (3x3)</button>
+        <button id="mode2dClassic" class="active" type="button">2D Classic</button>
+        <button id="mode2dQuantum1" type="button">2D Quantum A</button>
+        <button id="mode2dQuantum2" type="button">2D Quantum B</button>
         <button id="mode3d" type="button">3D (3x3x3)</button>
         <button id="mode4d" type="button">4D (3x3x3x3)</button>
-        <button id="statsBtn" type="button">Stats</button>
       </div>
       <section id="statsSummary" class="stats-summary hidden" aria-label="Win rate summary"></section>
     </div>
     <div id="gamePanel">
       <div class="controls" aria-label="Match type">
         <button id="matchAi" class="active" type="button">VS AI</button>
+        <button id="matchAiAi" type="button">AI vs AI</button>
         <button id="matchPvp" type="button">2 Players</button>
       </div>
 
@@ -820,6 +964,43 @@
         </div>
         <section id="board" class="board board-2d" aria-label="Game board"></section>
       </div>
+      <section id="quantumPanel" class="quantum-panel hidden" aria-label="Quantum A settings">
+        <div class="controls" aria-label="Quantum A settings toggle">
+          <button id="quantumSettingsBtn" type="button">Settings</button>
+        </div>
+        <div id="quantumPanelBody" class="quantum-panel-body hidden">
+          <strong>Quantum A Settings</strong>
+          <div class="quantum-row">
+            <label for="centerOAdvantage">Center O collapse rate</label>
+            <input id="centerOAdvantage" type="range" min="0" max="100" step="1" value="50">
+            <span id="centerOAdvantageValue" class="quantum-meta">50%</span>
+          </div>
+          <div class="quantum-row">
+            <span id="quantumOuterSummary" class="quantum-meta">Other cells: O uses 10/30/50/70/90 or 20/80 patterns</span>
+            <label for="quantumGraphRounds">Rounds</label>
+            <select id="quantumGraphRounds" class="quantum-rounds-select">
+              <option value="100" selected>100</option>
+              <option value="400">400</option>
+              <option value="1000">1000</option>
+              <option value="4000">4000</option>
+              <option value="10000">10000</option>
+            </select>
+            <button id="quantumSimBtn" type="button">Run AI vs AI</button>
+            <button id="quantumGraphBtn" type="button">Plot Key Rates</button>
+            <span id="quantumSimResult" class="quantum-meta"></span>
+          </div>
+          <div id="quantumProgress" class="quantum-meta"></div>
+          <div id="quantumGraphWrap" class="quantum-graph-wrap hidden">
+            <div id="quantumGraphMeta" class="quantum-meta">Center O samples: 0%, 45-55%, 100%. 100 games each.</div>
+            <svg id="quantumGraph" class="quantum-graph" viewBox="0 0 680 280" aria-label="Quantum A sweep graph"></svg>
+            <div class="quantum-legend">
+              <span style="color:#cc4b2f;">X Win</span>
+              <span style="color:#2f6fcc;">O Win</span>
+              <span style="color:#8f7a62;">Draw</span>
+            </div>
+          </div>
+        </div>
+      </section>
       <div class="footer">
         <div id="score" class="score">You: 0 | AI: 0 | Draws: 0</div>
         <div>
@@ -850,12 +1031,29 @@
     const subtextEl = document.getElementById("subtext");
     const scoreEl = document.getElementById("score");
     const statsSummaryEl = document.getElementById("statsSummary");
+    const quantumPanelEl = document.getElementById("quantumPanel");
+    const quantumSettingsBtn = document.getElementById("quantumSettingsBtn");
+    const quantumPanelBodyEl = document.getElementById("quantumPanelBody");
+    const centerOAdvantageInput = document.getElementById("centerOAdvantage");
+    const centerOAdvantageValueEl = document.getElementById("centerOAdvantageValue");
+    const quantumOuterSummaryEl = document.getElementById("quantumOuterSummary");
+    const quantumGraphRoundsEl = document.getElementById("quantumGraphRounds");
+    const quantumSimBtn = document.getElementById("quantumSimBtn");
+    const quantumGraphBtn = document.getElementById("quantumGraphBtn");
+    const quantumSimResultEl = document.getElementById("quantumSimResult");
+    const quantumProgressEl = document.getElementById("quantumProgress");
+    const quantumGraphWrapEl = document.getElementById("quantumGraphWrap");
+    const quantumGraphMetaEl = document.getElementById("quantumGraphMeta");
+    const quantumGraphEl = document.getElementById("quantumGraph");
 
-    const mode2dBtn = document.getElementById("mode2d");
+    const mode2dClassicBtn = document.getElementById("mode2dClassic");
+    const mode2dQuantum1Btn = document.getElementById("mode2dQuantum1");
+    const mode2dQuantum2Btn = document.getElementById("mode2dQuantum2");
     const mode3dBtn = document.getElementById("mode3d");
     const mode4dBtn = document.getElementById("mode4d");
     const statsBtn = document.getElementById("statsBtn");
     const matchAiBtn = document.getElementById("matchAi");
+    const matchAiAiBtn = document.getElementById("matchAiAi");
     const matchPvpBtn = document.getElementById("matchPvp");
     const playAsXBtn = document.getElementById("playAsX");
     const playAsOBtn = document.getElementById("playAsO");
@@ -881,6 +1079,7 @@
     const WIN_LINES_4D = build4DWinLines();
 
     let mode = "2d";
+    let twoDVariant = "classic";
     let matchType = "ai";
     let board = Array(9).fill("");
     let human = "X";
@@ -901,13 +1100,28 @@
     let aiTimerId = 0;
     let viewRotateX = 62;
     let viewRotateZ = -35;
+    let autoRotateZ = 0;
+    let autoRotateFrameId = 0;
+    let autoRotateLastTs = 0;
     let statsOpen = false;
     let remoteStatsState = "disabled";
     let remoteStatsMessage = "Supabase is not configured.";
+    let quantumCenterORate = 0.5;
+    let quantumOuterORates = Array(9).fill(0.5);
+    let quantum2Cells = createQuantum2Cells();
+    let quantum2PendingCell = -1;
+    let quantum2ActionStep = 0;
+    let quantumSimRunning = false;
+    let quantumMinimaxCache = new Map();
+    let quantumSettingsOpen = false;
+    let quantumGraphSeries = [];
+
+    const QUANTUM_OUTER_O_RATES = [0.1, 0.2, 0.3, 0.5, 0.7, 0.8, 0.9];
 
     const VIEW_TILT_MIN = 30;
     const VIEW_TILT_MAX = 80;
     const VIEW_STEP = 10;
+    const AUTO_ROTATE_DEG_PER_SEC = 10;
 
     function idx3D(x, y, z) {
       return z * 9 + y * 3 + x;
@@ -1124,6 +1338,406 @@
       return 81;
     }
 
+    function isQuantum1Mode() {
+      return mode === "2d" && twoDVariant === "quantum1";
+    }
+
+    function isQuantum2Mode() {
+      return mode === "2d" && twoDVariant === "quantum2";
+    }
+
+    function createQuantum2Cells() {
+      return Array.from({ length: 9 }, () => ({
+        touches: []
+      }));
+    }
+
+    function quantumOtherPlayer(player) {
+      return player === "X" ? "O" : "X";
+    }
+
+    function generateQuantumOuterORates() {
+      const nextRates = Array(9).fill(0.5);
+      const outerIndexes = [0, 1, 2, 3, 5, 6, 7, 8];
+      for (const index of outerIndexes) {
+        nextRates[index] = QUANTUM_OUTER_O_RATES[Math.floor(Math.random() * QUANTUM_OUTER_O_RATES.length)];
+      }
+      nextRates[4] = quantumCenterORate;
+      return nextRates;
+    }
+
+    function quantumProbabilities(index, outerRates = quantumOuterORates) {
+      if (index === 4) {
+        return {
+          x: 1 - quantumCenterORate,
+          o: quantumCenterORate
+        };
+      }
+      return {
+        x: 1 - outerRates[index],
+        o: outerRates[index]
+      };
+    }
+
+    function quantumTintStyle(probs) {
+      const dominant = probs.x > probs.o ? "x" : probs.o > probs.x ? "o" : "neutral";
+      const edge = Math.abs(probs.x - probs.o);
+      const alpha = 0.03 + (edge * 0.34);
+      if (dominant === "x") {
+        return `rgba(214, 69, 45, ${alpha.toFixed(3)})`;
+      }
+      if (dominant === "o") {
+        return `rgba(47, 111, 204, ${alpha.toFixed(3)})`;
+      }
+      return `rgba(122, 100, 79, ${alpha.toFixed(3)})`;
+    }
+
+    function quantum2SelectableCells() {
+      return board.map((cell, index) => cell === "" ? index : -1).filter((index) => index !== -1);
+    }
+
+    function quantum2CellOutcome(index, player, phase) {
+      const outcome = quantum2CellOutcomeFromCells(quantum2Cells, index, player, phase);
+      return {
+        measured: quantum2Cells[index].touches.length > 0,
+        probs: outcome.probs
+      };
+    }
+
+    function quantum2CellProbabilities(index) {
+      const cell = quantum2Cells[index];
+      if (!cell.touches[0]) return { x: 0.5, o: 0.5 };
+      const first = cell.touches[0];
+      return first.player === "X" ? { x: 0.65, o: 0.35 } : { x: 0.35, o: 0.65 };
+    }
+
+    function quantum2LabelsForCell(index) {
+      const cell = quantum2Cells[index];
+      if (!cell || cell.touches.length === 0) return "";
+      const first = cell.touches[0];
+      const probs = quantum2CellProbabilities(index);
+      const phaseLabel = first.phase > 0 ? "+" : "-";
+      return `${first.player}${phaseLabel}\nX${Math.round(probs.x * 100)}/O${Math.round(probs.o * 100)}`;
+    }
+
+    function cloneQuantum2Cells(cells) {
+      return cells.map((cell) => ({
+        touches: cell.touches.map((touch) => ({ ...touch }))
+      }));
+    }
+
+    function quantum2EvaluateBoardState(testBoard, testCells, player) {
+      const opponent = quantumOtherPlayer(player);
+      const state = evaluate2DState(testBoard);
+      if (state.winner === player) return 100000;
+      if (state.winner === opponent) return -100000;
+      if (state.winner === "draw") return 0;
+
+      let scoreNow = 0;
+      for (const line of WIN_LINES_2D) {
+        let playerMarks = 0;
+        let opponentMarks = 0;
+        let playerSeed = 0;
+        let opponentSeed = 0;
+        for (const index of line) {
+          const value = testBoard[index];
+          if (value === player) playerMarks += 1;
+          else if (value === opponent) opponentMarks += 1;
+          else if (testCells[index].touches.length === 1) {
+            if (testCells[index].touches[0].player === player) playerSeed += 1;
+            else opponentSeed += 1;
+          }
+        }
+        if (opponentMarks === 0) {
+          scoreNow += playerMarks * 22 + playerSeed * 8;
+          if (playerMarks === 2) scoreNow += 120;
+          if (playerMarks === 1 && playerSeed > 0) scoreNow += 26;
+        }
+        if (playerMarks === 0) {
+          scoreNow -= opponentMarks * 22 + opponentSeed * 8;
+          if (opponentMarks === 2) scoreNow -= 120;
+          if (opponentMarks === 1 && opponentSeed > 0) scoreNow -= 26;
+        }
+      }
+
+      if (testBoard[4] === player) scoreNow += 18;
+      else if (testBoard[4] === opponent) scoreNow -= 18;
+      else if (testCells[4].touches.length === 1) {
+        scoreNow += testCells[4].touches[0].player === player ? 8 : -8;
+      }
+
+      return scoreNow;
+    }
+
+    function quantum2ApplyActionToState(testBoard, testCells, index, player, phase) {
+      if (testBoard[index] !== "") {
+        return { ok: false, board: testBoard, cells: testCells, resolved: null };
+      }
+      const cell = testCells[index];
+      if (cell.touches.length === 0) {
+        cell.touches.push({ player, phase });
+        return { ok: true, board: testBoard, cells: testCells, resolved: null };
+      }
+
+      const outcome = quantum2CellOutcomeFromCells(testCells, index, player, phase);
+      cell.touches = [];
+      return {
+        ok: true,
+        board: testBoard,
+        cells: testCells,
+        resolved: outcome
+      };
+    }
+
+    function quantum2CellOutcomeFromCells(testCells, index, player, phase) {
+      const firstTouch = testCells[index].touches[0];
+      if (!firstTouch) {
+        return { probs: { x: 0.5, o: 0.5 } };
+      }
+      if (firstTouch.player === player) {
+        return player === "X"
+          ? { probs: { x: 1, o: 0 } }
+          : { probs: { x: 0, o: 1 } };
+      }
+      const secondWins = firstTouch.phase !== phase ? 0.7 : 0.3;
+      return player === "X"
+        ? { probs: { x: secondWins, o: 1 - secondWins } }
+        : { probs: { x: 1 - secondWins, o: secondWins } };
+    }
+
+    function quantum2ExpandActionStates(state, index, player, phase) {
+      const { board: baseBoard, cells: baseCells, prob: baseProb } = state;
+      if (baseBoard[index] !== "") return [];
+
+      const boardCopy = [...baseBoard];
+      const cellsCopy = cloneQuantum2Cells(baseCells);
+      const cell = cellsCopy[index];
+
+      if (cell.touches.length === 0) {
+        cell.touches.push({ player, phase });
+        return [{ board: boardCopy, cells: cellsCopy, prob: baseProb }];
+      }
+
+      const outcome = quantum2CellOutcomeFromCells(cellsCopy, index, player, phase);
+      const nextStates = [];
+      if (outcome.probs.x > 0) {
+        const boardX = [...boardCopy];
+        const cellsX = cloneQuantum2Cells(cellsCopy);
+        boardX[index] = "X";
+        cellsX[index] = { touches: [] };
+        nextStates.push({ board: boardX, cells: cellsX, prob: baseProb * outcome.probs.x });
+      }
+      if (outcome.probs.o > 0) {
+        const boardO = [...boardCopy];
+        const cellsO = cloneQuantum2Cells(cellsCopy);
+        boardO[index] = "O";
+        cellsO[index] = { touches: [] };
+        nextStates.push({ board: boardO, cells: cellsO, prob: baseProb * outcome.probs.o });
+      }
+      return nextStates;
+    }
+
+    function quantum2EnumeratePairs(state) {
+      const empties = state.board
+        .map((cell, index) => cell === "" ? index : -1)
+        .filter((index) => index !== -1);
+      if (empties.length === 0) return [];
+      const pairs = [];
+      for (const first of empties) {
+        for (const second of empties) {
+          pairs.push([first, second]);
+        }
+      }
+      return pairs;
+    }
+
+    function quantum2RankActions(state, player, phase, limit = 5) {
+      const empties = state.board
+        .map((cell, index) => cell === "" ? index : -1)
+        .filter((index) => index !== -1);
+      const ranked = empties.map((index) => {
+        let score = 0;
+        const cell = state.cells[index];
+        if (index === 4) score += 5;
+        if (cell.touches.length === 1) {
+          const outcome = quantum2CellOutcomeFromCells(state.cells, index, player, phase).probs;
+          score += player === "X" ? outcome.x * 20 : outcome.o * 20;
+          if (cell.touches[0].player !== player) score += 6;
+        } else {
+          const probs = quantum2CellProbabilitiesFromCells(state.cells, index);
+          score += player === "X" ? probs.x * 4 : probs.o * 4;
+        }
+        return { index, score };
+      });
+      ranked.sort((a, b) => b.score - a.score);
+      return ranked.slice(0, limit).map((item) => item.index);
+    }
+
+    function quantum2EnumerateTopPairs(state, player, limit = 12) {
+      const empties = state.board.filter((cell) => cell === "").length;
+      const width = empties >= 7 ? 3 : empties >= 5 ? 4 : 5;
+      const firstChoices = quantum2RankActions(state, player, 1, width);
+      const pairs = [];
+      for (const first of firstChoices) {
+        const firstStates = quantum2ExpandActionStates(state, first, player, 1);
+        if (firstStates.length === 0) continue;
+        const representative = firstStates[0];
+        const secondChoices = quantum2RankActions(representative, player, -1, width);
+        for (const second of secondChoices) {
+          pairs.push([first, second]);
+        }
+      }
+      const unique = [];
+      const seen = new Set();
+      for (const pair of pairs) {
+        const key = `${pair[0]}:${pair[1]}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        unique.push(pair);
+        if (unique.length >= limit) break;
+      }
+      return unique;
+    }
+
+    function quantum2CellProbabilitiesFromCells(testCells, index) {
+      const cell = testCells[index];
+      if (!cell.touches[0]) return { x: 0.5, o: 0.5 };
+      const first = cell.touches[0];
+      return first.player === "X" ? { x: 0.65, o: 0.35 } : { x: 0.35, o: 0.65 };
+    }
+
+    function quantum2EvaluateStateFromRoot(state, rootPlayer) {
+      return quantum2EvaluateBoardState(state.board, state.cells, rootPlayer);
+    }
+
+    function quantum2FindForcedDoubleCell(player) {
+      const empties = quantum2SelectableCells();
+      for (const index of empties) {
+        const testBoard = [...board];
+        testBoard[index] = player;
+        const state = evaluate2DState(testBoard);
+        if (state.winner === player) {
+          return [index, index];
+        }
+      }
+      return null;
+    }
+
+    function quantum2ExpectedPairValue(state, actingPlayer, rootPlayer, first, second, replyDepth) {
+      const firstStates = quantum2ExpandActionStates(state, first, actingPlayer, 1);
+      let total = 0;
+      for (const firstState of firstStates) {
+        const secondStates = quantum2ExpandActionStates(firstState, second, actingPlayer, -1);
+        for (const finalState of secondStates) {
+          const end = evaluate2DState(finalState.board);
+          let branchValue;
+          if (end.winner === rootPlayer) {
+            branchValue = 100000;
+          } else if (end.winner === quantumOtherPlayer(rootPlayer)) {
+            branchValue = -100000;
+          } else if (end.winner === "draw") {
+            branchValue = 0;
+          } else if (replyDepth > 0) {
+            branchValue = quantum2BestPairValue(finalState, quantumOtherPlayer(actingPlayer), rootPlayer, replyDepth - 1);
+          } else {
+            branchValue = quantum2EvaluateStateFromRoot(finalState, rootPlayer);
+          }
+          total += branchValue * (finalState.prob / state.prob);
+        }
+      }
+      return total;
+    }
+
+    function quantum2BestPairValue(state, actingPlayer, rootPlayer, replyDepth) {
+      const pairs = quantum2EnumerateTopPairs(state, actingPlayer, 10);
+      if (pairs.length === 0) {
+        return quantum2EvaluateStateFromRoot(state, rootPlayer);
+      }
+
+      let bestValue = actingPlayer === rootPlayer ? -Infinity : Infinity;
+      for (const [first, second] of pairs) {
+        const value = quantum2ExpectedPairValue(state, actingPlayer, rootPlayer, first, second, replyDepth);
+        if (actingPlayer === rootPlayer) {
+          if (value > bestValue) bestValue = value;
+        } else if (value < bestValue) {
+          bestValue = value;
+        }
+      }
+      return bestValue;
+    }
+
+    function quantum2FinalizeResolvedBoard() {
+      const result = evaluate2DState(board);
+      if (result.winner) {
+        endRound(result.winner, result.line);
+        return { ok: true, ended: true };
+      }
+
+      if (board.every((cell) => cell !== "")) {
+        endRound("draw", []);
+        return { ok: true, ended: true };
+      }
+
+      return { ok: true, ended: false };
+    }
+
+    function quantum2ApplyAction(index, player, phase) {
+      if (board[index] !== "") {
+        return { ok: false, ended: false };
+      }
+      const cell = quantum2Cells[index];
+      if (cell.touches.length === 0) {
+        cell.touches.push({ player, phase });
+        return quantum2FinalizeResolvedBoard();
+      }
+
+      const outcome = quantum2CellOutcome(index, player, phase);
+      board[index] = Math.random() < outcome.probs.x ? "X" : "O";
+      quantum2Cells[index] = { touches: [] };
+      return quantum2FinalizeResolvedBoard();
+    }
+
+    function getQuantum2AiPair(player) {
+      const forcedWin = quantum2FindForcedDoubleCell(player);
+      if (forcedWin) return forcedWin;
+
+      const forcedBlock = quantum2FindForcedDoubleCell(quantumOtherPlayer(player));
+      if (forcedBlock) return forcedBlock;
+
+      const baseState = {
+        board: [...board],
+        cells: cloneQuantum2Cells(quantum2Cells),
+        prob: 1
+      };
+      const pairs = quantum2EnumerateTopPairs(baseState, player, 8);
+      if (pairs.length === 0) return [-1, -1];
+      const empties = baseState.board.filter((cell) => cell === "").length;
+      const replyDepth = empties >= 7 ? 0 : 1;
+
+      let bestPair = pairs[0];
+      let bestScore = -Infinity;
+
+      for (const [first, second] of pairs) {
+        const score = quantum2ExpectedPairValue(baseState, player, player, first, second, replyDepth);
+        if (score > bestScore) {
+          bestScore = score;
+          bestPair = [first, second];
+        }
+      }
+      return bestPair;
+    }
+
+    function evaluate2DState(testBoard) {
+      for (const line of WIN_LINES_2D) {
+        const [a, b, c] = line;
+        if (testBoard[a] && testBoard[a] === testBoard[b] && testBoard[a] === testBoard[c]) {
+          return { winner: testBoard[a], line };
+        }
+      }
+      if (testBoard.every((v) => v !== "")) return { winner: "draw", line: [] };
+      return { winner: null, line: [] };
+    }
+
     function winLines() {
       if (mode === "2d") return WIN_LINES_2D;
       if (mode === "3d") return WIN_LINES_3D;
@@ -1145,12 +1759,43 @@
       render();
     }
 
+    function set2DVariant(nextVariant) {
+      if (twoDVariant === nextVariant && mode === "2d" && !statsOpen) return;
+      clearAiTimer();
+      statsOpen = false;
+      twoDVariant = nextVariant;
+      quantumMinimaxCache = new Map();
+      clearHint();
+      selectedIndex = -1;
+      hoveredTopIndex = -1;
+      score = { x: 0, o: 0, draw: 0 };
+      buildBoardDom();
+      newRound();
+      render();
+    }
+
+    function set2DModeVariant(nextVariant) {
+      if (mode === "2d" && twoDVariant === nextVariant && !statsOpen) return;
+      clearAiTimer();
+      statsOpen = false;
+      mode = "2d";
+      twoDVariant = nextVariant;
+      quantumMinimaxCache = new Map();
+      clearHint();
+      selectedIndex = -1;
+      hoveredTopIndex = -1;
+      score = { x: 0, o: 0, draw: 0 };
+      buildBoardDom();
+      newRound();
+      render();
+    }
+
     function setMatchType(nextType) {
       if (matchType === nextType) return;
       clearAiTimer();
       matchType = nextType;
       clearHint();
-      if (isAiMatch()) {
+      if (matchType === "ai" || matchType === "ai_ai") {
         human = "X";
         ai = "O";
       }
@@ -1177,7 +1822,37 @@
       const voxelBoard = boardEl.querySelector(".voxel-board");
       if (!voxelBoard) return;
       voxelBoard.style.transform =
-        `translate(-50%, -50%) rotateX(${viewRotateX}deg) rotateZ(${viewRotateZ}deg)`;
+        `translate(-50%, -50%) rotateX(${viewRotateX}deg) rotateZ(${viewRotateZ + autoRotateZ}deg)`;
+    }
+
+    function stop3DAutoRotate() {
+      if (autoRotateFrameId) {
+        window.cancelAnimationFrame(autoRotateFrameId);
+        autoRotateFrameId = 0;
+      }
+      autoRotateLastTs = 0;
+    }
+
+    function tick3DAutoRotate(timestamp) {
+      if (mode !== "3d") {
+        stop3DAutoRotate();
+        return;
+      }
+      if (!autoRotateLastTs) autoRotateLastTs = timestamp;
+      const deltaSec = (timestamp - autoRotateLastTs) / 1000;
+      autoRotateLastTs = timestamp;
+      autoRotateZ = (autoRotateZ + (deltaSec * AUTO_ROTATE_DEG_PER_SEC)) % 360;
+      apply3DViewTransform();
+      autoRotateFrameId = window.requestAnimationFrame(tick3DAutoRotate);
+    }
+
+    function ensure3DAutoRotate() {
+      if (mode !== "3d") {
+        stop3DAutoRotate();
+        return;
+      }
+      if (autoRotateFrameId) return;
+      autoRotateFrameId = window.requestAnimationFrame(tick3DAutoRotate);
     }
 
     function buildBoardDom() {
@@ -1188,10 +1863,14 @@
       applyBoardViewClass();
 
       if (mode === "2d") {
+        stop3DAutoRotate();
         for (let i = 0; i < 9; i += 1) {
           boardEl.appendChild(createCell(i));
         }
-        boardEl.setAttribute("aria-label", "2D 3x3 board");
+        boardEl.setAttribute("aria-label",
+          isQuantum1Mode() ? "2D Quantum A board"
+            : isQuantum2Mode() ? "2D Quantum B board"
+              : "2D 3x3 board");
       } else if (mode === "3d") {
         const scene = document.createElement("div");
         scene.className = "voxel-scene";
@@ -1210,7 +1889,9 @@
         boardEl.appendChild(scene);
         boardEl.setAttribute("aria-label", "3D 3x3x3 board");
         apply3DViewTransform();
+        ensure3DAutoRotate();
       } else {
+        stop3DAutoRotate();
         const hyperBoard = document.createElement("div");
         hyperBoard.className = "hyper-board";
         for (let w = 0; w < 3; w += 1) {
@@ -1330,7 +2011,17 @@
       return matchType === "ai";
     }
 
+    function isAiVsAiMatch() {
+      return matchType === "ai_ai";
+    }
+
+    function isAiControlledTurn() {
+      if (isAiVsAiMatch()) return true;
+      return isAiMatch() && current === ai;
+    }
+
     function isHumanTurn() {
+      if (isAiVsAiMatch()) return false;
       return isAiMatch() ? current === human : true;
     }
 
@@ -1346,14 +2037,368 @@
       hintForcedLoss = false;
     }
 
+    function quantumExpectedLineScore(testBoard) {
+      let scoreNow = 0;
+      for (const line of WIN_LINES_2D) {
+        let xProb = 1;
+        let oProb = 1;
+        for (const index of line) {
+          const value = testBoard[index];
+          if (value === "") {
+            xProb *= 0.5;
+            oProb *= 0.5;
+          } else if (value === "X") {
+            oProb = 0;
+          } else if (value === "O") {
+            xProb = 0;
+          } else {
+            xProb = 0;
+            oProb = 0;
+          }
+        }
+        scoreNow += (xProb - oProb) * 5;
+      }
+      return scoreNow;
+    }
+
+    function quantumCollapseMove(testBoard, move, player, rng = Math.random, outerRates = quantumOuterORates) {
+      const probs = quantumProbabilities(move, outerRates);
+      return rng() < probs.x ? "X" : "O";
+    }
+
+    function quantumMinimaxScore(testBoard, turn, outerRates = quantumOuterORates) {
+      const key = `${turn}:${testBoard.join("")}`;
+      const cached = quantumMinimaxCache.get(key);
+      if (cached !== undefined) return cached;
+
+      let scoreNow;
+      const state = evaluate2DState(testBoard);
+      if (state.winner === "X") {
+        scoreNow = 1000;
+      } else if (state.winner === "O") {
+        scoreNow = -1000;
+      } else if (state.winner === "draw") {
+        scoreNow = 0;
+      } else {
+        const empties = emptyCells(testBoard);
+        scoreNow = turn === "X" ? -Infinity : Infinity;
+        for (const move of empties) {
+          const probs = quantumProbabilities(move, outerRates);
+          const successBoard = [...testBoard];
+          successBoard[move] = "X";
+          const failureBoard = [...testBoard];
+          failureBoard[move] = "O";
+          const childScore =
+            probs.x * quantumMinimaxScore(successBoard, quantumOtherPlayer(turn), outerRates) +
+            probs.o * quantumMinimaxScore(failureBoard, quantumOtherPlayer(turn), outerRates);
+          if (turn === "X") {
+            if (childScore > scoreNow) scoreNow = childScore;
+          } else if (childScore < scoreNow) {
+            scoreNow = childScore;
+          }
+        }
+        scoreNow += quantumExpectedLineScore(testBoard) * 0.01;
+      }
+
+      quantumMinimaxCache.set(key, scoreNow);
+      return scoreNow;
+    }
+
+    function getQuantum1BestMove(testBoard, player, randomizeTies = false, outerRates = quantumOuterORates) {
+      const empties = emptyCells(testBoard);
+      if (empties.length === 0) return { move: -1, score: 0 };
+
+      let bestScore = player === "X" ? -Infinity : Infinity;
+      let bestMoves = [];
+      for (const move of empties) {
+        const probs = quantumProbabilities(move, outerRates);
+        const successBoard = [...testBoard];
+        successBoard[move] = "X";
+        const failureBoard = [...testBoard];
+        failureBoard[move] = "O";
+        const scoreNow =
+          probs.x * quantumMinimaxScore(successBoard, quantumOtherPlayer(player), outerRates) +
+          probs.o * quantumMinimaxScore(failureBoard, quantumOtherPlayer(player), outerRates);
+
+        if (player === "X") {
+          if (scoreNow > bestScore + 1e-9) {
+            bestScore = scoreNow;
+            bestMoves = [move];
+          } else if (Math.abs(scoreNow - bestScore) <= 1e-9) {
+            bestMoves.push(move);
+          }
+        } else if (scoreNow < bestScore - 1e-9) {
+          bestScore = scoreNow;
+          bestMoves = [move];
+        } else if (Math.abs(scoreNow - bestScore) <= 1e-9) {
+          bestMoves.push(move);
+        }
+      }
+
+      const move = randomizeTies && bestMoves.length > 1
+        ? bestMoves[Math.floor(Math.random() * bestMoves.length)]
+        : bestMoves[0];
+      return { move, score: bestScore };
+    }
+
+    function proportionCi95(count, rounds) {
+      if (rounds <= 0) return { low: 0, high: 0 };
+      const p = count / rounds;
+      const margin = 1.96 * Math.sqrt((p * (1 - p)) / rounds);
+      return {
+        low: Math.max(0, (p - margin) * 100),
+        high: Math.min(100, (p + margin) * 100)
+      };
+    }
+
+    async function runQuantumAiSimulation(rounds = 1000) {
+      quantumSimRunning = true;
+      quantumSimResultEl.textContent = `Running 0 / ${rounds}...`;
+      quantumProgressEl.textContent = `AI vs AI: 0 / ${rounds}`;
+      render();
+
+      const savedOuterRates = [...quantumOuterORates];
+      const totals = { x: 0, o: 0, draw: 0 };
+      for (let game = 0; game < rounds; game += 1) {
+        quantumOuterORates = generateQuantumOuterORates();
+        quantumMinimaxCache = new Map();
+        const testBoard = Array(9).fill("");
+        let turn = "X";
+        while (true) {
+          const state = evaluate2DState(testBoard);
+          if (state.winner) {
+            if (state.winner === "X") totals.x += 1;
+            else if (state.winner === "O") totals.o += 1;
+            else totals.draw += 1;
+            break;
+          }
+          const { move } = getQuantum1BestMove(testBoard, turn, true, quantumOuterORates);
+          testBoard[move] = quantumCollapseMove(testBoard, move, turn, Math.random, quantumOuterORates);
+          turn = quantumOtherPlayer(turn);
+        }
+
+        if ((game + 1) % 50 === 0 || game + 1 === rounds) {
+          quantumSimResultEl.textContent = `Running ${game + 1} / ${rounds}...`;
+          quantumProgressEl.textContent = `AI vs AI: ${game + 1} / ${rounds}`;
+          await new Promise((resolve) => window.setTimeout(resolve, 0));
+        }
+      }
+
+      quantumOuterORates = savedOuterRates;
+      quantumMinimaxCache = new Map();
+      quantumSimRunning = false;
+      const xCi = proportionCi95(totals.x, rounds);
+      const oCi = proportionCi95(totals.o, rounds);
+      const drawCi = proportionCi95(totals.draw, rounds);
+      quantumSimResultEl.textContent =
+        `X ${Math.round((totals.x / rounds) * 100)}% [${xCi.low.toFixed(1)}, ${xCi.high.toFixed(1)}] / `
+        + `O ${Math.round((totals.o / rounds) * 100)}% [${oCi.low.toFixed(1)}, ${oCi.high.toFixed(1)}] / `
+        + `Draw ${Math.round((totals.draw / rounds) * 100)}% [${drawCi.low.toFixed(1)}, ${drawCi.high.toFixed(1)}]`;
+      quantumProgressEl.textContent = "";
+      render();
+    }
+
+    function renderQuantumGraph(perPointRounds = Number(quantumGraphRoundsEl.value)) {
+      if (quantumGraphSeries.length === 0) {
+        quantumGraphEl.innerHTML = "";
+        return;
+      }
+
+      const width = 680;
+      const height = 280;
+      const padLeft = 42;
+      const padRight = 14;
+      const padTop = 12;
+      const padBottom = 30;
+      const innerWidth = width - padLeft - padRight;
+      const innerHeight = height - padTop - padBottom;
+      const xAt = (rate) => padLeft + (rate / 100) * innerWidth;
+      const yAt = (value) => padTop + (1 - value / 100) * innerHeight;
+      const polylinePoints = (key) =>
+        quantumGraphSeries.map((entry) => `${xAt(entry.center)} ${yAt(entry[key])}`).join(" ");
+      const errorBarSvg = (key, color) => quantumGraphSeries.map((entry) => {
+        const low = Math.max(0, entry[`${key}Low`]);
+        const high = Math.min(100, entry[`${key}High`]);
+        const x = xAt(entry.center);
+        const y1 = yAt(low);
+        const y2 = yAt(high);
+        return `
+          <line x1="${x}" y1="${y1}" x2="${x}" y2="${y2}" stroke="${color}" stroke-width="1" opacity="0.45" />
+          <line x1="${x - 2}" y1="${y1}" x2="${x + 2}" y2="${y1}" stroke="${color}" stroke-width="1" opacity="0.45" />
+          <line x1="${x - 2}" y1="${y2}" x2="${x + 2}" y2="${y2}" stroke="${color}" stroke-width="1" opacity="0.45" />
+        `;
+      }).join("");
+
+      function linearFit(key) {
+        const n = quantumGraphSeries.length;
+        let sumX = 0;
+        let sumY = 0;
+        let sumXY = 0;
+        let sumXX = 0;
+        for (const entry of quantumGraphSeries) {
+          sumX += entry.center;
+          sumY += entry[key];
+          sumXY += entry.center * entry[key];
+          sumXX += entry.center * entry.center;
+        }
+        const denom = (n * sumXX) - (sumX * sumX);
+        const slope = denom === 0 ? 0 : ((n * sumXY) - (sumX * sumY)) / denom;
+        const intercept = (sumY - slope * sumX) / n;
+        return { slope, intercept };
+      }
+
+      const xFit = linearFit("x");
+      const oFit = linearFit("o");
+      const xLowFit = linearFit("xLow");
+      const xHighFit = linearFit("xHigh");
+      const oLowFit = linearFit("oLow");
+      const oHighFit = linearFit("oHigh");
+      const fitLinePoints = ({ slope, intercept }) =>
+        [0, 100].map((x) => `${xAt(x)} ${yAt(Math.max(0, Math.min(100, intercept + slope * x)))}`).join(" ");
+      const intersectionAt = (fitA, fitB) => {
+        const denom = fitA.slope - fitB.slope;
+        if (Math.abs(denom) < 1e-9) return null;
+        return (fitB.intercept - fitA.intercept) / denom;
+      };
+      const crossing = intersectionAt(xFit, oFit);
+      const intervalCandidates = [
+        intersectionAt(xLowFit, oHighFit),
+        intersectionAt(xHighFit, oLowFit),
+        intersectionAt(xLowFit, oLowFit),
+        intersectionAt(xHighFit, oHighFit)
+      ].filter((value) => value !== null && value >= 0 && value <= 100);
+      const crossingText = crossing !== null && crossing >= 0 && crossing <= 100
+        ? (
+            intervalCandidates.length > 0
+              ? `Intersection: ${crossing.toFixed(1)}% [${Math.min(...intervalCandidates).toFixed(1)}, ${Math.max(...intervalCandidates).toFixed(1)}]`
+              : `Intersection: ${crossing.toFixed(1)}% [out of range]`
+          )
+        : "Intersection: out of range";
+
+      const xTicks = [0, 25, 50, 75, 100].map((tick) => `
+        <line x1="${xAt(tick)}" y1="${padTop}" x2="${xAt(tick)}" y2="${padTop + innerHeight}" stroke="#ead5bd" stroke-width="1" />
+        <text x="${xAt(tick)}" y="${height - 8}" text-anchor="middle" font-size="11" fill="#7a5a3d">${tick}</text>
+      `).join("");
+      const yTicks = [0, 25, 50, 75, 100].map((tick) => `
+        <line x1="${padLeft}" y1="${yAt(tick)}" x2="${padLeft + innerWidth}" y2="${yAt(tick)}" stroke="#ead5bd" stroke-width="1" />
+        <text x="${padLeft - 8}" y="${yAt(tick) + 4}" text-anchor="end" font-size="11" fill="#7a5a3d">${tick}</text>
+      `).join("");
+
+      quantumGraphEl.innerHTML = `
+        <rect x="0" y="0" width="${width}" height="${height}" rx="12" ry="12" fill="#fffdf9" />
+        ${xTicks}
+        ${yTicks}
+        <line x1="${padLeft}" y1="${padTop + innerHeight}" x2="${padLeft + innerWidth}" y2="${padTop + innerHeight}" stroke="#ba9167" stroke-width="1.5" />
+        <line x1="${padLeft}" y1="${padTop}" x2="${padLeft}" y2="${padTop + innerHeight}" stroke="#ba9167" stroke-width="1.5" />
+        <text x="${padLeft + innerWidth / 2}" y="${height - 8}" text-anchor="middle" font-size="12" fill="#6a4a31">Center O collapse rate (%)</text>
+        <text x="14" y="${padTop + innerHeight / 2}" text-anchor="middle" font-size="12" fill="#6a4a31" transform="rotate(-90 14 ${padTop + innerHeight / 2})">Rate (%)</text>
+        ${errorBarSvg("x", "#cc4b2f")}
+        ${errorBarSvg("o", "#2f6fcc")}
+        <polyline fill="none" stroke="#cc4b2f" stroke-width="2.5" points="${polylinePoints("x")}" />
+        <polyline fill="none" stroke="#2f6fcc" stroke-width="2.5" points="${polylinePoints("o")}" />
+        <polyline fill="none" stroke="#8f7a62" stroke-width="2.5" points="${polylinePoints("draw")}" />
+        <polyline fill="none" stroke="#cc4b2f" stroke-dasharray="6 4" stroke-width="1.5" opacity="0.85" points="${fitLinePoints(xFit)}" />
+        <polyline fill="none" stroke="#2f6fcc" stroke-dasharray="6 4" stroke-width="1.5" opacity="0.85" points="${fitLinePoints(oFit)}" />
+      `;
+      quantumGraphMetaEl.textContent = `Center O samples: 0%, 45-55%, 100%. ${perPointRounds} games each. ${crossingText}`;
+    }
+
+    async function runQuantumGraphSweep(perPointRounds = Number(quantumGraphRoundsEl.value)) {
+      const sampleCenters = [0, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 100];
+      quantumSimRunning = true;
+      quantumGraphSeries = [];
+      quantumGraphWrapEl.classList.remove("hidden");
+      quantumGraphMetaEl.textContent = `Center O samples: 0%, 45-55%, 100%. ${perPointRounds} games each. Running...`;
+      quantumProgressEl.textContent = `Plot Key Rates: 0 / ${sampleCenters.length} points`;
+      quantumGraphEl.innerHTML = "";
+      render();
+
+      const savedCenter = quantumCenterORate;
+      const savedOuterRates = [...quantumOuterORates];
+
+      for (let sampleIndex = 0; sampleIndex < sampleCenters.length; sampleIndex += 1) {
+        const center = sampleCenters[sampleIndex];
+        quantumCenterORate = center / 100;
+        const totals = { x: 0, o: 0, draw: 0 };
+        for (let game = 0; game < perPointRounds; game += 1) {
+          quantumOuterORates = generateQuantumOuterORates();
+          quantumMinimaxCache = new Map();
+          const testBoard = Array(9).fill("");
+          let turn = "X";
+          while (true) {
+            const state = evaluate2DState(testBoard);
+            if (state.winner) {
+              if (state.winner === "X") totals.x += 1;
+              else if (state.winner === "O") totals.o += 1;
+              else totals.draw += 1;
+              break;
+            }
+            const { move } = getQuantum1BestMove(testBoard, turn, true, quantumOuterORates);
+            testBoard[move] = quantumCollapseMove(testBoard, move, turn, Math.random, quantumOuterORates);
+            turn = quantumOtherPlayer(turn);
+          }
+
+          if ((game + 1) % 25 === 0 || game + 1 === perPointRounds) {
+            quantumGraphMetaEl.textContent =
+              `Center O samples: 0%, 45-55%, 100%. ${perPointRounds} games each. `
+              + `Point ${sampleIndex + 1}/${sampleCenters.length} (${center}%), ${game + 1}/${perPointRounds}`;
+            quantumProgressEl.textContent =
+              `Plot Key Rates: point ${sampleIndex + 1}/${sampleCenters.length} (${center}%), `
+              + `${game + 1}/${perPointRounds}`;
+            await new Promise((resolve) => window.setTimeout(resolve, 0));
+          }
+        }
+
+        quantumGraphSeries.push({
+          center,
+          x: (totals.x / perPointRounds) * 100,
+          o: (totals.o / perPointRounds) * 100,
+          draw: (totals.draw / perPointRounds) * 100,
+          xLow: proportionCi95(totals.x, perPointRounds).low,
+          xHigh: proportionCi95(totals.x, perPointRounds).high,
+          oLow: proportionCi95(totals.o, perPointRounds).low,
+          oHigh: proportionCi95(totals.o, perPointRounds).high
+        });
+
+        quantumGraphMetaEl.textContent = `Center O samples: 0%, 45-55%, 100%. ${perPointRounds} games each. Running ${center}%...`;
+        quantumProgressEl.textContent = `Plot Key Rates: completed ${sampleIndex + 1}/${sampleCenters.length} points`;
+        renderQuantumGraph(perPointRounds);
+        await new Promise((resolve) => window.setTimeout(resolve, 0));
+      }
+
+      quantumCenterORate = savedCenter;
+      quantumOuterORates = savedOuterRates;
+      quantumMinimaxCache = new Map();
+      quantumSimRunning = false;
+      quantumProgressEl.textContent = "";
+      renderQuantumGraph(perPointRounds);
+      render();
+    }
+
     function getHintInfo() {
       if (roundOver) return { move: -1, forcedLoss: false, message: "" };
-      if (board.every((cell) => cell !== "")) return { move: -1, forcedLoss: false, message: "" };
+      if (isQuantum2Mode()) {
+        return { move: -1, forcedLoss: false, message: "Hint is unavailable in Quantum B." };
+      }
+      if (board.every((cell) => cell !== "")) {
+        return { move: -1, forcedLoss: false, message: "" };
+      }
       if (isAiMatch() && human !== "X") {
         return { move: -1, forcedLoss: false, message: "Hint is available only for VS AI as the first player." };
       }
       if (current !== "X") {
         return { move: -1, forcedLoss: false, message: "Hint is available only for the first player." };
+      }
+
+      if (isQuantum1Mode()) {
+        const { move, score } = getQuantum1BestMove([...board], current);
+        return {
+          move,
+          forcedLoss: score < 0,
+          message: score < 0
+            ? "Forced loss in expectation. Best measured move is highlighted."
+            : "Hint: best measured move is highlighted."
+        };
       }
 
       const player = isAiMatch() ? human : current;
@@ -1381,7 +2426,7 @@
         const prevAi = ai;
         human = opponent;
         ai = player;
-        const { move, score } = getBestMove3DHint([...board], 5);
+        const { move, score } = getBestMove3DHint([...board], 5, ai, human);
         human = prevHuman;
         ai = prevAi;
         return {
@@ -1422,8 +2467,8 @@
     }
 
     function queueAiTurnIfNeeded() {
-      if (!isAiMatch() || roundOver || current !== ai) return false;
-      statusEl.textContent = "AI is thinking...";
+      if (roundOver || !isAiControlledTurn()) return false;
+      statusEl.textContent = turnLabel();
       render();
       clearAiTimer();
       aiTimerId = window.setTimeout(() => {
@@ -1434,6 +2479,21 @@
     }
 
     function turnLabel() {
+      if (isQuantum2Mode()) {
+        if (isAiVsAiMatch()) {
+          return current === "X" ? "AI X is choosing an interference pair..." : "AI O is choosing an interference pair...";
+        }
+        if (isAiMatch()) {
+          if (current !== human) return "AI is choosing an interference pair...";
+          return quantum2ActionStep === 0 ? "Choose the first cell." : "Choose the second cell.";
+        }
+        return quantum2ActionStep === 0
+          ? `Player ${current}: choose the first cell.`
+          : `Player ${current}: choose the second cell.`;
+      }
+      if (isAiVsAiMatch()) {
+        return current === "X" ? "AI X is thinking..." : "AI O is thinking...";
+      }
       if (isAiMatch()) {
         return current === human ? "Your turn." : "AI is thinking...";
       }
@@ -1441,6 +2501,9 @@
     }
 
     function scoreText() {
+      if (isAiVsAiMatch()) {
+        return `AI X: ${score.x} | AI O: ${score.o} | Draws: ${score.draw}`;
+      }
       if (isAiMatch()) {
         const youScore = human === "X" ? score.x : score.o;
         const aiScore = ai === "X" ? score.x : score.o;
@@ -1453,21 +2516,53 @@
       return Boolean(SUPABASE_CONFIG.url && SUPABASE_CONFIG.publishableKey);
     }
 
+    function statsModeKey() {
+      if (mode === "2d") {
+        if (twoDVariant === "quantum1") return "2d_quantum_a";
+        if (twoDVariant === "quantum2") return "2d_quantum_b";
+        return "2d_classic";
+      }
+      return mode;
+    }
+
+    function isRemoteTrackableStatsMode(modeKey = statsModeKey()) {
+      return modeKey === "2d_classic"
+        || modeKey === "2d_quantum_a"
+        || modeKey === "2d_quantum_b"
+        || modeKey === "3d"
+        || modeKey === "4d";
+    }
+
     function createInitialMatchupStats() {
       return {
-        "2d": {
+        "2d_classic": {
           aiFirst: { wins: 0, games: 0, draws: 0 },
           humanFirst: { wins: 0, games: 0, draws: 0 },
+          aiVsAi: { wins: 0, games: 0, draws: 0 },
+          pvp: { wins: 0, games: 0, draws: 0 }
+        },
+        "2d_quantum_a": {
+          aiFirst: { wins: 0, games: 0, draws: 0 },
+          humanFirst: { wins: 0, games: 0, draws: 0 },
+          aiVsAi: { wins: 0, games: 0, draws: 0 },
+          pvp: { wins: 0, games: 0, draws: 0 }
+        },
+        "2d_quantum_b": {
+          aiFirst: { wins: 0, games: 0, draws: 0 },
+          humanFirst: { wins: 0, games: 0, draws: 0 },
+          aiVsAi: { wins: 0, games: 0, draws: 0 },
           pvp: { wins: 0, games: 0, draws: 0 }
         },
         "3d": {
           aiFirst: { wins: 0, games: 0, draws: 0 },
           humanFirst: { wins: 0, games: 0, draws: 0 },
+          aiVsAi: { wins: 0, games: 0, draws: 0 },
           pvp: { wins: 0, games: 0, draws: 0 }
         },
         "4d": {
           aiFirst: { wins: 0, games: 0, draws: 0 },
           humanFirst: { wins: 0, games: 0, draws: 0 },
+          aiVsAi: { wins: 0, games: 0, draws: 0 },
           pvp: { wins: 0, games: 0, draws: 0 }
         }
       };
@@ -1496,15 +2591,23 @@
     }
 
     function makeResultRecord(winner) {
+      const modeKey = statsModeKey();
+      if (isAiVsAiMatch()) {
+        return {
+          mode: modeKey,
+          category: "ai_vs_ai",
+          winner: winner === "draw" ? "draw" : (winner === "X" ? "ai_first" : "ai_second")
+        };
+      }
       if (isAiMatch()) {
         return {
-          mode,
+          mode: modeKey,
           category: human === "O" ? "ai_first" : "human_first",
           winner: winner === "draw" ? "draw" : (winner === ai ? "ai" : "human")
         };
       }
       return {
-        mode,
+        mode: modeKey,
         category: "pvp",
         winner: winner === "draw" ? "draw" : winner.toLowerCase()
       };
@@ -1525,6 +2628,13 @@
         stats.humanFirst.games += 1;
         if (record.winner === "draw") stats.humanFirst.draws += 1;
         if (record.winner === "human") stats.humanFirst.wins += 1;
+        return;
+      }
+
+      if (record.category === "ai_vs_ai") {
+        stats.aiVsAi.games += 1;
+        if (record.winner === "draw") stats.aiVsAi.draws += 1;
+        if (record.winner === "ai_first") stats.aiVsAi.wins += 1;
         return;
       }
 
@@ -1578,6 +2688,7 @@
         const rows = await response.json();
         const nextStats = createInitialMatchupStats();
         for (const row of rows) {
+          if (row.mode === "2d") row.mode = "2d_classic";
           applyResultRecord(nextStats, row);
         }
         remoteMatchupStats = nextStats;
@@ -1620,9 +2731,13 @@
       const sourceStats = isSupabaseConfigured() && remoteStatsState === "ready"
         ? remoteMatchupStats
         : matchupStats;
-      const heading = isSupabaseConfigured() ? "Global Win Rate Summary" : "Session Win Rate Summary";
+      const heading = isSupabaseConfigured() && remoteStatsState === "ready"
+        ? "Global Win Rate Summary"
+        : "Session Win Rate Summary";
       const groups = [
-        { mode: "2D", stats: sourceStats["2d"] },
+        { mode: "2D Classic", stats: sourceStats["2d_classic"] },
+        { mode: "2D Quantum A", stats: sourceStats["2d_quantum_a"] },
+        { mode: "2D Quantum B", stats: sourceStats["2d_quantum_b"] },
         { mode: "3D", stats: sourceStats["3d"] },
         { mode: "4D", stats: sourceStats["4d"] }
       ];
@@ -1643,11 +2758,12 @@
           ${groups.map(({ mode, stats }) => {
             const aiFirstRates = statRates(stats.aiFirst);
             const humanFirstRates = statRates(stats.humanFirst);
+            const aiVsAiRates = statRates(stats.aiVsAi);
             const pvpRates = statRates(stats.pvp);
             return `
             <tbody>
               <tr>
-                <td class="mode-cell" rowspan="3">${mode}</td>
+                <td class="mode-cell" rowspan="4">${mode}</td>
                 <td class="category-cell">Human first</td>
                 <td class="rate">${humanFirstRates.win}</td>
                 <td class="rate">${humanFirstRates.draw}</td>
@@ -1660,6 +2776,13 @@
                 <td class="rate">${aiFirstRates.draw}</td>
                 <td class="rate">${aiFirstRates.lose}</td>
                 <td class="detail">${statDetail(stats.aiFirst)}</td>
+              </tr>
+              <tr>
+                <td class="category-cell">AI vs AI (first AI)</td>
+                <td class="rate">${aiVsAiRates.win}</td>
+                <td class="rate">${aiVsAiRates.draw}</td>
+                <td class="rate">${aiVsAiRates.lose}</td>
+                <td class="detail">${statDetail(stats.aiVsAi)}</td>
               </tr>
               <tr>
                 <td class="category-cell">PvP (first player)</td>
@@ -1677,8 +2800,14 @@
 
     function recordMatchupResult(winner) {
       const record = makeResultRecord(winner);
+      if (!record) return;
       applyResultRecord(matchupStats, record);
-      void submitRemoteResult(record);
+      if (!isRemoteTrackableStatsMode(record.mode)) return;
+      const remoteRecord = {
+        ...record,
+        mode: record.mode === "2d_classic" ? "2d" : record.mode
+      };
+      void submitRemoteResult(remoteRecord);
     }
 
     function render(winLine = currentWinLine) {
@@ -1687,16 +2816,33 @@
       cells.forEach((cell) => {
         const i = Number(cell.dataset.index);
         const value = board[i] || "";
-        const selectionIndex = mode === "3d" ? hoveredTopIndex : selectedIndex;
+        const markClass = value;
+        const selectionIndex = mode === "3d" ? hoveredTopIndex : (isQuantum2Mode() ? quantum2PendingCell : selectedIndex);
         const layer = Number(cell.dataset.layer);
         if (cell.classList.contains("voxel")) {
           const markEl = cell.querySelector(".mark");
           if (markEl) markEl.textContent = value;
         } else {
-          cell.textContent = value;
+          cell.textContent = isQuantum2Mode() && value === "" ? quantum2LabelsForCell(i) : value;
         }
-        cell.classList.toggle("x", value === "X");
-        cell.classList.toggle("o", value === "O");
+        let quantumTint = "";
+        if (isQuantum1Mode() && value === "") {
+          const probs = quantumProbabilities(i, quantumOuterORates);
+          const xChance = Math.round(probs.x * 100);
+          const oChance = Math.round(probs.o * 100);
+          cell.dataset.prob = `X${xChance}/O${oChance}`;
+          quantumTint = quantumTintStyle(probs);
+        } else if (isQuantum2Mode() && value === "") {
+          quantumTint = quantumTintStyle(quantum2CellProbabilities(i));
+        } else {
+          cell.dataset.prob = "";
+        }
+        cell.style.backgroundColor = quantumTint;
+        cell.classList.toggle("x", markClass === "X");
+        cell.classList.toggle("o", markClass === "O");
+        cell.classList.toggle("quantum-empty", isQuantum1Mode() && !board[i]);
+        cell.classList.toggle("quantum-b-empty", isQuantum2Mode() && !board[i]);
+        cell.classList.toggle("pending", isQuantum2Mode() && i === quantum2PendingCell);
         cell.classList.toggle("win", winLine.includes(i));
         cell.classList.toggle("hint", i === hintIndex);
         cell.classList.toggle("forced-loss", i === hintIndex && hintForcedLoss);
@@ -1710,7 +2856,7 @@
         cell.disabled = roundOver || value !== "" || !isHumanTurn();
       });
 
-      const coordIndex = mode === "3d" ? hoveredTopIndex : selectedIndex;
+      const coordIndex = mode === "3d" ? hoveredTopIndex : (isQuantum2Mode() ? quantum2PendingCell : selectedIndex);
       const coord = coordFromIndex(coordIndex);
       hintTextEl.textContent = hintMessage;
       hintTextEl.classList.toggle("forced-loss", hintForcedLoss);
@@ -1723,14 +2869,20 @@
 
       scoreEl.textContent = scoreText();
       renderStatsSummary();
-      mode2dBtn.classList.toggle("active", !statsOpen && mode === "2d");
+      mode2dClassicBtn.classList.toggle("active", !statsOpen && mode === "2d" && twoDVariant === "classic");
+      mode2dQuantum1Btn.classList.toggle("active", !statsOpen && mode === "2d" && twoDVariant === "quantum1");
+      mode2dQuantum2Btn.classList.toggle("active", !statsOpen && mode === "2d" && twoDVariant === "quantum2");
       mode3dBtn.classList.toggle("active", !statsOpen && mode === "3d");
       mode4dBtn.classList.toggle("active", !statsOpen && mode === "4d");
       statsBtn.classList.toggle("active", statsOpen);
       statsSummaryEl.classList.toggle("hidden", !statsOpen);
       gamePanelEl.classList.toggle("panel-hidden", statsOpen);
+      quantumPanelEl.classList.toggle("hidden", mode !== "2d" || twoDVariant !== "quantum1" || statsOpen);
+      quantumPanelBodyEl.classList.toggle("hidden", !quantumSettingsOpen);
+      quantumSettingsBtn.classList.toggle("active", quantumSettingsOpen);
       matchAiBtn.classList.toggle("active", isAiMatch());
-      matchPvpBtn.classList.toggle("active", !isAiMatch());
+      matchAiAiBtn.classList.toggle("active", isAiVsAiMatch());
+      matchPvpBtn.classList.toggle("active", matchType === "pvp");
       layerArrowsEl.classList.add("hidden");
       viewArrowsEl.classList.toggle("hidden", mode !== "3d");
       layerUpBtn.disabled = true;
@@ -1741,14 +2893,31 @@
       playAsOBtn.classList.toggle("active", human === "O");
       playAsXBtn.disabled = !isAiMatch();
       playAsOBtn.disabled = !isAiMatch();
-      hintBtn.classList.toggle("hidden", isAiMatch() && human !== "X");
-      hintBtn.disabled = (isAiMatch() && human !== "X") || roundOver || !isHumanTurn() || current !== "X";
-      mattaBtn.disabled = moveHistory.length === 0;
+      hintBtn.classList.toggle("hidden", isAiVsAiMatch() || (isAiMatch() && human !== "X") || isQuantum2Mode());
+      hintBtn.disabled = isAiVsAiMatch() || (isAiMatch() && human !== "X") || roundOver || !isHumanTurn() || current !== "X" || quantumSimRunning || isQuantum2Mode();
+      mattaBtn.disabled = isQuantum1Mode() || isQuantum2Mode() || moveHistory.length === 0 || quantumSimRunning;
+      quantumSimBtn.disabled = quantumSimRunning;
+      quantumGraphBtn.disabled = quantumSimRunning;
+      quantumGraphRoundsEl.disabled = quantumSimRunning;
+      centerOAdvantageInput.disabled = quantumSimRunning;
+      centerOAdvantageValueEl.textContent = `${Math.round(quantumCenterORate * 100)}%`;
+      quantumOuterSummaryEl.textContent = "Other cells: O uses 10/30/50/70/90 or 20/80 patterns";
+      quantumSimResultEl.textContent = quantumSimResultEl.textContent;
+      quantumGraphWrapEl.classList.toggle("hidden", quantumGraphSeries.length === 0);
 
-      subtextEl.textContent = "";
+      subtextEl.textContent = isQuantum1Mode()
+        ? "Quantum A: every move is measured immediately with cell-fixed probabilities. Center can favor O."
+        : isQuantum2Mode()
+          ? "Quantum B: choose two cells per turn. Choosing the same cell twice claims it immediately; touching an occupied seed from the other player causes probabilistic interference."
+          : (mode === "2d"
+            ? "Classic 2D uses optimal play."
+            : mode === "3d"
+              ? "3D uses cube cells and a lightweight AI."
+              : "4D uses a flattened 9x9 view with colored 3x3 blocks.");
     }
 
     function evaluateState(testBoard) {
+      if (mode === "2d") return evaluate2DState(testBoard);
       for (const line of winLines()) {
         const [a, b, c] = line;
         if (testBoard[a] && testBoard[a] === testBoard[b] && testBoard[a] === testBoard[c]) {
@@ -1771,7 +2940,9 @@
       } else {
         if (winner === "X") score.x += 1;
         if (winner === "O") score.o += 1;
-        if (isAiMatch()) {
+        if (isAiVsAiMatch()) {
+          statusEl.textContent = winner === "X" ? "AI X wins." : "AI O wins.";
+        } else if (isAiMatch()) {
           statusEl.textContent = winner === human ? "You win." : "AI wins.";
         } else {
           statusEl.textContent = winner === "X" ? "Player X wins." : "Player O wins.";
@@ -1782,20 +2953,67 @@
 
     function onMove(index) {
       if (roundOver) return;
+      if (isAiVsAiMatch()) return;
       if (isAiMatch() && current !== human) return;
-      if (board[index] !== "") return;
+      if (board[index] !== "") {
+        return;
+      }
 
       if (mode === "3d") {
         activeLayer = Math.floor(index / 9);
       }
       clearHint();
-      moveHistory.push({ index, player: current });
-      selectedIndex = index;
-      board[index] = current;
-      const result = evaluateState(board);
-      if (result.winner) {
-        endRound(result.winner, result.line);
+      if (isQuantum2Mode()) {
+        if (quantum2ActionStep === 0) {
+          const result = quantum2ApplyAction(index, current, 1);
+          if (!result.ok) return;
+          quantum2PendingCell = index;
+          selectedIndex = index;
+          if (result.ended) return;
+          quantum2ActionStep = 1;
+          statusEl.textContent = turnLabel();
+          render();
+          return;
+        }
+
+        quantum2PendingCell = -1;
+        selectedIndex = index;
+        const result = quantum2ApplyAction(index, current, -1);
+        if (!result.ok) {
+          quantum2PendingCell = selectedIndex;
+          statusEl.textContent = "Choose a different second cell.";
+          render();
+          return;
+        }
+        if (result.ended) return;
+        quantum2ActionStep = 0;
+        if (isAiMatch()) {
+          current = ai;
+          queueAiTurnIfNeeded();
+        } else {
+          current = current === "X" ? "O" : "X";
+          statusEl.textContent = turnLabel();
+          render();
+        }
         return;
+      }
+
+      selectedIndex = index;
+      if (isQuantum1Mode()) {
+        board[index] = quantumCollapseMove(board, index, current);
+        const result = evaluate2DState(board);
+        if (result.winner) {
+          endRound(result.winner, result.line);
+          return;
+        }
+      } else {
+        moveHistory.push({ index, player: current });
+        board[index] = current;
+        const result = evaluateState(board);
+        if (result.winner) {
+          endRound(result.winner, result.line);
+          return;
+        }
       }
       if (isAiMatch()) {
         current = ai;
@@ -1837,27 +3055,117 @@
     });
 
     function playAiTurn() {
-      if (!isAiMatch()) return;
-      if (roundOver || current !== ai) return;
+      if (!(isAiMatch() || isAiVsAiMatch())) return;
+      if (roundOver || !isAiControlledTurn()) return;
+      const prevHuman = human;
+      const prevAi = ai;
+      if (isAiVsAiMatch()) {
+        ai = current;
+        human = quantumOtherPlayer(current);
+      }
+      if (isQuantum2Mode()) {
+        const [first, second] = getQuantum2AiPair(ai);
+        if (first === -1) {
+          human = prevHuman;
+          ai = prevAi;
+          current = isAiVsAiMatch() ? quantumOtherPlayer(current) : human;
+          statusEl.textContent = turnLabel();
+          render();
+          return;
+        }
+        clearHint();
+        quantum2ActionStep = 0;
+        quantum2PendingCell = first;
+        selectedIndex = first;
+        let result = quantum2ApplyAction(first, ai, 1);
+        if (!result.ok) {
+          human = prevHuman;
+          ai = prevAi;
+          current = isAiVsAiMatch() ? quantumOtherPlayer(current) : human;
+          quantum2PendingCell = -1;
+          statusEl.textContent = turnLabel();
+          render();
+          return;
+        }
+        if (result.ended) {
+          human = prevHuman;
+          ai = prevAi;
+          return;
+        }
+        if (second === -1) {
+          human = prevHuman;
+          ai = prevAi;
+          current = isAiVsAiMatch() ? quantumOtherPlayer(current) : human;
+          quantum2PendingCell = -1;
+          statusEl.textContent = turnLabel();
+          render();
+          return;
+        }
+        selectedIndex = second;
+        result = quantum2ApplyAction(second, ai, -1);
+        quantum2PendingCell = -1;
+        if (!result.ok) {
+          human = prevHuman;
+          ai = prevAi;
+          current = isAiVsAiMatch() ? quantumOtherPlayer(current) : human;
+          statusEl.textContent = turnLabel();
+          render();
+          if (isAiVsAiMatch()) queueAiTurnIfNeeded();
+          return;
+        }
+        if (result.ended) {
+          human = prevHuman;
+          ai = prevAi;
+          return;
+        }
+        human = prevHuman;
+        ai = prevAi;
+        current = isAiVsAiMatch() ? quantumOtherPlayer(current) : human;
+        statusEl.textContent = turnLabel();
+        render();
+        if (isAiVsAiMatch()) queueAiTurnIfNeeded();
+        return;
+      }
       const bestMove = getAiMove(board);
-      if (bestMove === -1) return;
-
-      moveHistory.push({ index: bestMove, player: ai });
-      clearHint();
-      selectedIndex = bestMove;
-      board[bestMove] = ai;
-      const result = evaluateState(board);
-      if (result.winner) {
-        endRound(result.winner, result.line);
+      if (bestMove === -1) {
+        human = prevHuman;
+        ai = prevAi;
         return;
       }
 
-      current = human;
+      clearHint();
+      selectedIndex = bestMove;
+      if (isQuantum1Mode()) {
+        board[bestMove] = quantumCollapseMove(board, bestMove, ai);
+        const result = evaluate2DState(board);
+        if (result.winner) {
+          human = prevHuman;
+          ai = prevAi;
+          endRound(result.winner, result.line);
+          return;
+        }
+      } else {
+        moveHistory.push({ index: bestMove, player: ai });
+        board[bestMove] = ai;
+        const result = evaluateState(board);
+        if (result.winner) {
+          human = prevHuman;
+          ai = prevAi;
+          endRound(result.winner, result.line);
+          return;
+        }
+      }
+
+      human = prevHuman;
+      ai = prevAi;
+      current = isAiVsAiMatch() ? quantumOtherPlayer(current) : human;
       statusEl.textContent = turnLabel();
       render();
+      if (isAiVsAiMatch()) queueAiTurnIfNeeded();
     }
 
     function applyMatta() {
+      if (isQuantum1Mode()) return;
       if (moveHistory.length === 0) return;
       clearAiTimer();
 
@@ -1919,7 +3227,7 @@
 
     function getBestMove2DWithScore(testBoard) {
       let bestScore = -Infinity;
-      let move = -1;
+      let moves = [];
       for (let i = 0; i < 9; i += 1) {
         if (testBoard[i] !== "") continue;
         testBoard[i] = ai;
@@ -1927,9 +3235,16 @@
         testBoard[i] = "";
         if (scoreNow > bestScore) {
           bestScore = scoreNow;
-          move = i;
+          moves = [i];
+        } else if (scoreNow === bestScore) {
+          moves.push(i);
         }
       }
+      const move = moves.length === 0
+        ? -1
+        : (isAiVsAiMatch()
+            ? moves[Math.floor(Math.random() * moves.length)]
+            : moves[0]);
       return { move, score: bestScore };
     }
 
@@ -1952,7 +3267,7 @@
       return -1;
     }
 
-    function heuristic3DMoveScore(testBoard, move) {
+    function heuristic3DMoveScore(testBoard, move, player = ai, opponent = human) {
       let scoreNow = 0;
 
       for (const line of WIN_LINES_3D) {
@@ -1960,8 +3275,8 @@
         let aiCount = 0;
         let humanCount = 0;
         for (const idx of line) {
-          if (testBoard[idx] === ai) aiCount += 1;
-          if (testBoard[idx] === human) humanCount += 1;
+          if (testBoard[idx] === player) aiCount += 1;
+          if (testBoard[idx] === opponent) humanCount += 1;
         }
         if (aiCount > 0 && humanCount > 0) continue;
 
@@ -1985,14 +3300,14 @@
       return scoreNow;
     }
 
-    function evaluateBoard3D(testBoard) {
+    function evaluateBoard3D(testBoard, player = ai, opponent = human) {
       let scoreNow = 0;
       for (const line of WIN_LINES_3D) {
         let aiCount = 0;
         let humanCount = 0;
         for (const idx of line) {
-          if (testBoard[idx] === ai) aiCount += 1;
-          if (testBoard[idx] === human) humanCount += 1;
+          if (testBoard[idx] === player) aiCount += 1;
+          if (testBoard[idx] === opponent) humanCount += 1;
         }
         if (aiCount > 0 && humanCount > 0) continue;
         if (aiCount > 0) {
@@ -2007,12 +3322,12 @@
       return scoreNow;
     }
 
-    function orderedMoves3D(testBoard) {
+    function orderedMoves3D(testBoard, player = ai, opponent = human) {
       const empties = emptyCells(testBoard);
       return empties
         .map((move) => {
-          testBoard[move] = ai;
-          const scoreNow = heuristic3DMoveScore(testBoard, move);
+          testBoard[move] = player;
+          const scoreNow = heuristic3DMoveScore(testBoard, move, player, opponent);
           testBoard[move] = "";
           return { move, score: scoreNow };
         })
@@ -2020,19 +3335,19 @@
         .map((entry) => entry.move);
     }
 
-    function minimax3D(testBoard, turn, depth, maxDepth, alpha = -Infinity, beta = Infinity) {
+    function minimax3D(testBoard, turn, depth, maxDepth, player = ai, opponent = human, alpha = -Infinity, beta = Infinity) {
       const state = evaluateState(testBoard);
-      if (state.winner === ai) return 10000 - depth;
-      if (state.winner === human) return depth - 10000;
+      if (state.winner === player) return 10000 - depth;
+      if (state.winner === opponent) return depth - 10000;
       if (state.winner === "draw") return 0;
-      if (depth >= maxDepth) return evaluateBoard3D(testBoard);
+      if (depth >= maxDepth) return evaluateBoard3D(testBoard, player, opponent);
 
-      const empties = turn === ai ? orderedMoves3D(testBoard) : emptyCells(testBoard);
-      if (turn === ai) {
+      const empties = turn === player ? orderedMoves3D(testBoard, player, opponent) : emptyCells(testBoard);
+      if (turn === player) {
         let best = -Infinity;
         for (const i of empties) {
-          testBoard[i] = ai;
-          best = Math.max(best, minimax3D(testBoard, human, depth + 1, maxDepth, alpha, beta));
+          testBoard[i] = player;
+          best = Math.max(best, minimax3D(testBoard, opponent, depth + 1, maxDepth, player, opponent, alpha, beta));
           testBoard[i] = "";
           alpha = Math.max(alpha, best);
           if (beta <= alpha) break;
@@ -2042,8 +3357,8 @@
 
       let best = Infinity;
       for (const i of empties) {
-        testBoard[i] = human;
-        best = Math.min(best, minimax3D(testBoard, ai, depth + 1, maxDepth, alpha, beta));
+        testBoard[i] = opponent;
+        best = Math.min(best, minimax3D(testBoard, player, depth + 1, maxDepth, player, opponent, alpha, beta));
         testBoard[i] = "";
         beta = Math.min(beta, best);
         if (beta <= alpha) break;
@@ -2051,15 +3366,15 @@
       return best;
     }
 
-    function getBestMove3DHint(testBoard, lookaheadDepth = 5) {
-      const empties = orderedMoves3D(testBoard);
+    function getBestMove3DHint(testBoard, lookaheadDepth = 5, player = ai, opponent = human) {
+      const empties = orderedMoves3D(testBoard, player, opponent);
       if (empties.length === 0) return { move: -1, score: -Infinity };
 
       let bestScore = -Infinity;
       let bestMove = -1;
       for (const move of empties) {
-        testBoard[move] = ai;
-        const scoreNow = minimax3D(testBoard, human, 1, lookaheadDepth);
+        testBoard[move] = player;
+        const scoreNow = minimax3D(testBoard, opponent, 1, lookaheadDepth, player, opponent);
         testBoard[move] = "";
         if (scoreNow > bestScore) {
           bestScore = scoreNow;
@@ -2070,15 +3385,15 @@
       return { move: bestMove, score: bestScore };
     }
 
-    function heuristic4DMoveScore(testBoard, move) {
+    function heuristic4DMoveScore(testBoard, move, player = ai, opponent = human) {
       let scoreNow = 0;
       for (const line of WIN_LINES_4D) {
         if (!line.includes(move)) continue;
         let aiCount = 0;
         let humanCount = 0;
         for (const idx of line) {
-          if (testBoard[idx] === ai) aiCount += 1;
-          if (testBoard[idx] === human) humanCount += 1;
+          if (testBoard[idx] === player) aiCount += 1;
+          if (testBoard[idx] === opponent) humanCount += 1;
         }
         if (aiCount > 0 && humanCount > 0) continue;
 
@@ -2098,14 +3413,14 @@
       return scoreNow;
     }
 
-    function evaluateBoard4D(testBoard) {
+    function evaluateBoard4D(testBoard, player = ai, opponent = human) {
       let scoreNow = 0;
       for (const line of WIN_LINES_4D) {
         let aiCount = 0;
         let humanCount = 0;
         for (const idx of line) {
-          if (testBoard[idx] === ai) aiCount += 1;
-          if (testBoard[idx] === human) humanCount += 1;
+          if (testBoard[idx] === player) aiCount += 1;
+          if (testBoard[idx] === opponent) humanCount += 1;
         }
         if (aiCount > 0 && humanCount > 0) continue;
         if (aiCount > 0) {
@@ -2120,11 +3435,11 @@
       return scoreNow;
     }
 
-    function orderedMoves4D(testBoard, beamWidth = 10) {
+    function orderedMoves4D(testBoard, beamWidth = 10, player = ai, opponent = human) {
       return emptyCells(testBoard)
         .map((move) => {
-          testBoard[move] = ai;
-          const scoreNow = heuristic4DMoveScore(testBoard, move);
+          testBoard[move] = player;
+          const scoreNow = heuristic4DMoveScore(testBoard, move, player, opponent);
           testBoard[move] = "";
           return { move, score: scoreNow };
         })
@@ -2133,19 +3448,19 @@
         .map((entry) => entry.move);
     }
 
-    function minimax4D(testBoard, turn, depth, maxDepth, beamWidth, alpha = -Infinity, beta = Infinity) {
+    function minimax4D(testBoard, turn, depth, maxDepth, beamWidth, player = ai, opponent = human, alpha = -Infinity, beta = Infinity) {
       const state = evaluateState(testBoard);
-      if (state.winner === ai) return 10000 - depth;
-      if (state.winner === human) return depth - 10000;
+      if (state.winner === player) return 10000 - depth;
+      if (state.winner === opponent) return depth - 10000;
       if (state.winner === "draw") return 0;
-      if (depth >= maxDepth) return evaluateBoard4D(testBoard);
+      if (depth >= maxDepth) return evaluateBoard4D(testBoard, player, opponent);
 
-      const empties = turn === ai ? orderedMoves4D(testBoard, beamWidth) : emptyCells(testBoard).slice(0, beamWidth);
-      if (turn === ai) {
+      const empties = turn === player ? orderedMoves4D(testBoard, beamWidth, player, opponent) : emptyCells(testBoard).slice(0, beamWidth);
+      if (turn === player) {
         let best = -Infinity;
         for (const move of empties) {
-          testBoard[move] = ai;
-          best = Math.max(best, minimax4D(testBoard, human, depth + 1, maxDepth, beamWidth, alpha, beta));
+          testBoard[move] = player;
+          best = Math.max(best, minimax4D(testBoard, opponent, depth + 1, maxDepth, beamWidth, player, opponent, alpha, beta));
           testBoard[move] = "";
           alpha = Math.max(alpha, best);
           if (beta <= alpha) break;
@@ -2155,8 +3470,8 @@
 
       let best = Infinity;
       for (const move of empties) {
-        testBoard[move] = human;
-        best = Math.min(best, minimax4D(testBoard, ai, depth + 1, maxDepth, beamWidth, alpha, beta));
+        testBoard[move] = opponent;
+        best = Math.min(best, minimax4D(testBoard, player, depth + 1, maxDepth, beamWidth, player, opponent, alpha, beta));
         testBoard[move] = "";
         beta = Math.min(beta, best);
         if (beta <= alpha) break;
@@ -2164,15 +3479,15 @@
       return best;
     }
 
-    function getBestMove3D(testBoard) {
-      return getBestMove3DWithScore(testBoard, 0).move;
+    function getBestMove3D(testBoard, player = ai, opponent = human) {
+      return getBestMove3DWithScore(testBoard, 0, player, opponent).move;
     }
 
-    function getBestMove3DWithScore(testBoard, lookaheadDepth = 0) {
-      const winMove = findImmediateWinMove(testBoard, ai);
+    function getBestMove3DWithScore(testBoard, lookaheadDepth = 0, player = ai, opponent = human) {
+      const winMove = findImmediateWinMove(testBoard, player);
       if (winMove !== -1) return { move: winMove, score: 10000 };
 
-      const blockMove = findImmediateWinMove(testBoard, human);
+      const blockMove = findImmediateWinMove(testBoard, opponent);
       if (blockMove !== -1) return { move: blockMove, score: 5000 };
 
       const empties = emptyCells(testBoard);
@@ -2182,10 +3497,10 @@
       let candidates = [];
 
       for (const i of empties) {
-        testBoard[i] = ai;
+        testBoard[i] = player;
         const scoreNow = lookaheadDepth > 0
-          ? minimax3D(testBoard, human, 1, lookaheadDepth)
-          : heuristic3DMoveScore(testBoard, i);
+          ? minimax3D(testBoard, opponent, 1, lookaheadDepth, player, opponent)
+          : heuristic3DMoveScore(testBoard, i, player, opponent);
         testBoard[i] = "";
 
         if (scoreNow > bestScore) {
@@ -2202,11 +3517,11 @@
       };
     }
 
-    function getBestMove4D(testBoard) {
-      const winMove = findImmediateWinMove(testBoard, ai);
+    function getBestMove4D(testBoard, player = ai, opponent = human) {
+      const winMove = findImmediateWinMove(testBoard, player);
       if (winMove !== -1) return winMove;
 
-      const blockMove = findImmediateWinMove(testBoard, human);
+      const blockMove = findImmediateWinMove(testBoard, opponent);
       if (blockMove !== -1) return blockMove;
 
       const empties = emptyCells(testBoard);
@@ -2215,8 +3530,8 @@
       let bestScore = -Infinity;
       let candidates = [];
       for (const i of empties) {
-        testBoard[i] = ai;
-        const scoreNow = heuristic4DMoveScore(testBoard, i);
+        testBoard[i] = player;
+        const scoreNow = heuristic4DMoveScore(testBoard, i, player, opponent);
         testBoard[i] = "";
 
         if (scoreNow > bestScore) {
@@ -2229,15 +3544,15 @@
       return candidates[Math.floor(Math.random() * candidates.length)];
     }
 
-    function getBestMove4DWithScore(testBoard, lookaheadDepth = 3, beamWidth = 10) {
-      const empties = orderedMoves4D(testBoard, beamWidth);
+    function getBestMove4DWithScore(testBoard, lookaheadDepth = 3, beamWidth = 10, player = ai, opponent = human) {
+      const empties = orderedMoves4D(testBoard, beamWidth, player, opponent);
       if (empties.length === 0) return { move: -1, score: -Infinity };
 
       let bestScore = -Infinity;
       let bestMove = -1;
       for (const move of empties) {
-        testBoard[move] = ai;
-        const scoreNow = minimax4D(testBoard, human, 1, lookaheadDepth, beamWidth);
+        testBoard[move] = player;
+        const scoreNow = minimax4D(testBoard, opponent, 1, lookaheadDepth, beamWidth, player, opponent);
         testBoard[move] = "";
         if (scoreNow > bestScore) {
           bestScore = scoreNow;
@@ -2249,14 +3564,24 @@
     }
 
     function getAiMove(testBoard) {
+      if (isQuantum1Mode()) return getQuantum1BestMove([...testBoard], current).move;
+      if (isQuantum2Mode()) return -1;
       if (mode === "2d") return getBestMove2D(testBoard);
-      if (mode === "3d") return getBestMove3D(testBoard);
-      return getBestMove4D(testBoard);
+      if (mode === "3d") return getBestMove3D(testBoard, ai, human);
+      return getBestMove4D(testBoard, ai, human);
     }
 
     function newRound() {
       clearAiTimer();
       board = Array(cellCount()).fill("");
+      quantumOuterORates = generateQuantumOuterORates();
+      quantumMinimaxCache = new Map();
+      quantum2Cells = createQuantum2Cells();
+      if (isQuantum2Mode()) {
+        quantum2Cells[4].touches.push({ player: "O", phase: 1 });
+      }
+      quantum2PendingCell = -1;
+      quantum2ActionStep = 0;
       moveHistory = [];
       clearHint();
       currentWinLine = [];
@@ -2269,8 +3594,21 @@
       queueAiTurnIfNeeded();
     }
 
-    mode2dBtn.addEventListener("click", () => {
-      setMode("2d");
+    mode2dClassicBtn.addEventListener("click", () => {
+      set2DModeVariant("classic");
+    });
+
+    mode2dQuantum1Btn.addEventListener("click", () => {
+      set2DModeVariant("quantum1");
+    });
+
+    mode2dQuantum2Btn.addEventListener("click", () => {
+      set2DModeVariant("quantum2");
+    });
+
+    quantumSettingsBtn.addEventListener("click", () => {
+      quantumSettingsOpen = !quantumSettingsOpen;
+      render();
     });
 
     mode3dBtn.addEventListener("click", () => {
@@ -2288,6 +3626,10 @@
 
     matchAiBtn.addEventListener("click", () => {
       setMatchType("ai");
+    });
+
+    matchAiAiBtn.addEventListener("click", () => {
+      setMatchType("ai_ai");
     });
 
     matchPvpBtn.addEventListener("click", () => {
@@ -2344,6 +3686,30 @@
       hintForcedLoss = hint.forcedLoss;
       hintMessage = hint.message;
       render();
+    });
+
+    centerOAdvantageInput.addEventListener("input", () => {
+      quantumCenterORate = Number(centerOAdvantageInput.value) / 100;
+      quantumMinimaxCache = new Map();
+      if (isQuantum1Mode()) {
+        clearHint();
+        render();
+      } else {
+        centerOAdvantageValueEl.textContent = `${Math.round(quantumCenterORate * 100)}%`;
+      }
+    });
+
+    quantumSimBtn.addEventListener("click", async () => {
+      if (quantumSimRunning) return;
+      clearHint();
+      await runQuantumAiSimulation(Number(quantumGraphRoundsEl.value));
+    });
+
+    quantumGraphBtn.addEventListener("click", async () => {
+      if (quantumSimRunning) return;
+      clearHint();
+      quantumSettingsOpen = true;
+      await runQuantumGraphSweep();
     });
 
     mattaBtn.addEventListener("click", () => {
