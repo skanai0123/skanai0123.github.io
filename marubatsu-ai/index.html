@@ -1348,6 +1348,9 @@
       if (mode !== "2d") {
         return { move: -1, forcedLoss: false, message: "Hint is available only in 2D." };
       }
+      if (current !== "X") {
+        return { move: -1, forcedLoss: false, message: "Hint is available only for the first player." };
+      }
 
       const player = isAiMatch() ? human : current;
       const opponent = player === "X" ? "O" : "X";
@@ -1688,7 +1691,7 @@
       playAsOBtn.classList.toggle("active", human === "O");
       playAsXBtn.disabled = !isAiMatch();
       playAsOBtn.disabled = !isAiMatch();
-      hintBtn.disabled = mode !== "2d" || roundOver || !isHumanTurn();
+      hintBtn.disabled = mode !== "2d" || roundOver || !isHumanTurn() || current !== "X";
       mattaBtn.disabled = moveHistory.length === 0;
 
       subtextEl.textContent = "";
