@@ -651,6 +651,10 @@
       display: none;
     }
 
+    .hidden {
+      display: none !important;
+    }
+
     .stats-summary strong {
       display: block;
       margin-bottom: 6px;
@@ -1345,8 +1349,8 @@
     function getHintInfo() {
       if (roundOver) return { move: -1, forcedLoss: false, message: "" };
       if (board.every((cell) => cell !== "")) return { move: -1, forcedLoss: false, message: "" };
-      if (mode !== "2d") {
-        return { move: -1, forcedLoss: false, message: "Hint is available only in 2D." };
+      if (isAiMatch() && human !== "X") {
+        return { move: -1, forcedLoss: false, message: "Hint is available only for VS AI as the first player." };
       }
       if (current !== "X") {
         return { move: -1, forcedLoss: false, message: "Hint is available only for the first player." };
@@ -1355,19 +1359,65 @@
       const player = isAiMatch() ? human : current;
       const opponent = player === "X" ? "O" : "X";
 
+      if (mode === "2d") {
+        const prevHuman = human;
+        const prevAi = ai;
+        human = opponent;
+        ai = player;
+        const { move, score } = getBestMove2DWithScore([...board]);
+        human = prevHuman;
+        ai = prevAi;
+        return {
+          move,
+          forcedLoss: score < 0,
+          message: score < 0
+            ? "Forced loss. Best defense is highlighted."
+            : "Hint: best move is highlighted."
+        };
+      }
+
+      if (mode === "3d") {
+        const prevHuman = human;
+        const prevAi = ai;
+        human = opponent;
+        ai = player;
+        const { move, score } = getBestMove3DHint([...board], 5);
+        human = prevHuman;
+        ai = prevAi;
+        return {
+          move,
+          forcedLoss: score < 0,
+          message: score < 0
+            ? "Forced loss (5-ply). Best defense is highlighted."
+            : "Hint: best move is highlighted."
+        };
+      }
+
       const prevHuman = human;
       const prevAi = ai;
       human = opponent;
       ai = player;
-      const { move, score } = getBestMove2DWithScore([...board]);
+      const winMove = findImmediateWinMove([...board], ai);
+      const blockMove = findImmediateWinMove([...board], human);
+      const move = winMove !== -1
+        ? winMove
+        : blockMove !== -1
+          ? blockMove
+          : getBestMove4DWithScore([...board], 2, 6).move;
       human = prevHuman;
       ai = prevAi;
       return {
         move,
-        forcedLoss: score < 0,
-        message: score < 0
-          ? "Forced loss. Best defense is highlighted."
-          : "Hint: best move is highlighted."
+        forcedLoss: false,
+        message: move !== -1
+          ? (
+              winMove !== -1
+                ? "Hint: winning move is highlighted."
+                : blockMove !== -1
+                  ? "Hint: blocking move is highlighted."
+                  : "Hint: approximate 4D move is highlighted."
+            )
+          : "4D hint is unavailable."
       };
     }
 
@@ -1691,7 +1741,8 @@
       playAsOBtn.classList.toggle("active", human === "O");
       playAsXBtn.disabled = !isAiMatch();
       playAsOBtn.disabled = !isAiMatch();
-      hintBtn.disabled = mode !== "2d" || roundOver || !isHumanTurn() || current !== "X";
+      hintBtn.classList.toggle("hidden", isAiMatch() && human !== "X");
+      hintBtn.disabled = (isAiMatch() && human !== "X") || roundOver || !isHumanTurn() || current !== "X";
       mattaBtn.disabled = moveHistory.length === 0;
 
       subtextEl.textContent = "";
