@@ -810,6 +810,12 @@
       font-size: 12px;
     }
 
+    .stats-summary .stats-table-wrap {
+      width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
     .stats-summary th,
     .stats-summary td {
       padding: 6px 8px;
@@ -867,18 +873,157 @@
       cursor: pointer;
     }
 
+    @media (max-width: 760px) {
+      .app {
+        width: min(100vw - 16px, 760px);
+        padding: 16px;
+      }
+
+      .title-bar {
+        flex-wrap: wrap;
+        align-items: flex-start;
+      }
+
+      .title-bar h1 {
+        flex: 1 1 220px;
+      }
+
+      #statsBtn {
+        flex: 0 0 auto;
+      }
+
+      .controls {
+        gap: 6px;
+      }
+
+      .controls button {
+        flex: 0 1 auto;
+      }
+
+      .board-stage {
+        width: 100%;
+      }
+
+      .board.board-4d {
+        overflow-x: auto;
+        overflow-y: visible;
+        padding-bottom: 6px;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      .stats-summary {
+        padding: 10px;
+      }
+
+      .stats-summary table {
+        min-width: 620px;
+      }
+
+      .quantum-row {
+        align-items: flex-start;
+      }
+
+      .quantum-row input[type="range"] {
+        width: min(100%, 320px);
+      }
+
+      .footer {
+        align-items: stretch;
+      }
+
+      .footer > :first-child {
+        width: 100%;
+      }
+    }
+
     @media (max-width: 560px) {
       .app { padding: 14px; }
-      .controls button, .footer button { padding: 7px 11px; font-size: 13px; }
+
+      .sub {
+        margin-bottom: 12px;
+        font-size: 13px;
+      }
+
+      .controls {
+        gap: 6px;
+        margin-bottom: 10px;
+      }
+
+      .controls button,
+      .footer button,
+      #statsBtn {
+        padding: 7px 11px;
+        font-size: 13px;
+      }
+
+      .controls[aria-label="Game mode"] button {
+        flex: 1 1 calc(50% - 6px);
+        justify-content: center;
+      }
+
+      .controls[aria-label="Match type"] button,
+      .controls[aria-label="Player selection"] button {
+        flex: 1 1 calc(50% - 6px);
+      }
+
+      .status,
+      .hint-text,
+      .coords,
+      .win-equation {
+        margin-left: 2px;
+        margin-right: 2px;
+      }
+
       .board.board-3d.cube {
         width: min(98vw, 620px);
         height: min(54vw, 280px);
       }
+
+      .board.board-4d {
+        margin-inline: -2px;
+      }
+
+      .hyper-board {
+        --hyper-cell-size: 58px;
+        --hyper-block-gap: 12px;
+        gap: 4px;
+      }
+
       .hyper-board .cell {
         width: var(--hyper-cell-size);
         min-height: var(--hyper-cell-size);
-        font-size: clamp(34px, 9vw, 54px);
+        font-size: clamp(24px, 7.4vw, 40px);
       }
+
+      .quantum-panel {
+        padding: 11px 12px;
+      }
+
+      .quantum-row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+      }
+
+      .quantum-row input[type="range"],
+      .quantum-rounds-select,
+      .quantum-row button {
+        width: 100%;
+      }
+
+      .quantum-legend {
+        gap: 6px 10px;
+        font-size: 11px;
+      }
+
+      .stats-summary {
+        padding: 9px 8px;
+      }
+
+      .stats-summary table {
+        min-width: 560px;
+      }
+
       .layer-arrows {
         left: 20px;
         top: -44px;
@@ -913,6 +1058,22 @@
       }
       .board.board-3d.cube .cell.voxel {
         font-size: clamp(14px, 4.3vw, 18px);
+      }
+
+      .footer {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .score {
+        width: 100%;
+      }
+
+      .footer > div:last-child {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+        width: 100%;
       }
     }
   </style>
@@ -2744,6 +2905,7 @@
       statsSummaryEl.innerHTML = `
         <strong>${heading}</strong>
         <div class="stats-note">${remoteStatsMessage}</div>
+        <div class="stats-table-wrap">
         <table>
           <thead>
             <tr>
@@ -2795,6 +2957,7 @@
           `;
           }).join("")}
         </table>
+        </div>
       `;
     }
 
