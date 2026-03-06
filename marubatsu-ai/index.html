@@ -1,0 +1,2038 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tic-Tac-Toe AI</title>
+  <link rel="stylesheet" href="../shared/back-to-hub.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-0: #fef7eb;
+      --bg-1: #ffd9b5;
+      --ink: #2a1a0f;
+      --card: #fffaf2cc;
+      --line: #d69d5d;
+      --x: #cc4b2f;
+      --o: #2f6fcc;
+      --accent: #ff8f3f;
+      --accent-2: #ffb775;
+      --win: #20b27f;
+      --other-layer-opacity: 0.45;
+      --scene-scale: 1.5;
+      --cube-base-h: 30;
+      --cube-top-h: 34;
+      --cube-side-h: 28;
+      --cube-wire-alpha-idle: 0.16;
+      --cube-fill-alpha-idle: 0.035;
+      --cube-wire-alpha-layer: 0.34;
+      --cube-fill-alpha-layer: 0.12;
+      --cube-wire-alpha-selected: 0.92;
+      --cube-fill-alpha-selected: 0.38;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100dvh;
+      font-family: "M PLUS Rounded 1c", system-ui, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 15% 15%, #ffe7d1 0%, transparent 45%),
+        radial-gradient(circle at 80% 85%, #ffd7a6 0%, transparent 40%),
+        linear-gradient(160deg, var(--bg-0), var(--bg-1));
+      display: grid;
+      justify-items: center;
+      align-content: start;
+      padding: 16px;
+    }
+
+    .app {
+      width: min(96vw, 760px);
+      background: var(--card);
+      border: 2px solid #fff;
+      border-radius: 22px;
+      padding: 18px;
+      box-shadow: 0 20px 45px #7a4f211f;
+      backdrop-filter: blur(6px);
+    }
+
+    h1 {
+      margin: 4px 0 10px;
+      font-size: clamp(24px, 5vw, 34px);
+      line-height: 1.15;
+    }
+
+    .sub {
+      margin: 0 0 14px;
+      font-size: 14px;
+      color: #5f4129;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .controls-popover {
+      margin-bottom: 12px;
+    }
+
+    .controls button {
+      border: 1px solid var(--line);
+      background: #fff4e7;
+      color: var(--ink);
+      font: inherit;
+      font-weight: 700;
+      border-radius: 999px;
+      padding: 8px 14px;
+      cursor: pointer;
+      transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
+    }
+
+    .controls button:hover {
+      transform: translateY(-1px);
+      border-color: var(--accent);
+      background: #ffe9d1;
+    }
+
+    .controls button.active {
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      border-color: #f4802f;
+      color: #fff;
+    }
+
+    .controls button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .status {
+      margin: 0 0 14px;
+      min-height: 1.7em;
+      font-weight: 700;
+      color: #4d2f19;
+    }
+
+    .coords {
+      margin: -6px 0 14px;
+      min-height: 1.4em;
+      font-size: 13px;
+      color: #6a4a31;
+      letter-spacing: 0.02em;
+    }
+
+    .win-equation {
+      margin: -6px 0 14px;
+      min-height: 1.4em;
+      font-size: 13px;
+      color: #2f7a55;
+      letter-spacing: 0.02em;
+      font-weight: 700;
+    }
+
+    .board {
+      display: grid;
+      gap: 10px;
+    }
+
+    .board-stage {
+      position: relative;
+      width: fit-content;
+      max-width: 100%;
+      margin-inline: auto;
+    }
+
+    .board.board-2d {
+      grid-template-columns: repeat(3, minmax(76px, 1fr));
+    }
+
+    .board.board-3d {
+      grid-template-columns: 1fr;
+      gap: 10px;
+      padding: 4px 0 2px;
+    }
+
+    .board.board-4d {
+      display: block;
+      width: 100%;
+      margin-inline: auto;
+    }
+
+    .hyper-board {
+      --hyper-cell-size: 71px;
+      --hyper-block-gap: 16px;
+      display: grid;
+      grid-template-columns:
+        repeat(3, var(--hyper-cell-size))
+        var(--hyper-block-gap)
+        repeat(3, var(--hyper-cell-size))
+        var(--hyper-block-gap)
+        repeat(3, var(--hyper-cell-size));
+      grid-template-rows:
+        repeat(3, var(--hyper-cell-size))
+        var(--hyper-block-gap)
+        repeat(3, var(--hyper-cell-size))
+        var(--hyper-block-gap)
+        repeat(3, var(--hyper-cell-size));
+      justify-content: start;
+      gap: 6px;
+      width: fit-content;
+      margin-inline: auto;
+      padding: 0;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      box-shadow: none;
+    }
+
+    .hyper-board .cell {
+      width: var(--hyper-cell-size);
+      min-height: var(--hyper-cell-size);
+      font-size: clamp(34px, 9vw, 54px);
+      border-radius: 10px;
+      border-width: 3px;
+      border-color: hsla(var(--slice-h, 30), 68%, 44%, 0.98);
+      background: #fff;
+      box-shadow: none;
+    }
+
+    .hyper-board .cell:hover:enabled {
+      border-color: hsla(var(--slice-h, 30), 74%, 36%, 1);
+      background: #fff8f0;
+    }
+
+    .board.board-3d.cube {
+      display: block;
+      width: min(96vw, 680px);
+      height: min(50vw, 320px);
+      padding: 0;
+      position: relative;
+      overflow: visible;
+      margin-inline: auto;
+    }
+
+    .layer-arrows {
+      position: absolute;
+      left: -4px;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      z-index: 8;
+    }
+
+    .layer-arrows.hidden {
+      display: none;
+    }
+
+    .view-arrows {
+      position: absolute;
+      right: -4px;
+      top: 50%;
+      transform: translateY(-50%);
+      display: grid;
+      grid-template-columns: repeat(2, 40px);
+      gap: 10px;
+      z-index: 8;
+    }
+
+    .view-arrows.hidden {
+      display: none;
+    }
+
+    .layer-arrow-btn {
+      width: 40px;
+      height: 40px;
+      border: 1px solid #cc8e54;
+      border-radius: 10px;
+      background: #fff7ecdd;
+      color: #5a3618;
+      font: inherit;
+      font-size: 20px;
+      font-weight: 800;
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    .layer-arrow-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .view-arrow-btn {
+      width: 40px;
+      height: 40px;
+      border: 1px solid #cc8e54;
+      border-radius: 10px;
+      background: #fff7ecdd;
+      color: #5a3618;
+      font: inherit;
+      font-size: 18px;
+      font-weight: 800;
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    .view-arrow-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .voxel-scene {
+      --cube-size: 48px;
+      --cube-depth: var(--cube-size);
+      --step: 68px;
+      position: absolute;
+      inset: 0;
+      perspective: calc(1100px / var(--scene-scale));
+      perspective-origin: 50% 50%;
+    }
+
+    .voxel-board {
+      position: absolute;
+      left: 50%;
+      top: 24%;
+      width: 1px;
+      height: 1px;
+      transform-style: preserve-3d;
+      transform-origin: center center;
+      transform: translate(-50%, -50%) rotateX(62deg) rotateZ(-35deg);
+    }
+
+    .board.board-3d.cube .cell.voxel {
+      --cube-wire-alpha: var(--cube-wire-alpha-idle);
+      --cube-fill-alpha: var(--cube-fill-alpha-idle);
+      position: absolute;
+      width: var(--cube-size);
+      height: var(--cube-size);
+      margin: calc(var(--cube-size) * -0.5) 0 0 calc(var(--cube-size) * -0.5);
+      transform-style: preserve-3d;
+      transform:
+        translate3d(
+          calc((var(--x) - 1) * var(--step)),
+          calc((var(--y) - 1) * var(--step)),
+          calc((var(--z) - 1) * var(--step))
+        );
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      box-shadow: none;
+      overflow: visible;
+      color: #3c2412;
+    }
+
+    .board.board-3d.cube .cell.voxel .face {
+      position: absolute;
+      inset: 0;
+      border: 1px solid hsla(var(--cube-base-h), 40%, 52%, var(--cube-wire-alpha));
+      border-radius: 4px;
+      background: linear-gradient(
+        150deg,
+        hsla(var(--cube-base-h), 46%, 74%, calc(var(--cube-fill-alpha) * 1.1)),
+        hsla(var(--cube-base-h), 40%, 65%, calc(var(--cube-fill-alpha) * 0.7))
+      );
+      box-shadow: none;
+      pointer-events: auto;
+    }
+
+    .board.board-3d.cube .cell.voxel .face.front {
+      transform: translateZ(calc(var(--cube-depth) * 0.5));
+    }
+
+    .board.board-3d.cube .cell.voxel .face.back {
+      transform: rotateY(180deg) translateZ(calc(var(--cube-depth) * 0.5));
+      background: linear-gradient(
+        150deg,
+        hsla(var(--cube-base-h), 36%, 63%, calc(var(--cube-fill-alpha) * 0.65)),
+        hsla(var(--cube-base-h), 34%, 57%, calc(var(--cube-fill-alpha) * 0.45))
+      );
+    }
+
+    .board.board-3d.cube .cell.voxel .face.right {
+      transform: rotateY(90deg) translateZ(calc(var(--cube-depth) * 0.5));
+      background: linear-gradient(
+        180deg,
+        hsla(var(--cube-side-h), 50%, 58%, calc(var(--cube-fill-alpha) * 1.05)),
+        hsla(var(--cube-side-h), 48%, 48%, calc(var(--cube-fill-alpha) * 0.78))
+      );
+    }
+
+    .board.board-3d.cube .cell.voxel .face.left {
+      transform: rotateY(-90deg) translateZ(calc(var(--cube-depth) * 0.5));
+      background: linear-gradient(
+        180deg,
+        hsla(var(--cube-base-h), 40%, 70%, calc(var(--cube-fill-alpha) * 0.9)),
+        hsla(var(--cube-base-h), 36%, 60%, calc(var(--cube-fill-alpha) * 0.6))
+      );
+    }
+
+    .board.board-3d.cube .cell.voxel .face.top {
+      transform: rotateX(-90deg) translateZ(calc(var(--cube-depth) * 0.5));
+      background: linear-gradient(
+        180deg,
+        hsla(var(--cube-top-h), 44%, 83%, calc(var(--cube-fill-alpha) * 1.18)),
+        hsla(var(--cube-top-h), 40%, 74%, calc(var(--cube-fill-alpha) * 0.82))
+      );
+    }
+
+    .board.board-3d.cube .cell.voxel .face.bottom {
+      transform: rotateX(90deg) translateZ(calc(var(--cube-depth) * 0.5));
+      background: linear-gradient(
+        180deg,
+        hsla(var(--cube-side-h), 50%, 54%, calc(var(--cube-fill-alpha) * 0.92)),
+        hsla(var(--cube-side-h), 50%, 44%, calc(var(--cube-fill-alpha) * 0.65))
+      );
+    }
+
+    .board.board-3d.cube .cell.voxel .hit-face {
+      position: absolute;
+      inset: 0;
+      transform: rotateX(-90deg) translateZ(calc(var(--cube-depth) * 0.52));
+      background: transparent;
+      pointer-events: none;
+    }
+
+    .board.board-3d.cube .cell.voxel.x .face {
+      border-color: #b13a282c;
+      background: linear-gradient(150deg, #ffb3a833, #e3604e32);
+    }
+
+    .board.board-3d.cube .cell.voxel.x .face.top {
+      background: linear-gradient(180deg, #ffd2cb37, #f48f8132);
+    }
+
+    .board.board-3d.cube .cell.voxel.x .face.right,
+    .board.board-3d.cube .cell.voxel.x .face.bottom {
+      background: linear-gradient(180deg, #dc6e5f30, #b6433330);
+    }
+
+    .board.board-3d.cube .cell.voxel.o .face {
+      border-color: #2d62a72c;
+      background: linear-gradient(150deg, #b9d5ff33, #5e93e232);
+    }
+
+    .board.board-3d.cube .cell.voxel.o .face.top {
+      background: linear-gradient(180deg, #d8e8ff37, #8cb1ee32);
+    }
+
+    .board.board-3d.cube .cell.voxel.o .face.right,
+    .board.board-3d.cube .cell.voxel.o .face.bottom {
+      background: linear-gradient(180deg, #5b87c830, #3a67a830);
+    }
+
+    .cell {
+      aspect-ratio: 1 / 1;
+      border: 2px solid var(--line);
+      border-radius: 14px;
+      background: #fff;
+      font: inherit;
+      font-size: clamp(34px, 9vw, 54px);
+      font-weight: 800;
+      line-height: 1;
+      cursor: pointer;
+      color: #55321a;
+      transition: transform 120ms ease, border-color 120ms ease, background 120ms ease;
+    }
+
+    .board-3d .cell {
+      font-size: clamp(28px, 7vw, 42px);
+    }
+
+    .board.board-3d.cube .cell.voxel .mark {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform:
+        translate(-50%, -50%)
+        translateY(calc(var(--cube-depth) * -0.86))
+        translateZ(calc(var(--cube-depth) * 0.52));
+      color: inherit;
+      font-weight: 800;
+      text-shadow: 0 1px 0 #fff8, 0 3px 8px #7a4f2130;
+      pointer-events: none;
+      z-index: 2;
+      display: none;
+    }
+
+    .board.board-3d.cube .cell.voxel.selected {
+      transform:
+        translate3d(
+          calc((var(--x) - 1) * var(--step)),
+          calc((var(--y) - 1) * var(--step)),
+          calc((var(--z) - 1) * var(--step) + 6px)
+        );
+      box-shadow:
+        inset 0 0 0 1px #fff,
+        0 10px 16px #7a4f2130;
+    }
+
+    .board.board-3d.cube .cell.voxel.selected.x .face {
+      background: linear-gradient(150deg, #ffb3a873, #e3604e6b);
+    }
+
+    .board.board-3d.cube .cell.voxel.selected.o .face {
+      background: linear-gradient(150deg, #b9d5ff73, #5e93e26b);
+    }
+
+    .board.board-3d.cube .cell.voxel.hover-top {
+      z-index: auto;
+      box-shadow: none;
+    }
+
+    .board.board-3d.cube .cell.voxel.hover-layer:not(.selected) {
+      --cube-wire-alpha: var(--cube-wire-alpha-layer);
+      --cube-fill-alpha: var(--cube-fill-alpha-layer);
+      transform:
+        translate3d(
+          calc((var(--x) - 1) * var(--step)),
+          calc((var(--y) - 1) * var(--step)),
+          calc((var(--z) - 1) * var(--step) + 3px)
+        );
+      box-shadow: 0 6px 10px #7a4f211f;
+    }
+
+    .board.board-3d.cube .cell.voxel.selected {
+      --cube-wire-alpha: var(--cube-wire-alpha-selected);
+      --cube-fill-alpha: var(--cube-fill-alpha-selected);
+    }
+
+    .board.board-3d.cube .cell.voxel.dim {
+      opacity: var(--other-layer-opacity);
+      filter: grayscale(0.08);
+    }
+
+    .board.board-3d.cube .cell.voxel.dim-empty {
+      opacity: 1;
+      filter: none;
+    }
+
+    .board.board-3d.cube .cell.voxel.dim-empty .face {
+      border-color: #b8834d33;
+      background: linear-gradient(
+        150deg,
+        hsla(var(--cube-base-h), 46%, 74%, 0.05),
+        hsla(var(--cube-base-h), 40%, 65%, 0.05)
+      );
+      box-shadow: inset 0 0 0 1px #fff5;
+    }
+
+    .board.board-3d.cube .cell.voxel.dim-empty .face.top {
+      background: linear-gradient(
+        180deg,
+        hsla(var(--cube-top-h), 44%, 83%, 0.05),
+        hsla(var(--cube-top-h), 40%, 74%, 0.05)
+      );
+    }
+
+    .board.board-3d.cube .cell.voxel.dim-empty .face.right,
+    .board.board-3d.cube .cell.voxel.dim-empty .face.bottom {
+      background: linear-gradient(
+        180deg,
+        hsla(var(--cube-side-h), 50%, 58%, 0.05),
+        hsla(var(--cube-side-h), 48%, 48%, 0.05)
+      );
+    }
+
+    .board.board-3d.cube .cell.voxel.pass-through {
+      pointer-events: none;
+    }
+
+    .board.board-3d.cube .cell.voxel.x,
+    .board.board-3d.cube .cell.voxel.o {
+      font-size: clamp(18px, 3.2vw, 24px);
+    }
+
+    .board.board-3d.cube .cell.voxel.x .mark {
+      color: #d6452d;
+    }
+
+    .board.board-3d.cube .cell.voxel.o .mark {
+      color: #2f6fcc;
+    }
+
+    .cell:hover:enabled:not(.voxel) {
+      transform: scale(1.02);
+      border-color: var(--accent);
+      background: #fff4e8;
+    }
+
+    .cell:disabled { cursor: default; }
+    .cell.x { color: var(--x); }
+    .cell.o { color: var(--o); }
+
+    .cell.win:not(.voxel) {
+      background: #e7fff6;
+      border-color: var(--win);
+    }
+
+    .board.board-3d.cube .cell.win {
+      box-shadow: 0 0 0 3px #6eff9f88, 0 0 22px #3cff9090;
+    }
+
+    .board.board-3d.cube .cell.win .face {
+      border-color: #28c76f;
+      border-width: 4px;
+      box-shadow: inset 0 0 0 1px #28c76fcc, 0 0 12px #3cff9070;
+    }
+
+    .footer {
+      margin-top: 14px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .score {
+      font-size: 14px;
+      font-weight: 700;
+      color: #5f4129;
+    }
+
+    .stats-summary {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #e7c9a6;
+      border-radius: 14px;
+      background: #fff7edcc;
+      font-size: 13px;
+      color: #5f4129;
+    }
+
+    .stats-summary.hidden {
+      display: none;
+    }
+
+    .panel-hidden {
+      display: none;
+    }
+
+    .stats-summary strong {
+      display: block;
+      margin-bottom: 6px;
+      color: #4d2f19;
+    }
+
+    .stats-summary .stats-note {
+      margin-bottom: 10px;
+    }
+
+    .stats-summary table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    .stats-summary th,
+    .stats-summary td {
+      padding: 6px 8px;
+      border-bottom: 1px solid #ecd5b8;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .stats-summary th {
+      color: #4d2f19;
+      font-weight: 800;
+      background: #fff2df;
+    }
+
+    .stats-summary tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .stats-summary td.rate {
+      white-space: nowrap;
+      font-weight: 700;
+    }
+
+    .stats-summary td.detail {
+      white-space: nowrap;
+      color: #6a4a31;
+    }
+
+    .stats-summary tbody + tbody tr:first-child td {
+      border-top: 2px solid #dfc29f;
+    }
+
+    .stats-summary .mode-cell {
+      font-weight: 800;
+      color: #4d2f19;
+      white-space: nowrap;
+    }
+
+    .stats-summary .category-cell {
+      white-space: nowrap;
+    }
+
+    .stats-summary .empty {
+      margin-top: 4px;
+    }
+
+    .footer button {
+      border: 1px solid #c8833f;
+      background: #fff;
+      color: #573418;
+      font: inherit;
+      font-weight: 700;
+      border-radius: 10px;
+      padding: 8px 12px;
+      cursor: pointer;
+    }
+
+    @media (max-width: 560px) {
+      .app { padding: 14px; }
+      .controls button, .footer button { padding: 7px 11px; font-size: 13px; }
+      .board.board-3d.cube {
+        width: min(98vw, 620px);
+        height: min(54vw, 280px);
+      }
+      .hyper-board .cell {
+        width: var(--hyper-cell-size);
+        min-height: var(--hyper-cell-size);
+        font-size: clamp(34px, 9vw, 54px);
+      }
+      .layer-arrows {
+        left: 20px;
+        top: -44px;
+        transform: none;
+        flex-direction: row;
+      }
+      .layer-arrow-btn {
+        width: 34px;
+        height: 34px;
+        font-size: 18px;
+      }
+      .view-arrows {
+        right: 20px;
+        top: -44px;
+        transform: none;
+        grid-template-columns: repeat(4, 34px);
+      }
+      .view-arrow-btn {
+        width: 34px;
+        height: 34px;
+        font-size: 16px;
+      }
+      .voxel-board {
+        --cube-size: 36px;
+        --cube-depth: var(--cube-size);
+        --step: 52px;
+      }
+      .voxel-scene {
+        --cube-size: 36px;
+        --cube-depth: var(--cube-size);
+        --step: 52px;
+      }
+      .board.board-3d.cube .cell.voxel {
+        font-size: clamp(14px, 4.3vw, 18px);
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <h1>Tic-Tac-Toe AI</h1>
+    <p id="subtext" class="sub">Switch between 2D and 3D. 2D uses optimal play, 3D uses a lightweight AI.</p>
+
+    <div class="controls-popover">
+      <div class="controls" aria-label="Game mode">
+        <button id="mode2d" class="active" type="button">2D (3x3)</button>
+        <button id="mode3d" type="button">3D (3x3x3)</button>
+        <button id="mode4d" type="button">4D (3x3x3x3)</button>
+        <button id="statsBtn" type="button">Stats</button>
+      </div>
+      <section id="statsSummary" class="stats-summary hidden" aria-label="Win rate summary"></section>
+    </div>
+    <div id="gamePanel">
+      <div class="controls" aria-label="Match type">
+        <button id="matchAi" class="active" type="button">VS AI</button>
+        <button id="matchPvp" type="button">2 Players</button>
+      </div>
+
+      <div class="controls" aria-label="Player selection">
+        <button id="playAsX" class="active" type="button">Play First (X)</button>
+        <button id="playAsO" type="button">Play Second (O)</button>
+      </div>
+
+      <p id="status" class="status">Your turn.</p>
+      <p id="coords" class="coords"></p>
+      <p id="winEquation" class="win-equation"></p>
+      <div class="board-stage">
+        <div id="layerArrows" class="layer-arrows hidden" aria-label="Layer arrows">
+          <button id="layerUpBtn" class="layer-arrow-btn" type="button" aria-label="Layer up">↑</button>
+          <button id="layerDownBtn" class="layer-arrow-btn" type="button" aria-label="Layer down">↓</button>
+        </div>
+        <div id="viewArrows" class="view-arrows hidden" aria-label="View rotation">
+          <button id="viewTiltUpBtn" class="view-arrow-btn" type="button" aria-label="Tilt up">↑</button>
+          <button id="viewTiltDownBtn" class="view-arrow-btn" type="button" aria-label="Tilt down">↓</button>
+          <button id="viewLeftBtn" class="view-arrow-btn" type="button" aria-label="Rotate left">↶</button>
+          <button id="viewRightBtn" class="view-arrow-btn" type="button" aria-label="Rotate right">↷</button>
+        </div>
+        <section id="board" class="board board-2d" aria-label="Game board"></section>
+      </div>
+      <div class="footer">
+        <div id="score" class="score">You: 0 | AI: 0 | Draws: 0</div>
+        <div>
+          <button id="mattaBtn" type="button">Matta</button>
+          <button id="restartRound" type="button">Reset Round</button>
+          <button id="resetScore" type="button">Reset Score</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const gamePanelEl = document.getElementById("gamePanel");
+    const boardEl = document.getElementById("board");
+    const layerArrowsEl = document.getElementById("layerArrows");
+    const layerUpBtn = document.getElementById("layerUpBtn");
+    const layerDownBtn = document.getElementById("layerDownBtn");
+    const viewArrowsEl = document.getElementById("viewArrows");
+    const viewTiltUpBtn = document.getElementById("viewTiltUpBtn");
+    const viewTiltDownBtn = document.getElementById("viewTiltDownBtn");
+    const viewLeftBtn = document.getElementById("viewLeftBtn");
+    const viewRightBtn = document.getElementById("viewRightBtn");
+    const statusEl = document.getElementById("status");
+    const coordsEl = document.getElementById("coords");
+    const winEquationEl = document.getElementById("winEquation");
+    const subtextEl = document.getElementById("subtext");
+    const scoreEl = document.getElementById("score");
+    const statsSummaryEl = document.getElementById("statsSummary");
+
+    const mode2dBtn = document.getElementById("mode2d");
+    const mode3dBtn = document.getElementById("mode3d");
+    const mode4dBtn = document.getElementById("mode4d");
+    const statsBtn = document.getElementById("statsBtn");
+    const matchAiBtn = document.getElementById("matchAi");
+    const matchPvpBtn = document.getElementById("matchPvp");
+    const playAsXBtn = document.getElementById("playAsX");
+    const playAsOBtn = document.getElementById("playAsO");
+    const mattaBtn = document.getElementById("mattaBtn");
+    const restartRoundBtn = document.getElementById("restartRound");
+    const resetScoreBtn = document.getElementById("resetScore");
+
+    const WIN_LINES_2D = [
+      [0, 1, 2], [3, 4, 5], [6, 7, 8],
+      [0, 3, 6], [1, 4, 7], [2, 5, 8],
+      [0, 4, 8], [2, 4, 6]
+    ];
+
+    const SUPABASE_CONFIG = {
+      url: "https://ggegdoexrzmtmqkmoebj.supabase.co",
+      publishableKey: "sb_publishable_C239A-Ov_uVgDwYP5gsIKg_rTpEimFm",
+      table: "marubatsu_results"
+    };
+    const HYPER_SLICE_HUES = [8, 32, 58, 110, 150, 195, 225, 272, 332];
+
+    const WIN_LINES_3D = build3DWinLines();
+    const WIN_LINES_4D = build4DWinLines();
+
+    let mode = "2d";
+    let matchType = "ai";
+    let board = Array(9).fill("");
+    let human = "X";
+    let ai = "O";
+    let current = "X";
+    let activeLayer = 2;
+    let selectedIndex = -1;
+    let hoveredTopIndex = -1;
+    let currentWinLine = [];
+    let roundOver = false;
+    let score = { x: 0, o: 0, draw: 0 };
+    let matchupStats = createInitialMatchupStats();
+    let remoteMatchupStats = createInitialMatchupStats();
+    let moveHistory = [];
+    let aiTimerId = 0;
+    let viewRotateX = 62;
+    let viewRotateZ = -35;
+    let statsOpen = false;
+    let remoteStatsState = "disabled";
+    let remoteStatsMessage = "Supabase is not configured.";
+
+    const VIEW_TILT_MIN = 30;
+    const VIEW_TILT_MAX = 80;
+    const VIEW_STEP = 10;
+
+    function idx3D(x, y, z) {
+      return z * 9 + y * 3 + x;
+    }
+
+    function idx4D(x, y, z, w) {
+      return w * 27 + z * 9 + y * 3 + x;
+    }
+
+    function coordFromIndex(index) {
+      if (index < 0) return null;
+      if (mode === "2d") {
+        return {
+          x: index % 3,
+          y: Math.floor(index / 3),
+          z: 0,
+          w: 0
+        };
+      }
+      if (mode === "4d") {
+        return coord4DFromIndex(index);
+      }
+      return {
+        x: index % 3,
+        y: Math.floor(index / 3) % 3,
+        z: Math.floor(index / 9),
+        w: 0
+      };
+    }
+
+    function coord4DFromIndex(index) {
+      return {
+        x: index % 3,
+        y: Math.floor(index / 3) % 3,
+        z: Math.floor(index / 9) % 3,
+        w: Math.floor(index / 27)
+      };
+    }
+
+    function formatCoord(index) {
+      const coord = coordFromIndex(index);
+      if (!coord) return "";
+      if (mode === "2d") return `(${coord.x},${coord.y})`;
+      if (mode === "3d") return `(${coord.x},${coord.y},${coord.z})`;
+      return `(${coord.x},${coord.y},${coord.z},${coord.w})`;
+    }
+
+    function relationExpression(targetLabel, refLabel, target0, ref0, targetDelta, refDelta) {
+      if (targetDelta === 0) return `${targetLabel} = ${target0}`;
+      if (refDelta === 0) return `${targetLabel} = ${target0}`;
+      const slope = targetDelta / refDelta;
+      const intercept = target0 - slope * ref0;
+      let expr = "";
+      if (slope === 1) expr = refLabel;
+      else if (slope === -1) expr = `-${refLabel}`;
+      else expr = `${slope}${refLabel}`;
+      if (intercept > 0) expr += ` + ${intercept}`;
+      if (intercept < 0) expr += ` - ${Math.abs(intercept)}`;
+      return `${targetLabel} = ${expr}`;
+    }
+
+    function axisSetExpression(label, values) {
+      return `${label} in {${values.join(", ")}}`;
+    }
+
+    function buildLineEquationSystem(coords, axisLabels, primaryLabel) {
+      const start = coords[0];
+      const next = coords[1];
+      const deltas = {};
+      axisLabels.forEach((label) => {
+        deltas[label] = next[label] - start[label];
+      });
+      const refLabel = axisLabels.find((label) => deltas[label] !== 0) || axisLabels[0];
+      const parts = [];
+
+      if (deltas[primaryLabel] === 0) {
+        parts.push(`${primaryLabel} = ${start[primaryLabel]}`);
+      } else if (refLabel === primaryLabel) {
+        parts.push(axisSetExpression(primaryLabel, coords.map((coord) => coord[primaryLabel])));
+      } else {
+        parts.push(
+          relationExpression(
+            primaryLabel,
+            refLabel,
+            start[primaryLabel],
+            start[refLabel],
+            deltas[primaryLabel],
+            deltas[refLabel]
+          )
+        );
+      }
+
+      for (const label of axisLabels) {
+        if (label === primaryLabel || label === refLabel) continue;
+        if (deltas[label] === 0) {
+          parts.push(`${label} = ${start[label]}`);
+        } else {
+          parts.push(
+            relationExpression(
+              label,
+              refLabel,
+              start[label],
+              start[refLabel],
+              deltas[label],
+              deltas[refLabel]
+            )
+          );
+        }
+      }
+
+      if (refLabel !== primaryLabel && deltas[refLabel] === 0) {
+        parts.push(`${refLabel} = ${start[refLabel]}`);
+      }
+
+      return parts.join(", ");
+    }
+
+    function winEquationText(line) {
+      if (!line || line.length === 0) return "";
+      const coords = line.map((index) => coordFromIndex(index)).filter(Boolean);
+      if (coords.length !== line.length) return "";
+      if (mode === "2d") {
+        return `Winning line: ${buildLineEquationSystem(coords, ["x", "y"], "y")}`;
+      }
+      if (mode === "3d") {
+        return `Winning line: ${buildLineEquationSystem(coords, ["x", "y", "z"], "z")}`;
+      }
+      return `Winning line: ${buildLineEquationSystem(coords, ["x", "y", "z", "w"], "w")}`;
+    }
+
+    function build3DWinLines() {
+      const dirs = [
+        [1, 0, 0], [0, 1, 0], [0, 0, 1],
+        [1, 1, 0], [1, -1, 0],
+        [1, 0, 1], [1, 0, -1],
+        [0, 1, 1], [0, 1, -1],
+        [1, 1, 1], [1, 1, -1], [1, -1, 1], [1, -1, -1]
+      ];
+      const lines = [];
+
+      for (let z = 0; z < 3; z += 1) {
+        for (let y = 0; y < 3; y += 1) {
+          for (let x = 0; x < 3; x += 1) {
+            for (const [dx, dy, dz] of dirs) {
+              const ex = x + 2 * dx;
+              const ey = y + 2 * dy;
+              const ez = z + 2 * dz;
+              if (ex < 0 || ex > 2 || ey < 0 || ey > 2 || ez < 0 || ez > 2) continue;
+
+              const px = x - dx;
+              const py = y - dy;
+              const pz = z - dz;
+              if (px >= 0 && px <= 2 && py >= 0 && py <= 2 && pz >= 0 && pz <= 2) continue;
+
+              lines.push([
+                idx3D(x, y, z),
+                idx3D(x + dx, y + dy, z + dz),
+                idx3D(ex, ey, ez)
+              ]);
+            }
+          }
+        }
+      }
+      return lines;
+    }
+
+    function build4DWinLines() {
+      const dirs = [];
+      for (let dx = -1; dx <= 1; dx += 1) {
+        for (let dy = -1; dy <= 1; dy += 1) {
+          for (let dz = -1; dz <= 1; dz += 1) {
+            for (let dw = -1; dw <= 1; dw += 1) {
+              if (dx === 0 && dy === 0 && dz === 0 && dw === 0) continue;
+              dirs.push([dx, dy, dz, dw]);
+            }
+          }
+        }
+      }
+
+      const lines = [];
+      for (let w = 0; w < 3; w += 1) {
+        for (let z = 0; z < 3; z += 1) {
+          for (let y = 0; y < 3; y += 1) {
+            for (let x = 0; x < 3; x += 1) {
+              for (const [dx, dy, dz, dw] of dirs) {
+                const ex = x + 2 * dx;
+                const ey = y + 2 * dy;
+                const ez = z + 2 * dz;
+                const ew = w + 2 * dw;
+                if (ex < 0 || ex > 2 || ey < 0 || ey > 2 || ez < 0 || ez > 2 || ew < 0 || ew > 2) continue;
+
+                const px = x - dx;
+                const py = y - dy;
+                const pz = z - dz;
+                const pw = w - dw;
+                if (px >= 0 && px <= 2 && py >= 0 && py <= 2 && pz >= 0 && pz <= 2 && pw >= 0 && pw <= 2) continue;
+
+                lines.push([
+                  idx4D(x, y, z, w),
+                  idx4D(x + dx, y + dy, z + dz, w + dw),
+                  idx4D(ex, ey, ez, ew)
+                ]);
+              }
+            }
+          }
+        }
+      }
+      return lines;
+    }
+
+    function cellCount() {
+      if (mode === "2d") return 9;
+      if (mode === "3d") return 27;
+      return 81;
+    }
+
+    function winLines() {
+      if (mode === "2d") return WIN_LINES_2D;
+      if (mode === "3d") return WIN_LINES_3D;
+      return WIN_LINES_4D;
+    }
+
+    function setMode(nextMode) {
+      if (mode === nextMode && !statsOpen) return;
+      clearAiTimer();
+      statsOpen = false;
+      mode = nextMode;
+      if (mode === "3d") activeLayer = 2;
+      selectedIndex = -1;
+      hoveredTopIndex = -1;
+      score = { x: 0, o: 0, draw: 0 };
+      buildBoardDom();
+      newRound();
+      render();
+    }
+
+    function setMatchType(nextType) {
+      if (matchType === nextType) return;
+      clearAiTimer();
+      matchType = nextType;
+      if (isAiMatch()) {
+        human = "X";
+        ai = "O";
+      }
+      score = { x: 0, o: 0, draw: 0 };
+      newRound();
+      render();
+    }
+
+    function setActiveLayer(nextLayer) {
+      if (nextLayer < 0 || nextLayer > 2) return;
+      activeLayer = nextLayer;
+      render();
+    }
+
+    function applyBoardViewClass() {
+      if (mode !== "3d") {
+        boardEl.classList.remove("cube");
+        return;
+      }
+      boardEl.classList.add("cube");
+    }
+
+    function apply3DViewTransform() {
+      const voxelBoard = boardEl.querySelector(".voxel-board");
+      if (!voxelBoard) return;
+      voxelBoard.style.transform =
+        `translate(-50%, -50%) rotateX(${viewRotateX}deg) rotateZ(${viewRotateZ}deg)`;
+    }
+
+    function buildBoardDom() {
+      boardEl.innerHTML = "";
+      boardEl.classList.toggle("board-2d", mode === "2d");
+      boardEl.classList.toggle("board-3d", mode === "3d");
+      boardEl.classList.toggle("board-4d", mode === "4d");
+      applyBoardViewClass();
+
+      if (mode === "2d") {
+        for (let i = 0; i < 9; i += 1) {
+          boardEl.appendChild(createCell(i));
+        }
+        boardEl.setAttribute("aria-label", "2D 3x3 board");
+      } else if (mode === "3d") {
+        const scene = document.createElement("div");
+        scene.className = "voxel-scene";
+        const voxelBoard = document.createElement("div");
+        voxelBoard.className = "voxel-board";
+
+        for (let z = 0; z < 3; z += 1) {
+          for (let y = 0; y < 3; y += 1) {
+            for (let x = 0; x < 3; x += 1) {
+              voxelBoard.appendChild(createCell(idx3D(x, y, z), { x, y, z }));
+            }
+          }
+        }
+
+        scene.appendChild(voxelBoard);
+        boardEl.appendChild(scene);
+        boardEl.setAttribute("aria-label", "3D 3x3x3 board");
+        apply3DViewTransform();
+      } else {
+        const hyperBoard = document.createElement("div");
+        hyperBoard.className = "hyper-board";
+        for (let w = 0; w < 3; w += 1) {
+          for (let z = 0; z < 3; z += 1) {
+            for (let y = 0; y < 3; y += 1) {
+              for (let x = 0; x < 3; x += 1) {
+                const cell = createCell(idx4D(x, y, z, w));
+                const row = w * 4 + y + 1;
+                const col = z * 4 + x + 1;
+                const hue = HYPER_SLICE_HUES[w * 3 + z];
+                cell.style.gridRow = String(row);
+                cell.style.gridColumn = String(col);
+                cell.style.setProperty("--slice-h", String(hue));
+                hyperBoard.appendChild(cell);
+              }
+            }
+          }
+        }
+        boardEl.appendChild(hyperBoard);
+        boardEl.setAttribute("aria-label", "4D 3x3x3x3 board");
+      }
+    }
+
+    function createCell(index, coord = null) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "cell";
+      btn.dataset.index = String(index);
+      const z = coord ? coord.z : Math.floor(index / 9);
+      btn.dataset.layer = String(z);
+      if (coord) {
+        btn.classList.add("voxel");
+        btn.style.setProperty("--x", String(coord.x));
+        btn.style.setProperty("--y", String(coord.y));
+        btn.style.setProperty("--z", String(coord.z));
+        const faces = ["front", "back", "right", "left", "top", "bottom"];
+        for (const face of faces) {
+          const faceEl = document.createElement("span");
+          faceEl.className = `face ${face}`;
+          btn.appendChild(faceEl);
+        }
+        const hitFaceEl = document.createElement("span");
+        hitFaceEl.className = "hit-face";
+        btn.appendChild(hitFaceEl);
+        const markEl = document.createElement("span");
+        markEl.className = "mark";
+        btn.appendChild(markEl);
+      }
+      btn.setAttribute("aria-label", `Cell ${index + 1}`);
+      btn.addEventListener("click", onCellClick);
+      return btn;
+    }
+
+    function getCells() {
+      return [...boardEl.querySelectorAll(".cell")];
+    }
+
+    function getPreferredVoxelAtPoint(clientX, clientY) {
+      if (mode !== "3d") return null;
+      const preferredLayer = hoveredTopIndex >= 0
+        ? Math.floor(hoveredTopIndex / 9)
+        : activeLayer;
+      let preferredLayerFaceHit = null;
+      let fallbackFaceHit = null;
+
+      for (const el of document.elementsFromPoint(clientX, clientY)) {
+        if (!boardEl.contains(el)) continue;
+        if (!(el instanceof HTMLElement)) continue;
+        const cell = el.closest(".cell.voxel");
+        if (!cell) continue;
+        const index = Number(cell.dataset.index);
+        if (board[index] !== "") continue;
+        const hit = {
+          cell,
+          index,
+          layer: Number(cell.dataset.layer)
+        };
+
+        if (el.classList.contains("face")) {
+          if (hit.layer === preferredLayer && !preferredLayerFaceHit) {
+            preferredLayerFaceHit = hit;
+          }
+          if (!fallbackFaceHit) {
+            fallbackFaceHit = hit;
+          }
+        }
+      }
+
+      if (preferredLayerFaceHit) {
+        activeLayer = preferredLayerFaceHit.layer;
+        return preferredLayerFaceHit;
+      }
+      if (fallbackFaceHit) {
+        activeLayer = fallbackFaceHit.layer;
+        return fallbackFaceHit;
+      }
+      return null;
+    }
+
+    function updateHoveredVoxelFromPoint(clientX, clientY) {
+      const previousLayer = activeLayer;
+      const hit = getPreferredVoxelAtPoint(clientX, clientY);
+      const nextIndex = hit ? hit.index : -1;
+      if (hoveredTopIndex === nextIndex && previousLayer === activeLayer) return;
+      hoveredTopIndex = nextIndex;
+      selectedIndex = nextIndex;
+      render();
+    }
+
+    function layerText(z) {
+      if (z === 2) return "Front";
+      if (z === 1) return "Middle";
+      return "Back";
+    }
+
+    function isAiMatch() {
+      return matchType === "ai";
+    }
+
+    function isHumanTurn() {
+      return isAiMatch() ? current === human : true;
+    }
+
+    function clearAiTimer() {
+      if (!aiTimerId) return;
+      window.clearTimeout(aiTimerId);
+      aiTimerId = 0;
+    }
+
+    function queueAiTurnIfNeeded() {
+      if (!isAiMatch() || roundOver || current !== ai) return false;
+      statusEl.textContent = "AI is thinking...";
+      render();
+      clearAiTimer();
+      aiTimerId = window.setTimeout(() => {
+        aiTimerId = 0;
+        playAiTurn();
+      }, 260);
+      return true;
+    }
+
+    function turnLabel() {
+      if (isAiMatch()) {
+        return current === human ? "Your turn." : "AI is thinking...";
+      }
+      return current === "X" ? "Player X's turn." : "Player O's turn.";
+    }
+
+    function scoreText() {
+      if (isAiMatch()) {
+        const youScore = human === "X" ? score.x : score.o;
+        const aiScore = ai === "X" ? score.x : score.o;
+        return `You: ${youScore} | AI: ${aiScore} | Draws: ${score.draw}`;
+      }
+      return `Player X: ${score.x} | Player O: ${score.o} | Draws: ${score.draw}`;
+    }
+
+    function isSupabaseConfigured() {
+      return Boolean(SUPABASE_CONFIG.url && SUPABASE_CONFIG.publishableKey);
+    }
+
+    function createInitialMatchupStats() {
+      return {
+        "2d": {
+          aiFirst: { wins: 0, games: 0, draws: 0 },
+          humanFirst: { wins: 0, games: 0, draws: 0 },
+          pvp: { wins: 0, games: 0, draws: 0 }
+        },
+        "3d": {
+          aiFirst: { wins: 0, games: 0, draws: 0 },
+          humanFirst: { wins: 0, games: 0, draws: 0 },
+          pvp: { wins: 0, games: 0, draws: 0 }
+        },
+        "4d": {
+          aiFirst: { wins: 0, games: 0, draws: 0 },
+          humanFirst: { wins: 0, games: 0, draws: 0 },
+          pvp: { wins: 0, games: 0, draws: 0 }
+        }
+      };
+    }
+
+    function statLine(label, stat) {
+      const rate = stat.games > 0 ? Math.round((stat.wins / stat.games) * 100) : 0;
+      return `${label}: ${rate}% (${stat.wins}/${stat.games}, draws ${stat.draws})`;
+    }
+
+    function statRates(stat) {
+      if (stat.games === 0) return { win: "0%", draw: "0%", lose: "0%" };
+      const win = Math.round((stat.wins / stat.games) * 100);
+      const draw = Math.round((stat.draws / stat.games) * 100);
+      const lose = Math.max(0, 100 - win - draw);
+      return {
+        win: `${win}%`,
+        draw: `${draw}%`,
+        lose: `${lose}%`
+      };
+    }
+
+    function statDetail(stat) {
+      const losses = Math.max(0, stat.games - stat.wins - stat.draws);
+      return `${stat.wins}/${stat.draws}/${losses}`;
+    }
+
+    function makeResultRecord(winner) {
+      if (isAiMatch()) {
+        return {
+          mode,
+          category: human === "O" ? "ai_first" : "human_first",
+          winner: winner === "draw" ? "draw" : (winner === ai ? "ai" : "human")
+        };
+      }
+      return {
+        mode,
+        category: "pvp",
+        winner: winner === "draw" ? "draw" : winner.toLowerCase()
+      };
+    }
+
+    function applyResultRecord(statsRoot, record) {
+      const stats = statsRoot[record.mode];
+      if (!stats) return;
+
+      if (record.category === "ai_first") {
+        stats.aiFirst.games += 1;
+        if (record.winner === "draw") stats.aiFirst.draws += 1;
+        if (record.winner === "ai") stats.aiFirst.wins += 1;
+        return;
+      }
+
+      if (record.category === "human_first") {
+        stats.humanFirst.games += 1;
+        if (record.winner === "draw") stats.humanFirst.draws += 1;
+        if (record.winner === "human") stats.humanFirst.wins += 1;
+        return;
+      }
+
+      if (record.category === "pvp") {
+        stats.pvp.games += 1;
+        if (record.winner === "draw") stats.pvp.draws += 1;
+        else stats.pvp.wins += 1;
+      }
+    }
+
+    function createStatsRows(statsRoot) {
+      const rows = [];
+      for (const dimension of ["2d", "3d", "4d"]) {
+        const stats = statsRoot[dimension];
+        const label = dimension.toUpperCase();
+        rows.push(`${label} | ${statLine("AI first", stats.aiFirst)}`);
+        rows.push(`${label} | ${statLine("Human first", stats.humanFirst)}`);
+        rows.push(`${label} | ${statLine("PvP first player", stats.pvpFirst)}`);
+        rows.push(`${label} | ${statLine("PvP second player", stats.pvpSecond)}`);
+      }
+      return rows;
+    }
+
+    function supabaseHeaders() {
+      return {
+        apikey: SUPABASE_CONFIG.publishableKey,
+        Authorization: `Bearer ${SUPABASE_CONFIG.publishableKey}`,
+        "Content-Type": "application/json"
+      };
+    }
+
+    async function loadRemoteMatchupStats() {
+      if (!isSupabaseConfigured()) {
+        remoteStatsState = "disabled";
+        remoteStatsMessage = "Supabase is not configured.";
+        return;
+      }
+
+      remoteStatsState = "loading";
+      remoteStatsMessage = "Loading global stats...";
+      render();
+
+      try {
+        const url = `${SUPABASE_CONFIG.url}/rest/v1/${SUPABASE_CONFIG.table}?select=mode,category,winner`;
+        const response = await fetch(url, {
+          headers: supabaseHeaders()
+        });
+        if (!response.ok) {
+          throw new Error(`Supabase stats fetch failed (${response.status})`);
+        }
+        const rows = await response.json();
+        const nextStats = createInitialMatchupStats();
+        for (const row of rows) {
+          applyResultRecord(nextStats, row);
+        }
+        remoteMatchupStats = nextStats;
+        remoteStatsState = "ready";
+        remoteStatsMessage = "Global stats";
+      } catch (error) {
+        remoteStatsState = "error";
+        remoteStatsMessage = error instanceof Error ? error.message : "Failed to load global stats.";
+      }
+
+      render();
+    }
+
+    async function submitRemoteResult(record) {
+      if (!isSupabaseConfigured()) return;
+      try {
+        const response = await fetch(`${SUPABASE_CONFIG.url}/rest/v1/${SUPABASE_CONFIG.table}`, {
+          method: "POST",
+          headers: {
+            ...supabaseHeaders(),
+            Prefer: "return=minimal"
+          },
+          body: JSON.stringify(record)
+        });
+        if (!response.ok) {
+          throw new Error(`Supabase insert failed (${response.status})`);
+        }
+        applyResultRecord(remoteMatchupStats, record);
+        remoteStatsState = "ready";
+        remoteStatsMessage = "Global stats";
+        render();
+      } catch (error) {
+        remoteStatsState = "error";
+        remoteStatsMessage = error instanceof Error ? error.message : "Failed to save global stats.";
+        render();
+      }
+    }
+
+    function renderStatsSummary() {
+      const sourceStats = isSupabaseConfigured() && remoteStatsState === "ready"
+        ? remoteMatchupStats
+        : matchupStats;
+      const heading = isSupabaseConfigured() ? "Global Win Rate Summary" : "Session Win Rate Summary";
+      const groups = [
+        { mode: "2D", stats: sourceStats["2d"] },
+        { mode: "3D", stats: sourceStats["3d"] },
+        { mode: "4D", stats: sourceStats["4d"] }
+      ];
+      statsSummaryEl.innerHTML = `
+        <strong>${heading}</strong>
+        <div class="stats-note">${remoteStatsMessage}</div>
+        <table>
+          <thead>
+            <tr>
+              <th>Mode</th>
+              <th>Category</th>
+              <th>Win</th>
+              <th>Draw</th>
+              <th>Lose</th>
+              <th>Detail (W/D/L)</th>
+            </tr>
+          </thead>
+          ${groups.map(({ mode, stats }) => {
+            const aiFirstRates = statRates(stats.aiFirst);
+            const humanFirstRates = statRates(stats.humanFirst);
+            const pvpRates = statRates(stats.pvp);
+            return `
+            <tbody>
+              <tr>
+                <td class="mode-cell" rowspan="3">${mode}</td>
+                <td class="category-cell">Human first</td>
+                <td class="rate">${humanFirstRates.win}</td>
+                <td class="rate">${humanFirstRates.draw}</td>
+                <td class="rate">${humanFirstRates.lose}</td>
+                <td class="detail">${statDetail(stats.humanFirst)}</td>
+              </tr>
+              <tr>
+                <td class="category-cell">AI first</td>
+                <td class="rate">${aiFirstRates.win}</td>
+                <td class="rate">${aiFirstRates.draw}</td>
+                <td class="rate">${aiFirstRates.lose}</td>
+                <td class="detail">${statDetail(stats.aiFirst)}</td>
+              </tr>
+              <tr>
+                <td class="category-cell">PvP (first player)</td>
+                <td class="rate">${pvpRates.win}</td>
+                <td class="rate">${pvpRates.draw}</td>
+                <td class="rate">${pvpRates.lose}</td>
+                <td class="detail">${statDetail(stats.pvp)}</td>
+              </tr>
+            </tbody>
+          `;
+          }).join("")}
+        </table>
+      `;
+    }
+
+    function recordMatchupResult(winner) {
+      const record = makeResultRecord(winner);
+      applyResultRecord(matchupStats, record);
+      void submitRemoteResult(record);
+    }
+
+    function render(winLine = currentWinLine) {
+      const cells = getCells();
+      const hoveredLayer = mode === "3d" && hoveredTopIndex >= 0 ? Math.floor(hoveredTopIndex / 9) : -1;
+      cells.forEach((cell) => {
+        const i = Number(cell.dataset.index);
+        const value = board[i] || "";
+        const selectionIndex = mode === "3d" ? hoveredTopIndex : selectedIndex;
+        const layer = Number(cell.dataset.layer);
+        if (cell.classList.contains("voxel")) {
+          const markEl = cell.querySelector(".mark");
+          if (markEl) markEl.textContent = value;
+        } else {
+          cell.textContent = value;
+        }
+        cell.classList.toggle("x", value === "X");
+        cell.classList.toggle("o", value === "O");
+        cell.classList.toggle("win", winLine.includes(i));
+        cell.classList.toggle("selected", i === selectionIndex);
+        cell.classList.toggle("hover-top", i === hoveredTopIndex);
+        cell.classList.toggle("hover-layer", mode === "3d" && hoveredLayer !== -1 && layer === hoveredLayer);
+        cell.classList.add("active-layer-cell");
+        cell.classList.remove("pass-through");
+        cell.classList.remove("dim");
+        cell.classList.remove("dim-empty");
+        cell.disabled = roundOver || value !== "" || !isHumanTurn();
+      });
+
+      const coordIndex = mode === "3d" ? hoveredTopIndex : selectedIndex;
+      const coord = coordFromIndex(coordIndex);
+      coordsEl.textContent = coord
+        ? `Cell: x=${coord.x}, y=${coord.y}, z=${coord.z}, w=${coord.w}`
+        : "";
+      winEquationEl.textContent = roundOver && currentWinLine.length > 0
+        ? winEquationText(currentWinLine)
+        : "";
+
+      scoreEl.textContent = scoreText();
+      renderStatsSummary();
+      mode2dBtn.classList.toggle("active", !statsOpen && mode === "2d");
+      mode3dBtn.classList.toggle("active", !statsOpen && mode === "3d");
+      mode4dBtn.classList.toggle("active", !statsOpen && mode === "4d");
+      statsBtn.classList.toggle("active", statsOpen);
+      statsSummaryEl.classList.toggle("hidden", !statsOpen);
+      gamePanelEl.classList.toggle("panel-hidden", statsOpen);
+      matchAiBtn.classList.toggle("active", isAiMatch());
+      matchPvpBtn.classList.toggle("active", !isAiMatch());
+      layerArrowsEl.classList.add("hidden");
+      viewArrowsEl.classList.toggle("hidden", mode !== "3d");
+      layerUpBtn.disabled = true;
+      layerDownBtn.disabled = true;
+      viewTiltUpBtn.disabled = viewRotateX >= VIEW_TILT_MAX;
+      viewTiltDownBtn.disabled = viewRotateX <= VIEW_TILT_MIN;
+      playAsXBtn.classList.toggle("active", human === "X");
+      playAsOBtn.classList.toggle("active", human === "O");
+      playAsXBtn.disabled = !isAiMatch();
+      playAsOBtn.disabled = !isAiMatch();
+      mattaBtn.disabled = moveHistory.length === 0;
+
+      subtextEl.textContent = "";
+    }
+
+    function evaluateState(testBoard) {
+      for (const line of winLines()) {
+        const [a, b, c] = line;
+        if (testBoard[a] && testBoard[a] === testBoard[b] && testBoard[a] === testBoard[c]) {
+          return { winner: testBoard[a], line };
+        }
+      }
+      if (testBoard.every((v) => v !== "")) return { winner: "draw", line: [] };
+      return { winner: null, line: [] };
+    }
+
+    function endRound(winner, line) {
+      roundOver = true;
+      hoveredTopIndex = -1;
+      currentWinLine = [...line];
+      recordMatchupResult(winner);
+      if (winner === "draw") {
+        score.draw += 1;
+        statusEl.textContent = "It's a draw.";
+      } else {
+        if (winner === "X") score.x += 1;
+        if (winner === "O") score.o += 1;
+        if (isAiMatch()) {
+          statusEl.textContent = winner === human ? "You win." : "AI wins.";
+        } else {
+          statusEl.textContent = winner === "X" ? "Player X wins." : "Player O wins.";
+        }
+      }
+      render(line);
+    }
+
+    function onMove(index) {
+      if (roundOver) return;
+      if (isAiMatch() && current !== human) return;
+      if (board[index] !== "") return;
+
+      if (mode === "3d") {
+        activeLayer = Math.floor(index / 9);
+      }
+      moveHistory.push({ index, player: current });
+      selectedIndex = index;
+      board[index] = current;
+      const result = evaluateState(board);
+      if (result.winner) {
+        endRound(result.winner, result.line);
+        return;
+      }
+      if (isAiMatch()) {
+        current = ai;
+        queueAiTurnIfNeeded();
+      } else {
+        current = current === "X" ? "O" : "X";
+        statusEl.textContent = turnLabel();
+        render();
+      }
+    }
+
+    function onCellClick(event) {
+      if (mode === "3d") return;
+      const index = Number(event.currentTarget.dataset.index);
+      onMove(index);
+    }
+
+    boardEl.addEventListener("pointermove", (event) => {
+      if (mode !== "3d") return;
+      if (roundOver) return;
+      updateHoveredVoxelFromPoint(event.clientX, event.clientY);
+    });
+
+    boardEl.addEventListener("pointerleave", () => {
+      if (roundOver) return;
+      if (hoveredTopIndex === -1) return;
+      hoveredTopIndex = -1;
+      selectedIndex = -1;
+      render();
+    });
+
+    boardEl.addEventListener("click", (event) => {
+      if (mode !== "3d") return;
+      if (roundOver) return;
+      const index = selectedIndex;
+      if (index === -1) return;
+      event.preventDefault();
+      onMove(index);
+    });
+
+    function playAiTurn() {
+      if (!isAiMatch()) return;
+      if (roundOver || current !== ai) return;
+      const bestMove = getAiMove(board);
+      if (bestMove === -1) return;
+
+      moveHistory.push({ index: bestMove, player: ai });
+      selectedIndex = bestMove;
+      board[bestMove] = ai;
+      const result = evaluateState(board);
+      if (result.winner) {
+        endRound(result.winner, result.line);
+        return;
+      }
+
+      current = human;
+      statusEl.textContent = turnLabel();
+      render();
+    }
+
+    function applyMatta() {
+      if (moveHistory.length === 0) return;
+      clearAiTimer();
+
+      let undoCount = 1;
+      if (isAiMatch()) {
+        const aiPending = !roundOver && current === ai;
+        undoCount = aiPending ? 1 : Math.min(2, moveHistory.length);
+      }
+
+      for (let i = 0; i < undoCount; i += 1) {
+        const last = moveHistory.pop();
+        if (!last) break;
+        board[last.index] = "";
+      }
+
+      roundOver = false;
+      hoveredTopIndex = -1;
+      selectedIndex = moveHistory.length > 0 ? moveHistory[moveHistory.length - 1].index : -1;
+      current = moveHistory.length > 0
+        ? (moveHistory[moveHistory.length - 1].player === "X" ? "O" : "X")
+        : "X";
+
+      statusEl.textContent = turnLabel();
+      render();
+      queueAiTurnIfNeeded();
+    }
+
+    function minimax(testBoard, turn, depth) {
+      const state = evaluateState(testBoard);
+      if (state.winner === ai) return 10 - depth;
+      if (state.winner === human) return depth - 10;
+      if (state.winner === "draw") return 0;
+
+      if (turn === ai) {
+        let best = -Infinity;
+        for (let i = 0; i < 9; i += 1) {
+          if (testBoard[i] !== "") continue;
+          testBoard[i] = ai;
+          best = Math.max(best, minimax(testBoard, human, depth + 1));
+          testBoard[i] = "";
+        }
+        return best;
+      }
+
+      let best = Infinity;
+      for (let i = 0; i < 9; i += 1) {
+        if (testBoard[i] !== "") continue;
+        testBoard[i] = human;
+        best = Math.min(best, minimax(testBoard, ai, depth + 1));
+        testBoard[i] = "";
+      }
+      return best;
+    }
+
+    function getBestMove2D(testBoard) {
+      let bestScore = -Infinity;
+      let move = -1;
+      for (let i = 0; i < 9; i += 1) {
+        if (testBoard[i] !== "") continue;
+        testBoard[i] = ai;
+        const scoreNow = minimax(testBoard, human, 0);
+        testBoard[i] = "";
+        if (scoreNow > bestScore) {
+          bestScore = scoreNow;
+          move = i;
+        }
+      }
+      return move;
+    }
+
+    function emptyCells(testBoard) {
+      const result = [];
+      for (let i = 0; i < testBoard.length; i += 1) {
+        if (testBoard[i] === "") result.push(i);
+      }
+      return result;
+    }
+
+    function findImmediateWinMove(testBoard, player) {
+      const empties = emptyCells(testBoard);
+      for (const i of empties) {
+        testBoard[i] = player;
+        const state = evaluateState(testBoard);
+        testBoard[i] = "";
+        if (state.winner === player) return i;
+      }
+      return -1;
+    }
+
+    function heuristic3DMoveScore(testBoard, move) {
+      let scoreNow = 0;
+
+      for (const line of WIN_LINES_3D) {
+        if (!line.includes(move)) continue;
+        let aiCount = 0;
+        let humanCount = 0;
+        for (const idx of line) {
+          if (testBoard[idx] === ai) aiCount += 1;
+          if (testBoard[idx] === human) humanCount += 1;
+        }
+        if (aiCount > 0 && humanCount > 0) continue;
+
+        if (aiCount > 0) {
+          if (aiCount === 1) scoreNow += 2;
+          if (aiCount === 2) scoreNow += 14;
+          if (aiCount === 3) scoreNow += 500;
+        }
+        if (humanCount > 0) {
+          if (humanCount === 1) scoreNow -= 1;
+          if (humanCount === 2) scoreNow -= 12;
+          if (humanCount === 3) scoreNow -= 400;
+        }
+      }
+
+      if (move === 13) scoreNow += 4;
+
+      const corners = new Set([0, 2, 6, 8, 18, 20, 24, 26]);
+      if (corners.has(move)) scoreNow += 2;
+
+      return scoreNow;
+    }
+
+    function heuristic4DMoveScore(testBoard, move) {
+      let scoreNow = 0;
+      for (const line of WIN_LINES_4D) {
+        if (!line.includes(move)) continue;
+        let aiCount = 0;
+        let humanCount = 0;
+        for (const idx of line) {
+          if (testBoard[idx] === ai) aiCount += 1;
+          if (testBoard[idx] === human) humanCount += 1;
+        }
+        if (aiCount > 0 && humanCount > 0) continue;
+
+        if (aiCount > 0) {
+          if (aiCount === 1) scoreNow += 3;
+          if (aiCount === 2) scoreNow += 18;
+          if (aiCount === 3) scoreNow += 800;
+        }
+        if (humanCount > 0) {
+          if (humanCount === 1) scoreNow -= 2;
+          if (humanCount === 2) scoreNow -= 16;
+          if (humanCount === 3) scoreNow -= 700;
+        }
+      }
+
+      if (move === idx4D(1, 1, 1, 1)) scoreNow += 8;
+      return scoreNow;
+    }
+
+    function getBestMove3D(testBoard) {
+      const winMove = findImmediateWinMove(testBoard, ai);
+      if (winMove !== -1) return winMove;
+
+      const blockMove = findImmediateWinMove(testBoard, human);
+      if (blockMove !== -1) return blockMove;
+
+      const empties = emptyCells(testBoard);
+      if (empties.length === 0) return -1;
+
+      let bestScore = -Infinity;
+      let candidates = [];
+
+      for (const i of empties) {
+        testBoard[i] = ai;
+        const scoreNow = heuristic3DMoveScore(testBoard, i);
+        testBoard[i] = "";
+
+        if (scoreNow > bestScore) {
+          bestScore = scoreNow;
+          candidates = [i];
+        } else if (scoreNow === bestScore) {
+          candidates.push(i);
+        }
+      }
+
+      return candidates[Math.floor(Math.random() * candidates.length)];
+    }
+
+    function getBestMove4D(testBoard) {
+      const winMove = findImmediateWinMove(testBoard, ai);
+      if (winMove !== -1) return winMove;
+
+      const blockMove = findImmediateWinMove(testBoard, human);
+      if (blockMove !== -1) return blockMove;
+
+      const empties = emptyCells(testBoard);
+      if (empties.length === 0) return -1;
+
+      let bestScore = -Infinity;
+      let candidates = [];
+      for (const i of empties) {
+        testBoard[i] = ai;
+        const scoreNow = heuristic4DMoveScore(testBoard, i);
+        testBoard[i] = "";
+
+        if (scoreNow > bestScore) {
+          bestScore = scoreNow;
+          candidates = [i];
+        } else if (scoreNow === bestScore) {
+          candidates.push(i);
+        }
+      }
+      return candidates[Math.floor(Math.random() * candidates.length)];
+    }
+
+    function getAiMove(testBoard) {
+      if (mode === "2d") return getBestMove2D(testBoard);
+      if (mode === "3d") return getBestMove3D(testBoard);
+      return getBestMove4D(testBoard);
+    }
+
+    function newRound() {
+      clearAiTimer();
+      board = Array(cellCount()).fill("");
+      moveHistory = [];
+      currentWinLine = [];
+      current = "X";
+      selectedIndex = -1;
+      hoveredTopIndex = -1;
+      roundOver = false;
+      statusEl.textContent = turnLabel();
+      render();
+      queueAiTurnIfNeeded();
+    }
+
+    mode2dBtn.addEventListener("click", () => {
+      setMode("2d");
+    });
+
+    mode3dBtn.addEventListener("click", () => {
+      setMode("3d");
+    });
+
+    mode4dBtn.addEventListener("click", () => {
+      setMode("4d");
+    });
+
+    statsBtn.addEventListener("click", () => {
+      statsOpen = !statsOpen;
+      render();
+    });
+
+    matchAiBtn.addEventListener("click", () => {
+      setMatchType("ai");
+    });
+
+    matchPvpBtn.addEventListener("click", () => {
+      setMatchType("pvp");
+    });
+
+    layerUpBtn.addEventListener("click", () => {
+      setActiveLayer(activeLayer + 1);
+    });
+
+    layerDownBtn.addEventListener("click", () => {
+      setActiveLayer(activeLayer - 1);
+    });
+
+    viewLeftBtn.addEventListener("click", () => {
+      viewRotateZ -= VIEW_STEP;
+      apply3DViewTransform();
+      render();
+    });
+
+    viewRightBtn.addEventListener("click", () => {
+      viewRotateZ += VIEW_STEP;
+      apply3DViewTransform();
+      render();
+    });
+
+    viewTiltUpBtn.addEventListener("click", () => {
+      viewRotateX = Math.min(VIEW_TILT_MAX, viewRotateX + VIEW_STEP);
+      apply3DViewTransform();
+      render();
+    });
+
+    viewTiltDownBtn.addEventListener("click", () => {
+      viewRotateX = Math.max(VIEW_TILT_MIN, viewRotateX - VIEW_STEP);
+      apply3DViewTransform();
+      render();
+    });
+
+    playAsXBtn.addEventListener("click", () => {
+      human = "X";
+      ai = "O";
+      newRound();
+    });
+
+    playAsOBtn.addEventListener("click", () => {
+      human = "O";
+      ai = "X";
+      newRound();
+    });
+
+    mattaBtn.addEventListener("click", () => {
+      applyMatta();
+    });
+
+    restartRoundBtn.addEventListener("click", () => {
+      newRound();
+    });
+
+    resetScoreBtn.addEventListener("click", () => {
+      score = { x: 0, o: 0, draw: 0 };
+      matchupStats = createInitialMatchupStats();
+      newRound();
+    });
+
+    buildBoardDom();
+    newRound();
+    void loadRemoteMatchupStats();
+  </script>
+  <script src="../shared/back-to-hub.js"></script>
+</body>
+</html>
