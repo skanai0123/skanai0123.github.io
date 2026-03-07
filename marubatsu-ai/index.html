@@ -51,6 +51,14 @@
       padding: 16px;
     }
 
+    body.wallpaper-mode {
+      background: var(--wallpaper-bg, linear-gradient(160deg, #f7f1e8, #eadfce));
+      align-content: center;
+      justify-items: center;
+      padding: 0;
+      overflow: hidden;
+    }
+
     .app {
       width: min(96vw, 760px);
       background: var(--card);
@@ -59,6 +67,79 @@
       padding: 18px;
       box-shadow: 0 20px 45px #7a4f211f;
       backdrop-filter: blur(6px);
+    }
+
+    .app.wallpaper {
+      width: 100vw;
+      height: 100dvh;
+      min-height: 0;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      background: transparent;
+      border-color: transparent;
+      box-shadow: none;
+      backdrop-filter: none;
+    }
+
+    body.wallpaper-mode #shared-back-to-hub-nav,
+    .app.wallpaper .title-bar,
+    .app.wallpaper .sub,
+    .app.wallpaper .controls-popover,
+    .app.wallpaper #gamePanel > .controls,
+    .app.wallpaper #status,
+    .app.wallpaper #hintText,
+    .app.wallpaper #coords,
+    .app.wallpaper #winEquation,
+    .app.wallpaper #quantumPanel,
+    .app.wallpaper .footer > :first-child,
+    .app.wallpaper .footer > div:last-child {
+      display: none !important;
+    }
+
+    .app.wallpaper .board-stage {
+      flex: 1 1 auto;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 0;
+    }
+
+    .app.wallpaper .board.board-2d {
+      grid-template-columns: repeat(3, minmax(112px, 1fr));
+    }
+
+    .app.wallpaper .board.board-3d.cube {
+      width: min(96vw, 1080px);
+      height: min(78vh, 760px);
+      max-height: calc(100dvh - 48px);
+    }
+
+    .app.wallpaper .voxel-scene,
+    .app.wallpaper .voxel-board {
+      --cube-size: 64px;
+      --cube-depth: var(--cube-size);
+      --step: 86px;
+    }
+
+    .app.wallpaper .voxel-board {
+      top: 30%;
+    }
+
+    .app.wallpaper .board.board-4d {
+      overflow: auto;
+      padding: 8px 0;
+    }
+
+    .app.wallpaper .hyper-board {
+      --hyper-cell-size: 82px;
+      --hyper-block-gap: 18px;
+    }
+
+    .app.wallpaper .footer {
+      display: none;
     }
 
     .title-bar {
@@ -354,21 +435,6 @@
       display: none;
     }
 
-    .view-arrows {
-      position: absolute;
-      right: -4px;
-      top: 50%;
-      transform: translateY(-50%);
-      display: grid;
-      grid-template-columns: repeat(2, 40px);
-      gap: 10px;
-      z-index: 8;
-    }
-
-    .view-arrows.hidden {
-      display: none;
-    }
-
     .layer-arrow-btn {
       width: 40px;
       height: 40px;
@@ -384,25 +450,6 @@
     }
 
     .layer-arrow-btn:disabled {
-      opacity: 0.4;
-      cursor: not-allowed;
-    }
-
-    .view-arrow-btn {
-      width: 40px;
-      height: 40px;
-      border: 1px solid #cc8e54;
-      border-radius: 10px;
-      background: #fff7ecdd;
-      color: #5a3618;
-      font: inherit;
-      font-size: 18px;
-      font-weight: 800;
-      cursor: pointer;
-      line-height: 1;
-    }
-
-    .view-arrow-btn:disabled {
       opacity: 0.4;
       cursor: not-allowed;
     }
@@ -1035,17 +1082,6 @@
         height: 34px;
         font-size: 18px;
       }
-      .view-arrows {
-        right: 20px;
-        top: -44px;
-        transform: none;
-        grid-template-columns: repeat(4, 34px);
-      }
-      .view-arrow-btn {
-        width: 34px;
-        height: 34px;
-        font-size: 16px;
-      }
       .voxel-board {
         --cube-size: 36px;
         --cube-depth: var(--cube-size);
@@ -1079,9 +1115,10 @@
   </style>
 </head>
 <body>
-  <main class="app">
+  <main id="app" class="app">
     <div class="title-bar">
       <h1>Tic-Tac-Toe AI</h1>
+      <button id="wallpaperBtn" type="button">Wallpaper</button>
       <button id="statsBtn" type="button">Stats</button>
     </div>
     <p id="subtext" class="sub">Switch between 2D and 3D. 2D uses optimal play, 3D uses a lightweight AI.</p>
@@ -1116,12 +1153,6 @@
         <div id="layerArrows" class="layer-arrows hidden" aria-label="Layer arrows">
           <button id="layerUpBtn" class="layer-arrow-btn" type="button" aria-label="Layer up">↑</button>
           <button id="layerDownBtn" class="layer-arrow-btn" type="button" aria-label="Layer down">↓</button>
-        </div>
-        <div id="viewArrows" class="view-arrows hidden" aria-label="View rotation">
-          <button id="viewTiltUpBtn" class="view-arrow-btn" type="button" aria-label="Tilt up">↑</button>
-          <button id="viewTiltDownBtn" class="view-arrow-btn" type="button" aria-label="Tilt down">↓</button>
-          <button id="viewLeftBtn" class="view-arrow-btn" type="button" aria-label="Rotate left">↶</button>
-          <button id="viewRightBtn" class="view-arrow-btn" type="button" aria-label="Rotate right">↷</button>
         </div>
         <section id="board" class="board board-2d" aria-label="Game board"></section>
       </div>
@@ -1166,6 +1197,8 @@
         <div id="score" class="score">You: 0 | AI: 0 | Draws: 0</div>
         <div>
           <button id="hintBtn" type="button">Hint</button>
+          <button id="aiAiLoopBtn" type="button" class="hidden">Run 20 Rounds</button>
+          <button id="aiAiInfiniteBtn" type="button" class="hidden">Run Infinite</button>
           <button id="mattaBtn" type="button">Matta</button>
           <button id="restartRound" type="button">Reset Round</button>
           <button id="resetScore" type="button">Reset Score</button>
@@ -1175,22 +1208,21 @@
   </main>
 
   <script>
+    const appEl = document.getElementById("app");
     const gamePanelEl = document.getElementById("gamePanel");
     const boardEl = document.getElementById("board");
     const layerArrowsEl = document.getElementById("layerArrows");
     const layerUpBtn = document.getElementById("layerUpBtn");
     const layerDownBtn = document.getElementById("layerDownBtn");
-    const viewArrowsEl = document.getElementById("viewArrows");
-    const viewTiltUpBtn = document.getElementById("viewTiltUpBtn");
-    const viewTiltDownBtn = document.getElementById("viewTiltDownBtn");
-    const viewLeftBtn = document.getElementById("viewLeftBtn");
-    const viewRightBtn = document.getElementById("viewRightBtn");
     const statusEl = document.getElementById("status");
     const hintTextEl = document.getElementById("hintText");
     const coordsEl = document.getElementById("coords");
     const winEquationEl = document.getElementById("winEquation");
     const subtextEl = document.getElementById("subtext");
     const scoreEl = document.getElementById("score");
+    const wallpaperBtn = document.getElementById("wallpaperBtn");
+    const aiAiLoopBtn = document.getElementById("aiAiLoopBtn");
+    const aiAiInfiniteBtn = document.getElementById("aiAiInfiniteBtn");
     const statsSummaryEl = document.getElementById("statsSummary");
     const quantumPanelEl = document.getElementById("quantumPanel");
     const quantumSettingsBtn = document.getElementById("quantumSettingsBtn");
@@ -1276,12 +1308,90 @@
     let quantumMinimaxCache = new Map();
     let quantumSettingsOpen = false;
     let quantumGraphSeries = [];
+    let autoAiRoundsRemaining = 0;
+    let autoAiRoundsTotal = 0;
+    let autoAiInfinite = false;
+    let wallpaperMode = false;
+    let wallpaperThemeIndex = 0;
 
     const QUANTUM_OUTER_O_RATES = [0.1, 0.2, 0.3, 0.5, 0.7, 0.8, 0.9];
+    const WALLPAPER_BACKGROUNDS = [
+      "linear-gradient(160deg, #f7f1e8, #eadfce)",
+      "linear-gradient(160deg, #f3ede2, #ddd0bd)",
+      "linear-gradient(160deg, #f6ece8, #e7d8d3)",
+      "linear-gradient(160deg, #f0f0ed, #d8d9d4)",
+      "radial-gradient(circle at 18% 18%, #fff7e7 0%, transparent 36%), linear-gradient(155deg, #efe1c7, #d9c3a1)",
+      "radial-gradient(circle at 80% 20%, #f8efe1 0%, transparent 34%), linear-gradient(155deg, #ece0d2, #d8cabf)",
+      "radial-gradient(circle at 24% 22%, #f8f5ef 0%, transparent 30%), radial-gradient(circle at 78% 78%, #ece6de 0%, transparent 32%), linear-gradient(150deg, #e8e1d5, #cac1b1)",
+      "linear-gradient(155deg, #ebe3da, #cdbfb1)",
+      "radial-gradient(circle at 50% 14%, #fff8ef 0%, transparent 28%), linear-gradient(165deg, #efe5da, #d3c0ac)",
+      "linear-gradient(160deg, #ece7df, #cfcabf)",
+      "radial-gradient(circle at 16% 22%, #fff3f0 0%, transparent 34%), linear-gradient(160deg, #ead8d4, #d3b7b1)",
+      "radial-gradient(circle at 82% 18%, #f5f7f6 0%, transparent 34%), linear-gradient(155deg, #dce2df, #bec8c2)",
+      "radial-gradient(circle at 20% 20%, #f8fbff 0%, transparent 34%), linear-gradient(160deg, #dce6ef, #bccad8)",
+      "radial-gradient(circle at 78% 24%, #f4f9ff 0%, transparent 32%), linear-gradient(160deg, #d5dee9, #b7c3d1)",
+      "linear-gradient(155deg, #e8eef2, #c4d0d7)",
+      "radial-gradient(circle at 22% 18%, #fbfff5 0%, transparent 32%), linear-gradient(160deg, #dfe8d7, #c3cfba)",
+      "linear-gradient(155deg, #e8ecdf, #c9d1ba)",
+      "radial-gradient(circle at 76% 18%, #faffef 0%, transparent 30%), linear-gradient(160deg, #e3e7cb, #cfd3ad)",
+      "linear-gradient(155deg, #efe8d5, #d6c8a8)",
+      "radial-gradient(circle at 18% 18%, #fff9ed 0%, transparent 34%), linear-gradient(160deg, #ead9bf, #ccb18d)",
+      "linear-gradient(160deg, #f3e4cf, #d6b490)",
+      "radial-gradient(circle at 76% 22%, #fef1dc 0%, transparent 32%), linear-gradient(160deg, #ecd2ab, #d4a36e)",
+      "linear-gradient(155deg, #ead6c4, #c7aa98)",
+      "radial-gradient(circle at 20% 22%, #fff1ec 0%, transparent 32%), linear-gradient(160deg, #e6c7bf, #c99f96)",
+      "linear-gradient(155deg, #e7d7d1, #c7b0a7)",
+      "radial-gradient(circle at 80% 18%, #fff7f6 0%, transparent 30%), linear-gradient(155deg, #e7dedd, #cbbfbd)",
+      "linear-gradient(155deg, #ebe8e6, #cdc7c3)",
+      "radial-gradient(circle at 24% 22%, #fbfbfb 0%, transparent 30%), linear-gradient(160deg, #e0e0df, #c1c1bf)",
+      "radial-gradient(circle at 18% 20%, #fffdf7 0%, transparent 32%), linear-gradient(155deg, #f0eadf, #d9cfbe)",
+      "linear-gradient(160deg, #ede6da, #cfc4b3)",
+      "radial-gradient(circle at 76% 18%, #fff8f2 0%, transparent 30%), linear-gradient(155deg, #efe0d5, #d6c3b5)",
+      "linear-gradient(160deg, #eadfd3, #c9b8aa)",
+      "radial-gradient(circle at 20% 18%, #f9fff7 0%, transparent 34%), linear-gradient(160deg, #e3eadf, #c8d0c1)",
+      "linear-gradient(155deg, #dfe6de, #bcc6ba)",
+      "radial-gradient(circle at 78% 22%, #f7fffb 0%, transparent 30%), linear-gradient(155deg, #d9e7e0, #b8c8c1)",
+      "linear-gradient(160deg, #d8e1dd, #b4c0bd)",
+      "radial-gradient(circle at 18% 18%, #f7ffff 0%, transparent 30%), linear-gradient(160deg, #d7e7e9, #b7cacc)",
+      "linear-gradient(155deg, #d8e4e7, #b5c4c8)",
+      "radial-gradient(circle at 82% 18%, #f9f7ff 0%, transparent 30%), linear-gradient(160deg, #ddd9ea, #bdb7cf)",
+      "linear-gradient(155deg, #ddd9e5, #bcb6c8)",
+      "radial-gradient(circle at 16% 20%, #fff6fe 0%, transparent 32%), linear-gradient(160deg, #ead8e8, #cbb7ca)",
+      "linear-gradient(155deg, #e4d4e1, #c2afbf)",
+      "radial-gradient(circle at 84% 20%, #fff6f9 0%, transparent 28%), linear-gradient(155deg, #ebd8df, #d0b6be)",
+      "linear-gradient(160deg, #e7d3d9, #c6aeb6)",
+      "radial-gradient(circle at 18% 16%, #fff9f0 0%, transparent 28%), radial-gradient(circle at 78% 78%, #f3e7cf 0%, transparent 30%), linear-gradient(160deg, #e9d7b5, #cfb07f)",
+      "linear-gradient(155deg, #ead7b8, #c9ac7a)",
+      "radial-gradient(circle at 82% 18%, #fff6e8 0%, transparent 30%), linear-gradient(160deg, #e7cfaa, #c8a26f)",
+      "linear-gradient(155deg, #e3c7a6, #bf956b)",
+      "radial-gradient(circle at 22% 18%, #f8f8f4 0%, transparent 32%), radial-gradient(circle at 78% 26%, #ecece6 0%, transparent 28%), linear-gradient(160deg, #dadad2, #b8b8af)",
+      "linear-gradient(155deg, #d5d5ce, #b2b2ab)",
+      "radial-gradient(circle at 76% 18%, #fcfcff 0%, transparent 32%), linear-gradient(160deg, #e1e4eb, #bec4cf)",
+      "linear-gradient(155deg, #dce0e8, #b6bcc8)",
+      "radial-gradient(circle at 18% 20%, #fbfff9 0%, transparent 32%), radial-gradient(circle at 80% 80%, #edf1e7 0%, transparent 28%), linear-gradient(160deg, #d8decc, #b9c1ad)",
+      "linear-gradient(155deg, #d6ddcc, #b5bea7)",
+      "radial-gradient(circle at 18% 16%, #fff8fb 0%, transparent 30%), radial-gradient(circle at 80% 78%, #f1dfe5 0%, transparent 28%), linear-gradient(160deg, #e5cbd5, #c2a7b1)",
+      "linear-gradient(155deg, #e0c3cf, #bb9da9)",
+      "linear-gradient(155deg, #2a2825, #3d3934)",
+      "radial-gradient(circle at 18% 18%, #47423b 0%, transparent 26%), linear-gradient(160deg, #23211e, #38342f)",
+      "linear-gradient(155deg, #22262c, #373d45)",
+      "radial-gradient(circle at 80% 18%, #46505d 0%, transparent 28%), linear-gradient(160deg, #1b2027, #303743)",
+      "linear-gradient(155deg, #242822, #3a4035)",
+      "radial-gradient(circle at 20% 18%, #505748 0%, transparent 26%), linear-gradient(160deg, #20231d, #34392f)",
+      "linear-gradient(155deg, #2d2627, #44393b)",
+      "radial-gradient(circle at 78% 18%, #5a4748 0%, transparent 28%), linear-gradient(160deg, #241c1d, #3c3032)",
+      "linear-gradient(155deg, #26232a, #3c3743)",
+      "radial-gradient(circle at 18% 18%, #4a4453 0%, transparent 26%), linear-gradient(160deg, #201d24, #34303b)",
+      "linear-gradient(155deg, #202225, #33363a)",
+      "radial-gradient(circle at 82% 20%, #4b4f55 0%, transparent 28%), linear-gradient(160deg, #191b1e, #2d3035)",
+      "linear-gradient(155deg, #2b2a24, #434138)",
+      "radial-gradient(circle at 24% 18%, #555245 0%, transparent 28%), linear-gradient(160deg, #201f1b, #37352f)",
+      "linear-gradient(155deg, #1f2326, #313840)",
+      "radial-gradient(circle at 76% 18%, #4c5763 0%, transparent 28%), linear-gradient(160deg, #171b20, #2b323a)"
+    ];
 
     const VIEW_TILT_MIN = 30;
     const VIEW_TILT_MAX = 80;
-    const VIEW_STEP = 10;
     const AUTO_ROTATE_DEG_PER_SEC = 10;
 
     function idx3D(x, y, z) {
@@ -1908,6 +2018,7 @@
     function setMode(nextMode) {
       if (mode === nextMode && !statsOpen) return;
       clearAiTimer();
+      stopAiAiAutoRun();
       statsOpen = false;
       mode = nextMode;
       if (mode === "3d") activeLayer = 2;
@@ -1923,6 +2034,7 @@
     function set2DVariant(nextVariant) {
       if (twoDVariant === nextVariant && mode === "2d" && !statsOpen) return;
       clearAiTimer();
+      stopAiAiAutoRun();
       statsOpen = false;
       twoDVariant = nextVariant;
       quantumMinimaxCache = new Map();
@@ -1938,6 +2050,7 @@
     function set2DModeVariant(nextVariant) {
       if (mode === "2d" && twoDVariant === nextVariant && !statsOpen) return;
       clearAiTimer();
+      stopAiAiAutoRun();
       statsOpen = false;
       mode = "2d";
       twoDVariant = nextVariant;
@@ -1954,6 +2067,7 @@
     function setMatchType(nextType) {
       if (matchType === nextType) return;
       clearAiTimer();
+      stopAiAiAutoRun();
       matchType = nextType;
       clearHint();
       if (matchType === "ai" || matchType === "ai_ai") {
@@ -1965,9 +2079,60 @@
       render();
     }
 
+    function setWallpaperMode(nextValue) {
+      if (wallpaperMode === nextValue) return;
+      wallpaperMode = nextValue;
+      if (wallpaperMode) {
+        statsOpen = false;
+        if (isAiVsAiMatch() && autoAiRoundsRemaining === 0 && !autoAiInfinite) {
+          startAiAiInfiniteRun();
+        }
+      } else if (autoAiInfinite) {
+        stopAiAiAutoRun();
+      }
+      render();
+    }
+
+    function setWallpaperThemeIndex(nextIndex) {
+      const length = WALLPAPER_BACKGROUNDS.length;
+      wallpaperThemeIndex = ((nextIndex % length) + length) % length;
+      render();
+    }
+
     function setActiveLayer(nextLayer) {
       if (nextLayer < 0 || nextLayer > 2) return;
       activeLayer = nextLayer;
+      render();
+    }
+
+    function stopAiAiAutoRun() {
+      autoAiRoundsRemaining = 0;
+      autoAiRoundsTotal = 0;
+      autoAiInfinite = false;
+    }
+
+    function startAiAiAutoRun(rounds = 20) {
+      if (!isAiVsAiMatch()) return;
+      autoAiInfinite = false;
+      autoAiRoundsTotal = rounds;
+      if (roundOver) {
+        autoAiRoundsRemaining = Math.max(0, rounds - 1);
+        newRound();
+        return;
+      }
+      autoAiRoundsRemaining = rounds;
+      render();
+    }
+
+    function startAiAiInfiniteRun() {
+      if (!isAiVsAiMatch()) return;
+      autoAiInfinite = true;
+      autoAiRoundsRemaining = 0;
+      autoAiRoundsTotal = 0;
+      if (roundOver) {
+        newRound();
+        return;
+      }
       render();
     }
 
@@ -1982,8 +2147,9 @@
     function apply3DViewTransform() {
       const voxelBoard = boardEl.querySelector(".voxel-board");
       if (!voxelBoard) return;
+      const effectiveRotateX = Math.max(46, viewRotateX - (wallpaperMode && mode === "3d" ? 8 : 0));
       voxelBoard.style.transform =
-        `translate(-50%, -50%) rotateX(${viewRotateX}deg) rotateZ(${viewRotateZ + autoRotateZ}deg)`;
+        `translate(-50%, -50%) rotateX(${effectiveRotateX}deg) rotateZ(${viewRotateZ + autoRotateZ}deg)`;
     }
 
     function stop3DAutoRotate() {
@@ -3032,14 +3198,18 @@
 
       scoreEl.textContent = scoreText();
       renderStatsSummary();
+      appEl.classList.toggle("wallpaper", wallpaperMode);
+      document.body.classList.toggle("wallpaper-mode", wallpaperMode);
+      document.body.style.setProperty("--wallpaper-bg", WALLPAPER_BACKGROUNDS[wallpaperThemeIndex]);
       mode2dClassicBtn.classList.toggle("active", !statsOpen && mode === "2d" && twoDVariant === "classic");
       mode2dQuantum1Btn.classList.toggle("active", !statsOpen && mode === "2d" && twoDVariant === "quantum1");
       mode2dQuantum2Btn.classList.toggle("active", !statsOpen && mode === "2d" && twoDVariant === "quantum2");
       mode3dBtn.classList.toggle("active", !statsOpen && mode === "3d");
       mode4dBtn.classList.toggle("active", !statsOpen && mode === "4d");
+      wallpaperBtn.classList.toggle("active", wallpaperMode);
       statsBtn.classList.toggle("active", statsOpen);
-      statsSummaryEl.classList.toggle("hidden", !statsOpen);
-      gamePanelEl.classList.toggle("panel-hidden", statsOpen);
+      statsSummaryEl.classList.toggle("hidden", !statsOpen || wallpaperMode);
+      gamePanelEl.classList.toggle("panel-hidden", statsOpen && !wallpaperMode);
       quantumPanelEl.classList.toggle("hidden", mode !== "2d" || twoDVariant !== "quantum1" || statsOpen);
       quantumPanelBodyEl.classList.toggle("hidden", !quantumSettingsOpen);
       quantumSettingsBtn.classList.toggle("active", quantumSettingsOpen);
@@ -3047,17 +3217,24 @@
       matchAiAiBtn.classList.toggle("active", isAiVsAiMatch());
       matchPvpBtn.classList.toggle("active", matchType === "pvp");
       layerArrowsEl.classList.add("hidden");
-      viewArrowsEl.classList.toggle("hidden", mode !== "3d");
       layerUpBtn.disabled = true;
       layerDownBtn.disabled = true;
-      viewTiltUpBtn.disabled = viewRotateX >= VIEW_TILT_MAX;
-      viewTiltDownBtn.disabled = viewRotateX <= VIEW_TILT_MIN;
       playAsXBtn.classList.toggle("active", human === "X");
       playAsOBtn.classList.toggle("active", human === "O");
       playAsXBtn.disabled = !isAiMatch();
       playAsOBtn.disabled = !isAiMatch();
       hintBtn.classList.toggle("hidden", isAiVsAiMatch() || (isAiMatch() && human !== "X") || isQuantum2Mode());
       hintBtn.disabled = isAiVsAiMatch() || (isAiMatch() && human !== "X") || roundOver || !isHumanTurn() || current !== "X" || quantumSimRunning || isQuantum2Mode();
+      aiAiLoopBtn.classList.toggle("hidden", !isAiVsAiMatch());
+      aiAiInfiniteBtn.classList.toggle("hidden", !isAiVsAiMatch());
+      aiAiLoopBtn.disabled = quantumSimRunning;
+      aiAiInfiniteBtn.disabled = quantumSimRunning;
+      aiAiLoopBtn.textContent = autoAiRoundsRemaining > 0
+        ? `Stop Auto (${autoAiRoundsRemaining} left)`
+        : "Run 20 Rounds";
+      aiAiInfiniteBtn.textContent = autoAiInfinite
+        ? "Stop Infinite"
+        : "Run Infinite";
       mattaBtn.disabled = isQuantum1Mode() || isQuantum2Mode() || moveHistory.length === 0 || quantumSimRunning;
       quantumSimBtn.disabled = quantumSimRunning;
       quantumGraphBtn.disabled = quantumSimRunning;
@@ -3112,6 +3289,16 @@
         }
       }
       render(line);
+      if (isAiVsAiMatch() && (autoAiInfinite || autoAiRoundsRemaining > 0)) {
+        if (!autoAiInfinite) autoAiRoundsRemaining -= 1;
+        window.setTimeout(() => {
+          if (!isAiVsAiMatch() || (!autoAiInfinite && autoAiRoundsRemaining <= 0)) {
+            render();
+            return;
+          }
+          newRound();
+        }, 220);
+      }
     }
 
     function onMove(index) {
@@ -3783,8 +3970,32 @@
     });
 
     statsBtn.addEventListener("click", () => {
+      if (wallpaperMode) wallpaperMode = false;
       statsOpen = !statsOpen;
       render();
+    });
+
+    wallpaperBtn.addEventListener("click", () => {
+      setWallpaperMode(!wallpaperMode);
+    });
+
+    window.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && wallpaperMode) {
+        setWallpaperMode(false);
+        return;
+      }
+      if (!wallpaperMode) return;
+      if (event.key === "b" || event.key === "B") {
+        setWallpaperThemeIndex(wallpaperThemeIndex + 1);
+        return;
+      }
+      if (/^[1-9]$/.test(event.key)) {
+        setWallpaperThemeIndex(Number(event.key) - 1);
+        return;
+      }
+      if (event.key === "0") {
+        setWallpaperThemeIndex(9);
+      }
     });
 
     matchAiBtn.addEventListener("click", () => {
@@ -3805,30 +4016,6 @@
 
     layerDownBtn.addEventListener("click", () => {
       setActiveLayer(activeLayer - 1);
-    });
-
-    viewLeftBtn.addEventListener("click", () => {
-      viewRotateZ -= VIEW_STEP;
-      apply3DViewTransform();
-      render();
-    });
-
-    viewRightBtn.addEventListener("click", () => {
-      viewRotateZ += VIEW_STEP;
-      apply3DViewTransform();
-      render();
-    });
-
-    viewTiltUpBtn.addEventListener("click", () => {
-      viewRotateX = Math.min(VIEW_TILT_MAX, viewRotateX + VIEW_STEP);
-      apply3DViewTransform();
-      render();
-    });
-
-    viewTiltDownBtn.addEventListener("click", () => {
-      viewRotateX = Math.max(VIEW_TILT_MIN, viewRotateX - VIEW_STEP);
-      apply3DViewTransform();
-      render();
     });
 
     playAsXBtn.addEventListener("click", () => {
@@ -3880,13 +4067,35 @@
     });
 
     restartRoundBtn.addEventListener("click", () => {
+      stopAiAiAutoRun();
       newRound();
     });
 
     resetScoreBtn.addEventListener("click", () => {
+      stopAiAiAutoRun();
       score = { x: 0, o: 0, draw: 0 };
       matchupStats = createInitialMatchupStats();
       newRound();
+    });
+
+    aiAiLoopBtn.addEventListener("click", () => {
+      if (!isAiVsAiMatch()) return;
+      if (autoAiRoundsRemaining > 0 || autoAiInfinite) {
+        stopAiAiAutoRun();
+        render();
+        return;
+      }
+      startAiAiAutoRun(20);
+    });
+
+    aiAiInfiniteBtn.addEventListener("click", () => {
+      if (!isAiVsAiMatch()) return;
+      if (autoAiInfinite || autoAiRoundsRemaining > 0) {
+        stopAiAiAutoRun();
+        render();
+        return;
+      }
+      startAiAiInfiniteRun();
     });
 
     buildBoardDom();
