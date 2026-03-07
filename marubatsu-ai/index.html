@@ -1156,19 +1156,24 @@
         </div>
         <section id="board" class="board board-2d" aria-label="Game board"></section>
       </div>
-      <section id="quantumPanel" class="quantum-panel hidden" aria-label="Quantum A settings">
-        <div class="controls" aria-label="Quantum A settings toggle">
+      <section id="quantumPanel" class="quantum-panel hidden" aria-label="Quantum settings">
+        <div class="controls" aria-label="Quantum settings toggle">
           <button id="quantumSettingsBtn" type="button">Settings</button>
         </div>
         <div id="quantumPanelBody" class="quantum-panel-body hidden">
-          <strong>Quantum A Settings</strong>
-          <div class="quantum-row">
+          <strong id="quantumPanelTitle">Quantum A Settings</strong>
+          <div id="quantumARow" class="quantum-row">
             <label for="centerOAdvantage">Center O collapse rate</label>
             <input id="centerOAdvantage" type="range" min="0" max="100" step="1" value="50">
             <span id="centerOAdvantageValue" class="quantum-meta">50%</span>
           </div>
-          <div class="quantum-row">
-            <span id="quantumOuterSummary" class="quantum-meta">Other cells: O uses 10/30/50/70/90 or 20/80 patterns</span>
+          <div id="quantumBBaseRow" class="quantum-row hidden">
+            <label for="quantumBBaseOwnerRate">Owner collapse rate</label>
+            <input id="quantumBBaseOwnerRate" type="range" min="0" max="100" step="1" value="70">
+            <span id="quantumBBaseOwnerRateValue" class="quantum-meta">70%</span>
+          </div>
+          <div id="quantumAToolsRow" class="quantum-row">
+            <span id="quantumOuterSummary" class="quantum-meta">Other cells: always 4 O-favored and 4 X-favored using 10/20/30 and 70/80/90 patterns</span>
             <label for="quantumGraphRounds">Rounds</label>
             <select id="quantumGraphRounds" class="quantum-rounds-select">
               <option value="100" selected>100</option>
@@ -1197,7 +1202,6 @@
         <div id="score" class="score">You: 0 | AI: 0 | Draws: 0</div>
         <div>
           <button id="hintBtn" type="button">Hint</button>
-          <button id="aiAiLoopBtn" type="button" class="hidden">Run 20 Rounds</button>
           <button id="aiAiInfiniteBtn" type="button" class="hidden">Run Infinite</button>
           <button id="mattaBtn" type="button">Matta</button>
           <button id="restartRound" type="button">Reset Round</button>
@@ -1221,14 +1225,19 @@
     const subtextEl = document.getElementById("subtext");
     const scoreEl = document.getElementById("score");
     const wallpaperBtn = document.getElementById("wallpaperBtn");
-    const aiAiLoopBtn = document.getElementById("aiAiLoopBtn");
     const aiAiInfiniteBtn = document.getElementById("aiAiInfiniteBtn");
     const statsSummaryEl = document.getElementById("statsSummary");
     const quantumPanelEl = document.getElementById("quantumPanel");
     const quantumSettingsBtn = document.getElementById("quantumSettingsBtn");
     const quantumPanelBodyEl = document.getElementById("quantumPanelBody");
+    const quantumPanelTitleEl = document.getElementById("quantumPanelTitle");
+    const quantumARowEl = document.getElementById("quantumARow");
+    const quantumAToolsRowEl = document.getElementById("quantumAToolsRow");
+    const quantumBBaseRowEl = document.getElementById("quantumBBaseRow");
     const centerOAdvantageInput = document.getElementById("centerOAdvantage");
     const centerOAdvantageValueEl = document.getElementById("centerOAdvantageValue");
+    const quantumBBaseOwnerRateInput = document.getElementById("quantumBBaseOwnerRate");
+    const quantumBBaseOwnerRateValueEl = document.getElementById("quantumBBaseOwnerRateValue");
     const quantumOuterSummaryEl = document.getElementById("quantumOuterSummary");
     const quantumGraphRoundsEl = document.getElementById("quantumGraphRounds");
     const quantumSimBtn = document.getElementById("quantumSimBtn");
@@ -1300,21 +1309,27 @@
     let remoteStatsState = "disabled";
     let remoteStatsMessage = "Supabase is not configured.";
     let quantumCenterORate = 0.5;
+    let quantum2OwnerRate = 0.7;
     let quantumOuterORates = Array(9).fill(0.5);
     let quantum2Cells = createQuantum2Cells();
     let quantum2PendingCell = -1;
     let quantum2ActionStep = 0;
     let quantumSimRunning = false;
     let quantumMinimaxCache = new Map();
+    let quantum2SearchCache = new Map();
+    let quantum2PairChoiceCache = new Map();
+    let quantum2OutcomeCache = new Map();
+    let quantum2DeterministicSummaryCache = new Map();
+    let quantum2ExactSolveEnabled = false;
+    let quantum2AnalysisMode = false;
     let quantumSettingsOpen = false;
     let quantumGraphSeries = [];
-    let autoAiRoundsRemaining = 0;
-    let autoAiRoundsTotal = 0;
     let autoAiInfinite = false;
     let wallpaperMode = false;
     let wallpaperThemeIndex = 0;
 
-    const QUANTUM_OUTER_O_RATES = [0.1, 0.2, 0.3, 0.5, 0.7, 0.8, 0.9];
+    const QUANTUM_OUTER_O_LOW_RATES = [0.1, 0.2, 0.3];
+    const QUANTUM_OUTER_O_HIGH_RATES = [0.7, 0.8, 0.9];
     const WALLPAPER_BACKGROUNDS = [
       "linear-gradient(160deg, #f7f1e8, #eadfce)",
       "linear-gradient(160deg, #f3ede2, #ddd0bd)",
@@ -1630,8 +1645,11 @@
     function generateQuantumOuterORates() {
       const nextRates = Array(9).fill(0.5);
       const outerIndexes = [0, 1, 2, 3, 5, 6, 7, 8];
-      for (const index of outerIndexes) {
-        nextRates[index] = QUANTUM_OUTER_O_RATES[Math.floor(Math.random() * QUANTUM_OUTER_O_RATES.length)];
+      const shuffled = [...outerIndexes].sort(() => Math.random() - 0.5);
+      for (let i = 0; i < shuffled.length; i += 1) {
+        const index = shuffled[i];
+        const ratePool = i < 4 ? QUANTUM_OUTER_O_HIGH_RATES : QUANTUM_OUTER_O_LOW_RATES;
+        nextRates[index] = ratePool[Math.floor(Math.random() * ratePool.length)];
       }
       nextRates[4] = quantumCenterORate;
       return nextRates;
@@ -1676,10 +1694,7 @@
     }
 
     function quantum2CellProbabilities(index) {
-      const cell = quantum2Cells[index];
-      if (!cell.touches[0]) return { x: 0.5, o: 0.5 };
-      const first = cell.touches[0];
-      return first.player === "X" ? { x: 0.65, o: 0.35 } : { x: 0.35, o: 0.65 };
+      return quantum2CellProbabilitiesFromCells(quantum2Cells, index);
     }
 
     function quantum2LabelsForCell(index) {
@@ -1695,6 +1710,14 @@
       return cells.map((cell) => ({
         touches: cell.touches.map((touch) => ({ ...touch }))
       }));
+    }
+
+    function quantum2CommitPendingTouches(targetCells = quantum2Cells) {
+      for (const cell of targetCells) {
+        for (const touch of cell.touches) {
+          touch.fresh = false;
+        }
+      }
     }
 
     function quantum2EvaluateBoardState(testBoard, testCells, player) {
@@ -1746,7 +1769,7 @@
       }
       const cell = testCells[index];
       if (cell.touches.length === 0) {
-        cell.touches.push({ player, phase });
+        cell.touches.push({ player, phase, fresh: true });
         return { ok: true, board: testBoard, cells: testCells, resolved: null };
       }
 
@@ -1765,15 +1788,15 @@
       if (!firstTouch) {
         return { probs: { x: 0.5, o: 0.5 } };
       }
-      if (firstTouch.player === player) {
+      if (firstTouch.player === player && firstTouch.fresh) {
         return player === "X"
           ? { probs: { x: 1, o: 0 } }
           : { probs: { x: 0, o: 1 } };
       }
-      const secondWins = firstTouch.phase !== phase ? 0.7 : 0.3;
-      return player === "X"
-        ? { probs: { x: secondWins, o: 1 - secondWins } }
-        : { probs: { x: 1 - secondWins, o: secondWins } };
+      const ownerRate = quantum2OwnerRateForTouch(index, firstTouch);
+      return firstTouch.player === "X"
+        ? { probs: { x: ownerRate, o: 1 - ownerRate } }
+        : { probs: { x: 1 - ownerRate, o: ownerRate } };
     }
 
     function quantum2ExpandActionStates(state, index, player, phase) {
@@ -1785,7 +1808,7 @@
       const cell = cellsCopy[index];
 
       if (cell.touches.length === 0) {
-        cell.touches.push({ player, phase });
+        cell.touches.push({ player, phase, fresh: true });
         return [{ board: boardCopy, cells: cellsCopy, prob: baseProb }];
       }
 
@@ -1844,9 +1867,9 @@
       return ranked.slice(0, limit).map((item) => item.index);
     }
 
-    function quantum2EnumerateTopPairs(state, player, limit = 12) {
+    function quantum2EnumerateTopPairs(state, player, limit = 12, widthOverride = null) {
       const empties = state.board.filter((cell) => cell === "").length;
-      const width = empties >= 7 ? 3 : empties >= 5 ? 4 : 5;
+      const width = widthOverride ?? (empties >= 7 ? 3 : empties >= 5 ? 4 : 5);
       const firstChoices = quantum2RankActions(state, player, 1, width);
       const pairs = [];
       for (const first of firstChoices) {
@@ -1874,24 +1897,231 @@
       const cell = testCells[index];
       if (!cell.touches[0]) return { x: 0.5, o: 0.5 };
       const first = cell.touches[0];
-      return first.player === "X" ? { x: 0.65, o: 0.35 } : { x: 0.35, o: 0.65 };
+      const ownerRate = quantum2OwnerRateForTouch(index, first);
+      return first.player === "X"
+        ? { x: ownerRate, o: 1 - ownerRate }
+        : { x: 1 - ownerRate, o: ownerRate };
+    }
+
+    function quantum2OwnerRateForTouch(index, firstTouch) {
+      return quantum2OwnerRate;
+    }
+
+    function quantum2IsDeterministic() {
+      return quantum2OwnerRate <= 0.000001 || quantum2OwnerRate >= 0.999999;
+    }
+
+    function shouldUseExactQuantum2Solver() {
+      if (!quantum2IsDeterministic()) return false;
+      if (quantum2ExactSolveEnabled) return true;
+      return isQuantum2Mode() && quantum2OwnerRate >= 0.999999 && (isAiMatch() || isAiVsAiMatch());
+    }
+
+    function quantum2StateKey(state) {
+      const boardKey = state.board.map((cell) => cell || ".").join("");
+      const cellsKey = state.cells.map((cell) => {
+        if (!cell.touches[0]) return ".";
+        const touch = cell.touches[0];
+        return `${touch.player}${touch.phase > 0 ? "+" : "-"}`;
+      }).join("");
+      return `${boardKey}|${cellsKey}`;
+    }
+
+    function quantum2PairChoiceKey(state, player) {
+      return `${quantum2StateKey(state)}|${player}|${quantum2OwnerRate.toFixed(6)}|${quantum2ExactSolveEnabled ? "exact" : "fast"}`;
+    }
+
+    function quantum2OutcomeKey(state, player) {
+      return `${quantum2StateKey(state)}|${player}|${quantum2OwnerRate.toFixed(6)}`;
+    }
+
+    function quantum2SearchConfig(state) {
+      const empties = state.board.filter((cell) => cell === "").length;
+      if (quantum2IsDeterministic()) {
+        return {
+          width: empties,
+          pairLimit: Math.max(20, empties * empties),
+          replyDepth: empties >= 8 ? 2 : empties >= 6 ? 3 : 5
+        };
+      }
+      if (quantum2AnalysisMode) {
+        const nearBalanced = Math.abs(quantum2OwnerRate - 0.5) <= 0.08;
+        return {
+          width: empties >= 7 ? (nearBalanced ? 6 : 5) : empties >= 5 ? 6 : 7,
+          pairLimit: empties >= 7 ? (nearBalanced ? 26 : 20) : 30,
+          replyDepth: empties >= 7 ? (nearBalanced ? 2 : 1) : empties >= 5 ? 2 : 3
+        };
+      }
+      return {
+        width: empties >= 7 ? 3 : empties >= 5 ? 4 : 5,
+        pairLimit: 12,
+        replyDepth: empties >= 7 ? 0 : 1
+      };
     }
 
     function quantum2EvaluateStateFromRoot(state, rootPlayer) {
       return quantum2EvaluateBoardState(state.board, state.cells, rootPlayer);
     }
 
-    function quantum2FindForcedDoubleCell(player) {
-      const empties = quantum2SelectableCells();
+    function quantum2TerminalDistribution(winner) {
+      if (winner === "X") return { x: 1, o: 0, draw: 0 };
+      if (winner === "O") return { x: 0, o: 1, draw: 0 };
+      return { x: 0, o: 0, draw: 1 };
+    }
+
+    function quantum2DistributionScore(distribution) {
+      return distribution.x - distribution.o;
+    }
+
+    function quantum2CompareDistributions(candidate, incumbent, player) {
+      if (!incumbent) return 1;
+      const candidateScore = quantum2DistributionScore(candidate);
+      const incumbentScore = quantum2DistributionScore(incumbent);
+      if (player === "X") {
+        if (candidateScore !== incumbentScore) return candidateScore > incumbentScore ? 1 : -1;
+        if (candidate.x !== incumbent.x) return candidate.x > incumbent.x ? 1 : -1;
+        if (candidate.draw !== incumbent.draw) return candidate.draw > incumbent.draw ? 1 : -1;
+      } else {
+        if (candidateScore !== incumbentScore) return candidateScore < incumbentScore ? 1 : -1;
+        if (candidate.o !== incumbent.o) return candidate.o > incumbent.o ? 1 : -1;
+        if (candidate.draw !== incumbent.draw) return candidate.draw > incumbent.draw ? 1 : -1;
+      }
+      return 0;
+    }
+
+    function quantum2AccumulateDistribution(target, source, weight) {
+      target.x += source.x * weight;
+      target.o += source.o * weight;
+      target.draw += source.draw * weight;
+    }
+
+    function quantum2MergeStateBranches(branches, parentProb = 1) {
+      const merged = new Map();
+      for (const branch of branches) {
+        const key = quantum2StateKey(branch);
+        const existing = merged.get(key);
+        const nextProb = branch.prob / parentProb;
+        if (existing) {
+          existing.prob += nextProb;
+          continue;
+        }
+        merged.set(key, {
+          board: [...branch.board],
+          cells: cloneQuantum2Cells(branch.cells),
+          prob: nextProb
+        });
+      }
+      return [...merged.values()];
+    }
+
+    function quantum2ExpandPairOutcomeStates(state, player, first, second) {
+      const firstStates = quantum2ExpandActionStates(state, first, player, 1);
+      const finalStates = [];
+      for (const firstState of firstStates) {
+        const secondStates = quantum2ExpandActionStates(firstState, second, player, -1);
+        if (secondStates.length === 0) continue;
+        for (const secondState of secondStates) {
+          quantum2CommitPendingTouches(secondState.cells);
+        }
+        finalStates.push(...secondStates);
+      }
+      return quantum2MergeStateBranches(finalStates, state.prob || 1);
+    }
+
+    function quantum2SolveOutcomeState(state, actingPlayer) {
+      const end = evaluate2DState(state.board);
+      if (end.winner) {
+        return {
+          distribution: quantum2TerminalDistribution(end.winner),
+          bestPair: [-1, -1]
+        };
+      }
+
+      const cacheKey = quantum2OutcomeKey(state, actingPlayer);
+      const cached = quantum2OutcomeCache.get(cacheKey);
+      if (cached) {
+        return {
+          distribution: { ...cached.distribution },
+          bestPair: [...cached.bestPair]
+        };
+      }
+
+      const pairs = quantum2EnumeratePairs(state);
+      if (pairs.length === 0) {
+        const result = {
+          distribution: quantum2TerminalDistribution("draw"),
+          bestPair: [-1, -1]
+        };
+        quantum2OutcomeCache.set(cacheKey, {
+          distribution: { ...result.distribution },
+          bestPair: [...result.bestPair]
+        });
+        return result;
+      }
+
+      let bestDistribution = null;
+      let bestPair = pairs[0];
+      for (const [first, second] of pairs) {
+        const branches = quantum2ExpandPairOutcomeStates(state, actingPlayer, first, second);
+        if (branches.length === 0) continue;
+        const aggregate = { x: 0, o: 0, draw: 0 };
+        for (const branch of branches) {
+          const branchEnd = evaluate2DState(branch.board);
+          if (branchEnd.winner) {
+            quantum2AccumulateDistribution(aggregate, quantum2TerminalDistribution(branchEnd.winner), branch.prob);
+            continue;
+          }
+          const child = quantum2SolveOutcomeState({
+            board: [...branch.board],
+            cells: cloneQuantum2Cells(branch.cells),
+            prob: 1
+          }, quantumOtherPlayer(actingPlayer));
+          quantum2AccumulateDistribution(aggregate, child.distribution, branch.prob);
+        }
+        if (quantum2CompareDistributions(aggregate, bestDistribution, actingPlayer) > 0) {
+          bestDistribution = aggregate;
+          bestPair = [first, second];
+        }
+      }
+
+      const result = {
+        distribution: bestDistribution ?? quantum2TerminalDistribution("draw"),
+        bestPair
+      };
+      quantum2OutcomeCache.set(cacheKey, {
+        distribution: { ...result.distribution },
+        bestPair: [...result.bestPair]
+      });
+      return result;
+    }
+
+    function quantum2InitialState() {
+      const cells = createQuantum2Cells();
+      cells[4].touches.push({ player: "O", phase: 1, fresh: false });
+      return {
+        board: Array(9).fill(""),
+        cells,
+        prob: 1
+      };
+    }
+
+    function quantum2FindForcedDoubleCellOnBoard(testBoard, player) {
+      const empties = testBoard
+        .map((cell, index) => cell === "" ? index : -1)
+        .filter((index) => index !== -1);
       for (const index of empties) {
-        const testBoard = [...board];
-        testBoard[index] = player;
-        const state = evaluate2DState(testBoard);
+        const boardCopy = [...testBoard];
+        boardCopy[index] = player;
+        const state = evaluate2DState(boardCopy);
         if (state.winner === player) {
           return [index, index];
         }
       }
       return null;
+    }
+
+    function quantum2FindForcedDoubleCell(player) {
+      return quantum2FindForcedDoubleCellOnBoard(board, player);
     }
 
     function quantum2ExpectedPairValue(state, actingPlayer, rootPlayer, first, second, replyDepth) {
@@ -1920,9 +2150,16 @@
     }
 
     function quantum2BestPairValue(state, actingPlayer, rootPlayer, replyDepth) {
-      const pairs = quantum2EnumerateTopPairs(state, actingPlayer, 10);
+      const config = quantum2SearchConfig(state);
+      const cacheKey = `${quantum2StateKey(state)}|${actingPlayer}|${rootPlayer}|${replyDepth}|${quantum2OwnerRate.toFixed(6)}`;
+      const cached = quantum2SearchCache.get(cacheKey);
+      if (cached !== undefined) return cached;
+
+      const pairs = quantum2EnumerateTopPairs(state, actingPlayer, config.pairLimit, config.width);
       if (pairs.length === 0) {
-        return quantum2EvaluateStateFromRoot(state, rootPlayer);
+        const value = quantum2EvaluateStateFromRoot(state, rootPlayer);
+        quantum2SearchCache.set(cacheKey, value);
+        return value;
       }
 
       let bestValue = actingPlayer === rootPlayer ? -Infinity : Infinity;
@@ -1934,6 +2171,138 @@
           bestValue = value;
         }
       }
+      quantum2SearchCache.set(cacheKey, bestValue);
+      return bestValue;
+    }
+
+    function quantum2ApplyDeterministicPairToState(state, player, first, second) {
+      const firstStates = quantum2ExpandActionStates(state, first, player, 1);
+      if (firstStates.length !== 1) return null;
+      const secondStates = quantum2ExpandActionStates(firstStates[0], second, player, -1);
+      if (secondStates.length !== 1) return null;
+      return secondStates[0];
+    }
+
+    function quantum2EnumerateDeterministicPairs(state, player) {
+      const empties = state.board.filter((cell) => cell === "").length;
+      const firstChoices = quantum2RankActions(state, player, 1, empties);
+      const orderedFirstChoices = state.board
+        .map((cell, index) => cell === "" ? index : -1)
+        .filter((index) => index !== -1)
+        .sort((a, b) => firstChoices.indexOf(a) - firstChoices.indexOf(b));
+      const pairs = [];
+      for (const first of orderedFirstChoices) {
+        const firstStates = quantum2ExpandActionStates(state, first, player, 1);
+        const representative = firstStates[0] ?? state;
+        const secondChoices = quantum2RankActions(representative, player, -1, empties);
+        const orderedSecondChoices = representative.board
+          .map((cell, index) => cell === "" ? index : -1)
+          .filter((index) => index !== -1)
+          .sort((a, b) => secondChoices.indexOf(a) - secondChoices.indexOf(b));
+        for (const second of orderedSecondChoices) {
+          pairs.push([first, second]);
+        }
+      }
+      return pairs;
+    }
+
+    function quantum2StepAdjustedScore(score) {
+      if (score > 0) return score - 1;
+      if (score < 0) return score + 1;
+      return 0;
+    }
+
+    function quantum2SolveDeterministicSummary(state, actingPlayer, rootPlayer = actingPlayer) {
+      const isInitialState =
+        state.prob === 1
+        && state.board.every((cell) => cell === "")
+        && state.cells[4]?.touches.length === 1
+        && state.cells[4].touches[0].player === "O"
+        && state.cells[4].touches[0].phase === 1
+        && state.cells[4].touches[0].fresh === false;
+      const summaryCacheKey = isInitialState
+        ? `${quantum2OwnerRate.toFixed(6)}|${actingPlayer}|${rootPlayer}`
+        : "";
+      if (summaryCacheKey) {
+        const cached = quantum2DeterministicSummaryCache.get(summaryCacheKey);
+        if (cached) return { distribution: { ...cached.distribution } };
+      }
+
+      const score = quantum2SolveDeterministicState(state, actingPlayer, rootPlayer);
+      const result = score > 0
+        ? { distribution: rootPlayer === "X" ? { x: 1, o: 0, draw: 0 } : { x: 0, o: 1, draw: 0 } }
+        : score < 0
+          ? { distribution: rootPlayer === "X" ? { x: 0, o: 1, draw: 0 } : { x: 1, o: 0, draw: 0 } }
+          : { distribution: { x: 0, o: 0, draw: 1 } };
+      if (summaryCacheKey) {
+        quantum2DeterministicSummaryCache.set(summaryCacheKey, {
+          distribution: { ...result.distribution }
+        });
+      }
+      return result;
+    }
+
+    function quantum2GetBestDeterministicPair(state, player) {
+      const pairs = quantum2EnumerateDeterministicPairs(state, player);
+      if (pairs.length === 0) return [-1, -1];
+
+      let bestPair = pairs[0];
+      let bestScore = -Infinity;
+      let bestHeuristic = -Infinity;
+      for (const [first, second] of pairs) {
+        const nextState = quantum2ApplyDeterministicPairToState(state, player, first, second);
+        if (!nextState) continue;
+        const score = quantum2SolveDeterministicState(nextState, quantumOtherPlayer(player), player);
+        const heuristic = quantum2EvaluateStateFromRoot(nextState, player);
+        if (score > bestScore || (score === bestScore && heuristic > bestHeuristic)) {
+          bestScore = score;
+          bestHeuristic = heuristic;
+          bestPair = [first, second];
+        }
+      }
+      return bestPair;
+    }
+
+    function quantum2SolveDeterministicState(state, actingPlayer, rootPlayer, alpha = -1000, beta = 1000) {
+      const end = evaluate2DState(state.board);
+      if (end.winner === rootPlayer) return 1000;
+      if (end.winner === quantumOtherPlayer(rootPlayer)) return -1000;
+      if (end.winner === "draw") return 0;
+
+      const cacheKey = `det|${quantum2StateKey(state)}|${actingPlayer}|${rootPlayer}|${quantum2OwnerRate.toFixed(6)}`;
+      const cached = quantum2SearchCache.get(cacheKey);
+      if (cached !== undefined) return cached;
+
+      const pairs = quantum2EnumerateDeterministicPairs(state, actingPlayer);
+      if (pairs.length === 0) {
+        const value = quantum2EvaluateStateFromRoot(state, rootPlayer);
+        quantum2SearchCache.set(cacheKey, value);
+        return value;
+      }
+
+      let bestValue = actingPlayer === rootPlayer ? -Infinity : Infinity;
+      for (const [first, second] of pairs) {
+        const nextState = quantum2ApplyDeterministicPairToState(state, actingPlayer, first, second);
+        if (!nextState) continue;
+        const value = quantum2SolveDeterministicState(
+          nextState,
+          quantumOtherPlayer(actingPlayer),
+          rootPlayer,
+          alpha,
+          beta
+        );
+        const adjustedValue = quantum2StepAdjustedScore(value);
+        if (actingPlayer === rootPlayer) {
+          if (adjustedValue > bestValue) bestValue = adjustedValue;
+          alpha = Math.max(alpha, bestValue);
+        } else if (adjustedValue < bestValue) {
+          bestValue = adjustedValue;
+          beta = Math.min(beta, bestValue);
+        }
+        if (beta <= alpha) break;
+      }
+
+      quantum2SearchCache.set(cacheKey, bestValue);
       return bestValue;
     }
 
@@ -1958,7 +2327,7 @@
       }
       const cell = quantum2Cells[index];
       if (cell.touches.length === 0) {
-        cell.touches.push({ player, phase });
+        cell.touches.push({ player, phase, fresh: true });
         return quantum2FinalizeResolvedBoard();
       }
 
@@ -1969,21 +2338,160 @@
     }
 
     function getQuantum2AiPair(player) {
-      const forcedWin = quantum2FindForcedDoubleCell(player);
+      return getQuantum2AiPairFromState(board, quantum2Cells, player);
+    }
+
+    function getQuantum2AiFirstActionFromState(testBoard, testCells, player) {
+      const forcedWin = quantum2FindForcedDoubleCellOnBoard(testBoard, player);
+      if (forcedWin) return forcedWin[0];
+
+      const forcedBlock = quantum2FindForcedDoubleCellOnBoard(testBoard, quantumOtherPlayer(player));
+      if (forcedBlock) return forcedBlock[0];
+
+      const baseState = {
+        board: [...testBoard],
+        cells: cloneQuantum2Cells(testCells),
+        prob: 1
+      };
+
+      if (quantum2ExactSolveEnabled && quantum2IsDeterministic()) {
+        return quantum2GetBestDeterministicPair(baseState, player)[0];
+      }
+
+      const empties = baseState.board
+        .map((cell, index) => cell === "" ? index : -1)
+        .filter((index) => index !== -1);
+      if (empties.length === 0) return -1;
+
+      const config = quantum2SearchConfig(baseState);
+      let bestMove = -1;
+      let bestScore = -Infinity;
+      for (const first of empties) {
+        const firstStates = quantum2ExpandActionStates(baseState, first, player, 1);
+        if (firstStates.length === 0) continue;
+
+        let aggregateScore = 0;
+        for (const firstState of firstStates) {
+          const end = evaluate2DState(firstState.board);
+          if (end.winner === player) {
+            aggregateScore += 100000 * (firstState.prob / baseState.prob);
+            continue;
+          }
+          if (end.winner === quantumOtherPlayer(player)) {
+            aggregateScore -= 100000 * (firstState.prob / baseState.prob);
+            continue;
+          }
+          if (end.winner === "draw") continue;
+
+          const second = getQuantum2AiSecondActionFromState(firstState.board, firstState.cells, player);
+          if (second === -1) {
+            aggregateScore += quantum2EvaluateBoardState(firstState.board, firstState.cells, player) * (firstState.prob / baseState.prob);
+            continue;
+          }
+
+          const secondStates = quantum2ExpandActionStates(firstState, second, player, -1);
+          if (secondStates.length === 0) {
+            aggregateScore += quantum2EvaluateBoardState(firstState.board, firstState.cells, player) * (firstState.prob / baseState.prob);
+            continue;
+          }
+
+          for (const finalState of secondStates) {
+            const finalEnd = evaluate2DState(finalState.board);
+            let branchValue;
+            if (finalEnd.winner === player) {
+              branchValue = 100000;
+            } else if (finalEnd.winner === quantumOtherPlayer(player)) {
+              branchValue = -100000;
+            } else if (finalEnd.winner === "draw") {
+              branchValue = 0;
+            } else if (config.replyDepth > 0) {
+              branchValue = quantum2BestPairValue(finalState, quantumOtherPlayer(player), player, config.replyDepth - 1);
+            } else {
+              branchValue = quantum2EvaluateBoardState(finalState.board, finalState.cells, player);
+            }
+            aggregateScore += branchValue * (finalState.prob / baseState.prob);
+          }
+        }
+
+        if (aggregateScore > bestScore) {
+          bestScore = aggregateScore;
+          bestMove = first;
+        }
+      }
+
+      return bestMove;
+    }
+
+    function getQuantum2AiSecondActionFromState(testBoard, testCells, player) {
+      const state = {
+        board: [...testBoard],
+        cells: cloneQuantum2Cells(testCells),
+        prob: 1
+      };
+      const empties = state.board
+        .map((cell, index) => cell === "" ? index : -1)
+        .filter((index) => index !== -1);
+      if (empties.length === 0) return -1;
+
+      let bestMove = -1;
+      let bestScore = -Infinity;
+      for (const index of empties) {
+        const branches = quantum2ExpandActionStates(state, index, player, -1);
+        if (branches.length === 0) continue;
+
+        let aggregateScore = 0;
+        for (const branch of branches) {
+          const end = evaluate2DState(branch.board);
+          if (end.winner === player) {
+            aggregateScore += 100000 * branch.prob;
+          } else if (end.winner === quantumOtherPlayer(player)) {
+            aggregateScore -= 100000 * branch.prob;
+          } else if (end.winner === "draw") {
+            aggregateScore += 0;
+          } else {
+            aggregateScore += quantum2EvaluateBoardState(branch.board, branch.cells, player) * branch.prob;
+          }
+        }
+
+        if (aggregateScore > bestScore) {
+          bestScore = aggregateScore;
+          bestMove = index;
+        }
+      }
+
+      return bestMove;
+    }
+
+    function getQuantum2AiPairFromState(testBoard, testCells, player) {
+      const forcedWin = quantum2FindForcedDoubleCellOnBoard(testBoard, player);
       if (forcedWin) return forcedWin;
 
-      const forcedBlock = quantum2FindForcedDoubleCell(quantumOtherPlayer(player));
+      const forcedBlock = quantum2FindForcedDoubleCellOnBoard(testBoard, quantumOtherPlayer(player));
       if (forcedBlock) return forcedBlock;
 
       const baseState = {
-        board: [...board],
-        cells: cloneQuantum2Cells(quantum2Cells),
+        board: [...testBoard],
+        cells: cloneQuantum2Cells(testCells),
         prob: 1
       };
-      const pairs = quantum2EnumerateTopPairs(baseState, player, 8);
+      const pairChoiceKey = quantum2PairChoiceKey(baseState, player);
+      const cachedPair = quantum2PairChoiceCache.get(pairChoiceKey);
+      if (cachedPair) return [...cachedPair];
+      if (quantum2ExactSolveEnabled && quantum2IsDeterministic()) {
+        const bestPair = quantum2GetBestDeterministicPair(baseState, player);
+        quantum2PairChoiceCache.set(pairChoiceKey, [...bestPair]);
+        return [...bestPair];
+      }
+      if (shouldUseExactQuantum2Solver()) {
+        const bestPair = quantum2GetBestDeterministicPair(baseState, player);
+        quantum2PairChoiceCache.set(pairChoiceKey, [...bestPair]);
+        return bestPair;
+      }
+
+      const config = quantum2SearchConfig(baseState);
+      const pairs = quantum2EnumerateTopPairs(baseState, player, config.pairLimit, config.width);
       if (pairs.length === 0) return [-1, -1];
-      const empties = baseState.board.filter((cell) => cell === "").length;
-      const replyDepth = empties >= 7 ? 0 : 1;
+      const replyDepth = config.replyDepth;
 
       let bestPair = pairs[0];
       let bestScore = -Infinity;
@@ -1995,7 +2503,33 @@
           bestPair = [first, second];
         }
       }
+      quantum2PairChoiceCache.set(pairChoiceKey, [...bestPair]);
       return bestPair;
+    }
+
+    function simulateQuantum2PairTurn(testBoard, testCells, player) {
+      const first = getQuantum2AiFirstActionFromState(testBoard, testCells, player);
+      if (first === -1) return false;
+
+      const firstResult = quantum2ApplyActionToState(testBoard, testCells, first, player, 1);
+      if (!firstResult.ok) return false;
+      if (firstResult.resolved) {
+        testBoard[first] = Math.random() < firstResult.resolved.probs.x ? "X" : "O";
+      }
+
+      const firstState = evaluate2DState(testBoard);
+      if (firstState.winner) return true;
+
+      const second = getQuantum2AiSecondActionFromState(testBoard, testCells, player);
+      if (second === -1) return true;
+      const secondResult = quantum2ApplyActionToState(testBoard, testCells, second, player, -1);
+      if (!secondResult.ok) return false;
+      if (secondResult.resolved) {
+        testBoard[second] = Math.random() < secondResult.resolved.probs.x ? "X" : "O";
+      }
+      quantum2CommitPendingTouches(testCells);
+
+      return true;
     }
 
     function evaluate2DState(testBoard) {
@@ -2084,7 +2618,7 @@
       wallpaperMode = nextValue;
       if (wallpaperMode) {
         statsOpen = false;
-        if (isAiVsAiMatch() && autoAiRoundsRemaining === 0 && !autoAiInfinite) {
+        if (isAiVsAiMatch() && !autoAiInfinite) {
           startAiAiInfiniteRun();
         }
       } else if (autoAiInfinite) {
@@ -2106,29 +2640,12 @@
     }
 
     function stopAiAiAutoRun() {
-      autoAiRoundsRemaining = 0;
-      autoAiRoundsTotal = 0;
       autoAiInfinite = false;
-    }
-
-    function startAiAiAutoRun(rounds = 20) {
-      if (!isAiVsAiMatch()) return;
-      autoAiInfinite = false;
-      autoAiRoundsTotal = rounds;
-      if (roundOver) {
-        autoAiRoundsRemaining = Math.max(0, rounds - 1);
-        newRound();
-        return;
-      }
-      autoAiRoundsRemaining = rounds;
-      render();
     }
 
     function startAiAiInfiniteRun() {
       if (!isAiVsAiMatch()) return;
       autoAiInfinite = true;
-      autoAiRoundsRemaining = 0;
-      autoAiRoundsTotal = 0;
       if (roundOver) {
         newRound();
         return;
@@ -2480,31 +2997,46 @@
 
     async function runQuantumAiSimulation(rounds = 1000) {
       quantumSimRunning = true;
+      quantum2ExactSolveEnabled = true;
+      quantum2AnalysisMode = isQuantum2Mode();
+      quantum2SearchCache = new Map();
+      quantum2PairChoiceCache = new Map();
+      quantum2OutcomeCache = new Map();
       quantumSimResultEl.textContent = `Running 0 / ${rounds}...`;
       quantumProgressEl.textContent = `AI vs AI: 0 / ${rounds}`;
       render();
 
       const savedOuterRates = [...quantumOuterORates];
+      if (isQuantum2Mode() && quantum2IsDeterministic()) {
+        const solved = quantum2SolveDeterministicSummary(quantum2InitialState(), "X");
+        quantumOuterORates = savedOuterRates;
+        quantumMinimaxCache = new Map();
+        quantum2PairChoiceCache = new Map();
+        quantum2OutcomeCache = new Map();
+        quantum2AnalysisMode = false;
+        quantum2ExactSolveEnabled = false;
+        quantumSimRunning = false;
+        quantumSimResultEl.textContent =
+          `X ${(solved.distribution.x * 100).toFixed(1)}% [${(solved.distribution.x * 100).toFixed(1)}, ${(solved.distribution.x * 100).toFixed(1)}] / `
+          + `O ${(solved.distribution.o * 100).toFixed(1)}% [${(solved.distribution.o * 100).toFixed(1)}, ${(solved.distribution.o * 100).toFixed(1)}] / `
+          + `Draw ${(solved.distribution.draw * 100).toFixed(1)}% [${(solved.distribution.draw * 100).toFixed(1)}, ${(solved.distribution.draw * 100).toFixed(1)}]`;
+        quantumProgressEl.textContent = "";
+        render();
+        return;
+      }
+
       const totals = { x: 0, o: 0, draw: 0 };
       for (let game = 0; game < rounds; game += 1) {
-        quantumOuterORates = generateQuantumOuterORates();
-        quantumMinimaxCache = new Map();
-        const testBoard = Array(9).fill("");
-        let turn = "X";
-        while (true) {
-          const state = evaluate2DState(testBoard);
-          if (state.winner) {
-            if (state.winner === "X") totals.x += 1;
-            else if (state.winner === "O") totals.o += 1;
-            else totals.draw += 1;
-            break;
-          }
-          const { move } = getQuantum1BestMove(testBoard, turn, true, quantumOuterORates);
-          testBoard[move] = quantumCollapseMove(testBoard, move, turn, Math.random, quantumOuterORates);
-          turn = quantumOtherPlayer(turn);
-        }
+        const result = isQuantum2Mode()
+          ? runQuantum2AiSimulationGame()
+          : runQuantum1AiSimulationGame();
+        const winner = result.winner;
+        if (winner === "X") totals.x += 1;
+        else if (winner === "O") totals.o += 1;
+        else totals.draw += 1;
 
         if ((game + 1) % 50 === 0 || game + 1 === rounds) {
+          applySimulationSnapshot(result.snapshot);
           quantumSimResultEl.textContent = `Running ${game + 1} / ${rounds}...`;
           quantumProgressEl.textContent = `AI vs AI: ${game + 1} / ${rounds}`;
           await new Promise((resolve) => window.setTimeout(resolve, 0));
@@ -2513,6 +3045,10 @@
 
       quantumOuterORates = savedOuterRates;
       quantumMinimaxCache = new Map();
+      quantum2PairChoiceCache = new Map();
+      quantum2OutcomeCache = new Map();
+      quantum2AnalysisMode = false;
+      quantum2ExactSolveEnabled = false;
       quantumSimRunning = false;
       const xCi = proportionCi95(totals.x, rounds);
       const oCi = proportionCi95(totals.o, rounds);
@@ -2523,6 +3059,85 @@
         + `Draw ${Math.round((totals.draw / rounds) * 100)}% [${drawCi.low.toFixed(1)}, ${drawCi.high.toFixed(1)}]`;
       quantumProgressEl.textContent = "";
       render();
+    }
+
+    function runQuantum1AiSimulationGame() {
+      quantumOuterORates = generateQuantumOuterORates();
+      quantumMinimaxCache = new Map();
+      const testBoard = Array(9).fill("");
+      let turn = "X";
+      while (true) {
+        const state = evaluate2DState(testBoard);
+        if (state.winner) {
+          return {
+            winner: state.winner,
+            snapshot: {
+              board: [...testBoard],
+              cells: null,
+              turn,
+              status: `AI vs AI: ${state.winner === "draw" ? "draw" : `${state.winner} win`} snapshot`
+            }
+          };
+        }
+        const { move } = getQuantum1BestMove(testBoard, turn, true, quantumOuterORates);
+        testBoard[move] = quantumCollapseMove(testBoard, move, turn, Math.random, quantumOuterORates);
+        turn = quantumOtherPlayer(turn);
+      }
+    }
+
+    function runQuantum2AiSimulationGame() {
+      const testBoard = Array(9).fill("");
+      const testCells = createQuantum2Cells();
+      testCells[4].touches.push({ player: "O", phase: 1, fresh: false });
+      let turn = "X";
+      while (true) {
+        const state = evaluate2DState(testBoard);
+        if (state.winner) {
+          return {
+            winner: state.winner,
+            snapshot: {
+              board: [...testBoard],
+              cells: cloneQuantum2Cells(testCells),
+              turn,
+              status: `Quantum B snapshot: ${state.winner === "draw" ? "draw" : `${state.winner} win`}`
+            }
+          };
+        }
+        const moved = simulateQuantum2PairTurn(testBoard, testCells, turn);
+        if (!moved) {
+          return {
+            winner: "draw",
+            snapshot: {
+              board: [...testBoard],
+              cells: cloneQuantum2Cells(testCells),
+              turn,
+              status: "Quantum B snapshot: draw"
+            }
+          };
+        }
+        turn = quantumOtherPlayer(turn);
+      }
+    }
+
+    function applySimulationSnapshot(snapshot) {
+      if (!snapshot) return;
+      board = [...snapshot.board];
+      if (snapshot.cells) {
+        quantum2Cells = cloneQuantum2Cells(snapshot.cells);
+      }
+      current = snapshot.turn;
+      selectedIndex = -1;
+      hoveredTopIndex = -1;
+      quantum2PendingCell = -1;
+      quantum2ActionStep = 0;
+      currentWinLine = [];
+      roundOver = false;
+      statusEl.textContent = snapshot.status;
+      render();
+    }
+
+    function quantumSweepLabel() {
+      return isQuantum2Mode() ? "Owner collapse rate" : "Center O collapse rate";
     }
 
     function renderQuantumGraph(perPointRounds = Number(quantumGraphRoundsEl.value)) {
@@ -2617,7 +3232,7 @@
         ${yTicks}
         <line x1="${padLeft}" y1="${padTop + innerHeight}" x2="${padLeft + innerWidth}" y2="${padTop + innerHeight}" stroke="#ba9167" stroke-width="1.5" />
         <line x1="${padLeft}" y1="${padTop}" x2="${padLeft}" y2="${padTop + innerHeight}" stroke="#ba9167" stroke-width="1.5" />
-        <text x="${padLeft + innerWidth / 2}" y="${height - 8}" text-anchor="middle" font-size="12" fill="#6a4a31">Center O collapse rate (%)</text>
+        <text x="${padLeft + innerWidth / 2}" y="${height - 8}" text-anchor="middle" font-size="12" fill="#6a4a31">${quantumSweepLabel()} (%)</text>
         <text x="14" y="${padTop + innerHeight / 2}" text-anchor="middle" font-size="12" fill="#6a4a31" transform="rotate(-90 14 ${padTop + innerHeight / 2})">Rate (%)</text>
         ${errorBarSvg("x", "#cc4b2f")}
         ${errorBarSvg("o", "#2f6fcc")}
@@ -2627,52 +3242,64 @@
         <polyline fill="none" stroke="#cc4b2f" stroke-dasharray="6 4" stroke-width="1.5" opacity="0.85" points="${fitLinePoints(xFit)}" />
         <polyline fill="none" stroke="#2f6fcc" stroke-dasharray="6 4" stroke-width="1.5" opacity="0.85" points="${fitLinePoints(oFit)}" />
       `;
-      quantumGraphMetaEl.textContent = `Center O samples: 0%, 45-55%, 100%. ${perPointRounds} games each. ${crossingText}`;
+      quantumGraphMetaEl.textContent = `${quantumSweepLabel()} samples: 0%, 45-55%, 100%. ${perPointRounds} games each. ${crossingText}`;
     }
 
     async function runQuantumGraphSweep(perPointRounds = Number(quantumGraphRoundsEl.value)) {
       const sampleCenters = [0, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 100];
       quantumSimRunning = true;
+      quantum2ExactSolveEnabled = true;
+      quantum2AnalysisMode = isQuantum2Mode();
       quantumGraphSeries = [];
       quantumGraphWrapEl.classList.remove("hidden");
-      quantumGraphMetaEl.textContent = `Center O samples: 0%, 45-55%, 100%. ${perPointRounds} games each. Running...`;
+      quantumGraphMetaEl.textContent = `${quantumSweepLabel()} samples: 0%, 45-55%, 100%. ${perPointRounds} games each. Running...`;
       quantumProgressEl.textContent = `Plot Key Rates: 0 / ${sampleCenters.length} points`;
       quantumGraphEl.innerHTML = "";
       render();
 
       const savedCenter = quantumCenterORate;
       const savedOuterRates = [...quantumOuterORates];
+      const savedQuantum2OwnerRate = quantum2OwnerRate;
 
       for (let sampleIndex = 0; sampleIndex < sampleCenters.length; sampleIndex += 1) {
         const center = sampleCenters[sampleIndex];
-        quantumCenterORate = center / 100;
+        if (isQuantum2Mode()) quantum2OwnerRate = center / 100;
+        else quantumCenterORate = center / 100;
+        quantum2SearchCache = new Map();
+        quantum2PairChoiceCache = new Map();
+        quantum2OutcomeCache = new Map();
         const totals = { x: 0, o: 0, draw: 0 };
-        for (let game = 0; game < perPointRounds; game += 1) {
-          quantumOuterORates = generateQuantumOuterORates();
-          quantumMinimaxCache = new Map();
-          const testBoard = Array(9).fill("");
-          let turn = "X";
-          while (true) {
-            const state = evaluate2DState(testBoard);
-            if (state.winner) {
-              if (state.winner === "X") totals.x += 1;
-              else if (state.winner === "O") totals.o += 1;
-              else totals.draw += 1;
-              break;
-            }
-            const { move } = getQuantum1BestMove(testBoard, turn, true, quantumOuterORates);
-            testBoard[move] = quantumCollapseMove(testBoard, move, turn, Math.random, quantumOuterORates);
-            turn = quantumOtherPlayer(turn);
-          }
+        if (isQuantum2Mode() && quantum2IsDeterministic()) {
+          const solved = quantum2SolveDeterministicSummary(quantum2InitialState(), "X");
+          totals.x = solved.distribution.x * perPointRounds;
+          totals.o = solved.distribution.o * perPointRounds;
+          totals.draw = solved.distribution.draw * perPointRounds;
+          quantumGraphMetaEl.textContent =
+            `${quantumSweepLabel()} samples: 0%, 45-55%, 100%. ${perPointRounds} games each. `
+            + `Point ${sampleIndex + 1}/${sampleCenters.length} (${center}%), exact`;
+          quantumProgressEl.textContent =
+            `Plot Key Rates: point ${sampleIndex + 1}/${sampleCenters.length} (${center}), exact`;
+          await new Promise((resolve) => window.setTimeout(resolve, 0));
+        } else {
+          for (let game = 0; game < perPointRounds; game += 1) {
+            const result = isQuantum2Mode()
+              ? runQuantum2AiSimulationGame()
+              : runQuantum1AiSimulationGame();
+            const winner = result.winner;
+            if (winner === "X") totals.x += 1;
+            else if (winner === "O") totals.o += 1;
+            else totals.draw += 1;
 
-          if ((game + 1) % 25 === 0 || game + 1 === perPointRounds) {
-            quantumGraphMetaEl.textContent =
-              `Center O samples: 0%, 45-55%, 100%. ${perPointRounds} games each. `
-              + `Point ${sampleIndex + 1}/${sampleCenters.length} (${center}%), ${game + 1}/${perPointRounds}`;
-            quantumProgressEl.textContent =
-              `Plot Key Rates: point ${sampleIndex + 1}/${sampleCenters.length} (${center}%), `
-              + `${game + 1}/${perPointRounds}`;
-            await new Promise((resolve) => window.setTimeout(resolve, 0));
+            if ((game + 1) % 25 === 0 || game + 1 === perPointRounds) {
+              applySimulationSnapshot(result.snapshot);
+              quantumGraphMetaEl.textContent =
+                `${quantumSweepLabel()} samples: 0%, 45-55%, 100%. ${perPointRounds} games each. `
+                + `Point ${sampleIndex + 1}/${sampleCenters.length} (${center}%), ${game + 1}/${perPointRounds}`;
+              quantumProgressEl.textContent =
+                `Plot Key Rates: point ${sampleIndex + 1}/${sampleCenters.length} (${center}%), `
+                + `${game + 1}/${perPointRounds}`;
+              await new Promise((resolve) => window.setTimeout(resolve, 0));
+            }
           }
         }
 
@@ -2681,13 +3308,13 @@
           x: (totals.x / perPointRounds) * 100,
           o: (totals.o / perPointRounds) * 100,
           draw: (totals.draw / perPointRounds) * 100,
-          xLow: proportionCi95(totals.x, perPointRounds).low,
-          xHigh: proportionCi95(totals.x, perPointRounds).high,
-          oLow: proportionCi95(totals.o, perPointRounds).low,
-          oHigh: proportionCi95(totals.o, perPointRounds).high
+          xLow: isQuantum2Mode() ? (totals.x / perPointRounds) * 100 : proportionCi95(totals.x, perPointRounds).low,
+          xHigh: isQuantum2Mode() ? (totals.x / perPointRounds) * 100 : proportionCi95(totals.x, perPointRounds).high,
+          oLow: isQuantum2Mode() ? (totals.o / perPointRounds) * 100 : proportionCi95(totals.o, perPointRounds).low,
+          oHigh: isQuantum2Mode() ? (totals.o / perPointRounds) * 100 : proportionCi95(totals.o, perPointRounds).high
         });
 
-        quantumGraphMetaEl.textContent = `Center O samples: 0%, 45-55%, 100%. ${perPointRounds} games each. Running ${center}%...`;
+        quantumGraphMetaEl.textContent = `${quantumSweepLabel()} samples: 0%, 45-55%, 100%. ${perPointRounds} games each. Running ${center}%...`;
         quantumProgressEl.textContent = `Plot Key Rates: completed ${sampleIndex + 1}/${sampleCenters.length} points`;
         renderQuantumGraph(perPointRounds);
         await new Promise((resolve) => window.setTimeout(resolve, 0));
@@ -2695,7 +3322,13 @@
 
       quantumCenterORate = savedCenter;
       quantumOuterORates = savedOuterRates;
+      quantum2OwnerRate = savedQuantum2OwnerRate;
       quantumMinimaxCache = new Map();
+      quantum2SearchCache = new Map();
+      quantum2PairChoiceCache = new Map();
+      quantum2OutcomeCache = new Map();
+      quantum2AnalysisMode = false;
+      quantum2ExactSolveEnabled = false;
       quantumSimRunning = false;
       quantumProgressEl.textContent = "";
       renderQuantumGraph(perPointRounds);
@@ -3210,9 +3843,13 @@
       statsBtn.classList.toggle("active", statsOpen);
       statsSummaryEl.classList.toggle("hidden", !statsOpen || wallpaperMode);
       gamePanelEl.classList.toggle("panel-hidden", statsOpen && !wallpaperMode);
-      quantumPanelEl.classList.toggle("hidden", mode !== "2d" || twoDVariant !== "quantum1" || statsOpen);
+      quantumPanelEl.classList.toggle("hidden", mode !== "2d" || (twoDVariant !== "quantum1" && twoDVariant !== "quantum2") || statsOpen);
       quantumPanelBodyEl.classList.toggle("hidden", !quantumSettingsOpen);
       quantumSettingsBtn.classList.toggle("active", quantumSettingsOpen);
+      quantumPanelTitleEl.textContent = isQuantum2Mode() ? "Quantum B Settings" : "Quantum A Settings";
+      quantumARowEl.classList.toggle("hidden", !isQuantum1Mode());
+      quantumAToolsRowEl.classList.toggle("hidden", false);
+      quantumBBaseRowEl.classList.toggle("hidden", !isQuantum2Mode());
       matchAiBtn.classList.toggle("active", isAiMatch());
       matchAiAiBtn.classList.toggle("active", isAiVsAiMatch());
       matchPvpBtn.classList.toggle("active", matchType === "pvp");
@@ -3225,13 +3862,8 @@
       playAsOBtn.disabled = !isAiMatch();
       hintBtn.classList.toggle("hidden", isAiVsAiMatch() || (isAiMatch() && human !== "X") || isQuantum2Mode());
       hintBtn.disabled = isAiVsAiMatch() || (isAiMatch() && human !== "X") || roundOver || !isHumanTurn() || current !== "X" || quantumSimRunning || isQuantum2Mode();
-      aiAiLoopBtn.classList.toggle("hidden", !isAiVsAiMatch());
       aiAiInfiniteBtn.classList.toggle("hidden", !isAiVsAiMatch());
-      aiAiLoopBtn.disabled = quantumSimRunning;
       aiAiInfiniteBtn.disabled = quantumSimRunning;
-      aiAiLoopBtn.textContent = autoAiRoundsRemaining > 0
-        ? `Stop Auto (${autoAiRoundsRemaining} left)`
-        : "Run 20 Rounds";
       aiAiInfiniteBtn.textContent = autoAiInfinite
         ? "Stop Infinite"
         : "Run Infinite";
@@ -3240,15 +3872,20 @@
       quantumGraphBtn.disabled = quantumSimRunning;
       quantumGraphRoundsEl.disabled = quantumSimRunning;
       centerOAdvantageInput.disabled = quantumSimRunning;
+      quantumBBaseOwnerRateInput.disabled = quantumSimRunning;
       centerOAdvantageValueEl.textContent = `${Math.round(quantumCenterORate * 100)}%`;
-      quantumOuterSummaryEl.textContent = "Other cells: O uses 10/30/50/70/90 or 20/80 patterns";
+      quantumBBaseOwnerRateValueEl.textContent = `${Math.round(quantum2OwnerRate * 100)}%`;
+      quantumOuterSummaryEl.textContent = isQuantum2Mode()
+        ? "The same owner collapse rate is used for normal first-touch cells and the opening center O seed."
+        : "Other cells: always 4 O-favored and 4 X-favored using 10/20/30 and 70/80/90 patterns";
       quantumSimResultEl.textContent = quantumSimResultEl.textContent;
       quantumGraphWrapEl.classList.toggle("hidden", quantumGraphSeries.length === 0);
+      quantumProgressEl.classList.toggle("hidden", false);
 
       subtextEl.textContent = isQuantum1Mode()
         ? "Quantum A: every move is measured immediately with cell-fixed probabilities. Center can favor O."
         : isQuantum2Mode()
-          ? "Quantum B: choose two cells per turn. Choosing the same cell twice claims it immediately; touching an occupied seed from the other player causes probabilistic interference."
+          ? "Quantum B: choose two cells per turn. Choosing the same cell twice claims it immediately; one adjustable owner collapse rate also applies to the opening center O seed."
           : (mode === "2d"
             ? "Classic 2D uses optimal play."
             : mode === "3d"
@@ -3289,10 +3926,9 @@
         }
       }
       render(line);
-      if (isAiVsAiMatch() && (autoAiInfinite || autoAiRoundsRemaining > 0)) {
-        if (!autoAiInfinite) autoAiRoundsRemaining -= 1;
+      if (isAiVsAiMatch() && autoAiInfinite) {
         window.setTimeout(() => {
-          if (!isAiVsAiMatch() || (!autoAiInfinite && autoAiRoundsRemaining <= 0)) {
+          if (!isAiVsAiMatch() || !autoAiInfinite) {
             render();
             return;
           }
@@ -3336,6 +3972,7 @@
           return;
         }
         if (result.ended) return;
+        quantum2CommitPendingTouches();
         quantum2ActionStep = 0;
         if (isAiMatch()) {
           current = ai;
@@ -3414,7 +4051,7 @@
         human = quantumOtherPlayer(current);
       }
       if (isQuantum2Mode()) {
-        const [first, second] = getQuantum2AiPair(ai);
+        const first = getQuantum2AiFirstActionFromState(board, quantum2Cells, ai);
         if (first === -1) {
           human = prevHuman;
           ai = prevAi;
@@ -3442,6 +4079,7 @@
           ai = prevAi;
           return;
         }
+        const second = getQuantum2AiSecondActionFromState(board, quantum2Cells, ai);
         if (second === -1) {
           human = prevHuman;
           ai = prevAi;
@@ -3468,6 +4106,7 @@
           ai = prevAi;
           return;
         }
+        quantum2CommitPendingTouches();
         human = prevHuman;
         ai = prevAi;
         current = isAiVsAiMatch() ? quantumOtherPlayer(current) : human;
@@ -3926,9 +4565,13 @@
       board = Array(cellCount()).fill("");
       quantumOuterORates = generateQuantumOuterORates();
       quantumMinimaxCache = new Map();
+      quantum2SearchCache = new Map();
+      quantum2PairChoiceCache = new Map();
+      quantum2OutcomeCache = new Map();
+      quantum2ExactSolveEnabled = false;
       quantum2Cells = createQuantum2Cells();
       if (isQuantum2Mode()) {
-        quantum2Cells[4].touches.push({ player: "O", phase: 1 });
+        quantum2Cells[4].touches.push({ player: "O", phase: 1, fresh: false });
       }
       quantum2PendingCell = -1;
       quantum2ActionStep = 0;
@@ -4041,12 +4684,26 @@
     centerOAdvantageInput.addEventListener("input", () => {
       quantumCenterORate = Number(centerOAdvantageInput.value) / 100;
       quantumMinimaxCache = new Map();
+      quantum2SearchCache = new Map();
+      quantum2PairChoiceCache = new Map();
+      quantum2OutcomeCache = new Map();
+      quantum2ExactSolveEnabled = false;
       if (isQuantum1Mode()) {
         clearHint();
         render();
       } else {
         centerOAdvantageValueEl.textContent = `${Math.round(quantumCenterORate * 100)}%`;
       }
+    });
+
+    quantumBBaseOwnerRateInput.addEventListener("input", () => {
+      quantum2OwnerRate = Number(quantumBBaseOwnerRateInput.value) / 100;
+      quantum2SearchCache = new Map();
+      quantum2PairChoiceCache = new Map();
+      quantum2OutcomeCache = new Map();
+      quantum2ExactSolveEnabled = false;
+      clearHint();
+      render();
     });
 
     quantumSimBtn.addEventListener("click", async () => {
@@ -4078,19 +4735,9 @@
       newRound();
     });
 
-    aiAiLoopBtn.addEventListener("click", () => {
-      if (!isAiVsAiMatch()) return;
-      if (autoAiRoundsRemaining > 0 || autoAiInfinite) {
-        stopAiAiAutoRun();
-        render();
-        return;
-      }
-      startAiAiAutoRun(20);
-    });
-
     aiAiInfiniteBtn.addEventListener("click", () => {
       if (!isAiVsAiMatch()) return;
-      if (autoAiInfinite || autoAiRoundsRemaining > 0) {
+      if (autoAiInfinite) {
         stopAiAiAutoRun();
         render();
         return;
