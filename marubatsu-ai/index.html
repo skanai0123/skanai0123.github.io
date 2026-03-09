@@ -3250,6 +3250,7 @@
                 y,
                 z,
                 w,
+                point,
                 screenX: screen.x,
                 screenY: screen.y,
                 depth: screen.depth,
@@ -3315,43 +3316,22 @@
       });
     }
 
-    function projectMiniTesseractPointTo2D(point, metrics) {
-      let rotated = [...point];
-      rotated = rotate4D(rotated, fourDRotateXW, 0, 3);
-      rotated = rotate4D(rotated, fourDRotateYZ, 1, 2);
-      rotated = rotate4D(rotated, fourDRotateZW, 2, 3);
-      rotated = rotate4D(rotated, fourDRotateXZ, 0, 2);
-
-      const wFactor = metrics.d4 / (metrics.d4 - rotated[3]);
-      const x3 = rotated[0] * wFactor;
-      const y3 = rotated[1] * wFactor;
-      const z3 = rotated[2] * wFactor;
-      const zFactor = metrics.d3 / (metrics.d3 - z3);
-      return {
-        x: (x3 * zFactor * metrics.scale) + (metrics.sceneWidth / 2),
-        y: (y3 * zFactor * metrics.scale * -1) + (metrics.sceneHeight / 2),
-        depth: z3
-      };
-    }
-
-    function computeMiniTesseractGeometry(nodeSize) {
-      const localMetrics = {
-        sceneWidth: nodeSize,
-        sceneHeight: nodeSize,
-        scale: nodeSize * 0.22,
-        d4: 3.2,
-        d3: 4.4
-      };
-
+    function computeMiniTesseractGeometry(centerPoint, metrics, nodeSize) {
+      const miniRadius = 0.17;
       const vertices = [];
       const vertexMap = new Map();
       for (let x = -1; x <= 1; x += 2) {
         for (let y = -1; y <= 1; y += 2) {
           for (let z = -1; z <= 1; z += 2) {
             for (let w = -1; w <= 1; w += 2) {
-              const projected = projectMiniTesseractPointTo2D(
-                [x * 0.72, y * 0.72, z * 0.72, w * 0.72],
-                localMetrics
+              const projected = project4DPointTo2D(
+                [
+                  centerPoint[0] + (x * miniRadius),
+                  centerPoint[1] + (y * miniRadius),
+                  centerPoint[2] + (z * miniRadius),
+                  centerPoint[3] + (w * miniRadius)
+                ],
+                metrics
               );
               const vertex = { x, y, z, w, px: projected.x, py: projected.y, depth: projected.depth };
               vertices.push(vertex);
@@ -3360,6 +3340,15 @@
           }
         }
       }
+
+      const minX = Math.min(...vertices.map((vertex) => vertex.px));
+      const maxX = Math.max(...vertices.map((vertex) => vertex.px));
+      const minY = Math.min(...vertices.map((vertex) => vertex.py));
+      const maxY = Math.max(...vertices.map((vertex) => vertex.py));
+      const padding = nodeSize * 0.08;
+      const size = Math.max((maxX - minX), (maxY - minY)) + (padding * 2);
+      const originX = minX - padding;
+      const originY = minY - padding;
 
       const facePolygons = [];
       const getFacePoints = (fixed) => {
@@ -3408,7 +3397,7 @@
       const faces = facePolygons
         .map((face) => ({
           kind: face.kind,
-          points: face.points.map((point) => `${point.px},${point.py}`).join(" ")
+          points: face.points.map((point) => `${point.px - originX},${point.py - originY}`).join(" ")
         }));
 
       const edges = [];
@@ -3425,9 +3414,14 @@
 
       const sortedEdges = edges
         .sort((a, b) => ((a[0].depth + a[1].depth) / 2) - ((b[0].depth + b[1].depth) / 2))
-        .map(([from, to]) => ({ x1: from.px, y1: from.py, x2: to.px, y2: to.py }));
+        .map(([from, to]) => ({
+          x1: from.px - originX,
+          y1: from.py - originY,
+          x2: to.px - originX,
+          y2: to.py - originY
+        }));
 
-      return { faces, edges: sortedEdges };
+      return { faces, edges: sortedEdges, size };
     }
 
     function createMiniTesseractSvg() {
@@ -3440,11 +3434,9 @@
       return svg;
     }
 
-    function updateMiniTesseractSvg(svg, geometryOrNodeSize = 100) {
+    function updateMiniTesseractSvg(svg, geometry) {
       const svgNS = "http://www.w3.org/2000/svg";
-      const geometry = typeof geometryOrNodeSize === "number"
-        ? computeMiniTesseractGeometry(geometryOrNodeSize)
-        : geometryOrNodeSize;
+      svg.setAttribute("viewBox", `0 0 ${geometry.size} ${geometry.size}`);
       let polygons = [...svg.querySelectorAll("polygon")];
       while (polygons.length < geometry.faces.length) {
         const polygon = document.createElementNS(svgNS, "polygon");
@@ -3564,18 +3556,23 @@
       for (const projected of projectedCells) {
         const cell = nodeMap.get(projected.index);
         if (!cell) return false;
-        const cellSize = Math.max(metrics.cell * 0.76, metrics.cell * projected.sizeScale);
+        const cellSize = Math.max(metrics.cell * 0.672, metrics.cell * projected.sizeScale * 0.936);
         const hue = HYPER_SLICE_HUES[(projected.w * 3) + projected.z];
         cell.style.setProperty("--slice-h", String(hue));
         cell.style.setProperty("--plane-cell-size", `${cellSize}px`);
         cell.style.setProperty("--node-x", `${projected.screenX - (cellSize / 2)}px`);
         cell.style.setProperty("--node-y", `${projected.screenY - (cellSize / 2)}px`);
-        cell.style.setProperty("--node-scale", String(Math.max(0.84, projected.sizeScale * 0.98)));
+        cell.style.setProperty("--node-scale", String(Math.max(0.864, projected.sizeScale * 0.984)));
         cell.style.zIndex = String(200 + Math.round((projected.depth + 2) * 20));
         cell.setAttribute("aria-label", `Cell ${projected.index + 1} (${projected.x},${projected.y},${projected.z},${projected.w})`);
         if (updateMini) {
           const miniSvg = cell.querySelector(".mini-tesseract-svg");
-          if (miniSvg) updateMiniTesseractSvg(miniSvg, 100);
+          if (miniSvg) {
+            updateMiniTesseractSvg(
+              miniSvg,
+              computeMiniTesseractGeometry(projected.point, metrics, cellSize)
+            );
+          }
         }
       }
       return true;
@@ -3630,13 +3627,16 @@
           const projectedCells = build4DProjectedCells(metrics);
           hyperTesseract.appendChild(create4DProjectedLinksSvg(projectedCells, metrics));
           for (const projected of projectedCells) {
-            const cellSize = Math.max(metrics.cell * 0.76, metrics.cell * projected.sizeScale);
+            const cellSize = Math.max(metrics.cell * 0.672, metrics.cell * projected.sizeScale * 0.936);
             const cell = createCell(projected.index, {
               x: projected.x,
               y: projected.y,
               z: projected.z,
               w: projected.w,
-              hyper4d: true
+              hyper4d: true,
+              point: projected.point,
+              nodeSize: cellSize,
+              metrics
             });
             const hue = HYPER_SLICE_HUES[(projected.w * 3) + projected.z];
             cell.classList.add("hyper-node");
@@ -3644,7 +3644,7 @@
             cell.style.setProperty("--plane-cell-size", `${cellSize}px`);
             cell.style.setProperty("--node-x", `${projected.screenX - (cellSize / 2)}px`);
             cell.style.setProperty("--node-y", `${projected.screenY - (cellSize / 2)}px`);
-            cell.style.setProperty("--node-scale", String(Math.max(0.84, projected.sizeScale * 0.98)));
+            cell.style.setProperty("--node-scale", String(Math.max(0.864, projected.sizeScale * 0.984)));
             cell.style.zIndex = String(200 + Math.round((projected.depth + 2) * 20));
             cell.setAttribute("aria-label", `Cell ${projected.index + 1} (${projected.x},${projected.y},${projected.z},${projected.w})`);
             hyperTesseract.appendChild(cell);
@@ -3687,7 +3687,10 @@
         if (coord.hyper4d) {
           btn.classList.add("hypercube-node");
           const miniSvg = createMiniTesseractSvg();
-          updateMiniTesseractSvg(miniSvg, 100);
+          updateMiniTesseractSvg(
+            miniSvg,
+            computeMiniTesseractGeometry(coord.point, coord.metrics, coord.nodeSize ?? 42)
+          );
           btn.appendChild(miniSvg);
         } else {
           btn.style.setProperty("--x", String(coord.x));
@@ -4743,6 +4746,10 @@
         cell.classList.remove("dim-empty");
         cell.disabled = roundOver || value !== "" || !isHumanTurn();
       });
+
+      if (mode === "4d" && fourDView === "stack") {
+        update4DHypercubeScene(true);
+      }
 
       const coordIndex = mode === "3d" ? hoveredTopIndex : (isQuantum2Mode() ? quantum2PendingCell : selectedIndex);
       const coord = coordFromIndex(coordIndex);
