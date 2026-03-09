@@ -128,6 +128,13 @@
       top: 30%;
     }
 
+    .app.wallpaper .hyper-voxel-scene,
+    .app.wallpaper .hyper-voxel-board {
+      --cube-size: 42px;
+      --cube-depth: var(--cube-size);
+      --step: 58px;
+    }
+
     .app.wallpaper .board.board-4d {
       overflow: auto;
       padding: 8px 0;
@@ -351,6 +358,18 @@
       margin-inline: auto;
     }
 
+    .board-view-controls {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin: 0 0 12px;
+    }
+
+    .board-view-controls.hidden {
+      display: none;
+    }
+
+
     .board.board-2d {
       grid-template-columns: repeat(3, minmax(76px, 1fr));
     }
@@ -410,6 +429,326 @@
       background: #fff8f0;
     }
 
+    .hyper-tesseract {
+      position: relative;
+      width: var(--scene-width, 380px);
+      height: var(--scene-height, 280px);
+      margin-inline: auto;
+      padding: 0;
+      cursor: grab;
+      touch-action: none;
+      transform: scale(var(--scene-render-scale, 1));
+      transform-origin: center center;
+    }
+
+    .hyper-tesseract.dragging {
+      cursor: grabbing;
+    }
+
+
+    .hyper-tesseract svg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+      pointer-events: none;
+    }
+
+    .hyper-tesseract line {
+      stroke-width: 1.5;
+      stroke-linecap: round;
+      opacity: 0.48;
+    }
+
+    .hyper-tesseract .guide-outline {
+      fill: none;
+      stroke-width: 1.4;
+      opacity: 0.42;
+    }
+
+    .hyper-tesseract .cell.voxel.hyper-node {
+      position: absolute;
+      width: var(--plane-cell-size, 42px);
+      height: var(--plane-cell-size, 42px);
+      min-height: var(--plane-cell-size, 42px);
+      margin: 0;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      box-shadow: none;
+      overflow: visible;
+      color: #3c2412;
+      transform-style: preserve-3d;
+      transform:
+        translate3d(var(--node-x, 0px), var(--node-y, 0px), 0)
+        scale(var(--node-scale, 1));
+    }
+
+    .hyper-tesseract .cell.voxel.hyper-node.hypercube-node {
+      perspective: calc(var(--plane-cell-size, 42px) * 3.2);
+      perspective-origin: 50% 50%;
+      --outer-size: calc(var(--plane-cell-size, 42px) * 0.34);
+      --inner-size: calc(var(--plane-cell-size, 42px) * 0.22);
+      --bridge-size: calc(var(--plane-cell-size, 42px) * 0.17);
+    }
+
+    .hyper-tesseract .cell.voxel.hyper-node.hypercube-node .mini-cube {
+      position: absolute;
+      width: var(--mini-cube-size);
+      height: var(--mini-cube-size);
+      transform-style: preserve-3d;
+      pointer-events: none;
+      transform:
+        translate3d(var(--mini-x, 0px), var(--mini-y, 0px), var(--mini-z, 0px))
+        rotateX(var(--mini-rot-x, -18deg))
+        rotateY(var(--mini-rot-y, 24deg));
+    }
+
+    .hyper-tesseract .cell.voxel.hyper-node.hypercube-node .mini-cube.outer {
+      --mini-cube-size: var(--outer-size);
+      --mini-x: calc(var(--plane-cell-size, 42px) * 0.10);
+      --mini-y: calc(var(--plane-cell-size, 42px) * 0.42);
+      --mini-z: 0px;
+    }
+
+    .hyper-tesseract .cell.voxel.hyper-node.hypercube-node .mini-cube.inner {
+      --mini-cube-size: var(--inner-size);
+      --mini-x: calc(var(--plane-cell-size, 42px) * 0.55);
+      --mini-y: calc(var(--plane-cell-size, 42px) * 0.18);
+      --mini-z: 8px;
+    }
+
+    .hyper-tesseract .cell.voxel.hyper-node.hypercube-node .mini-cube.bridge-top {
+      --mini-cube-size: var(--bridge-size);
+      --mini-x: calc(var(--plane-cell-size, 42px) * 0.31);
+      --mini-y: calc(var(--plane-cell-size, 42px) * 0.24);
+      --mini-rot-x: -28deg;
+    }
+
+    .hyper-tesseract .cell.voxel.hyper-node.hypercube-node .mini-cube.bridge-bottom {
+      --mini-cube-size: var(--bridge-size);
+      --mini-x: calc(var(--plane-cell-size, 42px) * 0.30);
+      --mini-y: calc(var(--plane-cell-size, 42px) * 0.66);
+      --mini-rot-x: -10deg;
+    }
+
+    .hyper-tesseract .cell.voxel.hyper-node.hypercube-node .mini-cube.bridge-left {
+      --mini-cube-size: var(--bridge-size);
+      --mini-x: calc(var(--plane-cell-size, 42px) * 0.22);
+      --mini-y: calc(var(--plane-cell-size, 42px) * 0.50);
+      --mini-rot-y: 10deg;
+    }
+
+    .hyper-tesseract .cell.voxel.hyper-node.hypercube-node .mini-cube.bridge-right {
+      --mini-cube-size: var(--bridge-size);
+      --mini-x: calc(var(--plane-cell-size, 42px) * 0.56);
+      --mini-y: calc(var(--plane-cell-size, 42px) * 0.42);
+      --mini-rot-y: 34deg;
+    }
+
+    .hyper-tesseract .cell.voxel.hyper-node.hypercube-node .mini-cube.bridge-front {
+      --mini-cube-size: var(--bridge-size);
+      --mini-x: calc(var(--plane-cell-size, 42px) * 0.45);
+      --mini-y: calc(var(--plane-cell-size, 42px) * 0.32);
+      --mini-z: 10px;
+      --mini-rot-y: 30deg;
+    }
+
+    .hyper-tesseract .cell.voxel.hyper-node.hypercube-node .mini-cube.bridge-back {
+      --mini-cube-size: var(--bridge-size);
+      --mini-x: calc(var(--plane-cell-size, 42px) * 0.34);
+      --mini-y: calc(var(--plane-cell-size, 42px) * 0.56);
+      --mini-z: -6px;
+      --mini-rot-y: 14deg;
+    }
+
+    .hyper-tesseract .cell.voxel.hyper-node.hypercube-node .mini-cube-face {
+      position: absolute;
+      inset: 0;
+      border: 1px solid hsla(var(--slice-h, 30), 44%, 42%, 0.86);
+      border-radius: 2px;
+      backface-visibility: hidden;
+      background: linear-gradient(
+        150deg,
+        hsla(var(--slice-h, 30), 42%, 82%, 0.28),
+        hsla(var(--slice-h, 30), 34%, 66%, 0.16)
+      );
+    }
+
+    .hyper-tesseract .cell.voxel.hyper-node.hypercube-node .mini-cube-face.front {
+      transform: translateZ(var(--mini-cube-depth));
+    }
+
+    .hyper-tesseract .cell.voxel.hyper-node.hypercube-node .mini-cube-face.top {
+      transform: rotateX(-90deg) translateZ(var(--mini-cube-depth));
+      transform-origin: top center;
+      background: linear-gradient(
+        180deg,
+        hsla(var(--slice-h, 30), 50%, 88%, 0.34),
+        hsla(var(--slice-h, 30), 36%, 76%, 0.18)
+      );
+    }
+
+    .hyper-tesseract .cell.voxel.hyper-node.hypercube-node .mini-cube-face.right {
+      transform: rotateY(90deg) translateZ(var(--mini-cube-depth));
+      transform-origin: right center;
+      background: linear-gradient(
+        180deg,
+        hsla(var(--slice-h, 30), 40%, 70%, 0.3),
+        hsla(var(--slice-h, 30), 30%, 56%, 0.16)
+      );
+    }
+
+    .hyper-tesseract .cell.voxel.hyper-node.hypercube-node .mini-link {
+      position: absolute;
+      left: 0;
+      top: 0;
+      height: 1.2px;
+      background: hsla(var(--slice-h, 30), 44%, 42%, 0.72);
+      transform-origin: left center;
+      border-radius: 999px;
+      pointer-events: none;
+      width: var(--mini-link-length, 10px);
+      transform:
+        translate3d(var(--mini-link-x, 0px), var(--mini-link-y, 0px), 0)
+        rotate(var(--mini-link-angle, 0deg));
+    }
+
+    .hyper-tesseract .cell.voxel.hyper-node.hypercube-node:hover:enabled .mini-cube-face {
+      border-color: hsla(var(--slice-h, 30), 76%, 34%, 0.96);
+      background: linear-gradient(
+        150deg,
+        hsla(var(--slice-h, 30), 58%, 84%, 0.38),
+        hsla(var(--slice-h, 30), 42%, 70%, 0.22)
+      );
+    }
+
+    .hyper-tesseract .cell.voxel.hyper-node.hypercube-node:hover:enabled .mini-link {
+      background: hsla(var(--slice-h, 30), 76%, 34%, 0.9);
+    }
+
+    .hyper-tesseract .cell.voxel.hyper-node .mark {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      color: inherit;
+      font-weight: 800;
+      text-shadow: 0 1px 0 #fff8, 0 3px 8px #7a4f2130;
+      pointer-events: none;
+      z-index: 2;
+      display: none;
+      font-size: calc(var(--plane-cell-size, 42px) * 0.56);
+    }
+
+    .hyper-tesseract .cell.voxel.hyper-node.x.hypercube-node .mini-cube-face {
+      border-color: #b13a2852;
+      background: linear-gradient(150deg, #ffb3a840, #e3604e22);
+    }
+
+    .hyper-tesseract .cell.voxel.hyper-node.o.hypercube-node .mini-cube-face {
+      border-color: #2d62a752;
+      background: linear-gradient(150deg, #b9d5ff40, #5e93e222);
+    }
+
+    .hyper-tesseract .cell.voxel.hyper-node.x.hypercube-node .mini-link {
+      background: #b13a2870;
+    }
+
+    .hyper-tesseract .cell.voxel.hyper-node.o.hypercube-node .mini-link {
+      background: #2d62a770;
+    }
+
+    .hyper-tesseract .cell.voxel.hyper-node.hypercube-node {
+      color: hsla(var(--slice-h, 30), 44%, 42%, 0.64);
+    }
+
+    .hyper-tesseract .cell.voxel.hyper-node.hypercube-node .mini-tesseract-svg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+      pointer-events: none;
+    }
+
+    .hyper-tesseract .cell.voxel.hyper-node.hypercube-node .mini-tesseract-svg line {
+      stroke: currentColor;
+      stroke-width: 0.9;
+      stroke-linecap: round;
+      opacity: 0.42;
+    }
+
+    .hyper-tesseract .cell.voxel.hyper-node.hypercube-node .mini-tesseract-svg polygon {
+      fill: currentColor;
+      opacity: 0.07;
+    }
+
+    .hyper-tesseract .cell.voxel.hyper-node.hypercube-node .mini-tesseract-svg polygon.bridge-face {
+      opacity: 0;
+    }
+
+    .hyper-tesseract .cell.voxel.hyper-node.hypercube-node:hover:enabled {
+      color: hsla(var(--slice-h, 30), 70%, 36%, 0.78);
+    }
+
+    .hyper-tesseract .cell.voxel.hyper-node.hypercube-node.selected {
+      color: hsla(var(--slice-h, 30), 72%, 34%, 0.9);
+    }
+
+    .hyper-tesseract .cell.voxel.hyper-node.hypercube-node.selected .mini-tesseract-svg polygon {
+      opacity: 0.24;
+    }
+
+    .hyper-tesseract .cell.voxel.hyper-node.hypercube-node.selected .mini-tesseract-svg polygon.bridge-face {
+      opacity: 0.24;
+    }
+
+    .hyper-tesseract .cell.voxel.hyper-node.hypercube-node.selected .mini-tesseract-svg line {
+      opacity: 0.78;
+      stroke-width: 1.05;
+    }
+
+    .hyper-tesseract .cell.voxel.hyper-node.x.hypercube-node {
+      color: rgba(177, 58, 40, 0.88);
+    }
+
+    .hyper-tesseract .cell.voxel.hyper-node.o.hypercube-node {
+      color: rgba(45, 98, 167, 0.88);
+    }
+
+    .hyper-tesseract .cell.voxel.hyper-node.x.hypercube-node .mini-tesseract-svg line,
+    .hyper-tesseract .cell.voxel.hyper-node.o.hypercube-node .mini-tesseract-svg line {
+      opacity: 0.84;
+      stroke-width: 1.2;
+    }
+
+    .hyper-tesseract .cell.voxel.hyper-node.x.hypercube-node .mini-tesseract-svg polygon,
+    .hyper-tesseract .cell.voxel.hyper-node.o.hypercube-node .mini-tesseract-svg polygon {
+      opacity: 0.48;
+    }
+
+    .hyper-tesseract .cell.voxel.hyper-node.x.hypercube-node .mini-tesseract-svg polygon.bridge-face,
+    .hyper-tesseract .cell.voxel.hyper-node.o.hypercube-node .mini-tesseract-svg polygon.bridge-face {
+      opacity: 0;
+    }
+
+    .hyper-tesseract .cell.voxel.hyper-node.x.hypercube-node.selected .mini-tesseract-svg polygon.bridge-face,
+    .hyper-tesseract .cell.voxel.hyper-node.o.hypercube-node.selected .mini-tesseract-svg polygon.bridge-face {
+      opacity: 0.48;
+    }
+
+    .hyper-tesseract .cell.voxel.hyper-node.x.hypercube-node .mini-tesseract-svg circle,
+    .hyper-tesseract .cell.voxel.hyper-node.o.hypercube-node .mini-tesseract-svg circle {
+      opacity: 0.56;
+    }
+
+    .hyper-tesseract .cell.voxel.hyper-node.x .mark,
+    .hyper-tesseract .cell.voxel.hyper-node.o .mark {
+      display: none;
+    }
+
     .board.board-3d.cube {
       display: block;
       width: min(96vw, 680px);
@@ -460,7 +799,7 @@
       --step: 68px;
       position: absolute;
       inset: 0;
-      perspective: calc(1100px / var(--scene-scale));
+      perspective: calc(var(--camera-distance-3d, 1100px) / var(--scene-scale));
       perspective-origin: 50% 50%;
     }
 
@@ -475,6 +814,31 @@
       transform: translate(-50%, -50%) rotateX(62deg) rotateZ(-35deg);
     }
 
+    .hyper-voxel-scene {
+      --cube-size: 36px;
+      --cube-depth: var(--cube-size);
+      --step: 50px;
+      width: min(96vw, 920px);
+      height: min(62vw, 420px);
+      max-height: 460px;
+    }
+
+    .hyper-voxel-board {
+      top: 30%;
+    }
+
+    .hyper-slice-label {
+      position: absolute;
+      top: 14px;
+      left: 50%;
+      transform: translateX(calc(-50% + var(--offset-x, 0px)));
+      font-size: 13px;
+      font-weight: 800;
+      color: #6a4726;
+      text-shadow: 0 1px 0 #fff8;
+      pointer-events: none;
+    }
+
     .board.board-3d.cube .cell.voxel {
       --cube-wire-alpha: var(--cube-wire-alpha-idle);
       --cube-fill-alpha: var(--cube-fill-alpha-idle);
@@ -485,9 +849,9 @@
       transform-style: preserve-3d;
       transform:
         translate3d(
-          calc((var(--x) - 1) * var(--step)),
-          calc((var(--y) - 1) * var(--step)),
-          calc((var(--z) - 1) * var(--step))
+          calc(var(--gx, 0px) + ((var(--x) - 1) * var(--step))),
+          calc(var(--gy, 0px) + ((var(--y) - 1) * var(--step))),
+          calc(var(--gz, 0px) + ((var(--z) - 1) * var(--step)))
         );
       border: 0;
       border-radius: 0;
@@ -633,9 +997,9 @@
     .board.board-3d.cube .cell.voxel.selected {
       transform:
         translate3d(
-          calc((var(--x) - 1) * var(--step)),
-          calc((var(--y) - 1) * var(--step)),
-          calc((var(--z) - 1) * var(--step) + 6px)
+          calc(var(--gx, 0px) + ((var(--x) - 1) * var(--step))),
+          calc(var(--gy, 0px) + ((var(--y) - 1) * var(--step))),
+          calc(var(--gz, 0px) + ((var(--z) - 1) * var(--step) + 6px))
         );
       box-shadow:
         inset 0 0 0 1px #fff,
@@ -660,9 +1024,9 @@
       --cube-fill-alpha: var(--cube-fill-alpha-layer);
       transform:
         translate3d(
-          calc((var(--x) - 1) * var(--step)),
-          calc((var(--y) - 1) * var(--step)),
-          calc((var(--z) - 1) * var(--step) + 3px)
+          calc(var(--gx, 0px) + ((var(--x) - 1) * var(--step))),
+          calc(var(--gy, 0px) + ((var(--y) - 1) * var(--step))),
+          calc(var(--gz, 0px) + ((var(--z) - 1) * var(--step) + 3px))
         );
       box-shadow: 0 6px 10px #7a4f211f;
     }
@@ -1030,16 +1394,37 @@
         margin-inline: -2px;
       }
 
+
       .hyper-board {
         --hyper-cell-size: 58px;
         --hyper-block-gap: 12px;
         gap: 4px;
       }
 
+      .hyper-tesseract line {
+        stroke-width: 1.35;
+      }
+
+      .hyper-tesseract .cell.hyper-node {
+        border-width: 2px;
+      }
+
       .hyper-board .cell {
         width: var(--hyper-cell-size);
         min-height: var(--hyper-cell-size);
         font-size: clamp(24px, 7.4vw, 40px);
+      }
+
+      .hyper-voxel-scene {
+        --cube-size: 28px;
+        --cube-depth: var(--cube-size);
+        --step: 38px;
+        height: min(72vw, 320px);
+      }
+
+      .hyper-slice-label {
+        top: 10px;
+        font-size: 11px;
       }
 
       .quantum-panel {
@@ -1149,6 +1534,11 @@
       <p id="hintText" class="hint-text"></p>
       <p id="coords" class="coords"></p>
       <p id="winEquation" class="win-equation"></p>
+      <div id="boardViewControls" class="board-view-controls hidden" aria-label="4D board view">
+        <button id="fourDFlatBtn" type="button">Flat Map</button>
+        <button id="fourDStackBtn" type="button">Hypercube</button>
+        <button id="fourDSpinBtn" type="button">Spin</button>
+      </div>
       <div class="board-stage">
         <div id="layerArrows" class="layer-arrows hidden" aria-label="Layer arrows">
           <button id="layerUpBtn" class="layer-arrow-btn" type="button" aria-label="Layer up">↑</button>
@@ -1210,7 +1600,6 @@
       </div>
     </div>
   </main>
-
   <script>
     const appEl = document.getElementById("app");
     const gamePanelEl = document.getElementById("gamePanel");
@@ -1247,7 +1636,10 @@
     const quantumGraphWrapEl = document.getElementById("quantumGraphWrap");
     const quantumGraphMetaEl = document.getElementById("quantumGraphMeta");
     const quantumGraphEl = document.getElementById("quantumGraph");
-
+    const boardViewControlsEl = document.getElementById("boardViewControls");
+    const fourDFlatBtn = document.getElementById("fourDFlatBtn");
+    const fourDStackBtn = document.getElementById("fourDStackBtn");
+    const fourDSpinBtn = document.getElementById("fourDSpinBtn");
     const mode2dClassicBtn = document.getElementById("mode2dClassic");
     const mode2dQuantum1Btn = document.getElementById("mode2dQuantum1");
     const mode2dQuantum2Btn = document.getElementById("mode2dQuantum2");
@@ -1302,10 +1694,25 @@
     let aiTimerId = 0;
     let viewRotateX = 62;
     let viewRotateZ = -35;
+    let sceneCamera3D = 1;
+    let sceneCamera4D = 1;
     let autoRotateZ = 0;
     let autoRotateFrameId = 0;
     let autoRotateLastTs = 0;
     let statsOpen = false;
+    let fourDView = "stack";
+    let fourDRotationEnabled = true;
+    let fourDAutoRotateFrameId = 0;
+    let fourDAutoRotateLastTs = 0;
+    let fourDRotateXW = -0.52;
+    let fourDRotateYZ = 0.45;
+    let fourDRotateZW = -0.31;
+    let fourDRotateXZ = 0.16;
+    let hyperDragActive = false;
+    let hyperDragPointerId = -1;
+    let hyperDragLastX = 0;
+    let hyperDragLastY = 0;
+    let hyperDragResumeSpin = false;
     let remoteStatsState = "disabled";
     let remoteStatsMessage = "Supabase is not configured.";
     let quantumCenterORate = 0.5;
@@ -1408,6 +1815,11 @@
     const VIEW_TILT_MIN = 30;
     const VIEW_TILT_MAX = 80;
     const AUTO_ROTATE_DEG_PER_SEC = 10;
+    const AUTO_ROTATE_4D_XW_RAD_PER_SEC = 0.294;
+    const AUTO_ROTATE_4D_ZW_RAD_PER_SEC = -0.238;
+    const SCENE_CAMERA_MIN = 0.72;
+    const SCENE_CAMERA_MAX = 1.7;
+    const SCENE_CAMERA_STEP = 0.08;
 
     function idx3D(x, y, z) {
       return z * 9 + y * 3 + x;
@@ -2556,6 +2968,8 @@
       statsOpen = false;
       mode = nextMode;
       if (mode === "3d") activeLayer = 2;
+      ensure3DAutoRotate();
+      ensure4DAutoRotate();
       clearHint();
       selectedIndex = -1;
       hoveredTopIndex = -1;
@@ -2639,8 +3053,436 @@
       render();
     }
 
+    function clampSceneCamera(value) {
+      return Math.min(SCENE_CAMERA_MAX, Math.max(SCENE_CAMERA_MIN, value));
+    }
+
+    function getSceneRenderScale(cameraFactor) {
+      return 1 + ((1 - cameraFactor) * 0.18);
+    }
+
+    function apply3DCameraDistance() {
+      const voxelScene = boardEl.querySelector(".voxel-scene");
+      if (!voxelScene) return;
+      voxelScene.style.setProperty("--camera-distance-3d", `${1100 * sceneCamera3D}px`);
+    }
+
+    function apply4DRenderScale() {
+      const scene = boardEl.querySelector(".hyper-tesseract");
+      if (!scene) return;
+      scene.style.setProperty("--scene-render-scale", String(getSceneRenderScale(sceneCamera4D)));
+    }
+
+    function adjustSceneCamera(direction) {
+      if (mode === "3d") {
+        sceneCamera3D = clampSceneCamera(sceneCamera3D - (direction * SCENE_CAMERA_STEP));
+        apply3DCameraDistance();
+        return true;
+      }
+      if (mode === "4d" && fourDView === "stack") {
+        sceneCamera4D = clampSceneCamera(sceneCamera4D - (direction * SCENE_CAMERA_STEP));
+        update4DHypercubeScene(true);
+        apply4DRenderScale();
+        return true;
+      }
+      return false;
+    }
+
     function stopAiAiAutoRun() {
       autoAiInfinite = false;
+    }
+
+    function set4DView(nextView) {
+      if (fourDView === nextView) return;
+      fourDView = nextView;
+      ensure4DAutoRotate();
+      if (mode === "4d") {
+        buildBoardDom();
+        render();
+      }
+    }
+
+    function stop4DAutoRotate() {
+      if (fourDAutoRotateFrameId) {
+        window.cancelAnimationFrame(fourDAutoRotateFrameId);
+        fourDAutoRotateFrameId = 0;
+      }
+      fourDAutoRotateLastTs = 0;
+      if (mode === "4d" && fourDView === "stack") {
+        update4DHypercubeScene(true);
+      }
+    }
+
+    function tick4DAutoRotate(timestamp) {
+      if (mode !== "4d" || fourDView !== "stack" || !fourDRotationEnabled) {
+        stop4DAutoRotate();
+        return;
+      }
+      if (!fourDAutoRotateLastTs) fourDAutoRotateLastTs = timestamp;
+      const deltaSec = (timestamp - fourDAutoRotateLastTs) / 1000;
+      fourDAutoRotateLastTs = timestamp;
+      fourDRotateXW = (fourDRotateXW + (deltaSec * AUTO_ROTATE_4D_XW_RAD_PER_SEC)) % (Math.PI * 2);
+      fourDRotateZW = (fourDRotateZW + (deltaSec * AUTO_ROTATE_4D_ZW_RAD_PER_SEC)) % (Math.PI * 2);
+      if (!update4DHypercubeScene(true)) {
+        buildBoardDom();
+        render();
+      }
+      fourDAutoRotateFrameId = window.requestAnimationFrame(tick4DAutoRotate);
+    }
+
+    function ensure4DAutoRotate() {
+      if (mode !== "4d" || fourDView !== "stack" || !fourDRotationEnabled) {
+        stop4DAutoRotate();
+        return;
+      }
+      if (fourDAutoRotateFrameId) return;
+      fourDAutoRotateFrameId = window.requestAnimationFrame(tick4DAutoRotate);
+    }
+
+    function startHyperDrag(pointerId, clientX, clientY) {
+      hyperDragActive = true;
+      hyperDragPointerId = pointerId;
+      hyperDragLastX = clientX;
+      hyperDragLastY = clientY;
+      hyperDragResumeSpin = fourDRotationEnabled;
+      stop4DAutoRotate();
+      const scene = boardEl.querySelector(".hyper-tesseract");
+      if (scene) scene.classList.add("dragging");
+    }
+
+    function moveHyperDrag(clientX, clientY) {
+      if (!hyperDragActive) return;
+      const deltaX = clientX - hyperDragLastX;
+      const deltaY = clientY - hyperDragLastY;
+      hyperDragLastX = clientX;
+      hyperDragLastY = clientY;
+      fourDRotateXW += deltaX * 0.008;
+      fourDRotateZW += deltaY * -0.008;
+      fourDRotateXZ += deltaX * 0.002;
+      fourDRotateYZ += deltaY * -0.002;
+      if (!update4DHypercubeScene(true)) {
+        buildBoardDom();
+        render();
+      }
+    }
+
+    function stopHyperDrag() {
+      if (!hyperDragActive) return;
+      hyperDragActive = false;
+      hyperDragPointerId = -1;
+      const scene = boardEl.querySelector(".hyper-tesseract");
+      if (scene) scene.classList.remove("dragging");
+      if (!update4DHypercubeScene(true)) {
+        buildBoardDom();
+      }
+      render();
+      if (hyperDragResumeSpin && fourDRotationEnabled) {
+        ensure4DAutoRotate();
+      }
+    }
+
+    function get4DProjectionMetrics() {
+      const compact = window.matchMedia("(max-width: 560px)").matches;
+      const cell = compact ? 26 : 34;
+      const sceneWidth = compact ? 332 : 470;
+      const sceneHeight = compact ? 264 : 352;
+      const scale = compact ? 54 : 78;
+      const d4 = 3.8 * sceneCamera4D;
+      const d3 = 5.2 * sceneCamera4D;
+      return {
+        cell,
+        sceneWidth,
+        sceneHeight,
+        scale,
+        d4,
+        d3
+      };
+    }
+
+    function rotate4D(point, angle, axisA, axisB) {
+      const rotated = [...point];
+      const cos = Math.cos(angle);
+      const sin = Math.sin(angle);
+      const a = rotated[axisA];
+      const b = rotated[axisB];
+      rotated[axisA] = (a * cos) - (b * sin);
+      rotated[axisB] = (a * sin) + (b * cos);
+      return rotated;
+    }
+
+    function project4DPointTo2D(point, metrics) {
+      let rotated = [...point];
+      rotated = rotate4D(rotated, fourDRotateXW, 0, 3);
+      rotated = rotate4D(rotated, fourDRotateYZ, 1, 2);
+      rotated = rotate4D(rotated, fourDRotateZW, 2, 3);
+      rotated = rotate4D(rotated, fourDRotateXZ, 0, 2);
+
+      const wFactor = metrics.d4 / (metrics.d4 - rotated[3]);
+      const x3 = rotated[0] * wFactor;
+      const y3 = rotated[1] * wFactor;
+      const z3 = rotated[2] * wFactor;
+      const zFactor = metrics.d3 / (metrics.d3 - z3);
+
+      return {
+        x: (x3 * zFactor * metrics.scale) + (metrics.sceneWidth / 2),
+        y: (y3 * zFactor * metrics.scale * -1) + (metrics.sceneHeight / 2),
+        depth: z3,
+        sizeScale: zFactor
+      };
+    }
+
+    function build4DProjectedCells(metrics) {
+      const projected = [];
+      for (let w = 0; w < 3; w += 1) {
+        for (let z = 0; z < 3; z += 1) {
+          for (let y = 0; y < 3; y += 1) {
+            for (let x = 0; x < 3; x += 1) {
+              const point = [
+                x - 1,
+                y - 1,
+                z - 1,
+                w - 1
+              ];
+              const screen = project4DPointTo2D(point, metrics);
+              projected.push({
+                index: idx4D(x, y, z, w),
+                x,
+                y,
+                z,
+                w,
+                screenX: screen.x,
+                screenY: screen.y,
+                depth: screen.depth,
+                sizeScale: screen.sizeScale
+              });
+            }
+          }
+        }
+      }
+      projected.sort((a, b) => a.depth - b.depth);
+      return projected;
+    }
+
+    function compute4DProjectedEdgeGeometry(projected) {
+      const pointMap = new Map(projected.map((cell) => [cell.index, cell]));
+      const edges = [];
+      for (const cell of projected) {
+        const neighbors = [];
+        if (cell.x < 2) neighbors.push(idx4D(cell.x + 1, cell.y, cell.z, cell.w));
+        if (cell.y < 2) neighbors.push(idx4D(cell.x, cell.y + 1, cell.z, cell.w));
+        if (cell.z < 2) neighbors.push(idx4D(cell.x, cell.y, cell.z + 1, cell.w));
+        if (cell.w < 2) neighbors.push(idx4D(cell.x, cell.y, cell.z, cell.w + 1));
+        for (const neighborIndex of neighbors) {
+          const neighbor = pointMap.get(neighborIndex);
+          if (!neighbor) continue;
+          edges.push({
+            x1: cell.screenX,
+            y1: cell.screenY,
+            x2: neighbor.screenX,
+            y2: neighbor.screenY,
+            stroke: `hsla(${HYPER_SLICE_HUES[(cell.w * 3) + cell.z]}, 50%, 42%, 0.32)`
+          });
+        }
+      }
+      return edges;
+    }
+
+    function create4DProjectedLinksSvg(projected, metrics) {
+      const svgNS = "http://www.w3.org/2000/svg";
+      const svg = document.createElementNS(svgNS, "svg");
+      svg.setAttribute("aria-hidden", "true");
+      update4DProjectedLinksSvg(svg, projected, metrics);
+      return svg;
+    }
+
+    function update4DProjectedLinksSvg(svg, projected, metrics) {
+      const svgNS = "http://www.w3.org/2000/svg";
+      const geometry = compute4DProjectedEdgeGeometry(projected);
+      svg.setAttribute("viewBox", `0 0 ${metrics.sceneWidth} ${metrics.sceneHeight}`);
+      let lines = [...svg.querySelectorAll("line")];
+      while (lines.length < geometry.length) {
+        const line = document.createElementNS(svgNS, "line");
+        svg.appendChild(line);
+        lines.push(line);
+      }
+      lines.forEach((line, index) => {
+        const edge = geometry[index];
+        line.setAttribute("x1", String(edge.x1));
+        line.setAttribute("y1", String(edge.y1));
+        line.setAttribute("x2", String(edge.x2));
+        line.setAttribute("y2", String(edge.y2));
+        line.setAttribute("stroke", edge.stroke);
+      });
+    }
+
+    function projectMiniTesseractPointTo2D(point, metrics) {
+      let rotated = [...point];
+      rotated = rotate4D(rotated, fourDRotateXW, 0, 3);
+      rotated = rotate4D(rotated, fourDRotateYZ, 1, 2);
+      rotated = rotate4D(rotated, fourDRotateZW, 2, 3);
+      rotated = rotate4D(rotated, fourDRotateXZ, 0, 2);
+
+      const wFactor = metrics.d4 / (metrics.d4 - rotated[3]);
+      const x3 = rotated[0] * wFactor;
+      const y3 = rotated[1] * wFactor;
+      const z3 = rotated[2] * wFactor;
+      const zFactor = metrics.d3 / (metrics.d3 - z3);
+      return {
+        x: (x3 * zFactor * metrics.scale) + (metrics.sceneWidth / 2),
+        y: (y3 * zFactor * metrics.scale * -1) + (metrics.sceneHeight / 2),
+        depth: z3
+      };
+    }
+
+    function computeMiniTesseractGeometry(nodeSize) {
+      const localMetrics = {
+        sceneWidth: nodeSize,
+        sceneHeight: nodeSize,
+        scale: nodeSize * 0.22,
+        d4: 3.2,
+        d3: 4.4
+      };
+
+      const vertices = [];
+      const vertexMap = new Map();
+      for (let x = -1; x <= 1; x += 2) {
+        for (let y = -1; y <= 1; y += 2) {
+          for (let z = -1; z <= 1; z += 2) {
+            for (let w = -1; w <= 1; w += 2) {
+              const projected = projectMiniTesseractPointTo2D(
+                [x * 0.72, y * 0.72, z * 0.72, w * 0.72],
+                localMetrics
+              );
+              const vertex = { x, y, z, w, px: projected.x, py: projected.y, depth: projected.depth };
+              vertices.push(vertex);
+              vertexMap.set(`${x},${y},${z},${w}`, vertex);
+            }
+          }
+        }
+      }
+
+      const facePolygons = [];
+      const getFacePoints = (fixed) => {
+        const axes = ["x", "y", "z", "w"];
+        const varyingAxes = axes.filter((axis) => !(axis in fixed));
+        const points = [];
+        for (const signA of [-1, 1]) {
+          for (const signB of [-1, 1]) {
+            const coord = {
+              x: fixed.x ?? signA,
+              y: fixed.y ?? (varyingAxes[0] === "y" ? signA : varyingAxes[1] === "y" ? signB : fixed.y),
+              z: fixed.z ?? (varyingAxes[0] === "z" ? signA : varyingAxes[1] === "z" ? signB : fixed.z),
+              w: fixed.w ?? (varyingAxes[0] === "w" ? signA : varyingAxes[1] === "w" ? signB : fixed.w)
+            };
+            points.push(vertexMap.get(`${coord.x},${coord.y},${coord.z},${coord.w}`));
+          }
+        }
+        return orderProjectedFacePoints(points);
+      };
+
+      for (const w of [-1, 1]) {
+        for (const axis of ["x", "y", "z"]) {
+          for (const sign of [-1, 1]) {
+            facePolygons.push({
+              kind: "cube-face",
+              points: getFacePoints({ w, [axis]: sign })
+            });
+          }
+        }
+      }
+
+      for (const axis of ["x", "y", "z"]) {
+        const bridgeAxes = ["x", "y", "z"].filter((candidate) => candidate !== axis);
+        for (const sign of [-1, 1]) {
+          for (const bridgeAxis of bridgeAxes) {
+            for (const bridgeSign of [-1, 1]) {
+              facePolygons.push({
+                kind: "bridge-face",
+                points: getFacePoints({ [axis]: sign, [bridgeAxis]: bridgeSign })
+              });
+            }
+          }
+        }
+      }
+
+      const faces = facePolygons
+        .map((face) => ({
+          kind: face.kind,
+          points: face.points.map((point) => `${point.px},${point.py}`).join(" ")
+        }));
+
+      const edges = [];
+      for (let i = 0; i < vertices.length; i += 1) {
+        for (let j = i + 1; j < vertices.length; j += 1) {
+          const diff =
+            Number(vertices[i].x !== vertices[j].x)
+            + Number(vertices[i].y !== vertices[j].y)
+            + Number(vertices[i].z !== vertices[j].z)
+            + Number(vertices[i].w !== vertices[j].w);
+          if (diff === 1) edges.push([vertices[i], vertices[j]]);
+        }
+      }
+
+      const sortedEdges = edges
+        .sort((a, b) => ((a[0].depth + a[1].depth) / 2) - ((b[0].depth + b[1].depth) / 2))
+        .map(([from, to]) => ({ x1: from.px, y1: from.py, x2: to.px, y2: to.py }));
+
+      return { faces, edges: sortedEdges };
+    }
+
+    function createMiniTesseractSvg() {
+      const svgNS = "http://www.w3.org/2000/svg";
+      const svg = document.createElementNS(svgNS, "svg");
+      svg.setAttribute("class", "mini-tesseract-svg");
+      svg.setAttribute("aria-hidden", "true");
+      svg.setAttribute("viewBox", "0 0 100 100");
+      svg.style.color = "inherit";
+      return svg;
+    }
+
+    function updateMiniTesseractSvg(svg, geometryOrNodeSize = 100) {
+      const svgNS = "http://www.w3.org/2000/svg";
+      const geometry = typeof geometryOrNodeSize === "number"
+        ? computeMiniTesseractGeometry(geometryOrNodeSize)
+        : geometryOrNodeSize;
+      let polygons = [...svg.querySelectorAll("polygon")];
+      while (polygons.length < geometry.faces.length) {
+        const polygon = document.createElementNS(svgNS, "polygon");
+        svg.appendChild(polygon);
+        polygons.push(polygon);
+      }
+      polygons.forEach((polygon, index) => {
+        polygon.setAttribute("points", geometry.faces[index].points);
+        polygon.setAttribute("fill", "currentColor");
+        polygon.setAttribute("class", geometry.faces[index].kind);
+      });
+      polygons.slice(geometry.faces.length).forEach((polygon) => polygon.remove());
+
+      let lines = [...svg.querySelectorAll("line")];
+      while (lines.length < geometry.edges.length) {
+        const line = document.createElementNS(svgNS, "line");
+        svg.appendChild(line);
+        lines.push(line);
+      }
+      lines.forEach((line, index) => {
+        const edge = geometry.edges[index];
+        line.setAttribute("x1", String(edge.x1));
+        line.setAttribute("y1", String(edge.y1));
+        line.setAttribute("x2", String(edge.x2));
+        line.setAttribute("y2", String(edge.y2));
+        line.setAttribute("stroke", "currentColor");
+      });
+      lines.slice(geometry.edges.length).forEach((line) => line.remove());
+    }
+
+    function orderProjectedFacePoints(points) {
+      const centerX = points.reduce((sum, point) => sum + point.px, 0) / points.length;
+      const centerY = points.reduce((sum, point) => sum + point.py, 0) / points.length;
+      return [...points].sort((a, b) => {
+        const angleA = Math.atan2(a.py - centerY, a.px - centerX);
+        const angleB = Math.atan2(b.py - centerY, b.px - centerX);
+        return angleA - angleB;
+      });
     }
 
     function startAiAiInfiniteRun() {
@@ -2665,8 +3507,9 @@
       const voxelBoard = boardEl.querySelector(".voxel-board");
       if (!voxelBoard) return;
       const effectiveRotateX = Math.max(46, viewRotateX - (wallpaperMode && mode === "3d" ? 8 : 0));
+      const renderScale = getSceneRenderScale(sceneCamera3D);
       voxelBoard.style.transform =
-        `translate(-50%, -50%) rotateX(${effectiveRotateX}deg) rotateZ(${viewRotateZ + autoRotateZ}deg)`;
+        `translate(-50%, -50%) scale(${renderScale}) rotateX(${effectiveRotateX}deg) rotateZ(${viewRotateZ + autoRotateZ}deg)`;
     }
 
     function stop3DAutoRotate() {
@@ -2697,6 +3540,45 @@
       }
       if (autoRotateFrameId) return;
       autoRotateFrameId = window.requestAnimationFrame(tick3DAutoRotate);
+    }
+
+    function update4DHypercubeScene(updateMini = true) {
+      const hyperTesseract = boardEl.querySelector(".hyper-tesseract");
+      if (!hyperTesseract) return false;
+      const metrics = get4DProjectionMetrics();
+      const projectedCells = build4DProjectedCells(metrics);
+      hyperTesseract.style.setProperty("--scene-width", `${metrics.sceneWidth}px`);
+      hyperTesseract.style.setProperty("--scene-height", `${metrics.sceneHeight}px`);
+      hyperTesseract.style.setProperty("--plane-cell-size", `${metrics.cell}px`);
+      hyperTesseract.style.setProperty("--scene-render-scale", String(getSceneRenderScale(sceneCamera4D)));
+
+      const linkSvg = hyperTesseract.querySelector(":scope > svg");
+      if (linkSvg) {
+        update4DProjectedLinksSvg(linkSvg, projectedCells, metrics);
+      }
+      const nodeMap = new Map(
+        [...hyperTesseract.querySelectorAll(".cell.hyper-node")]
+          .map((cell) => [Number(cell.dataset.index), cell])
+      );
+
+      for (const projected of projectedCells) {
+        const cell = nodeMap.get(projected.index);
+        if (!cell) return false;
+        const cellSize = Math.max(metrics.cell * 0.76, metrics.cell * projected.sizeScale);
+        const hue = HYPER_SLICE_HUES[(projected.w * 3) + projected.z];
+        cell.style.setProperty("--slice-h", String(hue));
+        cell.style.setProperty("--plane-cell-size", `${cellSize}px`);
+        cell.style.setProperty("--node-x", `${projected.screenX - (cellSize / 2)}px`);
+        cell.style.setProperty("--node-y", `${projected.screenY - (cellSize / 2)}px`);
+        cell.style.setProperty("--node-scale", String(Math.max(0.84, projected.sizeScale * 0.98)));
+        cell.style.zIndex = String(200 + Math.round((projected.depth + 2) * 20));
+        cell.setAttribute("aria-label", `Cell ${projected.index + 1} (${projected.x},${projected.y},${projected.z},${projected.w})`);
+        if (updateMini) {
+          const miniSvg = cell.querySelector(".mini-tesseract-svg");
+          if (miniSvg) updateMiniTesseractSvg(miniSvg, 100);
+        }
+      }
+      return true;
     }
 
     function buildBoardDom() {
@@ -2732,29 +3614,63 @@
         scene.appendChild(voxelBoard);
         boardEl.appendChild(scene);
         boardEl.setAttribute("aria-label", "3D 3x3x3 board");
+        apply3DCameraDistance();
         apply3DViewTransform();
         ensure3DAutoRotate();
       } else {
         stop3DAutoRotate();
-        const hyperBoard = document.createElement("div");
-        hyperBoard.className = "hyper-board";
-        for (let w = 0; w < 3; w += 1) {
-          for (let z = 0; z < 3; z += 1) {
-            for (let y = 0; y < 3; y += 1) {
-              for (let x = 0; x < 3; x += 1) {
-                const cell = createCell(idx4D(x, y, z, w));
-                const row = w * 4 + y + 1;
-                const col = z * 4 + x + 1;
-                const hue = HYPER_SLICE_HUES[w * 3 + z];
-                cell.style.gridRow = String(row);
-                cell.style.gridColumn = String(col);
-                cell.style.setProperty("--slice-h", String(hue));
-                hyperBoard.appendChild(cell);
+        if (fourDView === "stack") {
+          const metrics = get4DProjectionMetrics();
+          const hyperTesseract = document.createElement("div");
+          hyperTesseract.className = "hyper-tesseract";
+          hyperTesseract.style.setProperty("--scene-width", `${metrics.sceneWidth}px`);
+          hyperTesseract.style.setProperty("--scene-height", `${metrics.sceneHeight}px`);
+          hyperTesseract.style.setProperty("--plane-cell-size", `${metrics.cell}px`);
+          hyperTesseract.style.setProperty("--scene-render-scale", String(getSceneRenderScale(sceneCamera4D)));
+          const projectedCells = build4DProjectedCells(metrics);
+          hyperTesseract.appendChild(create4DProjectedLinksSvg(projectedCells, metrics));
+          for (const projected of projectedCells) {
+            const cellSize = Math.max(metrics.cell * 0.76, metrics.cell * projected.sizeScale);
+            const cell = createCell(projected.index, {
+              x: projected.x,
+              y: projected.y,
+              z: projected.z,
+              w: projected.w,
+              hyper4d: true
+            });
+            const hue = HYPER_SLICE_HUES[(projected.w * 3) + projected.z];
+            cell.classList.add("hyper-node");
+            cell.style.setProperty("--slice-h", String(hue));
+            cell.style.setProperty("--plane-cell-size", `${cellSize}px`);
+            cell.style.setProperty("--node-x", `${projected.screenX - (cellSize / 2)}px`);
+            cell.style.setProperty("--node-y", `${projected.screenY - (cellSize / 2)}px`);
+            cell.style.setProperty("--node-scale", String(Math.max(0.84, projected.sizeScale * 0.98)));
+            cell.style.zIndex = String(200 + Math.round((projected.depth + 2) * 20));
+            cell.setAttribute("aria-label", `Cell ${projected.index + 1} (${projected.x},${projected.y},${projected.z},${projected.w})`);
+            hyperTesseract.appendChild(cell);
+          }
+          boardEl.appendChild(hyperTesseract);
+        } else {
+          const hyperBoard = document.createElement("div");
+          hyperBoard.className = "hyper-board";
+          for (let w = 0; w < 3; w += 1) {
+            for (let z = 0; z < 3; z += 1) {
+              for (let y = 0; y < 3; y += 1) {
+                for (let x = 0; x < 3; x += 1) {
+                  const cell = createCell(idx4D(x, y, z, w));
+                  const row = w * 4 + y + 1;
+                  const col = z * 4 + x + 1;
+                  const hue = HYPER_SLICE_HUES[w * 3 + z];
+                  cell.style.gridRow = String(row);
+                  cell.style.gridColumn = String(col);
+                  cell.style.setProperty("--slice-h", String(hue));
+                  hyperBoard.appendChild(cell);
+                }
               }
             }
           }
+          boardEl.appendChild(hyperBoard);
         }
-        boardEl.appendChild(hyperBoard);
         boardEl.setAttribute("aria-label", "4D 3x3x3x3 board");
       }
     }
@@ -2768,18 +3684,28 @@
       btn.dataset.layer = String(z);
       if (coord) {
         btn.classList.add("voxel");
-        btn.style.setProperty("--x", String(coord.x));
-        btn.style.setProperty("--y", String(coord.y));
-        btn.style.setProperty("--z", String(coord.z));
-        const faces = ["front", "back", "right", "left", "top", "bottom"];
-        for (const face of faces) {
-          const faceEl = document.createElement("span");
-          faceEl.className = `face ${face}`;
-          btn.appendChild(faceEl);
+        if (coord.hyper4d) {
+          btn.classList.add("hypercube-node");
+          const miniSvg = createMiniTesseractSvg();
+          updateMiniTesseractSvg(miniSvg, 100);
+          btn.appendChild(miniSvg);
+        } else {
+          btn.style.setProperty("--x", String(coord.x));
+          btn.style.setProperty("--y", String(coord.y));
+          btn.style.setProperty("--z", String(coord.z));
+          btn.style.setProperty("--gx", `${coord.gx ?? 0}px`);
+          btn.style.setProperty("--gy", `${coord.gy ?? 0}px`);
+          btn.style.setProperty("--gz", `${coord.gz ?? 0}px`);
+          const faces = ["front", "back", "right", "left", "top", "bottom"];
+          for (const face of faces) {
+            const faceEl = document.createElement("span");
+            faceEl.className = `face ${face}`;
+            btn.appendChild(faceEl);
+          }
+          const hitFaceEl = document.createElement("span");
+          hitFaceEl.className = "hit-face";
+          btn.appendChild(hitFaceEl);
         }
-        const hitFaceEl = document.createElement("span");
-        hitFaceEl.className = "hit-face";
-        btn.appendChild(hitFaceEl);
         const markEl = document.createElement("span");
         markEl.className = "mark";
         btn.appendChild(markEl);
@@ -3839,6 +4765,13 @@
       mode2dQuantum2Btn.classList.toggle("active", !statsOpen && mode === "2d" && twoDVariant === "quantum2");
       mode3dBtn.classList.toggle("active", !statsOpen && mode === "3d");
       mode4dBtn.classList.toggle("active", !statsOpen && mode === "4d");
+      boardViewControlsEl.classList.toggle("hidden", mode !== "4d" || statsOpen);
+      fourDFlatBtn.classList.toggle("active", mode === "4d" && fourDView === "flat");
+      fourDStackBtn.classList.toggle("active", mode === "4d" && fourDView === "stack");
+      fourDFlatBtn.classList.toggle("hidden", mode === "4d" && fourDView === "flat");
+      fourDStackBtn.classList.toggle("hidden", mode === "4d" && fourDView === "stack");
+      fourDSpinBtn.classList.toggle("hidden", mode !== "4d" || fourDView !== "stack" || statsOpen);
+      fourDSpinBtn.classList.toggle("active", mode === "4d" && fourDView === "stack" && fourDRotationEnabled);
       wallpaperBtn.classList.toggle("active", wallpaperMode);
       statsBtn.classList.toggle("active", statsOpen);
       statsSummaryEl.classList.toggle("hidden", !statsOpen || wallpaperMode);
@@ -3890,7 +4823,9 @@
             ? "Classic 2D uses optimal play."
             : mode === "3d"
               ? "3D uses cube cells and a lightweight AI."
-              : "4D uses a flattened 9x9 view with colored 3x3 blocks.");
+              : (fourDView === "stack"
+                ? "4D uses a projected hypercube map, and each node is drawn as a tiny cube."
+                : "4D uses a flattened 9x9 view with colored 3x3 blocks."));
     }
 
     function evaluateState(testBoard) {
@@ -4019,18 +4954,47 @@
     }
 
     boardEl.addEventListener("pointermove", (event) => {
+      if (mode === "4d" && fourDView === "stack" && hyperDragActive && event.pointerId === hyperDragPointerId) {
+        event.preventDefault();
+        moveHyperDrag(event.clientX, event.clientY);
+        return;
+      }
       if (mode !== "3d") return;
       if (roundOver) return;
       updateHoveredVoxelFromPoint(event.clientX, event.clientY);
     });
 
     boardEl.addEventListener("pointerleave", () => {
+      if (hyperDragActive) stopHyperDrag();
       if (roundOver) return;
       if (hoveredTopIndex === -1) return;
       hoveredTopIndex = -1;
       selectedIndex = -1;
       render();
     });
+
+    boardEl.addEventListener("pointerdown", (event) => {
+      if (mode !== "4d" || fourDView !== "stack") return;
+      if (event.target instanceof HTMLElement && event.target.closest(".cell")) return;
+      startHyperDrag(event.pointerId, event.clientX, event.clientY);
+    });
+
+    boardEl.addEventListener("pointerup", (event) => {
+      if (!hyperDragActive || event.pointerId !== hyperDragPointerId) return;
+      stopHyperDrag();
+    });
+
+    boardEl.addEventListener("pointercancel", (event) => {
+      if (!hyperDragActive || event.pointerId !== hyperDragPointerId) return;
+      stopHyperDrag();
+    });
+
+    boardEl.addEventListener("wheel", (event) => {
+      if (mode !== "3d" && !(mode === "4d" && fourDView === "stack")) return;
+      event.preventDefault();
+      const direction = event.deltaY < 0 ? 1 : -1;
+      adjustSceneCamera(direction);
+    }, { passive: false });
 
     boardEl.addEventListener("click", (event) => {
       if (mode !== "3d") return;
@@ -4612,6 +5576,25 @@
       setMode("4d");
     });
 
+    fourDFlatBtn.addEventListener("click", () => {
+      set4DView("flat");
+    });
+
+    fourDStackBtn.addEventListener("click", () => {
+      set4DView("stack");
+    });
+
+    fourDSpinBtn.addEventListener("click", () => {
+      fourDRotationEnabled = !fourDRotationEnabled;
+      ensure4DAutoRotate();
+      if (mode === "4d" && fourDView === "stack") {
+        if (!fourDRotationEnabled) {
+          buildBoardDom();
+        }
+        render();
+      }
+    });
+
     statsBtn.addEventListener("click", () => {
       if (wallpaperMode) wallpaperMode = false;
       statsOpen = !statsOpen;
@@ -4638,6 +5621,13 @@
       }
       if (event.key === "0") {
         setWallpaperThemeIndex(9);
+      }
+    });
+
+    window.addEventListener("resize", () => {
+      if (mode === "4d" && fourDView === "stack") {
+        buildBoardDom();
+        render();
       }
     });
 
