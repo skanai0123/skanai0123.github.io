@@ -188,6 +188,24 @@
       color: #14775d;
     }
 
+    .btn-output {
+      background: linear-gradient(180deg, #f1fffb, #dff7ee);
+      color: #14684f;
+      border-color: rgba(20, 119, 93, 0.24);
+    }
+
+    .btn-fit {
+      background: linear-gradient(180deg, #eff8ff, #deeffd);
+      color: #0d5d95;
+      border-color: rgba(21, 116, 182, 0.24);
+    }
+
+    .btn-peak {
+      background: linear-gradient(180deg, #fff8ee, #ffefd8);
+      color: #9a5b0f;
+      border-color: rgba(188, 132, 43, 0.26);
+    }
+
     .select-stack {
       display: grid;
       gap: 4px;
@@ -652,17 +670,15 @@
           </div>
           <div class="controls">
             <div class="select-stack">
-              <label for="delimiterSelect">区切り文字</label>
+              <label for="delimiterSelect">Delimiter</label>
               <select id="delimiterSelect" class="delimiter-select">
-                <option value="tab" selected>タブ</option>
+                <option value="tab" selected>Tab</option>
                 <option value="comma">,</option>
-                <option value="space">スペース</option>
+                <option value="space">Space</option>
               </select>
             </div>
-            <button id="addVariableBtn" class="btn" type="button">変数を追加</button>
-            <button id="generateBtn" class="btn btn-primary" type="button">生成</button>
-            <button id="copyBtn" class="btn btn-secondary" type="button">コピー</button>
-            <button id="downloadBtn" class="btn" type="button">保存</button>
+            <button id="addVariableBtn" class="btn" type="button">Add Variable</button>
+            <button id="generateBtn" class="btn btn-primary" type="button">Generate</button>
           </div>
         </div>
 
@@ -676,12 +692,16 @@
               <h2 class="section-title">Output</h2>
             </div>
           </div>
-          <div class="meta" style="margin-top: 0; margin-bottom: 8px;">
-            <span id="statusText" class="status-ok">準備完了</span>
-            <span id="columnCountText">列数: 0</span>
-            <span id="rowCountText">行数: 0</span>
+          <div class="quick-fit-output-actions" style="margin-bottom: 8px;">
+            <button id="copyBtn" class="btn btn-output" type="button">Copy</button>
+            <button id="downloadBtn" class="btn btn-output" type="button">Save</button>
           </div>
-          <textarea id="outputBox" class="output-box" spellcheck="false" placeholder="ここに生成結果が表示されます。"></textarea>
+          <div class="meta" style="margin-top: 0; margin-bottom: 8px;">
+            <span id="statusText" class="status-ok">Ready</span>
+            <span id="columnCountText">Columns: 0</span>
+            <span id="rowCountText">Rows: 0</span>
+          </div>
+          <textarea id="outputBox" class="output-box" spellcheck="false" placeholder="Generated output appears here."></textarea>
         </section>
       </section>
     </section>
@@ -699,7 +719,7 @@
               <input id="quickFitFile" class="quick-fit-file" type="file" accept=".txt,.csv,.dat,.tsv,text/plain">
               <button id="quickFitClearBtn" class="btn" type="button">Clear</button>
             </div>
-            <span id="quickFitStatus" class="compact-note">2列データを読み込みます</span>
+            <span id="quickFitStatus" class="compact-note">Load two-column data</span>
             <textarea id="quickFitInput" class="quick-fit-input" spellcheck="false" placeholder="x y&#10;0 1.1&#10;1 2.9&#10;2 5.2">0 1.1
 1 2.9
 2 5.2
@@ -710,9 +730,9 @@
           <section class="quick-fit-pane">
             <div class="quick-fit-controls">
               <div class="quick-fit-degree-wrap">
-                <span class="quick-fit-degree-label">次数</span>
+                <span class="quick-fit-degree-label">Degree</span>
                 <button id="quickFitDegreeDownBtn" class="btn quick-fit-stepper" type="button" aria-label="Decrease degree">-</button>
-                <input id="quickFitDegree" class="quick-fit-degree" type="number" min="0" max="8" step="1" value="1" title="多項式次数">
+                <input id="quickFitDegree" class="quick-fit-degree" type="number" min="0" max="8" step="1" value="1" title="Polynomial degree">
                 <button id="quickFitDegreeUpBtn" class="btn quick-fit-stepper" type="button" aria-label="Increase degree">+</button>
               </div>
               <button id="quickFitRunBtn" class="btn btn-primary" type="button">Fit</button>
@@ -741,8 +761,8 @@
                   <input id="quickFitCurveCount" class="quick-fit-mask-value" type="number" step="1" min="2" value="161" placeholder="points">
                 </div>
                 <div class="quick-fit-output-actions">
-                  <button id="quickFitCurveCopyBtn" class="btn" type="button">コピー</button>
-                  <button id="quickFitCurveSaveBtn" class="btn" type="button">保存</button>
+                  <button id="quickFitCurveCopyBtn" class="btn btn-fit" type="button">Copy</button>
+                  <button id="quickFitCurveSaveBtn" class="btn btn-fit" type="button">Save</button>
                 </div>
                 <textarea id="quickFitCurveOutput" class="quick-fit-curve-output" spellcheck="false" placeholder="fit curve data"></textarea>
               </div>
@@ -765,7 +785,7 @@
               <input id="quickPeakFile" class="quick-fit-file" type="file" accept=".txt,.csv,.dat,.tsv,text/plain">
               <button id="quickPeakClearBtn" class="btn" type="button">Clear</button>
             </div>
-            <span id="quickPeakStatus" class="compact-note">2列データを読み込みます</span>
+            <span id="quickPeakStatus" class="compact-note">Load two-column data</span>
             <textarea id="quickPeakInput" class="quick-fit-input" spellcheck="false" placeholder="x y&#10;-3 0.3&#10;-2 0.5&#10;-1 1.2">-5 0.25
 -4 0.28
 -3 0.36
@@ -811,8 +831,8 @@
                   <input id="quickPeakCurveCount" class="quick-fit-mask-value" type="number" step="1" min="2" value="161" placeholder="points">
                 </div>
                 <div class="quick-fit-output-actions">
-                  <button id="quickPeakCurveCopyBtn" class="btn" type="button">コピー</button>
-                  <button id="quickPeakCurveSaveBtn" class="btn" type="button">保存</button>
+                  <button id="quickPeakCurveCopyBtn" class="btn btn-peak" type="button">Copy</button>
+                  <button id="quickPeakCurveSaveBtn" class="btn btn-peak" type="button">Save</button>
                 </div>
                 <textarea id="quickPeakCurveOutput" class="quick-fit-curve-output" spellcheck="false" placeholder="peak fit curve data"></textarea>
               </div>
@@ -826,11 +846,11 @@
   <template id="variableRowTemplate">
     <section class="variable-row">
       <div class="field">
-        <label>移動</label>
-        <div class="drag-handle" draggable="true" title="ドラッグして並べ替え">::</div>
+        <label>Move</label>
+        <div class="drag-handle" draggable="true" title="Drag to reorder">::</div>
       </div>
       <div class="field">
-        <label>変数</label>
+        <label>Variable</label>
         <div class="var-name-chip name-chip">x1</div>
       </div>
       <div class="field">
@@ -842,17 +862,17 @@
         <input class="end-input" type="number" inputmode="decimal" step="any" placeholder="10">
       </div>
       <div class="field">
-        <label>増加</label>
+        <label>Scale</label>
         <select class="scale-select">
-          <option value="linear" selected>線形</option>
-          <option value="log">等比</option>
+          <option value="linear" selected>Linear</option>
+          <option value="log">Geometric</option>
         </select>
       </div>
       <div class="field">
-        <label>モード</label>
+        <label>Mode</label>
         <select class="mode-select">
           <option value="step" selected>step</option>
-          <option value="count">個数</option>
+          <option value="count">count</option>
         </select>
       </div>
       <div class="field step-field">
@@ -860,7 +880,7 @@
         <input class="step-input" type="number" inputmode="decimal" step="any" placeholder="1">
       </div>
       <div class="field count-field hidden">
-        <label>個数</label>
+        <label>Count</label>
         <input class="count-input" type="number" inputmode="numeric" step="1" min="1" placeholder="11">
       </div>
       <button class="icon-btn remove-btn" type="button" aria-label="Remove variable">×</button>
@@ -928,16 +948,25 @@
 
       function formatNumber(value) {
         if (!Number.isFinite(value)) return "";
-        if (Object.is(value, -0)) return "0";
-        const normalized = normalizeNumber(value);
-        return String(normalized);
+        return formatScientific(value);
       }
 
       function formatMetric(value) {
         if (!Number.isFinite(value)) {
           return "-";
         }
-        return Number(value).toPrecision(6).replace(/(?:\.0+|(\.\d+?)0+)$/, "$1");
+        return formatScientific(value);
+      }
+
+      function formatScientific(value) {
+        if (!Number.isFinite(value)) {
+          return "-";
+        }
+        if (Object.is(value, -0) || Math.abs(value) < 1e-300) {
+          return "0.00000e+0";
+        }
+        const normalized = normalizeNumber(value);
+        return normalized.toExponential(5).replace(/e([+-])0*(\d+)/, "e$1$2");
       }
 
       function formatTick(value) {
@@ -1008,7 +1037,7 @@
           const rawValue = row.querySelector(".quick-fit-mask-value").value;
           const value = Number(rawValue);
           if (mode === "fixed" && !Number.isFinite(value)) {
-            throw new Error("c" + index + " の固定値が不正です。");
+            throw new Error("Invalid fixed value for c" + index + ".");
           }
           return {
             mode: mode,
@@ -1076,7 +1105,7 @@
           const rawValue = row.querySelector(".quick-fit-mask-value").value;
           const value = Number(rawValue);
           if (mode === "fixed" && !Number.isFinite(value)) {
-            throw new Error(key + " の固定値が不正です。");
+            throw new Error("Invalid fixed value for " + key + ".");
           }
           constraints[key] = {
             mode: mode,
@@ -1115,7 +1144,7 @@
         try {
           generateOutput();
         } catch (error) {
-          statusText.textContent = error instanceof Error ? error.message : "再生成に失敗しました。";
+          statusText.textContent = error instanceof Error ? error.message : "Regeneration failed.";
           statusText.className = "status-error";
         }
       }
@@ -1236,7 +1265,7 @@
         const step = Math.abs(stepInput);
 
         if (step === 0) {
-          throw new Error("step は 0 にできません。");
+          throw new Error("Step cannot be 0.");
         }
 
         const vector = [];
@@ -1260,7 +1289,7 @@
         }
 
         if (guard >= limit) {
-          throw new Error("データ点が多すぎます。step を見直してください。");
+          throw new Error("Too many data points. Adjust step.");
         }
 
         return vector;
@@ -1270,10 +1299,10 @@
         const step = Math.abs(stepInput);
 
         if (start <= 0 || end <= 0) {
-          throw new Error("log モードでは start / end は正にしてください。");
+          throw new Error("Start and end must be positive in geometric mode.");
         }
         if (step <= 0 || step === 1) {
-          throw new Error("log の step は 0 より大きく、1 以外にしてください。");
+          throw new Error("Geometric step must be greater than 0 and not equal to 1.");
         }
 
         const vector = [];
@@ -1296,7 +1325,7 @@
         }
 
         if (guard >= limit) {
-          throw new Error("データ点が多すぎます。log step を見直してください。");
+          throw new Error("Too many data points. Adjust geometric step.");
         }
 
         return vector;
@@ -1304,7 +1333,7 @@
 
       function buildVectorByCountLinear(start, end, count) {
         if (!Number.isInteger(count) || count < 1) {
-          throw new Error("個数は 1 以上の整数にしてください。");
+          throw new Error("Count must be an integer greater than or equal to 1.");
         }
         if (count === 1) {
           return [formatNumber(start)];
@@ -1323,10 +1352,10 @@
 
       function buildVectorByCountLog(start, end, count) {
         if (!Number.isInteger(count) || count < 1) {
-          throw new Error("個数は 1 以上の整数にしてください。");
+          throw new Error("Count must be an integer greater than or equal to 1.");
         }
         if (start <= 0 || end <= 0) {
-          throw new Error("log モードでは start / end は正にしてください。");
+          throw new Error("Start and end must be positive in geometric mode.");
         }
         if (count === 1) {
           return [formatNumber(start)];
@@ -1354,25 +1383,25 @@
           const mode = row.querySelector(".mode-select").value;
 
           if (startRaw === "" || endRaw === "") {
-            throw new Error((index + 1) + " 行目の start / end を入力してください。");
+            throw new Error("Enter start and end on row " + (index + 1) + ".");
           }
 
           const start = Number(startRaw);
           const end = Number(endRaw);
 
           if (!Number.isFinite(start) || !Number.isFinite(end)) {
-            throw new Error((index + 1) + " 行目に数値でない値があります。");
+            throw new Error("Non-numeric value found on row " + (index + 1) + ".");
           }
 
           let vector;
           if (mode === "count") {
             const countRaw = row.querySelector(".count-input").value.trim();
             if (countRaw === "") {
-              throw new Error((index + 1) + " 行目の個数を入力してください。");
+              throw new Error("Enter count on row " + (index + 1) + ".");
             }
             const count = Number(countRaw);
             if (!Number.isFinite(count)) {
-              throw new Error((index + 1) + " 行目の個数が不正です。");
+              throw new Error("Invalid count on row " + (index + 1) + ".");
             }
             vector = scale === "log"
               ? buildVectorByCountLog(start, end, count)
@@ -1380,11 +1409,11 @@
           } else {
             const stepRaw = row.querySelector(".step-input").value.trim();
             if (stepRaw === "") {
-              throw new Error((index + 1) + " 行目の step を入力してください。");
+              throw new Error("Enter step on row " + (index + 1) + ".");
             }
             const step = Number(stepRaw);
             if (!Number.isFinite(step)) {
-              throw new Error((index + 1) + " 行目の step が不正です。");
+              throw new Error("Invalid step on row " + (index + 1) + ".");
             }
             vector = scale === "log"
               ? buildVectorByStepLog(start, end, step)
@@ -1423,33 +1452,33 @@
         });
 
         outputBox.value = lines.join("\n");
-        statusText.textContent = "生成完了";
+        statusText.textContent = "Generated";
         statusText.className = "status-ok";
-        columnCountText.textContent = "列数: " + variables.length;
-        rowCountText.textContent = "行数: " + rows.length;
+        columnCountText.textContent = "Columns: " + variables.length;
+        rowCountText.textContent = "Rows: " + rows.length;
       }
 
       function updateMeta() {
         const count = variableList.querySelectorAll(".variable-row").length;
-        columnCountText.textContent = "列数: " + count;
+        columnCountText.textContent = "Columns: " + count;
         if (!outputBox.value.trim()) {
-          rowCountText.textContent = "行数: 0";
+          rowCountText.textContent = "Rows: 0";
         }
       }
 
       async function copyOutput() {
         const text = outputBox.value;
         if (!text) {
-          statusText.textContent = "コピーする出力がありません。";
+          statusText.textContent = "No output to copy.";
           statusText.className = "status-error";
           return;
         }
         try {
           await navigator.clipboard.writeText(text);
-          statusText.textContent = "コピーしました";
+          statusText.textContent = "Copied";
           statusText.className = "status-ok";
         } catch (error) {
-          statusText.textContent = "コピーに失敗しました。";
+          statusText.textContent = "Copy failed.";
           statusText.className = "status-error";
         }
       }
@@ -1457,7 +1486,7 @@
       function downloadOutput() {
         const text = outputBox.value;
         if (!text) {
-          statusText.textContent = "保存する出力がありません。";
+          statusText.textContent = "No output to save.";
           statusText.className = "status-error";
           return;
         }
@@ -1471,7 +1500,7 @@
         link.click();
         link.remove();
         URL.revokeObjectURL(url);
-        statusText.textContent = "保存を開始しました";
+        statusText.textContent = "Save started";
         statusText.className = "status-ok";
       }
 
@@ -1609,7 +1638,7 @@
           }
 
           if (Math.abs(a[pivotRow][col]) < 1e-12) {
-            throw new Error("フィット行列が特異です。次数を下げてください。");
+            throw new Error("Fit matrix is singular. Lower the degree.");
           }
 
           if (pivotRow !== col) {
@@ -1654,7 +1683,7 @@
           }
 
           if (Math.abs(a[pivotRow][col]) < 1e-12) {
-            throw new Error("行列を反転できません。");
+            throw new Error("Matrix inversion failed.");
           }
 
           if (pivotRow !== col) {
@@ -1698,13 +1727,13 @@
 
       function fitPolynomial(points, degree, constraints) {
         if (points.length < 2) {
-          throw new Error("点が2つ以上必要です。");
+          throw new Error("At least two points are required.");
         }
         if (!Number.isInteger(degree) || degree < 0) {
-          throw new Error("次数は 0 以上の整数にしてください。");
+          throw new Error("Degree must be an integer greater than or equal to 0.");
         }
         if (degree >= points.length) {
-          throw new Error("次数は点数より小さくしてください。");
+          throw new Error("Degree must be smaller than the number of points.");
         }
 
         const size = degree + 1;
@@ -1723,7 +1752,7 @@
         });
 
         if (freeIndices.length === 0) {
-          throw new Error("少なくとも1つは fit の係数が必要です。");
+          throw new Error("At least one coefficient must be set to fit.");
         }
 
         const matrix = freeIndices.map(function () {
@@ -1866,8 +1895,8 @@
         const constraints = getQuickFitConstraints();
         if (points.length < 2) {
           resetQuickFitSummary();
-          renderQuickFitEmpty("2列データを2点以上入力してください");
-          setQuickFitStatus("データ不足", true);
+          renderQuickFitEmpty("Enter at least two rows of two-column data");
+          setQuickFitStatus("Not enough data", true);
           return;
         }
 
@@ -1877,7 +1906,7 @@
         updateQuickFitMaskDisplay(fit.coeffs);
         updateQuickFitMaskErrors(fit.errors);
         renderQuickFitPlot(points, fit);
-        setQuickFitStatus("多項式フィット完了", false);
+        setQuickFitStatus("Polynomial fit complete", false);
       }
 
       function setQuickPeakStatus(message, isError) {
@@ -1921,7 +1950,7 @@
         const count = Math.max(2, Math.round(Number(countInput.value || 161)));
 
         if (!Number.isFinite(xMin) || !Number.isFinite(xMax) || xMin === xMax) {
-          throw new Error("曲線出力の x 範囲が不正です。");
+          throw new Error("Invalid x range for curve output.");
         }
 
         countInput.value = String(count);
@@ -2050,7 +2079,7 @@
 
       function fitPeakModel(points, model, constraints) {
         if (points.length < 3) {
-          throw new Error("ピークフィットには3点以上必要です。");
+          throw new Error("Peak fitting requires at least three points.");
         }
 
         const params = optimizePeakFit(points, model, estimatePeakParams(points, model), constraints);
@@ -2226,8 +2255,8 @@
         const constraints = getQuickPeakConstraints();
         if (points.length < 3) {
           resetQuickPeakSummary();
-          renderQuickPeakEmpty("2列データを3点以上入力してください");
-          setQuickPeakStatus("データ不足", true);
+          renderQuickPeakEmpty("Enter at least three rows of two-column data");
+          setQuickPeakStatus("Not enough data", true);
           return;
         }
 
@@ -2237,7 +2266,7 @@
         updateQuickPeakMaskDisplay(fit.params);
         updateQuickPeakMaskErrors(fit.errors);
         renderQuickPeakPlot(points, fit);
-        setQuickPeakStatus("ピークフィット完了", false);
+        setQuickPeakStatus("Peak fit complete", false);
       }
 
       function tryRunQuickFit() {
@@ -2246,8 +2275,8 @@
           runQuickFit();
         } catch (error) {
           resetQuickFitSummary();
-          renderQuickFitEmpty("フィットできません");
-          setQuickFitStatus(error instanceof Error ? error.message : "フィットに失敗しました", true);
+          renderQuickFitEmpty("Fit failed");
+          setQuickFitStatus(error instanceof Error ? error.message : "Fit failed", true);
         }
       }
 
@@ -2256,8 +2285,8 @@
           runQuickPeakFit();
         } catch (error) {
           resetQuickPeakSummary();
-          renderQuickPeakEmpty("ピークフィットできません");
-          setQuickPeakStatus(error instanceof Error ? error.message : "フィットに失敗しました", true);
+          renderQuickPeakEmpty("Peak fit failed");
+          setQuickPeakStatus(error instanceof Error ? error.message : "Fit failed", true);
         }
       }
 
@@ -2270,8 +2299,8 @@
           generateOutput();
         } catch (error) {
           outputBox.value = "";
-          rowCountText.textContent = "行数: 0";
-          statusText.textContent = error instanceof Error ? error.message : "生成に失敗しました。";
+          rowCountText.textContent = "Rows: 0";
+          statusText.textContent = error instanceof Error ? error.message : "Generation failed.";
           statusText.className = "status-error";
         }
       });
@@ -2291,10 +2320,10 @@
         }
         file.text().then(function (text) {
           quickFitInput.value = text;
-          setQuickFitStatus("ファイルを読み込みました", false);
+          setQuickFitStatus("File loaded", false);
           runQuickFit();
         }).catch(function () {
-          setQuickFitStatus("ファイル読込に失敗しました", true);
+          setQuickFitStatus("File load failed", true);
         });
       });
 
@@ -2325,7 +2354,7 @@
         quickFitFile.value = "";
         resetQuickFitSummary();
         renderQuickFitEmpty("Quick Fit plot");
-        setQuickFitStatus("入力をクリアしました", false);
+        setQuickFitStatus("Input cleared", false);
       });
 
       quickPeakFile.addEventListener("change", function () {
@@ -2335,10 +2364,10 @@
         }
         file.text().then(function (text) {
           quickPeakInput.value = text;
-          setQuickPeakStatus("ファイルを読み込みました", false);
+          setQuickPeakStatus("File loaded", false);
           runQuickPeakFit();
         }).catch(function () {
-          setQuickPeakStatus("ファイル読込に失敗しました", true);
+          setQuickPeakStatus("File load failed", true);
         });
       });
 
@@ -2351,7 +2380,7 @@
         quickPeakFile.value = "";
         resetQuickPeakSummary();
         renderQuickPeakEmpty("Quick Peak Fit plot");
-        setQuickPeakStatus("入力をクリアしました", false);
+        setQuickPeakStatus("Input cleared", false);
       });
 
       quickPeakModel.addEventListener("change", function () {
@@ -2423,8 +2452,8 @@
       quickFitCurveCopyBtn.addEventListener("click", function () {
         copyTextValue(
           quickFitCurveOutput.value,
-          function () { setQuickFitStatus("理想曲線データをコピーしました", false); },
-          function () { setQuickFitStatus("コピーする理想曲線データがありません", true); }
+          function () { setQuickFitStatus("Curve data copied", false); },
+          function () { setQuickFitStatus("No curve data to copy", true); }
         );
       });
 
@@ -2432,16 +2461,16 @@
         downloadTextValue(
           quickFitCurveOutput.value,
           "quick-fit-curve.txt",
-          function () { setQuickFitStatus("理想曲線データを保存しました", false); },
-          function () { setQuickFitStatus("保存する理想曲線データがありません", true); }
+          function () { setQuickFitStatus("Curve data saved", false); },
+          function () { setQuickFitStatus("No curve data to save", true); }
         );
       });
 
       quickPeakCurveCopyBtn.addEventListener("click", function () {
         copyTextValue(
           quickPeakCurveOutput.value,
-          function () { setQuickPeakStatus("理想曲線データをコピーしました", false); },
-          function () { setQuickPeakStatus("コピーする理想曲線データがありません", true); }
+          function () { setQuickPeakStatus("Curve data copied", false); },
+          function () { setQuickPeakStatus("No curve data to copy", true); }
         );
       });
 
@@ -2449,8 +2478,8 @@
         downloadTextValue(
           quickPeakCurveOutput.value,
           "quick-peak-fit-curve.txt",
-          function () { setQuickPeakStatus("理想曲線データを保存しました", false); },
-          function () { setQuickPeakStatus("保存する理想曲線データがありません", true); }
+          function () { setQuickPeakStatus("Curve data saved", false); },
+          function () { setQuickPeakStatus("No curve data to save", true); }
         );
       });
 
@@ -2459,7 +2488,7 @@
           try {
             generateOutput();
           } catch (error) {
-            statusText.textContent = error instanceof Error ? error.message : "再生成に失敗しました。";
+            statusText.textContent = error instanceof Error ? error.message : "Regeneration failed.";
             statusText.className = "status-error";
           }
         }
