@@ -1,0 +1,947 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Data</title>
+  <link rel="icon" href="../fabicons/computer science.svg" type="image/svg+xml">
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-118J91MG59"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-118J91MG59');
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../shared/back-to-hub.css">
+  <script defer src="../shared/back-to-hub.js"></script>
+  <style>
+    :root {
+      --bg-1: #f2f7fb;
+      --bg-2: #d9e8f4;
+      --panel: rgba(255, 255, 255, 0.84);
+      --panel-strong: rgba(251, 253, 255, 0.96);
+      --line: rgba(41, 86, 127, 0.16);
+      --line-strong: rgba(41, 86, 127, 0.32);
+      --text: #16314b;
+      --muted: #5d7388;
+      --accent: #1574b6;
+      --accent-soft: rgba(21, 116, 182, 0.12);
+      --danger: #b94d58;
+      --shadow: 0 14px 34px rgba(31, 62, 97, 0.12);
+      --radius-lg: 18px;
+      --radius-md: 12px;
+      --radius-sm: 10px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100dvh;
+      color: var(--text);
+      font-family: "Noto Sans JP", system-ui, sans-serif;
+      background:
+        radial-gradient(circle at 0% 0%, rgba(89, 165, 225, 0.24), transparent 28%),
+        radial-gradient(circle at 100% 10%, rgba(91, 201, 188, 0.2), transparent 22%),
+        linear-gradient(155deg, var(--bg-1) 0%, var(--bg-2) 100%);
+      padding: 18px 14px 24px;
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+      font: inherit;
+    }
+
+    .shell {
+      width: min(1180px, 100%);
+      margin: 0 auto;
+      display: grid;
+      gap: 10px;
+    }
+
+    .hero,
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(8px);
+    }
+
+    .hero {
+      overflow: hidden;
+    }
+
+    .hero-band {
+      height: 8px;
+      background: linear-gradient(90deg, #0e67a2 0%, #49ace2 48%, #77d2c1 100%);
+    }
+
+    .hero-body {
+      padding: 14px 18px;
+      display: grid;
+      gap: 4px;
+    }
+
+    .eyebrow,
+    .section-title {
+      margin: 0;
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(26px, 5vw, 42px);
+      line-height: 1;
+      letter-spacing: -0.03em;
+      font-weight: 900;
+    }
+
+    .helper,
+    .panel-text,
+    .note-list li,
+    .mode-help {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    .panel {
+      padding: 14px;
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 1.7fr) minmax(320px, 0.95fr);
+      gap: 10px;
+      align-items: start;
+    }
+
+    .pane {
+      min-width: 0;
+    }
+
+    .panel-head {
+      display: flex;
+      align-items: start;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .btn,
+    .icon-btn,
+    .delimiter-select,
+    .field input,
+    .field select {
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius-sm);
+      background: #fff;
+      color: var(--text);
+      min-height: 34px;
+      box-shadow: 0 3px 10px rgba(37, 72, 110, 0.05);
+    }
+
+    .btn,
+    .icon-btn {
+      cursor: pointer;
+      font-weight: 700;
+      transition: transform 120ms ease, box-shadow 120ms ease, filter 120ms ease;
+    }
+
+    .btn:hover,
+    .icon-btn:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.01);
+      box-shadow: 0 6px 16px rgba(37, 72, 110, 0.09);
+    }
+
+    .btn {
+      padding: 0 12px;
+      background: linear-gradient(180deg, #ffffff, #edf6fd);
+    }
+
+    .btn-primary {
+      border-color: rgba(21, 116, 182, 0.28);
+      background: linear-gradient(180deg, #eff8ff, #dff0fd);
+      color: #0d5d95;
+    }
+
+    .btn-secondary {
+      background: linear-gradient(180deg, #f1fffb, #e2faf2);
+      color: #14775d;
+    }
+
+    .select-stack {
+      display: grid;
+      gap: 4px;
+      min-width: 132px;
+    }
+
+    .select-stack label,
+    .field label {
+      font-size: 11px;
+      font-weight: 800;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+    }
+
+    .delimiter-select,
+    .field select,
+    .field input {
+      width: 100%;
+      padding: 0 10px;
+    }
+
+    .variable-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .variable-row {
+      display: grid;
+      grid-template-columns: 28px 56px minmax(76px, 0.78fr) minmax(76px, 0.78fr) 84px minmax(84px, 0.86fr) minmax(84px, 0.86fr) 42px;
+      gap: 8px;
+      align-items: end;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      background: var(--panel-strong);
+      transition: border-color 120ms ease, background-color 120ms ease, opacity 120ms ease;
+    }
+
+    .variable-row.dragging {
+      opacity: 0.55;
+    }
+
+    .variable-row.drop-target {
+      border-color: rgba(21, 116, 182, 0.5);
+      background: rgba(21, 116, 182, 0.06);
+    }
+
+    .drag-handle {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 34px;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius-sm);
+      background: linear-gradient(180deg, #f8fbfe, #eef5fb);
+      color: var(--muted);
+      cursor: grab;
+      user-select: none;
+      box-shadow: 0 3px 10px rgba(37, 72, 110, 0.05);
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    .drag-handle:active {
+      cursor: grabbing;
+    }
+
+    .var-name-chip {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 34px;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius-sm);
+      background: linear-gradient(180deg, #f8fbfe, #eef5fb);
+      color: var(--accent);
+      font-weight: 800;
+      box-shadow: 0 3px 10px rgba(37, 72, 110, 0.05);
+    }
+
+    .field {
+      display: grid;
+      gap: 4px;
+    }
+
+    .field input:focus,
+    .field select:focus,
+    .delimiter-select:focus,
+    .output-box:focus {
+      outline: 2px solid rgba(21, 116, 182, 0.25);
+      outline-offset: 0;
+      border-color: rgba(21, 116, 182, 0.44);
+    }
+
+    .field.hidden {
+      display: none;
+    }
+
+    .icon-btn {
+      width: 42px;
+      padding: 0;
+      color: var(--danger);
+      background: linear-gradient(180deg, #fff8f8, #ffeef0);
+    }
+
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 12px;
+      margin-top: 8px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .output-box {
+      width: 100%;
+      min-height: 190px;
+      padding: 10px 12px;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius-md);
+      background: #fbfdff;
+      color: #0f2740;
+      font-family: "Cascadia Mono", "Consolas", monospace;
+      font-size: 12px;
+      line-height: 1.45;
+      resize: vertical;
+      white-space: pre;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .note-list {
+      margin: 0;
+      padding-left: 18px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .status-ok {
+      color: #167859;
+    }
+
+    .status-error {
+      color: var(--danger);
+    }
+
+    @media (max-width: 980px) {
+      body {
+        padding: 68px 10px 18px;
+      }
+
+      .hero-body,
+      .panel {
+        padding: 12px;
+      }
+
+      .workspace {
+        grid-template-columns: 1fr;
+      }
+
+      .variable-row {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .icon-btn {
+        width: 100%;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .panel-head,
+      .controls {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .variable-row {
+        grid-template-columns: 1fr;
+      }
+
+      .output-box {
+        min-height: 170px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <div class="hero-band" aria-hidden="true"></div>
+      <div class="hero-body">
+        <h1>Data</h1>
+      </div>
+    </section>
+
+    <section class="panel">
+      <section class="workspace">
+        <section class="pane">
+        <div class="panel-head">
+          <div>
+            <h2 class="section-title">Variables</h2>
+          </div>
+          <div class="controls">
+            <div class="select-stack">
+              <label for="delimiterSelect">区切り文字</label>
+              <select id="delimiterSelect" class="delimiter-select">
+                <option value="tab" selected>タブ</option>
+                <option value="comma">,</option>
+                <option value="space">スペース</option>
+              </select>
+            </div>
+            <button id="addVariableBtn" class="btn" type="button">変数を追加</button>
+            <button id="generateBtn" class="btn btn-primary" type="button">生成</button>
+            <button id="copyBtn" class="btn btn-secondary" type="button">コピー</button>
+            <button id="downloadBtn" class="btn" type="button">保存</button>
+          </div>
+        </div>
+
+        <div id="variableList" class="variable-list" aria-live="polite"></div>
+
+        </section>
+
+        <section class="pane">
+          <div class="panel-head">
+            <div>
+              <h2 class="section-title">Output</h2>
+            </div>
+          </div>
+          <div class="meta" style="margin-top: 0; margin-bottom: 8px;">
+            <span id="statusText" class="status-ok">準備完了</span>
+            <span id="columnCountText">列数: 0</span>
+            <span id="rowCountText">行数: 0</span>
+          </div>
+          <textarea id="outputBox" class="output-box" spellcheck="false" placeholder="ここに生成結果が表示されます。"></textarea>
+        </section>
+      </section>
+    </section>
+  </main>
+
+  <template id="variableRowTemplate">
+    <section class="variable-row">
+      <div class="field">
+        <label>移動</label>
+        <div class="drag-handle" draggable="true" title="ドラッグして並べ替え">::</div>
+      </div>
+      <div class="field">
+        <label>変数</label>
+        <div class="var-name-chip name-chip">x1</div>
+      </div>
+      <div class="field">
+        <label>Start</label>
+        <input class="start-input" type="number" inputmode="decimal" step="any" placeholder="0">
+      </div>
+      <div class="field">
+        <label>End</label>
+        <input class="end-input" type="number" inputmode="decimal" step="any" placeholder="10">
+      </div>
+      <div class="field">
+        <label>増加</label>
+        <select class="scale-select">
+          <option value="linear" selected>線形</option>
+          <option value="log">等比</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>モード</label>
+        <select class="mode-select">
+          <option value="step" selected>step</option>
+          <option value="count">個数</option>
+        </select>
+      </div>
+      <div class="field step-field">
+        <label>Step</label>
+        <input class="step-input" type="number" inputmode="decimal" step="any" placeholder="1">
+      </div>
+      <div class="field count-field hidden">
+        <label>個数</label>
+        <input class="count-input" type="number" inputmode="numeric" step="1" min="1" placeholder="11">
+      </div>
+      <button class="icon-btn remove-btn" type="button" aria-label="Remove variable">×</button>
+    </section>
+  </template>
+
+  <script>
+    (function () {
+      const variableList = document.getElementById("variableList");
+      const rowTemplate = document.getElementById("variableRowTemplate");
+      const addVariableBtn = document.getElementById("addVariableBtn");
+      const generateBtn = document.getElementById("generateBtn");
+      const delimiterSelect = document.getElementById("delimiterSelect");
+      const outputBox = document.getElementById("outputBox");
+      const copyBtn = document.getElementById("copyBtn");
+      const downloadBtn = document.getElementById("downloadBtn");
+      const statusText = document.getElementById("statusText");
+      const columnCountText = document.getElementById("columnCountText");
+      const rowCountText = document.getElementById("rowCountText");
+      let draggedRow = null;
+
+      const defaults = [
+        { start: "0", end: "10", scale: "linear", mode: "step", step: "1", count: "" },
+        { start: "1", end: "1000", scale: "log", mode: "count", step: "", count: "4" },
+        { start: "5", end: "-5", scale: "linear", mode: "step", step: "-2.5", count: "" }
+      ];
+
+      function normalizeNumber(value) {
+        return Number.parseFloat(Number(value).toPrecision(15));
+      }
+
+      function formatNumber(value) {
+        if (!Number.isFinite(value)) return "";
+        if (Object.is(value, -0)) return "0";
+        const normalized = normalizeNumber(value);
+        return String(normalized);
+      }
+
+      function getDelimiter() {
+        const value = delimiterSelect.value;
+        if (value === "comma") return ",";
+        if (value === "space") return " ";
+        return "\t";
+      }
+
+      function applyRowMode(row) {
+        const mode = row.querySelector(".mode-select").value;
+        const stepField = row.querySelector(".step-field");
+        const countField = row.querySelector(".count-field");
+        stepField.classList.toggle("hidden", mode !== "step");
+        countField.classList.toggle("hidden", mode !== "count");
+      }
+
+      function refreshVariableNames() {
+        const rows = Array.from(variableList.querySelectorAll(".variable-row"));
+        rows.forEach(function (row, index) {
+          row.querySelector(".name-chip").textContent = "x" + (index + 1);
+        });
+      }
+
+      function regenerateIfNeeded() {
+        if (!outputBox.value.trim()) {
+          return;
+        }
+        try {
+          generateOutput();
+        } catch (error) {
+          statusText.textContent = error instanceof Error ? error.message : "再生成に失敗しました。";
+          statusText.className = "status-error";
+        }
+      }
+
+      function clearDropTargets() {
+        Array.from(variableList.querySelectorAll(".variable-row")).forEach(function (row) {
+          row.classList.remove("drop-target");
+        });
+      }
+
+      function attachRowDragEvents(row) {
+        const handle = row.querySelector(".drag-handle");
+
+        handle.addEventListener("dragstart", function (event) {
+          draggedRow = row;
+          row.classList.add("dragging");
+          if (event.dataTransfer) {
+            event.dataTransfer.effectAllowed = "move";
+            event.dataTransfer.setData("text/plain", "drag-row");
+          }
+        });
+
+        handle.addEventListener("dragend", function () {
+          row.classList.remove("dragging");
+          clearDropTargets();
+          draggedRow = null;
+        });
+
+        row.addEventListener("dragover", function (event) {
+          if (!draggedRow || draggedRow === row) {
+            return;
+          }
+          event.preventDefault();
+          clearDropTargets();
+          row.classList.add("drop-target");
+          if (event.dataTransfer) {
+            event.dataTransfer.dropEffect = "move";
+          }
+        });
+
+        row.addEventListener("dragleave", function (event) {
+          if (!row.contains(event.relatedTarget)) {
+            row.classList.remove("drop-target");
+          }
+        });
+
+        row.addEventListener("drop", function (event) {
+          if (!draggedRow || draggedRow === row) {
+            return;
+          }
+          event.preventDefault();
+          row.classList.remove("drop-target");
+
+          const rect = row.getBoundingClientRect();
+          const shouldInsertAfter = event.clientY > rect.top + rect.height / 2;
+
+          if (shouldInsertAfter) {
+            row.insertAdjacentElement("afterend", draggedRow);
+          } else {
+            row.insertAdjacentElement("beforebegin", draggedRow);
+          }
+
+          refreshVariableNames();
+          updateMeta();
+          regenerateIfNeeded();
+        });
+      }
+
+      function addVariableRow(values) {
+        const fragment = rowTemplate.content.cloneNode(true);
+        const row = fragment.querySelector(".variable-row");
+        const modeSelect = row.querySelector(".mode-select");
+        const scaleSelect = row.querySelector(".scale-select");
+
+        row.querySelector(".start-input").value = values && values.start ? values.start : "";
+        row.querySelector(".end-input").value = values && values.end ? values.end : "";
+        row.querySelector(".step-input").value = values && values.step ? values.step : "";
+        row.querySelector(".count-input").value = values && values.count ? values.count : "";
+        modeSelect.value = values && values.mode ? values.mode : "step";
+        scaleSelect.value = values && values.scale ? values.scale : "linear";
+
+        modeSelect.addEventListener("change", function () {
+          applyRowMode(row);
+        });
+
+        row.querySelector(".remove-btn").addEventListener("click", function () {
+          row.remove();
+          refreshVariableNames();
+          updateMeta();
+          regenerateIfNeeded();
+        });
+
+        variableList.appendChild(fragment);
+        attachRowDragEvents(variableList.lastElementChild);
+        applyRowMode(variableList.lastElementChild);
+        refreshVariableNames();
+        updateMeta();
+      }
+
+      function getLastRowValues() {
+        const rows = Array.from(variableList.querySelectorAll(".variable-row"));
+        const lastRow = rows[rows.length - 1];
+        if (!lastRow) {
+          return null;
+        }
+
+        return {
+          start: lastRow.querySelector(".start-input").value,
+          end: lastRow.querySelector(".end-input").value,
+          scale: lastRow.querySelector(".scale-select").value,
+          mode: lastRow.querySelector(".mode-select").value,
+          step: lastRow.querySelector(".step-input").value,
+          count: lastRow.querySelector(".count-input").value
+        };
+      }
+
+      function buildVectorByStepLinear(start, end, stepInput) {
+        const step = Math.abs(stepInput);
+
+        if (step === 0) {
+          throw new Error("step は 0 にできません。");
+        }
+
+        const vector = [];
+        const direction = start <= end ? 1 : -1;
+        const signedStep = step * direction;
+        const epsilon = Math.max(step * 1e-9, 1e-12);
+        let current = start;
+        let guard = 0;
+        const limit = 100000;
+
+        if (start === end) {
+          return [formatNumber(start)];
+        }
+
+        while (guard < limit) {
+          if (direction > 0 && current > end + epsilon) break;
+          if (direction < 0 && current < end - epsilon) break;
+          vector.push(formatNumber(current));
+          current = normalizeNumber(current + signedStep);
+          guard += 1;
+        }
+
+        if (guard >= limit) {
+          throw new Error("データ点が多すぎます。step を見直してください。");
+        }
+
+        return vector;
+      }
+
+      function buildVectorByStepLog(start, end, stepInput) {
+        const step = Math.abs(stepInput);
+
+        if (start <= 0 || end <= 0) {
+          throw new Error("log モードでは start / end は正にしてください。");
+        }
+        if (step <= 0 || step === 1) {
+          throw new Error("log の step は 0 より大きく、1 以外にしてください。");
+        }
+
+        const vector = [];
+        const ratio = start <= end ? step : 1 / step;
+        let current = start;
+        let guard = 0;
+        const limit = 100000;
+        const epsilon = 1e-12;
+
+        if (start === end) {
+          return [formatNumber(start)];
+        }
+
+        while (guard < limit) {
+          if (ratio > 1 && current > end * (1 + epsilon)) break;
+          if (ratio < 1 && current < end * (1 - epsilon)) break;
+          vector.push(formatNumber(current));
+          current = normalizeNumber(current * ratio);
+          guard += 1;
+        }
+
+        if (guard >= limit) {
+          throw new Error("データ点が多すぎます。log step を見直してください。");
+        }
+
+        return vector;
+      }
+
+      function buildVectorByCountLinear(start, end, count) {
+        if (!Number.isInteger(count) || count < 1) {
+          throw new Error("個数は 1 以上の整数にしてください。");
+        }
+        if (count === 1) {
+          return [formatNumber(start)];
+        }
+
+        const vector = [];
+        const step = (end - start) / (count - 1);
+
+        for (let i = 0; i < count; i += 1) {
+          const value = normalizeNumber(start + step * i);
+          vector.push(formatNumber(value));
+        }
+
+        return vector;
+      }
+
+      function buildVectorByCountLog(start, end, count) {
+        if (!Number.isInteger(count) || count < 1) {
+          throw new Error("個数は 1 以上の整数にしてください。");
+        }
+        if (start <= 0 || end <= 0) {
+          throw new Error("log モードでは start / end は正にしてください。");
+        }
+        if (count === 1) {
+          return [formatNumber(start)];
+        }
+
+        const vector = [];
+        const logStart = Math.log(start);
+        const logEnd = Math.log(end);
+        const step = (logEnd - logStart) / (count - 1);
+
+        for (let i = 0; i < count; i += 1) {
+          vector.push(formatNumber(Math.exp(logStart + step * i)));
+        }
+
+        return vector;
+      }
+
+      function collectVariables() {
+        const rows = Array.from(variableList.querySelectorAll(".variable-row"));
+        return rows.map(function (row, index) {
+          const name = "x" + (index + 1);
+          const startRaw = row.querySelector(".start-input").value.trim();
+          const endRaw = row.querySelector(".end-input").value.trim();
+          const scale = row.querySelector(".scale-select").value;
+          const mode = row.querySelector(".mode-select").value;
+
+          if (startRaw === "" || endRaw === "") {
+            throw new Error((index + 1) + " 行目の start / end を入力してください。");
+          }
+
+          const start = Number(startRaw);
+          const end = Number(endRaw);
+
+          if (!Number.isFinite(start) || !Number.isFinite(end)) {
+            throw new Error((index + 1) + " 行目に数値でない値があります。");
+          }
+
+          let vector;
+          if (mode === "count") {
+            const countRaw = row.querySelector(".count-input").value.trim();
+            if (countRaw === "") {
+              throw new Error((index + 1) + " 行目の個数を入力してください。");
+            }
+            const count = Number(countRaw);
+            if (!Number.isFinite(count)) {
+              throw new Error((index + 1) + " 行目の個数が不正です。");
+            }
+            vector = scale === "log"
+              ? buildVectorByCountLog(start, end, count)
+              : buildVectorByCountLinear(start, end, count);
+          } else {
+            const stepRaw = row.querySelector(".step-input").value.trim();
+            if (stepRaw === "") {
+              throw new Error((index + 1) + " 行目の step を入力してください。");
+            }
+            const step = Number(stepRaw);
+            if (!Number.isFinite(step)) {
+              throw new Error((index + 1) + " 行目の step が不正です。");
+            }
+            vector = scale === "log"
+              ? buildVectorByStepLog(start, end, step)
+              : buildVectorByStepLinear(start, end, step);
+          }
+
+          return { name: name, vector: vector };
+        });
+      }
+
+      function buildCartesianRows(variables) {
+        let rows = [[]];
+
+        variables.forEach(function (item) {
+          const nextRows = [];
+          rows.forEach(function (baseRow) {
+            item.vector.forEach(function (value) {
+              nextRows.push(baseRow.concat(value));
+            });
+          });
+          rows = nextRows;
+        });
+
+        return rows;
+      }
+
+      function generateOutput() {
+        const variables = collectVariables();
+        const delimiter = getDelimiter();
+        const rows = buildCartesianRows(variables);
+        const lines = [];
+
+        lines.push(variables.map(function (item) { return item.name; }).join(delimiter));
+        rows.forEach(function (row) {
+          lines.push(row.join(delimiter));
+        });
+
+        outputBox.value = lines.join("\n");
+        statusText.textContent = "生成完了";
+        statusText.className = "status-ok";
+        columnCountText.textContent = "列数: " + variables.length;
+        rowCountText.textContent = "行数: " + rows.length;
+      }
+
+      function updateMeta() {
+        const count = variableList.querySelectorAll(".variable-row").length;
+        columnCountText.textContent = "列数: " + count;
+        if (!outputBox.value.trim()) {
+          rowCountText.textContent = "行数: 0";
+        }
+      }
+
+      async function copyOutput() {
+        const text = outputBox.value;
+        if (!text) {
+          statusText.textContent = "コピーする出力がありません。";
+          statusText.className = "status-error";
+          return;
+        }
+        try {
+          await navigator.clipboard.writeText(text);
+          statusText.textContent = "コピーしました";
+          statusText.className = "status-ok";
+        } catch (error) {
+          statusText.textContent = "コピーに失敗しました。";
+          statusText.className = "status-error";
+        }
+      }
+
+      function downloadOutput() {
+        const text = outputBox.value;
+        if (!text) {
+          statusText.textContent = "保存する出力がありません。";
+          statusText.className = "status-error";
+          return;
+        }
+        const extension = delimiterSelect.value === "comma" ? "csv" : "txt";
+        const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "data-columns." + extension;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+        statusText.textContent = "保存を開始しました";
+        statusText.className = "status-ok";
+      }
+
+      addVariableBtn.addEventListener("click", function () {
+        addVariableRow(getLastRowValues());
+      });
+
+      generateBtn.addEventListener("click", function () {
+        try {
+          generateOutput();
+        } catch (error) {
+          outputBox.value = "";
+          rowCountText.textContent = "行数: 0";
+          statusText.textContent = error instanceof Error ? error.message : "生成に失敗しました。";
+          statusText.className = "status-error";
+        }
+      });
+
+      copyBtn.addEventListener("click", function () {
+        copyOutput();
+      });
+
+      downloadBtn.addEventListener("click", function () {
+        downloadOutput();
+      });
+
+      delimiterSelect.addEventListener("change", function () {
+        if (outputBox.value.trim()) {
+          try {
+            generateOutput();
+          } catch (error) {
+            statusText.textContent = error instanceof Error ? error.message : "再生成に失敗しました。";
+            statusText.className = "status-error";
+          }
+        }
+      });
+
+      defaults.forEach(function (item) {
+        addVariableRow(item);
+      });
+
+      generateOutput();
+    })();
+  </script>
+</body>
+</html>
