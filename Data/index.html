@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Data</title>
+  <title>Data Utilities</title>
   <link rel="icon" href="../fabicons/computer science.svg" type="image/svg+xml">
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-118J91MG59"></script>
   <script>
@@ -318,6 +318,187 @@
       box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
     }
 
+    .mini-panel {
+      display: grid;
+      gap: 8px;
+    }
+
+    .compact-note {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .quick-fit-box {
+      display: grid;
+      gap: 8px;
+    }
+
+    .quick-fit-layout {
+      display: grid;
+      grid-template-columns: minmax(210px, 0.72fr) minmax(180px, 0.62fr) minmax(360px, 1.46fr);
+      gap: 10px;
+      align-items: start;
+    }
+
+    .quick-fit-pane {
+      min-width: 0;
+      display: grid;
+      gap: 8px;
+    }
+
+    .quick-fit-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .quick-fit-file {
+      max-width: 260px;
+      font-size: 12px;
+    }
+
+    .quick-fit-degree {
+      width: 68px;
+      text-align: center;
+    }
+
+    .quick-fit-degree-wrap {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .quick-fit-degree-label {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      white-space: nowrap;
+    }
+
+    .quick-fit-stepper {
+      width: 32px;
+      min-width: 32px;
+      padding: 0;
+    }
+
+    .quick-fit-input {
+      width: 100%;
+      min-height: 110px;
+      padding: 10px 12px;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius-md);
+      background: #fbfdff;
+      color: #0f2740;
+      font-family: "Cascadia Mono", "Consolas", monospace;
+      font-size: 12px;
+      line-height: 1.45;
+      resize: vertical;
+      white-space: pre;
+    }
+
+    .quick-fit-input:focus {
+      outline: 2px solid rgba(21, 116, 182, 0.25);
+      outline-offset: 0;
+      border-color: rgba(21, 116, 182, 0.44);
+    }
+
+    .quick-fit-summary {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .quick-fit-stat {
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      background: rgba(255, 255, 255, 0.68);
+    }
+
+    .quick-fit-stat-label {
+      margin: 0;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .quick-fit-stat-value {
+      margin: 4px 0 0;
+      color: var(--text);
+      font-family: "Cascadia Mono", "Consolas", monospace;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .quick-fit-mask {
+      display: grid;
+      gap: 6px;
+    }
+
+    .quick-fit-mask-row {
+      display: grid;
+      grid-template-columns: 40px 68px minmax(0, 1fr);
+      gap: 6px;
+      align-items: center;
+    }
+
+    .quick-fit-mask-name {
+      color: var(--muted);
+      font-family: "Cascadia Mono", "Consolas", monospace;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .quick-fit-mask-mode,
+    .quick-fit-mask-value {
+      min-height: 30px;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius-sm);
+      background: #fff;
+      color: var(--text);
+      padding: 0 8px;
+      font-size: 11px;
+    }
+
+    .quick-fit-mask-value[readonly] {
+      background: linear-gradient(180deg, #f8fbfe, #eef5fb);
+      color: #1b4f78;
+      border-color: rgba(21, 116, 182, 0.22);
+      font-weight: 700;
+      cursor: default;
+    }
+
+    .quick-fit-plot {
+      min-height: 260px;
+      border: 1px dashed var(--line-strong);
+      border-radius: var(--radius-md);
+      background: rgba(255, 255, 255, 0.55);
+      overflow: hidden;
+    }
+
+    .quick-fit-plot svg {
+      display: block;
+      width: 100%;
+      height: 260px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.7), rgba(239, 247, 253, 0.8));
+    }
+
+    .quick-fit-empty {
+      display: grid;
+      place-items: center;
+      min-height: 260px;
+      padding: 10px 12px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
     .pill {
       display: inline-flex;
       align-items: center;
@@ -358,6 +539,10 @@
         grid-template-columns: 1fr;
       }
 
+      .quick-fit-layout {
+        grid-template-columns: 1fr;
+      }
+
       .variable-row {
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
@@ -381,6 +566,10 @@
       .output-box {
         min-height: 170px;
       }
+
+      .quick-fit-summary {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
     }
   </style>
 </head>
@@ -389,7 +578,7 @@
     <section class="hero">
       <div class="hero-band" aria-hidden="true"></div>
       <div class="hero-body">
-        <h1>Data</h1>
+        <h1>Data Utilities</h1>
       </div>
     </section>
 
@@ -434,6 +623,114 @@
           <textarea id="outputBox" class="output-box" spellcheck="false" placeholder="ここに生成結果が表示されます。"></textarea>
         </section>
       </section>
+    </section>
+
+    <section class="panel mini-panel">
+      <div class="panel-head">
+        <div>
+          <h2 class="section-title">Quick Fit</h2>
+        </div>
+      </div>
+      <div class="quick-fit-box">
+        <div class="quick-fit-layout">
+          <section class="quick-fit-pane">
+            <div class="quick-fit-controls">
+              <input id="quickFitFile" class="quick-fit-file" type="file" accept=".txt,.csv,.dat,.tsv,text/plain">
+              <button id="quickFitClearBtn" class="btn" type="button">Clear</button>
+            </div>
+            <span id="quickFitStatus" class="compact-note">2列データを読み込みます</span>
+            <textarea id="quickFitInput" class="quick-fit-input" spellcheck="false" placeholder="x y&#10;0 1.1&#10;1 2.9&#10;2 5.2">0 1.1
+1 2.9
+2 5.2
+3 7.0
+4 8.9
+5 11.2</textarea>
+          </section>
+          <section class="quick-fit-pane">
+            <div class="quick-fit-controls">
+              <div class="quick-fit-degree-wrap">
+                <span class="quick-fit-degree-label">次数</span>
+                <button id="quickFitDegreeDownBtn" class="btn quick-fit-stepper" type="button" aria-label="Decrease degree">-</button>
+                <input id="quickFitDegree" class="quick-fit-degree" type="number" min="0" max="8" step="1" value="1" title="多項式次数">
+                <button id="quickFitDegreeUpBtn" class="btn quick-fit-stepper" type="button" aria-label="Increase degree">+</button>
+              </div>
+              <button id="quickFitRunBtn" class="btn btn-primary" type="button">Fit</button>
+            </div>
+            <div class="quick-fit-summary">
+              <div class="quick-fit-stat">
+                <p class="quick-fit-stat-label">Points</p>
+                <p id="quickFitCount" class="quick-fit-stat-value">0</p>
+              </div>
+              <div class="quick-fit-stat">
+                <p class="quick-fit-stat-label">R²</p>
+                <p id="quickFitR2" class="quick-fit-stat-value">-</p>
+              </div>
+            </div>
+            <div id="quickFitMask" class="quick-fit-mask"></div>
+          </section>
+          <section class="quick-fit-pane">
+            <div id="quickFitPlot" class="quick-fit-plot">
+              <div class="quick-fit-empty">Quick Fit plot</div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel mini-panel">
+      <div class="panel-head">
+        <div>
+          <h2 class="section-title">Quick Peak Fit</h2>
+        </div>
+      </div>
+      <div class="quick-fit-box">
+        <div class="quick-fit-layout">
+          <section class="quick-fit-pane">
+            <div class="quick-fit-controls">
+              <input id="quickPeakFile" class="quick-fit-file" type="file" accept=".txt,.csv,.dat,.tsv,text/plain">
+              <button id="quickPeakClearBtn" class="btn" type="button">Clear</button>
+            </div>
+            <span id="quickPeakStatus" class="compact-note">2列データを読み込みます</span>
+            <textarea id="quickPeakInput" class="quick-fit-input" spellcheck="false" placeholder="x y&#10;-3 0.3&#10;-2 0.5&#10;-1 1.2">-5 0.25
+-4 0.28
+-3 0.36
+-2 0.58
+-1 1.18
+0 2.35
+1 1.24
+2 0.62
+3 0.39
+4 0.30
+5 0.26</textarea>
+          </section>
+          <section class="quick-fit-pane">
+            <div class="quick-fit-controls">
+              <select id="quickPeakModel" class="quick-fit-mask-mode">
+                <option value="lorentzian" selected>Lorentzian</option>
+                <option value="gaussian">Gaussian</option>
+                <option value="pseudo_voigt">Pseudo-Voigt</option>
+              </select>
+              <button id="quickPeakRunBtn" class="btn btn-primary" type="button">Fit</button>
+            </div>
+            <div class="quick-fit-summary">
+              <div class="quick-fit-stat">
+                <p class="quick-fit-stat-label">Points</p>
+                <p id="quickPeakCount" class="quick-fit-stat-value">0</p>
+              </div>
+              <div class="quick-fit-stat">
+                <p class="quick-fit-stat-label">R²</p>
+                <p id="quickPeakR2" class="quick-fit-stat-value">-</p>
+              </div>
+            </div>
+            <div id="quickPeakMask" class="quick-fit-mask"></div>
+          </section>
+          <section class="quick-fit-pane">
+            <div id="quickPeakPlot" class="quick-fit-plot">
+              <div class="quick-fit-empty">Quick Peak Fit plot</div>
+            </div>
+          </section>
+        </div>
+      </div>
     </section>
   </main>
 
@@ -494,6 +791,28 @@
       const statusText = document.getElementById("statusText");
       const columnCountText = document.getElementById("columnCountText");
       const rowCountText = document.getElementById("rowCountText");
+      const quickFitFile = document.getElementById("quickFitFile");
+      const quickFitDegree = document.getElementById("quickFitDegree");
+      const quickFitDegreeDownBtn = document.getElementById("quickFitDegreeDownBtn");
+      const quickFitDegreeUpBtn = document.getElementById("quickFitDegreeUpBtn");
+      const quickFitRunBtn = document.getElementById("quickFitRunBtn");
+      const quickFitClearBtn = document.getElementById("quickFitClearBtn");
+      const quickFitInput = document.getElementById("quickFitInput");
+      const quickFitStatus = document.getElementById("quickFitStatus");
+      const quickFitCount = document.getElementById("quickFitCount");
+      const quickFitR2 = document.getElementById("quickFitR2");
+      const quickFitMask = document.getElementById("quickFitMask");
+      const quickFitPlot = document.getElementById("quickFitPlot");
+      const quickPeakFile = document.getElementById("quickPeakFile");
+      const quickPeakClearBtn = document.getElementById("quickPeakClearBtn");
+      const quickPeakInput = document.getElementById("quickPeakInput");
+      const quickPeakStatus = document.getElementById("quickPeakStatus");
+      const quickPeakModel = document.getElementById("quickPeakModel");
+      const quickPeakRunBtn = document.getElementById("quickPeakRunBtn");
+      const quickPeakCount = document.getElementById("quickPeakCount");
+      const quickPeakR2 = document.getElementById("quickPeakR2");
+      const quickPeakMask = document.getElementById("quickPeakMask");
+      const quickPeakPlot = document.getElementById("quickPeakPlot");
       let draggedRow = null;
 
       const defaults = [
@@ -511,6 +830,150 @@
         if (Object.is(value, -0)) return "0";
         const normalized = normalizeNumber(value);
         return String(normalized);
+      }
+
+      function formatMetric(value) {
+        if (!Number.isFinite(value)) {
+          return "-";
+        }
+        return Number(value).toPrecision(6).replace(/(?:\.0+|(\.\d+?)0+)$/, "$1");
+      }
+
+      function clampQuickFitDegree(value) {
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) {
+          return 0;
+        }
+        return Math.min(8, Math.max(0, Math.round(numeric)));
+      }
+
+      function updateMaskRowState(row) {
+        const mode = row.querySelector(".quick-fit-mask-mode").value;
+        const input = row.querySelector(".quick-fit-mask-value");
+        input.readOnly = mode !== "fixed";
+      }
+
+      function renderQuickFitMask() {
+        const degree = clampQuickFitDegree(quickFitDegree.value);
+        quickFitDegree.value = String(degree);
+        const previous = {};
+
+        Array.from(quickFitMask.querySelectorAll(".quick-fit-mask-row")).forEach(function (row) {
+          const index = row.getAttribute("data-index");
+          previous[index] = {
+            mode: row.querySelector(".quick-fit-mask-mode").value,
+            value: row.querySelector(".quick-fit-mask-value").value
+          };
+        });
+
+        quickFitMask.innerHTML = "";
+
+        for (let i = 0; i <= degree; i += 1) {
+          const row = document.createElement("div");
+          row.className = "quick-fit-mask-row";
+          row.setAttribute("data-index", String(i));
+          const saved = previous[String(i)];
+          row.innerHTML =
+            '<div class="quick-fit-mask-name">c' + i + "</div>"
+            + '<select class="quick-fit-mask-mode">'
+            + '<option value="free">fit</option>'
+            + '<option value="fixed">fix</option>'
+            + "</select>"
+            + '<input class="quick-fit-mask-value" type="number" step="any" value="0">';
+
+          const modeSelect = row.querySelector(".quick-fit-mask-mode");
+          const valueInput = row.querySelector(".quick-fit-mask-value");
+          modeSelect.value = saved ? saved.mode : "free";
+          valueInput.value = saved ? saved.value : "0";
+          modeSelect.addEventListener("change", function () {
+            updateMaskRowState(row);
+          });
+          updateMaskRowState(row);
+          quickFitMask.appendChild(row);
+        }
+      }
+
+      function getQuickFitConstraints() {
+        return Array.from(quickFitMask.querySelectorAll(".quick-fit-mask-row")).map(function (row, index) {
+          const mode = row.querySelector(".quick-fit-mask-mode").value;
+          const rawValue = row.querySelector(".quick-fit-mask-value").value;
+          const value = Number(rawValue);
+          if (mode === "fixed" && !Number.isFinite(value)) {
+            throw new Error("c" + index + " の固定値が不正です。");
+          }
+          return {
+            mode: mode,
+            value: mode === "fixed" ? value : 0
+          };
+        });
+      }
+
+      function getQuickPeakParamKeys() {
+        const keys = ["center", "amplitude", "width", "offset"];
+        if (quickPeakModel.value === "pseudo_voigt") {
+          keys.push("eta");
+        }
+        return keys;
+      }
+
+      function updatePeakMaskRowState(row) {
+        const mode = row.querySelector(".quick-fit-mask-mode").value;
+        const input = row.querySelector(".quick-fit-mask-value");
+        input.readOnly = mode !== "fixed";
+      }
+
+      function renderQuickPeakMask() {
+        const previous = {};
+        Array.from(quickPeakMask.querySelectorAll(".quick-fit-mask-row")).forEach(function (row) {
+          const key = row.getAttribute("data-key");
+          previous[key] = {
+            mode: row.querySelector(".quick-fit-mask-mode").value,
+            value: row.querySelector(".quick-fit-mask-value").value
+          };
+        });
+
+        quickPeakMask.innerHTML = "";
+        getQuickPeakParamKeys().forEach(function (key) {
+          const row = document.createElement("div");
+          row.className = "quick-fit-mask-row";
+          row.setAttribute("data-key", key);
+          const saved = previous[key];
+          row.innerHTML =
+            '<div class="quick-fit-mask-name">' + key + "</div>"
+            + '<select class="quick-fit-mask-mode">'
+            + '<option value="free">fit</option>'
+            + '<option value="fixed">fix</option>'
+            + "</select>"
+            + '<input class="quick-fit-mask-value" type="number" step="any" value="0">';
+
+          const modeSelect = row.querySelector(".quick-fit-mask-mode");
+          const valueInput = row.querySelector(".quick-fit-mask-value");
+          modeSelect.value = saved ? saved.mode : "free";
+          valueInput.value = saved ? saved.value : "0";
+          modeSelect.addEventListener("change", function () {
+            updatePeakMaskRowState(row);
+          });
+          updatePeakMaskRowState(row);
+          quickPeakMask.appendChild(row);
+        });
+      }
+
+      function getQuickPeakConstraints() {
+        const constraints = {};
+        Array.from(quickPeakMask.querySelectorAll(".quick-fit-mask-row")).forEach(function (row) {
+          const key = row.getAttribute("data-key");
+          const mode = row.querySelector(".quick-fit-mask-mode").value;
+          const rawValue = row.querySelector(".quick-fit-mask-value").value;
+          const value = Number(rawValue);
+          if (mode === "fixed" && !Number.isFinite(value)) {
+            throw new Error(key + " の固定値が不正です。");
+          }
+          constraints[key] = {
+            mode: mode,
+            value: mode === "fixed" ? value : 0
+          };
+        });
+        return constraints;
       }
 
       function getDelimiter() {
@@ -902,6 +1365,546 @@
         statusText.className = "status-ok";
       }
 
+      function setQuickFitStatus(message, isError) {
+        quickFitStatus.textContent = message;
+        quickFitStatus.style.color = isError ? "var(--danger)" : "var(--muted)";
+      }
+
+      function resetQuickFitSummary() {
+        quickFitCount.textContent = "0";
+        quickFitR2.textContent = "-";
+      }
+
+      function updateQuickFitMaskDisplay(coeffs) {
+        Array.from(quickFitMask.querySelectorAll(".quick-fit-mask-row")).forEach(function (row, index) {
+          if (!coeffs || coeffs[index] === undefined) {
+            return;
+          }
+          if (row.querySelector(".quick-fit-mask-mode").value === "free") {
+            row.querySelector(".quick-fit-mask-value").value = formatMetric(coeffs[index]);
+          }
+        });
+      }
+
+      function updateQuickPeakMaskDisplay(params) {
+        if (!params) {
+          return;
+        }
+        Array.from(quickPeakMask.querySelectorAll(".quick-fit-mask-row")).forEach(function (row) {
+          const key = row.getAttribute("data-key");
+          if (!(key in params)) {
+            return;
+          }
+          if (row.querySelector(".quick-fit-mask-mode").value === "free") {
+            row.querySelector(".quick-fit-mask-value").value = formatMetric(params[key]);
+          }
+        });
+      }
+
+      function renderQuickFitEmpty(message) {
+        quickFitPlot.innerHTML = '<div class="quick-fit-empty">' + message + "</div>";
+      }
+
+      function parseQuickFitText(text) {
+        const lines = text.split(/\r?\n/);
+        const points = [];
+
+        lines.forEach(function (line) {
+          const trimmed = line.trim();
+          if (!trimmed || trimmed.startsWith("#")) {
+            return;
+          }
+
+          const cols = trimmed.split(/[\s,\t]+/).filter(Boolean);
+          if (cols.length < 2) {
+            return;
+          }
+
+          const x = Number(cols[0]);
+          const y = Number(cols[1]);
+          if (!Number.isFinite(x) || !Number.isFinite(y)) {
+            return;
+          }
+
+          points.push({ x: x, y: y });
+        });
+
+        return points;
+      }
+
+      function solveLinearSystem(matrix, vector) {
+        const n = matrix.length;
+        const a = matrix.map(function (row, i) { return row.slice().concat(vector[i]); });
+
+        for (let col = 0; col < n; col += 1) {
+          let pivotRow = col;
+          for (let row = col + 1; row < n; row += 1) {
+            if (Math.abs(a[row][col]) > Math.abs(a[pivotRow][col])) {
+              pivotRow = row;
+            }
+          }
+
+          if (Math.abs(a[pivotRow][col]) < 1e-12) {
+            throw new Error("フィット行列が特異です。次数を下げてください。");
+          }
+
+          if (pivotRow !== col) {
+            const tmp = a[col];
+            a[col] = a[pivotRow];
+            a[pivotRow] = tmp;
+          }
+
+          const pivot = a[col][col];
+          for (let j = col; j <= n; j += 1) {
+            a[col][j] /= pivot;
+          }
+
+          for (let row = 0; row < n; row += 1) {
+            if (row === col) {
+              continue;
+            }
+            const factor = a[row][col];
+            for (let j = col; j <= n; j += 1) {
+              a[row][j] -= factor * a[col][j];
+            }
+          }
+        }
+
+        return a.map(function (row) { return row[n]; });
+      }
+
+      function evaluatePolynomial(coeffs, x) {
+        let y = 0;
+        for (let i = coeffs.length - 1; i >= 0; i -= 1) {
+          y = y * x + coeffs[i];
+        }
+        return y;
+      }
+
+      function formatPolynomial(coeffs) {
+        return coeffs.map(function (coeff, index) {
+          return "c" + index + " = " + formatMetric(coeff);
+        }).join("\n");
+      }
+
+      function fitPolynomial(points, degree, constraints) {
+        if (points.length < 2) {
+          throw new Error("点が2つ以上必要です。");
+        }
+        if (!Number.isInteger(degree) || degree < 0) {
+          throw new Error("次数は 0 以上の整数にしてください。");
+        }
+        if (degree >= points.length) {
+          throw new Error("次数は点数より小さくしてください。");
+        }
+
+        const size = degree + 1;
+        const normalizedConstraints = new Array(size).fill(null).map(function (_, index) {
+          return constraints && constraints[index] ? constraints[index] : { mode: "free", value: 0 };
+        });
+        const freeIndices = [];
+        const coeffs = new Array(size).fill(0);
+
+        normalizedConstraints.forEach(function (constraint, index) {
+          if (constraint.mode === "fixed") {
+            coeffs[index] = constraint.value;
+          } else {
+            freeIndices.push(index);
+          }
+        });
+
+        if (freeIndices.length === 0) {
+          throw new Error("少なくとも1つは fit の係数が必要です。");
+        }
+
+        const matrix = freeIndices.map(function () {
+          return freeIndices.map(function () { return 0; });
+        });
+        const rhs = freeIndices.map(function () { return 0; });
+
+        points.forEach(function (point) {
+          let adjustedY = point.y;
+          normalizedConstraints.forEach(function (constraint, index) {
+            if (constraint.mode === "fixed") {
+              adjustedY -= constraint.value * Math.pow(point.x, index);
+            }
+          });
+
+          freeIndices.forEach(function (powerI, rowIndex) {
+            rhs[rowIndex] += adjustedY * Math.pow(point.x, powerI);
+            freeIndices.forEach(function (powerJ, colIndex) {
+              matrix[rowIndex][colIndex] += Math.pow(point.x, powerI + powerJ);
+            });
+          });
+        });
+
+        const solved = solveLinearSystem(matrix, rhs);
+        freeIndices.forEach(function (power, index) {
+          coeffs[power] = solved[index];
+        });
+
+        const meanY = points.reduce(function (sum, point) { return sum + point.y; }, 0) / points.length;
+        let ssRes = 0;
+        let ssTot = 0;
+
+        points.forEach(function (point) {
+          const fitted = evaluatePolynomial(coeffs, point.x);
+          ssRes += (point.y - fitted) * (point.y - fitted);
+          ssTot += (point.y - meanY) * (point.y - meanY);
+        });
+
+        return {
+          degree: degree,
+          coeffs: coeffs,
+          r2: ssTot < 1e-12 ? 1 : 1 - ssRes / ssTot
+        };
+      }
+
+      function renderQuickFitPlot(points, fit) {
+        const width = 640;
+        const height = 260;
+        const padLeft = 44;
+        const padRight = 16;
+        const padTop = 16;
+        const padBottom = 30;
+
+        let minX = Math.min.apply(null, points.map(function (point) { return point.x; }));
+        let maxX = Math.max.apply(null, points.map(function (point) { return point.x; }));
+        let minY = Math.min.apply(null, points.map(function (point) { return point.y; }));
+        let maxY = Math.max.apply(null, points.map(function (point) { return point.y; }));
+        const fitY1 = evaluatePolynomial(fit.coeffs, minX);
+        const fitY2 = evaluatePolynomial(fit.coeffs, maxX);
+
+        minY = Math.min(minY, fitY1, fitY2);
+        maxY = Math.max(maxY, fitY1, fitY2);
+
+        if (Math.abs(maxX - minX) < 1e-12) {
+          minX -= 1;
+          maxX += 1;
+        }
+        if (Math.abs(maxY - minY) < 1e-12) {
+          minY -= 1;
+          maxY += 1;
+        }
+
+        const xPad = (maxX - minX) * 0.08;
+        const yPad = (maxY - minY) * 0.1;
+        const x0 = minX - xPad;
+        const x1 = maxX + xPad;
+        const y0 = minY - yPad;
+        const y1 = maxY + yPad;
+
+        function sx(x) {
+          return padLeft + (x - x0) / (x1 - x0) * (width - padLeft - padRight);
+        }
+
+        function sy(y) {
+          return height - padBottom - (y - y0) / (y1 - y0) * (height - padTop - padBottom);
+        }
+
+        const circles = points.map(function (point) {
+          return '<circle cx="' + sx(point.x).toFixed(2) + '" cy="' + sy(point.y).toFixed(2) + '" r="3.2" fill="#1574b6" />';
+        }).join("");
+
+        const curvePoints = [];
+        for (let i = 0; i <= 160; i += 1) {
+          const x = x0 + (x1 - x0) * i / 160;
+          curvePoints.push(sx(x).toFixed(2) + "," + sy(evaluatePolynomial(fit.coeffs, x)).toFixed(2));
+        }
+        const fitLine = '<polyline fill="none" points="' + curvePoints.join(" ") + '" stroke="#d65959" stroke-width="2" />';
+
+        const xTicks = [x0, (x0 + x1) / 2, x1].map(function (value) {
+          const x = sx(value).toFixed(2);
+          return '<g><line x1="' + x + '" y1="' + (height - padBottom) + '" x2="' + x + '" y2="' + (height - padBottom + 5)
+            + '" stroke="#6d89a5" /><text x="' + x + '" y="' + (height - 10) + '" text-anchor="middle" font-size="10" fill="#5d7388">'
+            + formatMetric(value) + '</text></g>';
+        }).join("");
+
+        const yTicks = [y0, (y0 + y1) / 2, y1].map(function (value) {
+          const y = sy(value).toFixed(2);
+          return '<g><line x1="' + (padLeft - 5) + '" y1="' + y + '" x2="' + padLeft + '" y2="' + y
+            + '" stroke="#6d89a5" /><text x="' + (padLeft - 8) + '" y="' + (Number(y) + 3)
+            + '" text-anchor="end" font-size="10" fill="#5d7388">' + formatMetric(value) + '</text></g>';
+        }).join("");
+
+        quickFitPlot.innerHTML =
+          '<svg viewBox="0 0 ' + width + ' ' + height + '" aria-label="Quick fit plot">'
+          + '<line x1="' + padLeft + '" y1="' + padTop + '" x2="' + padLeft + '" y2="' + (height - padBottom) + '" stroke="#9bb2c7" />'
+          + '<line x1="' + padLeft + '" y1="' + (height - padBottom) + '" x2="' + (width - padRight) + '" y2="' + (height - padBottom) + '" stroke="#9bb2c7" />'
+          + yTicks + xTicks + fitLine + circles
+          + '</svg>';
+      }
+
+      function runQuickFit() {
+        const points = parseQuickFitText(quickFitInput.value);
+        const degree = Number(quickFitDegree.value);
+        const constraints = getQuickFitConstraints();
+        if (points.length < 2) {
+          resetQuickFitSummary();
+          renderQuickFitEmpty("2列データを2点以上入力してください");
+          setQuickFitStatus("データ不足", true);
+          return;
+        }
+
+        const fit = fitPolynomial(points, degree, constraints);
+        quickFitCount.textContent = String(points.length);
+        quickFitR2.textContent = formatMetric(fit.r2);
+        updateQuickFitMaskDisplay(fit.coeffs);
+        renderQuickFitPlot(points, fit);
+        setQuickFitStatus("多項式フィット完了", false);
+      }
+
+      function setQuickPeakStatus(message, isError) {
+        quickPeakStatus.textContent = message;
+        quickPeakStatus.style.color = isError ? "var(--danger)" : "var(--muted)";
+      }
+
+      function resetQuickPeakSummary() {
+        quickPeakCount.textContent = "0";
+        quickPeakR2.textContent = "-";
+      }
+
+      function renderQuickPeakEmpty(message) {
+        quickPeakPlot.innerHTML = '<div class="quick-fit-empty">' + message + "</div>";
+      }
+
+      function peakModelValue(model, x, params) {
+        const dx = x - params.center;
+        const width = Math.max(Math.abs(params.width), 1e-9);
+        const offset = params.offset;
+        const amplitude = params.amplitude;
+        const lorentz = amplitude / (1 + Math.pow(dx / width, 2));
+        const gauss = amplitude * Math.exp(-0.5 * Math.pow(dx / width, 2));
+
+        if (model === "gaussian") {
+          return offset + gauss;
+        }
+        if (model === "pseudo_voigt") {
+          const eta = Math.min(1, Math.max(0, params.eta));
+          return offset + eta * lorentz + (1 - eta) * gauss;
+        }
+        return offset + lorentz;
+      }
+
+      function estimatePeakParams(points, model) {
+        let minY = points[0].y;
+        let maxY = points[0].y;
+        let minX = points[0].x;
+        let maxX = points[0].x;
+        let maxPoint = points[0];
+
+        points.forEach(function (point) {
+          if (point.y < minY) minY = point.y;
+          if (point.y > maxY) {
+            maxY = point.y;
+            maxPoint = point;
+          }
+          if (point.x < minX) minX = point.x;
+          if (point.x > maxX) maxX = point.x;
+        });
+
+        return {
+          center: maxPoint.x,
+          amplitude: Math.max(maxY - minY, 1e-6),
+          width: Math.max((maxX - minX) / 8, 1e-6),
+          offset: minY,
+          eta: model === "pseudo_voigt" ? 0.5 : 1
+        };
+      }
+
+      function sumPeakSquaredError(points, model, params) {
+        let sum = 0;
+        points.forEach(function (point) {
+          const diff = point.y - peakModelValue(model, point.x, params);
+          sum += diff * diff;
+        });
+        return sum;
+      }
+
+      function optimizePeakFit(points, model, initialParams, constraints) {
+        const xValues = points.map(function (point) { return point.x; });
+        const xMin = Math.min.apply(null, xValues);
+        const xMax = Math.max.apply(null, xValues);
+        const xSpan = Math.max(xMax - xMin, 1e-6);
+        const params = {
+          center: initialParams.center,
+          amplitude: initialParams.amplitude,
+          width: initialParams.width,
+          offset: initialParams.offset,
+          eta: initialParams.eta
+        };
+        Object.keys(constraints || {}).forEach(function (key) {
+          if (constraints[key] && constraints[key].mode === "fixed") {
+            params[key] = constraints[key].value;
+          }
+        });
+        const step = {
+          center: xSpan * 0.12,
+          amplitude: Math.max(Math.abs(initialParams.amplitude) * 0.25, 0.05),
+          width: Math.max(Math.abs(initialParams.width) * 0.25, xSpan * 0.03, 1e-4),
+          offset: Math.max(Math.abs(initialParams.offset) * 0.2, 0.02),
+          eta: 0.15
+        };
+        const keys = (model === "pseudo_voigt"
+          ? ["center", "amplitude", "width", "offset", "eta"]
+          : ["center", "amplitude", "width", "offset"]).filter(function (key) {
+            return !constraints || !constraints[key] || constraints[key].mode !== "fixed";
+          });
+        if (keys.length === 0) {
+          return params;
+        }
+        let bestError = sumPeakSquaredError(points, model, params);
+
+        for (let iter = 0; iter < 80; iter += 1) {
+          let improved = false;
+
+          keys.forEach(function (key) {
+            const deltas = [step[key], -step[key]];
+            deltas.forEach(function (delta) {
+              const candidate = Object.assign({}, params);
+              candidate[key] += delta;
+              if (key === "width") {
+                candidate.width = Math.max(candidate.width, 1e-6);
+              }
+              if (key === "eta") {
+                candidate.eta = Math.min(1, Math.max(0, candidate.eta));
+              }
+              const error = sumPeakSquaredError(points, model, candidate);
+              if (error < bestError) {
+                Object.assign(params, candidate);
+                bestError = error;
+                improved = true;
+              }
+            });
+          });
+
+          if (!improved) {
+            keys.forEach(function (key) {
+              step[key] *= 0.6;
+            });
+          }
+        }
+
+        return params;
+      }
+
+      function fitPeakModel(points, model, constraints) {
+        if (points.length < 3) {
+          throw new Error("ピークフィットには3点以上必要です。");
+        }
+
+        const params = optimizePeakFit(points, model, estimatePeakParams(points, model), constraints);
+        const meanY = points.reduce(function (sum, point) { return sum + point.y; }, 0) / points.length;
+        let ssRes = 0;
+        let ssTot = 0;
+
+        points.forEach(function (point) {
+          const fitted = peakModelValue(model, point.x, params);
+          ssRes += Math.pow(point.y - fitted, 2);
+          ssTot += Math.pow(point.y - meanY, 2);
+        });
+
+        return {
+          model: model,
+          params: params,
+          r2: ssTot < 1e-12 ? 1 : 1 - ssRes / ssTot
+        };
+      }
+
+      function formatPeakParams(model, params) {
+        const lines = [
+          "model = " + model,
+          "center = " + formatMetric(params.center),
+          "amplitude = " + formatMetric(params.amplitude),
+          "width = " + formatMetric(params.width),
+          "offset = " + formatMetric(params.offset)
+        ];
+        if (model === "pseudo_voigt") {
+          lines.push("eta = " + formatMetric(params.eta));
+        }
+        return lines.join("\n");
+      }
+
+      function renderQuickPeakPlot(points, fit) {
+        const width = 640;
+        const height = 260;
+        const padLeft = 44;
+        const padRight = 16;
+        const padTop = 16;
+        const padBottom = 30;
+        let minX = Math.min.apply(null, points.map(function (point) { return point.x; }));
+        let maxX = Math.max.apply(null, points.map(function (point) { return point.x; }));
+        let minY = Math.min.apply(null, points.map(function (point) { return point.y; }));
+        let maxY = Math.max.apply(null, points.map(function (point) { return point.y; }));
+
+        if (Math.abs(maxX - minX) < 1e-12) {
+          minX -= 1;
+          maxX += 1;
+        }
+        const xPad = (maxX - minX) * 0.08;
+        const x0 = minX - xPad;
+        const x1 = maxX + xPad;
+
+        const curveYs = [];
+        for (let i = 0; i <= 160; i += 1) {
+          const x = x0 + (x1 - x0) * i / 160;
+          curveYs.push(peakModelValue(fit.model, x, fit.params));
+        }
+        minY = Math.min(minY, Math.min.apply(null, curveYs));
+        maxY = Math.max(maxY, Math.max.apply(null, curveYs));
+        if (Math.abs(maxY - minY) < 1e-12) {
+          minY -= 1;
+          maxY += 1;
+        }
+        const yPad = (maxY - minY) * 0.1;
+        const y0 = minY - yPad;
+        const y1 = maxY + yPad;
+
+        function sx(x) {
+          return padLeft + (x - x0) / (x1 - x0) * (width - padLeft - padRight);
+        }
+
+        function sy(y) {
+          return height - padBottom - (y - y0) / (y1 - y0) * (height - padTop - padBottom);
+        }
+
+        const circles = points.map(function (point) {
+          return '<circle cx="' + sx(point.x).toFixed(2) + '" cy="' + sy(point.y).toFixed(2) + '" r="3.2" fill="#1574b6" />';
+        }).join("");
+
+        const curvePoints = [];
+        for (let i = 0; i <= 160; i += 1) {
+          const x = x0 + (x1 - x0) * i / 160;
+          curvePoints.push(sx(x).toFixed(2) + "," + sy(peakModelValue(fit.model, x, fit.params)).toFixed(2));
+        }
+
+        quickPeakPlot.innerHTML =
+          '<svg viewBox="0 0 ' + width + ' ' + height + '" aria-label="Quick peak fit plot">'
+          + '<line x1="' + padLeft + '" y1="' + padTop + '" x2="' + padLeft + '" y2="' + (height - padBottom) + '" stroke="#9bb2c7" />'
+          + '<line x1="' + padLeft + '" y1="' + (height - padBottom) + '" x2="' + (width - padRight) + '" y2="' + (height - padBottom) + '" stroke="#9bb2c7" />'
+          + '<polyline fill="none" points="' + curvePoints.join(" ") + '" stroke="#d65959" stroke-width="2" />'
+          + circles
+          + '</svg>';
+      }
+
+      function runQuickPeakFit() {
+        const points = parseQuickFitText(quickPeakInput.value);
+        const constraints = getQuickPeakConstraints();
+        if (points.length < 3) {
+          resetQuickPeakSummary();
+          renderQuickPeakEmpty("2列データを3点以上入力してください");
+          setQuickPeakStatus("データ不足", true);
+          return;
+        }
+
+        const fit = fitPeakModel(points, quickPeakModel.value, constraints);
+        quickPeakCount.textContent = String(points.length);
+        quickPeakR2.textContent = formatMetric(fit.r2);
+        updateQuickPeakMaskDisplay(fit.params);
+        renderQuickPeakPlot(points, fit);
+        setQuickPeakStatus("ピークフィット完了", false);
+      }
+
       addVariableBtn.addEventListener("click", function () {
         addVariableRow(getLastRowValues());
       });
@@ -925,6 +1928,100 @@
         downloadOutput();
       });
 
+      quickFitFile.addEventListener("change", function () {
+        const file = quickFitFile.files && quickFitFile.files[0];
+        if (!file) {
+          return;
+        }
+        file.text().then(function (text) {
+          quickFitInput.value = text;
+          setQuickFitStatus("ファイルを読み込みました", false);
+          runQuickFit();
+        }).catch(function () {
+          setQuickFitStatus("ファイル読込に失敗しました", true);
+        });
+      });
+
+      quickFitRunBtn.addEventListener("click", function () {
+        try {
+          quickFitDegree.value = String(clampQuickFitDegree(quickFitDegree.value));
+          runQuickFit();
+        } catch (error) {
+          resetQuickFitSummary();
+          renderQuickFitEmpty("フィットできません");
+          setQuickFitStatus(error instanceof Error ? error.message : "フィットに失敗しました", true);
+        }
+      });
+
+      quickFitDegreeDownBtn.addEventListener("click", function () {
+        quickFitDegree.value = String(clampQuickFitDegree(Number(quickFitDegree.value || 1) - 1));
+        renderQuickFitMask();
+      });
+
+      quickFitDegreeUpBtn.addEventListener("click", function () {
+        quickFitDegree.value = String(clampQuickFitDegree(Number(quickFitDegree.value || 1) + 1));
+        renderQuickFitMask();
+      });
+
+      quickFitDegree.addEventListener("change", function () {
+        quickFitDegree.value = String(clampQuickFitDegree(quickFitDegree.value));
+        renderQuickFitMask();
+      });
+
+      quickFitClearBtn.addEventListener("click", function () {
+        quickFitInput.value = "";
+        quickFitFile.value = "";
+        resetQuickFitSummary();
+        renderQuickFitEmpty("Quick Fit plot");
+        setQuickFitStatus("入力をクリアしました", false);
+      });
+
+      quickPeakFile.addEventListener("change", function () {
+        const file = quickPeakFile.files && quickPeakFile.files[0];
+        if (!file) {
+          return;
+        }
+        file.text().then(function (text) {
+          quickPeakInput.value = text;
+          setQuickPeakStatus("ファイルを読み込みました", false);
+          runQuickPeakFit();
+        }).catch(function () {
+          setQuickPeakStatus("ファイル読込に失敗しました", true);
+        });
+      });
+
+      quickPeakRunBtn.addEventListener("click", function () {
+        try {
+          runQuickPeakFit();
+        } catch (error) {
+          resetQuickPeakSummary();
+          renderQuickPeakEmpty("ピークフィットできません");
+          setQuickPeakStatus(error instanceof Error ? error.message : "フィットに失敗しました", true);
+        }
+      });
+
+      quickPeakClearBtn.addEventListener("click", function () {
+        quickPeakInput.value = "";
+        quickPeakFile.value = "";
+        resetQuickPeakSummary();
+        renderQuickPeakEmpty("Quick Peak Fit plot");
+        setQuickPeakStatus("入力をクリアしました", false);
+      });
+
+      quickPeakModel.addEventListener("change", function () {
+        renderQuickPeakMask();
+        if (!quickPeakInput.value.trim()) {
+          return;
+        }
+        try {
+          runQuickPeakFit();
+        } catch (error) {
+          resetQuickPeakSummary();
+          renderQuickPeakEmpty("ピークフィットできません");
+          setQuickPeakStatus(error instanceof Error ? error.message : "フィットに失敗しました", true);
+        }
+      });
+
       delimiterSelect.addEventListener("change", function () {
         if (outputBox.value.trim()) {
           try {
@@ -940,6 +2037,12 @@
         addVariableRow(item);
       });
 
+      renderQuickFitMask();
+      resetQuickFitSummary();
+      runQuickFit();
+      renderQuickPeakMask();
+      resetQuickPeakSummary();
+      runQuickPeakFit();
       generateOutput();
     })();
   </script>
