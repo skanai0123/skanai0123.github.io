@@ -457,6 +457,151 @@
       min-height: 100%;
     }
 
+    .rate-panel {
+      display: grid;
+      gap: 12px;
+    }
+
+    .rate-grid {
+      display: grid;
+      grid-template-columns: minmax(320px, 420px) 1fr;
+      gap: 16px;
+      align-items: start;
+    }
+
+    .rate-controls {
+      display: grid;
+      gap: 12px;
+      align-content: start;
+    }
+
+    .rate-controls-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(120px, 1fr));
+      gap: 10px 12px;
+    }
+
+    .rate-subsection {
+      display: grid;
+      gap: 10px;
+      padding: 10px;
+      border: 1px solid #e2d1f5;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.72);
+    }
+
+    .rate-subsection-title {
+      font-size: 11px;
+      font-weight: 800;
+      color: #7261b2;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .rate-results {
+      display: grid;
+      gap: 12px;
+    }
+
+    .rate-cards {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(120px, 1fr));
+      gap: 10px;
+    }
+
+    .rate-card {
+      border: 1px solid #e2d1f5;
+      border-radius: 12px;
+      padding: 12px 14px;
+      background: rgba(255, 255, 255, 0.78);
+    }
+
+    .rate-card-label {
+      font-size: 11px;
+      font-weight: 800;
+      color: #7261b2;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .rate-card-value {
+      margin-top: 6px;
+      font-size: 28px;
+      font-weight: 800;
+      color: #1e234f;
+      line-height: 1.1;
+    }
+
+    .rate-card-sub {
+      margin-top: 4px;
+      font-size: 12px;
+      color: #6f779a;
+    }
+
+    .rate-table-wrap {
+      border: 1px solid #e2d1f5;
+      border-radius: 14px;
+      overflow: auto;
+      background: rgba(255, 255, 255, 0.8);
+    }
+
+    .rate-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      color: #2a305c;
+    }
+
+    .rate-table th,
+    .rate-table td {
+      padding: 8px 10px;
+      border-bottom: 1px solid rgba(226, 209, 245, 0.65);
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    .rate-table th {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #7261b2;
+      background: rgba(246, 240, 255, 0.8);
+    }
+
+    .rate-table tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .rate-num {
+      text-align: right !important;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .rate-note-list {
+      display: grid;
+      gap: 4px;
+      color: #5f678b;
+      font-size: 12px;
+    }
+    .rate-canvas-wrap {
+      position: relative;
+    }
+    .rate-tooltip {
+      position: absolute;
+      pointer-events: none;
+      z-index: 3;
+      min-width: 120px;
+      padding: 8px 10px;
+      border-radius: 10px;
+      border: 1px solid #d9c9ea;
+      background: rgba(255, 255, 255, 0.96);
+      box-shadow: 0 10px 24px rgba(29, 34, 77, 0.14);
+      font-size: 12px;
+      color: #263054;
+      display: none;
+      transform: translate(10px, -8px);
+    }
+
     .spectrum-stage strong {
       display: block;
       margin-bottom: 6px;
@@ -901,6 +1046,9 @@
       .transition-grid { grid-template-columns: 1fr; }
       .preview-grid { grid-template-columns: 1fr; }
       .diagram-split { grid-template-columns: 1fr; }
+      .rate-grid { grid-template-columns: 1fr; }
+      .rate-cards { grid-template-columns: 1fr; }
+      .rate-controls-grid { grid-template-columns: 1fr; }
       #orbitalPreview, #finalOrbitalPreview { width: 100%; }
     }
   </style>
@@ -909,7 +1057,7 @@
   <main class="wrap">
     <section class="card">
       <div class="topbar">
-        <div class="version">v0.0.1-copy</div>
+        <div class="version">v0.0.2</div>
       </div>
       <h1>Single-Electron Optical Transition Playground</h1>
       <div class="top-panels">
@@ -985,7 +1133,6 @@
                   <option value="sigma_pm" selected>sigma+ / sigma-</option>
                 </select>
               </div>
-              <button type="button" class="state-btn" id="loadBenchmark">Load 1s↔2p Benchmark</button>
             </div>
             <div id="transitionSummaryGrid" class="transition-grid">
               <div class="transition-cell">
@@ -1010,7 +1157,7 @@
         <div class="spectrum-layout">
           <div class="spectrum-stage">
             <div>
-              <strong>B -> B Transition Matrix</strong>
+              <strong id="transitionMatrixTitle">B -> B Transition Matrix</strong>
             </div>
             <div id="transitionMatrixWrap" class="matrix-scroll"></div>
           </div>
@@ -1058,6 +1205,10 @@
                     <label for="deltaFinal">Δ1 (eV)</label>
                     <input id="deltaFinal" type="number" min="0" step="0.01" value="1.00">
                   </div>
+                  <div>
+                    <label for="finalEnergyOffset">Free-Ion Offset (eV)</label>
+                    <input id="finalEnergyOffset" type="number" step="0.01" value="2.50">
+                  </div>
                   <div class="delta2-wrap">
                     <label for="delta2Final">Δ2 (eV)</label>
                     <input id="delta2Final" type="number" min="0" step="0.01" value="0.20">
@@ -1071,11 +1222,10 @@
                   <span class="state-info" id="finalStateInfo"></span>
                 </div>
               </div>
-              <div class="diagram-split diagram-box-row is-single">
+              <div class="box diagram-box-row">
                 <div class="diagram-wrap">
                   <svg id="finalDiagram" viewBox="0 0 720 358" role="img" aria-label="Final crystal-field splitting diagram"></svg>
                 </div>
-                <div id="finalTransitionPanel" class="mix-panel" hidden></div>
               </div>
             </div>
             <div class="box preview-box">
@@ -1150,11 +1300,10 @@
                   <span class="state-info" id="stateInfo"></span>
                 </div>
               </div>
-              <div class="diagram-split diagram-box-row is-single">
+              <div class="box diagram-box-row">
                 <div class="diagram-wrap">
                   <svg id="diagram" viewBox="0 0 720 358" role="img" aria-label="Crystal-field splitting diagram"></svg>
                 </div>
-                <div id="transitionPanel" class="mix-panel" hidden></div>
               </div>
             </div>
             <div class="box preview-box">
@@ -1177,6 +1326,98 @@
         </section>
       </section>
     </section>
+
+    <section class="card rate-panel" aria-label="Laser and rate equation panel">
+      <div class="topbar">
+        <div class="form-section-title">Laser / Rate Equation</div>
+      </div>
+      <div class="rate-grid">
+        <div class="box rate-controls">
+          <div class="transition-label">Model Parameters</div>
+          <div class="rate-subsection">
+            <div class="rate-subsection-title">Laser</div>
+            <div class="rate-controls-grid">
+              <div>
+                <label for="laserEnergy">Laser Energy (eV)</label>
+                <input id="laserEnergy" type="number" min="0" step="0.001" value="1.000">
+              </div>
+              <div>
+                <label for="laserWidth">Laser Width (eV)</label>
+                <input id="laserWidth" type="number" min="0.0001" step="0.001" value="0.050">
+              </div>
+              <div>
+                <label for="pumpRate">Pump Rate (1/ns)</label>
+                <input id="pumpRate" type="number" min="0" step="0.01" value="1.00">
+              </div>
+              <div>
+                <label for="excitationPolarization">Excitation Polarization</label>
+                <select id="excitationPolarization">
+                  <option value="unpolarized" selected>Unpolarized</option>
+                  <option value="sigma_plus">sigma+</option>
+                  <option value="sigma_minus">sigma-</option>
+                </select>
+              </div>
+              <div>
+                <label for="selectedLaserEnergy">Current Transition ΔE (eV)</label>
+                <input id="selectedLaserEnergy" type="text" value="-" readonly>
+              </div>
+              <div>
+                <label>&nbsp;</label>
+                <button id="useSelectedLaserEnergyBtn" class="secondary-btn" type="button">Use Current Transition ΔE</button>
+              </div>
+            </div>
+          </div>
+          <div class="rate-subsection">
+            <div class="rate-subsection-title">Relaxation / Phonons</div>
+            <div class="rate-controls-grid">
+              <div>
+                <label for="radiativeLifetime">Radiative Lifetime (ns)</label>
+                <input id="radiativeLifetime" type="number" min="0.001" step="0.1" value="5.0">
+              </div>
+              <div>
+                <label for="relaxationRate">Intra-manifold Relaxation (1/ns)</label>
+                <input id="relaxationRate" type="number" min="0" step="0.01" value="0.05">
+              </div>
+              <div>
+                <label for="initialTemperature">Initial Temperature (K)</label>
+                <input id="initialTemperature" type="number" min="0" step="1" value="5">
+              </div>
+            </div>
+          </div>
+          <div class="rate-note-list">
+            <div>Laser pumping uses the current `B -> B` transition matrix and the excitation polarization selected here.</div>
+            <div>Radiative decay uses the same dipole strengths for downward `F -> I` channels, with the lifetime setting the overall timescale.</div>
+            <div>Intra-manifold relaxation uses detailed balance and spin-orbital character overlap within each manifold.</div>
+            <div>Time evolution starts from a Boltzmann distribution on the initial-state B manifold.</div>
+            <div>All rate-like parameters on this panel are treated as effective values in `1/ns`.</div>
+            <div id="rateOverlapNote" class="muted"></div>
+          </div>
+        </div>
+        <div class="rate-results">
+          <div class="box rate-controls">
+            <div class="transition-label">Time Evolution</div>
+            <div class="rate-controls-grid">
+              <div>
+                <label for="timeMax">t max (ns)</label>
+                <input id="timeMax" type="number" min="0.1" step="0.1" value="1000.0">
+              </div>
+              <div>
+                <label for="timeSteps">Steps</label>
+                <input id="timeSteps" type="number" min="20" step="10" value="500">
+              </div>
+            </div>
+            <div class="rate-canvas-wrap">
+              <canvas id="rateTimeCanvas" width="1080" height="360" role="img" aria-label="Rate-equation time evolution"></canvas>
+              <div id="rateTimeTooltip" class="rate-tooltip"></div>
+            </div>
+          </div>
+          <div class="box rate-controls">
+            <div class="transition-label">PL(t)</div>
+            <canvas id="ratePlCanvas" width="1080" height="220" role="img" aria-label="Photoluminescence time evolution"></canvas>
+          </div>
+        </div>
+      </div>
+    </section>
   </main>
 
   <script>
@@ -1189,6 +1430,7 @@
     const delta2InitialEl = document.getElementById("delta2Initial");
     const deltaFinalEl = document.getElementById("deltaFinal");
     const delta2FinalEl = document.getElementById("delta2Final");
+    const finalEnergyOffsetEl = document.getElementById("finalEnergyOffset");
     const lambdaInitialEl = document.getElementById("lambdaInitial");
     const lambdaFinalEl = document.getElementById("lambdaFinal");
     const bFieldEl = document.getElementById("bField");
@@ -1229,10 +1471,27 @@
     const finalStateInfoEl = document.getElementById("finalStateInfo");
     const transitionSummaryGridEl = document.getElementById("transitionSummaryGrid");
     const transitionNoteEl = document.getElementById("transitionNote");
-    const loadBenchmarkEl = document.getElementById("loadBenchmark");
     const polarizationModeEl = document.getElementById("polarizationMode");
     const transitionMatrixWrapEl = document.getElementById("transitionMatrixWrap");
+    const transitionMatrixTitleEl = document.getElementById("transitionMatrixTitle");
     const downloadMatrixCsvEl = document.getElementById("downloadMatrixCsv");
+    const laserEnergyEl = document.getElementById("laserEnergy");
+    const laserWidthEl = document.getElementById("laserWidth");
+    const pumpRateEl = document.getElementById("pumpRate");
+    const radiativeLifetimeEl = document.getElementById("radiativeLifetime");
+    const relaxationRateEl = document.getElementById("relaxationRate");
+    const initialTemperatureEl = document.getElementById("initialTemperature");
+    const excitationPolarizationEl = document.getElementById("excitationPolarization");
+    const selectedLaserEnergyEl = document.getElementById("selectedLaserEnergy");
+    const useSelectedLaserEnergyBtnEl = document.getElementById("useSelectedLaserEnergyBtn");
+    const rateOverlapNoteEl = document.getElementById("rateOverlapNote");
+    const timeMaxEl = document.getElementById("timeMax");
+    const timeStepsEl = document.getElementById("timeSteps");
+    const rateTimeCanvasEl = document.getElementById("rateTimeCanvas");
+    const rateTimeCtx = rateTimeCanvasEl.getContext("2d");
+    const rateTimeTooltipEl = document.getElementById("rateTimeTooltip");
+    const ratePlCanvasEl = document.getElementById("ratePlCanvas");
+    const ratePlCtx = ratePlCanvasEl.getContext("2d");
     const delta2WrapEls = Array.from(document.querySelectorAll(".delta2-wrap"));
     const nEl = nInitialEl;
     const lEl = lInitialEl;
@@ -1242,6 +1501,13 @@
     const DEFAULT_VIEW_ROLL = Math.PI / 4; // make z-axis appear upward on screen
     const DEFAULT_VIEW_ZOOM = 0.84;
     const MU_B_EV_T = 5.788381806e-5;
+    const K_B_EV_K = 8.617333262145e-5;
+    const RELAXATION_REFERENCE_EV = 0.01;
+    const GENERIC_CF_SOURCE_RHO = 0.65;
+    const GENERIC_CF_THETA_STEPS = 40;
+    const GENERIC_CF_PHI_STEPS = 80;
+    let latestRateSeriesPlot = null;
+    const GENERIC_CF_BASE_CACHE = new Map();
     const orbitalView = {
       name: null,
       label: "",
@@ -2373,20 +2639,8 @@
       };
     }
 
-    function isAtomicBenchmarkActive() {
-      const zeroish = (value) => Math.abs(Number(value) || 0) <= 1e-12;
-      if (!initialPanelData || !finalPanelData) return false;
-      if (initialPanelData.nl !== "2p" || finalPanelData.nl !== "1s") return false;
-      return zeroish(lambdaInitialEl.value)
-        && zeroish(lambdaFinalEl.value)
-        && zeroish(deltaInitialEl.value)
-        && zeroish(deltaFinalEl.value)
-        && zeroish(delta2InitialEl.value)
-        && zeroish(delta2FinalEl.value);
-    }
-
     function getTransitionMatrixStageTag() {
-      return isAtomicBenchmarkActive() ? "FREE" : "B";
+      return "B";
     }
 
     function getStageLevelsForPanel(panelData, stageTag) {
@@ -2448,11 +2702,13 @@
     function renderTransitionMatrix() {
       const data = buildTransitionMatrixData();
       if (!data) {
+        if (transitionMatrixTitleEl) transitionMatrixTitleEl.textContent = "B -> B Transition Matrix";
         transitionMatrixWrapEl.innerHTML = `<div class="muted">Transition matrix will appear after both sides are solved.</div>`;
         downloadMatrixCsvEl.disabled = true;
         return;
       }
       const { initialLevels, finalLevels, matrix, maxValue, stageTag } = data;
+      if (transitionMatrixTitleEl) transitionMatrixTitleEl.textContent = "B -> B Transition Matrix";
       downloadMatrixCsvEl.disabled = false;
       const mode = polarizationModeEl.value;
       const appearance = getPolarizationAppearance(mode);
@@ -2489,8 +2745,8 @@
 
     function selectTransitionMatrixCell(initialIndex, finalIndex) {
       const stageTag = getTransitionMatrixStageTag();
-      const initialLevels = stageTag === "FREE" ? (stageStateLevels.FREE || []) : (stageStateLevels.B || []);
-      const finalLevels = stageTag === "FREE" ? (finalStageStateLevels.FREE || []) : (finalStageStateLevels.B || []);
+      const initialLevels = stageStateLevels.B || [];
+      const finalLevels = finalStageStateLevels.B || [];
       if (!Number.isFinite(initialIndex) || !Number.isFinite(finalIndex)) return;
       if (!initialLevels[initialIndex] || !finalLevels[finalIndex]) return;
       setActivePanel("final");
@@ -2506,7 +2762,7 @@
       finalOrbitalView.zoom = DEFAULT_VIEW_ZOOM;
       const initialLv = initialLevels[initialIndex];
       const finalLv = finalLevels[finalIndex];
-      const stageLabel = stageTag === "FREE" ? "Free Ion" : "B";
+      const stageLabel = "B";
       showOrbital("initial", initialLv.previewOrbital || "mixed", `${stageLabel} / ${initialLv.label}`, initialLv.degenerateMixSpec || "", initialLv.degenerateMzSpec || "", initialLv.degenerateSpinSpec || "", initialLv.degenerateSpinOrbSpec || "", initialLv.energy, initialLv.gFactor);
       showOrbital("final", finalLv.previewOrbital || "mixed", `${stageLabel} / ${finalLv.label}`, finalLv.degenerateMixSpec || "", finalLv.degenerateMzSpec || "", finalLv.degenerateSpinSpec || "", finalLv.degenerateSpinOrbSpec || "", finalLv.energy, finalLv.gFactor);
       rerenderDiagramSelection("initial");
@@ -2569,35 +2825,13 @@
       URL.revokeObjectURL(url);
     }
 
-    function loadBenchmarkConfiguration() {
-      geometryEl.value = "octa";
-      nInitialEl.value = "2";
-      enforceAllowedQuantumPair(nInitialEl, lInitialEl);
-      lInitialEl.value = "p";
-      lambdaInitialEl.value = "0";
-      deltaInitialEl.value = "0";
-      delta2InitialEl.value = "0";
-      nFinalEl.value = "1";
-      enforceAllowedQuantumPair(nFinalEl, lFinalEl);
-      lFinalEl.value = "s";
-      lambdaFinalEl.value = "0";
-      deltaFinalEl.value = "0";
-      delta2FinalEl.value = "0";
-      bThetaEl.value = "0";
-      bPhiEl.value = "0";
-      bFieldEl.value = "0.0001";
-      scaleModeEl.value = "accurate";
-      polarizationModeEl.value = "unpolarized";
-      syncDelta2Visibility();
-      calculate(true, "benchmark_load");
-    }
-
     function renderTransitionSummary() {
       const summary = computeSelectedTransitionStrength();
       const matrixData = buildTransitionMatrixData();
       const matrixMax = matrixData ? matrixData.maxValue : 0;
       if (!summary) {
         transitionSummaryGridEl.innerHTML = `<div class="transition-cell"><div class="transition-label">Selection</div><div class="transition-subvalue">Pick one level on each side to evaluate the transition intensity.</div></div>`;
+        renderRateEquationPanel();
         return;
       }
       const modeLabel = getPolarizationAppearance(summary.mode).label;
@@ -2607,28 +2841,559 @@
       const cartesianText = `x = ${formatRawTransitionValue(summary.x)}, y = ${formatRawTransitionValue(summary.y)}, z = ${formatRawTransitionValue(summary.z)}`;
       transitionSummaryGridEl.innerHTML = `<div class="transition-cell"><div class="transition-label">Selected Levels</div><div class="transition-subvalue">Initial: ${summary.initial.label} -> Final: ${summary.final.label}: ΔE = ${summary.deltaE.toFixed(8)} eV</div><div class="transition-subvalue">Intensity: ${intensityText}</div><div class="transition-subvalue">Cartesian dipole: ${cartesianText}</div></div>`;
       transitionNoteEl.textContent = "";
+      renderRateEquationPanel();
     }
 
-    function buildGenericCrystalFieldHamiltonian(geometry, delta) {
+    function gaussianProfile(x, width) {
+      const w = Math.max(1e-6, Number(width) || 0);
+      const t = x / w;
+      return Math.exp(-0.5 * t * t);
+    }
+
+    function solveLinearSystem(Ain, bin) {
+      const n = Ain.length;
+      const A = Ain.map((row) => [...row]);
+      const b = [...bin];
+      for (let col = 0; col < n; col += 1) {
+        let pivot = col;
+        let maxAbs = Math.abs(A[col][col]);
+        for (let row = col + 1; row < n; row += 1) {
+          const v = Math.abs(A[row][col]);
+          if (v > maxAbs) {
+            maxAbs = v;
+            pivot = row;
+          }
+        }
+        if (maxAbs < 1e-14) return null;
+        if (pivot !== col) {
+          const tmpRow = A[col];
+          A[col] = A[pivot];
+          A[pivot] = tmpRow;
+          const tmpB = b[col];
+          b[col] = b[pivot];
+          b[pivot] = tmpB;
+        }
+        const diag = A[col][col];
+        for (let j = col; j < n; j += 1) A[col][j] /= diag;
+        b[col] /= diag;
+        for (let row = 0; row < n; row += 1) {
+          if (row === col) continue;
+          const factor = A[row][col];
+          if (Math.abs(factor) <= 1e-16) continue;
+          for (let j = col; j < n; j += 1) A[row][j] -= factor * A[col][j];
+          b[row] -= factor * b[col];
+        }
+      }
+      return b;
+    }
+
+    function formatRateValue(value) {
+      if (!Number.isFinite(value)) return "-";
+      if (Math.abs(value) >= 10) return value.toFixed(2);
+      if (Math.abs(value) >= 1) return value.toFixed(3);
+      if (Math.abs(value) >= 0.01) return value.toFixed(4);
+      return value.toExponential(3);
+    }
+
+    function computeRatePopulationObservables(data, populationsIn) {
+      if (!data || !populationsIn || populationsIn.length !== data.states.length) return null;
+      const clipped = populationsIn.map((v) => Math.max(0, Number(v) || 0));
+      const norm = clipped.reduce((s, v) => s + v, 0) || 1;
+      const populations = clipped.map((v) => v / norm);
+      const incoming = new Array(data.states.length).fill(0);
+      const outgoing = new Array(data.states.length).fill(0);
+      for (let from = 0; from < data.states.length; from += 1) {
+        for (let to = 0; to < data.states.length; to += 1) {
+          if (to === from) continue;
+          const rate = data.flow[to][from];
+          if (!(rate > 0)) continue;
+          outgoing[from] += rate * populations[from];
+          incoming[to] += rate * populations[from];
+        }
+      }
+      const excitedPopulation = populations.reduce((sum, value, idx) => (
+        data.states[idx].bucket === "final" ? sum + value : sum
+      ), 0);
+      return { populations, incoming, outgoing, excitedPopulation };
+    }
+
+    function getSelectedTransitionDeltaEAbs() {
+      const summary = computeSelectedTransitionStrength();
+      if (!summary || !Number.isFinite(summary.deltaE)) return null;
+      return Math.abs(summary.deltaE);
+    }
+
+    function getExcitationStrength(item) {
+      if (!item) return 0;
+      const mode = excitationPolarizationEl.value;
+      if (mode === "sigma_plus") return item.sigmaPlus || 0;
+      if (mode === "sigma_minus") return item.sigmaMinus || 0;
+      return item.avg || 0;
+    }
+
+    function buildRateEquationData() {
+      if (!initialPanelData || !finalPanelData) return null;
+      const initialLevels = stageStateLevels.B || [];
+      const finalLevels = finalStageStateLevels.B || [];
+      if (!initialLevels.length || !finalLevels.length) return null;
+
+      const laserEnergy = Number(laserEnergyEl.value);
+      const laserWidth = Number(laserWidthEl.value);
+      const pumpRate = Number(pumpRateEl.value);
+      const radiativeLifetime = Number(radiativeLifetimeEl.value);
+      const radiativeRate = radiativeLifetime > 0 ? 1 / radiativeLifetime : 0;
+      const relaxationRate = Number(relaxationRateEl.value);
+      const temperature = Math.max(0, Number(initialTemperatureEl.value) || 0);
+      if (![laserEnergy, laserWidth, pumpRate, radiativeLifetime, radiativeRate, relaxationRate, temperature].every(Number.isFinite)) return null;
+      if (laserWidth <= 0 || pumpRate < 0 || radiativeLifetime <= 0 || radiativeRate < 0 || relaxationRate < 0 || temperature < 0) return null;
+
+      const matrixData = buildTransitionMatrixData();
+      if (!matrixData || !matrixData.matrix) return null;
+
+      const states = [
+        ...initialLevels.map((level, idx) => ({
+          bucket: "initial",
+          idx,
+          label: `I${idx + 1}`,
+          longLabel: level.label,
+          energy: level.energy
+        })),
+        ...finalLevels.map((level, idx) => ({
+          bucket: "final",
+          idx,
+          label: `F${idx + 1}`,
+          longLabel: level.label,
+          energy: level.energy
+        }))
+      ];
+      const initialOffset = 0;
+      const finalOffset = initialLevels.length;
+      const nStates = states.length;
+      const flow = Array.from({ length: nStates }, () => new Array(nStates).fill(0));
+
+      const addRate = (fromIdx, toIdx, rate) => {
+        if (!(rate > 0) || fromIdx === toIdx) return;
+        flow[toIdx][fromIdx] += rate;
+      };
+
+      let totalPump = 0;
+      let totalRadiative = 0;
+      let excludedNegativeDeltaE = 0;
+      const radiativePairs = [];
+
+      for (let i = 0; i < initialLevels.length; i += 1) {
+        for (let j = 0; j < finalLevels.length; j += 1) {
+          const item = matrixData.matrix[i] ? matrixData.matrix[i][j] : null;
+          if (!item) continue;
+          const deltaE = item.final.energy - item.initial.energy;
+          if (!(deltaE > 0)) {
+            if (deltaE < -1e-10) excludedNegativeDeltaE += 1;
+            continue;
+          }
+          const pump = pumpRate * getExcitationStrength(item) * gaussianProfile(deltaE - laserEnergy, laserWidth);
+          addRate(initialOffset + i, finalOffset + j, pump);
+          totalPump += pump;
+          const emission = radiativeRate * item.avg;
+          addRate(finalOffset + j, initialOffset + i, emission);
+          totalRadiative += emission;
+          radiativePairs.push({
+            from: finalOffset + j,
+            to: initialOffset + i,
+            rate: emission,
+            piRate: radiativeRate * item.pi,
+            sigmaPlusRate: radiativeRate * item.sigmaPlus,
+            sigmaMinusRate: radiativeRate * item.sigmaMinus
+          });
+        }
+      }
+
+      const addThermalRelaxation = (offset, levels) => {
+        for (let lo = 0; lo < levels.length; lo += 1) {
+          for (let hi = lo + 1; hi < levels.length; hi += 1) {
+            const eLow = levels[lo].energy;
+            const eHigh = levels[hi].energy;
+            const deltaE = eHigh - eLow;
+            if (!(deltaE > 1e-14)) continue;
+            const overlap = weightedSpecFidelity(levels[lo].degenerateSpinOrbSpec || "", levels[hi].degenerateSpinOrbSpec || "");
+            if (!(overlap > 1e-8)) continue;
+            // A finite phonon spectral weight prevents unphysical divergence as DeltaE -> 0.
+            const spectralWeight = Math.min(1, deltaE / RELAXATION_REFERENCE_EV);
+            const bose = temperature <= 1e-12
+              ? 0
+              : 1 / Math.expm1(Math.min(700, deltaE / (K_B_EV_K * temperature)));
+            const downRate = relaxationRate * overlap * spectralWeight * (1 + bose);
+            const upRate = relaxationRate * overlap * spectralWeight * bose;
+            addRate(offset + hi, offset + lo, downRate);
+            addRate(offset + lo, offset + hi, upRate);
+          }
+        }
+      };
+      addThermalRelaxation(initialOffset, initialLevels);
+      addThermalRelaxation(finalOffset, finalLevels);
+
+      const K = Array.from({ length: nStates }, () => new Array(nStates).fill(0));
+      for (let to = 0; to < nStates; to += 1) {
+        for (let from = 0; from < nStates; from += 1) {
+          if (to === from) continue;
+          const rate = flow[to][from];
+          if (rate > 0) {
+            K[to][from] += rate;
+            K[from][from] -= rate;
+          }
+        }
+      }
+
+      const A = K.map((row) => [...row]);
+      const b = new Array(nStates).fill(0);
+      for (let j = 0; j < nStates; j += 1) A[nStates - 1][j] = 1;
+      b[nStates - 1] = 1;
+      const steadyPopulations = solveLinearSystem(A, b);
+      const steadyObservables = steadyPopulations ? computeRatePopulationObservables({
+        states,
+        flow
+      }, steadyPopulations) : null;
+      return {
+        states,
+        flow,
+        generator: K,
+        steadyPopulations: steadyObservables ? steadyObservables.populations : null,
+        steadyIncoming: steadyObservables ? steadyObservables.incoming : null,
+        steadyOutgoing: steadyObservables ? steadyObservables.outgoing : null,
+        steadyExcitedPopulation: steadyObservables ? steadyObservables.excitedPopulation : null,
+        totalPump,
+        totalRadiative,
+        excludedNegativeDeltaE,
+        radiativePairs,
+        laserEnergy,
+        laserWidth,
+        temperature
+      };
+    }
+
+    function applyGeneratorUniformization(generator, vec, dt) {
+      const nStates = generator.length;
+      const q = Math.max(1e-12, ...generator.map((row, idx) => Math.max(0, -(row[idx] || 0))));
+      if (!(q > 0) || !(dt > 0)) return [...vec];
+      const lambda = q * dt;
+      const transition = Array.from({ length: nStates }, (_, i) => (
+        Array.from({ length: nStates }, (_, j) => (i === j ? 1 : 0) + (generator[i][j] || 0) / q)
+      ));
+      const applyTransition = (input) => {
+        const out = new Array(nStates).fill(0);
+        for (let i = 0; i < nStates; i += 1) {
+          let sum = 0;
+          for (let j = 0; j < nStates; j += 1) sum += transition[i][j] * input[j];
+          out[i] = sum;
+        }
+        return out;
+      };
+      let term = [...vec];
+      let poissonWeight = Math.exp(-lambda);
+      let accum = term.map((value) => poissonWeight * value);
+      const maxIter = Math.max(64, Math.min(4096, Math.ceil(lambda + 12 * Math.sqrt(lambda + 1) + 32)));
+      for (let k = 1; k < maxIter; k += 1) {
+        term = applyTransition(term);
+        poissonWeight *= lambda / k;
+        for (let i = 0; i < nStates; i += 1) accum[i] += poissonWeight * term[i];
+        if (poissonWeight < 1e-12 && k > lambda) break;
+      }
+      return accum;
+    }
+
+    function integrateRateEquation(data) {
+      if (!data) return null;
+      const tMax = Math.max(0.1, Number(timeMaxEl.value) || 0);
+      const steps = Math.max(20, Math.floor(Number(timeStepsEl.value) || 0));
+      const nStates = data.states.length;
+      const dt = tMax / steps;
+      const temperature = Math.max(0, Number(initialTemperatureEl.value) || 0);
+      let current = new Array(nStates).fill(0);
+      const initialStateCount = data.states.filter((state) => state.bucket === "initial").length;
+      if (initialStateCount > 0) {
+        const initialEnergies = data.states.slice(0, initialStateCount).map((state) => state.energy);
+        const eMin = Math.min(...initialEnergies);
+        if (temperature <= 1e-12) {
+          current[0] = 1;
+        } else {
+          const beta = 1 / (K_B_EV_K * temperature);
+          const weights = initialEnergies.map((e) => Math.exp(-(e - eMin) * beta));
+          const norm = weights.reduce((s, v) => s + v, 0) || 1;
+          for (let i = 0; i < initialStateCount; i += 1) current[i] = weights[i] / norm;
+        }
+      }
+      const times = [0];
+      const series = current.map((v) => [v]);
+      const pl = [data.radiativePairs.reduce((sum, pair) => sum + pair.rate * current[pair.from], 0)];
+      const plSigmaPlus = [data.radiativePairs.reduce((sum, pair) => sum + pair.sigmaPlusRate * current[pair.from], 0)];
+      const plSigmaMinus = [data.radiativePairs.reduce((sum, pair) => sum + pair.sigmaMinusRate * current[pair.from], 0)];
+      for (let step = 1; step <= steps; step += 1) {
+        current = applyGeneratorUniformization(data.generator, current, dt);
+        current = current.map((v) => Math.max(0, v));
+        const norm = current.reduce((s, v) => s + v, 0) || 1;
+        current = current.map((v) => v / norm);
+        times.push(step * dt);
+        for (let i = 0; i < nStates; i += 1) series[i].push(current[i]);
+        pl.push(data.radiativePairs.reduce((sum, pair) => sum + pair.rate * current[pair.from], 0));
+        plSigmaPlus.push(data.radiativePairs.reduce((sum, pair) => sum + pair.sigmaPlusRate * current[pair.from], 0));
+        plSigmaMinus.push(data.radiativePairs.reduce((sum, pair) => sum + pair.sigmaMinusRate * current[pair.from], 0));
+      }
+      const finalPopulations = series.map((values) => values[values.length - 1] || 0);
+      return { times, series, pl, plSigmaPlus, plSigmaMinus, finalPopulations };
+    }
+
+    function getRateSeriesColor(state, idx, total) {
+      const hue = (idx * 137.508) % 360;
+      const sat = state.bucket === "initial" ? 70 : 82;
+      const light = state.bucket === "initial" ? 46 : 56;
+      return `hsla(${hue.toFixed(1)}, ${sat}%, ${light}%, 0.95)`;
+    }
+
+    function renderScalarSeries(ctx, canvas, values, title) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "#fcfdff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      if (!values) {
+        ctx.fillStyle = "#6f779a";
+        ctx.font = "14px Noto Sans JP";
+        ctx.fillText(`${title} will appear after the rate-equation model is solved.`, 20, 34);
+        return;
+      }
+      const { times, series } = values;
+      const pad = { left: 56, right: 18, top: 18, bottom: 34 };
+      const w = canvas.width - pad.left - pad.right;
+      const h = canvas.height - pad.top - pad.bottom;
+      const xAt = (t) => pad.left + (times.length <= 1 ? 0 : (t / times[times.length - 1]) * w);
+      const maxY = Math.max(1e-12, ...series.flat());
+      const yAt = (v) => pad.top + (1 - v / maxY) * h;
+
+      ctx.strokeStyle = "#d7dceb";
+      ctx.lineWidth = 1;
+      for (let gy = 0; gy <= 4; gy += 1) {
+        const y = pad.top + (gy / 4) * h;
+        ctx.beginPath();
+        ctx.moveTo(pad.left, y);
+        ctx.lineTo(pad.left + w, y);
+        ctx.stroke();
+      }
+      ctx.strokeStyle = "#8d97b6";
+      ctx.beginPath();
+      ctx.moveTo(pad.left, pad.top);
+      ctx.lineTo(pad.left, pad.top + h);
+      ctx.lineTo(pad.left + w, pad.top + h);
+      ctx.stroke();
+
+      ctx.fillStyle = "#5f678b";
+      ctx.font = "12px Noto Sans JP";
+      for (let gy = 0; gy <= 4; gy += 1) {
+        const v = maxY * (1 - gy / 4);
+        const y = pad.top + (gy / 4) * h;
+        ctx.fillText(formatRateValue(v), 10, y + 4);
+      }
+      ctx.fillText(title, 10, 14);
+      ctx.fillText(`t = 0 ... ${times[times.length - 1].toFixed(2)} ns`, pad.left + w - 118, canvas.height - 10);
+      return { xAt, yAt, pad, w, h };
+    }
+
+    function renderRateTimeSeries(data, integratedOverride = null) {
+      const ctx = rateTimeCtx;
+      const canvas = rateTimeCanvasEl;
+      if (!data) {
+        latestRateSeriesPlot = null;
+        renderScalarSeries(ctx, canvas, null, "Population");
+        renderPlTimeSeries(null);
+        return;
+      }
+      const integrated = integratedOverride || integrateRateEquation(data);
+      if (!integrated) return;
+      const base = renderScalarSeries(ctx, canvas, { times: integrated.times, series: integrated.series }, "Population");
+      const { times, series } = integrated;
+      const { xAt, yAt, pad, w } = base;
+      latestRateSeriesPlot = {
+        times,
+        series,
+        states: data.states.map((state, i) => ({ ...state, color: getRateSeriesColor(state, i, data.states.length) })),
+        xAt,
+        yAt
+      };
+
+      for (let i = 0; i < data.states.length; i += 1) {
+        ctx.strokeStyle = getRateSeriesColor(data.states[i], i, data.states.length);
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        for (let k = 0; k < times.length; k += 1) {
+          const x = xAt(times[k]);
+          const y = yAt(series[i][k]);
+          if (k === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      }
+
+      let legendX = pad.left + 8;
+      let legendY = pad.top + 14;
+      ctx.font = "11px Noto Sans JP";
+      for (let i = 0; i < data.states.length; i += 1) {
+        const text = data.states[i].label;
+        const width = ctx.measureText(text).width + 24;
+        if (legendX + width > pad.left + w - 8) {
+          legendX = pad.left + 8;
+          legendY += 16;
+        }
+        ctx.fillStyle = getRateSeriesColor(data.states[i], i, data.states.length);
+        ctx.fillRect(legendX, legendY - 8, 10, 3);
+        ctx.fillStyle = "#364063";
+        ctx.fillText(text, legendX + 14, legendY);
+        legendX += width;
+      }
+      renderPlTimeSeries(integrated);
+      return integrated;
+    }
+
+    function hideRateTooltip() {
+      rateTimeTooltipEl.style.display = "none";
+    }
+
+    function showRateTooltip(content, x, y) {
+      rateTimeTooltipEl.innerHTML = content;
+      rateTimeTooltipEl.style.display = "block";
+      rateTimeTooltipEl.style.left = `${x}px`;
+      rateTimeTooltipEl.style.top = `${y}px`;
+    }
+
+    function renderPlTimeSeries(integrated) {
+      const ctx = ratePlCtx;
+      const canvas = ratePlCanvasEl;
+      if (!integrated) {
+        renderScalarSeries(ctx, canvas, null, "PL(t)");
+        return;
+      }
+      const base = renderScalarSeries(ctx, canvas, { times: integrated.times, series: [integrated.plSigmaPlus, integrated.plSigmaMinus] }, "PL(t)");
+      const { times, plSigmaPlus, plSigmaMinus } = integrated;
+      const { xAt, yAt } = base;
+      const curves = [
+        { values: plSigmaPlus, color: "rgba(214, 73, 73, 0.95)", label: "σ+" },
+        { values: plSigmaMinus, color: "rgba(66, 118, 221, 0.95)", label: "σ-" }
+      ];
+      curves.forEach((curve) => {
+        ctx.strokeStyle = curve.color;
+        ctx.lineWidth = 2.4;
+        ctx.beginPath();
+        for (let i = 0; i < times.length; i += 1) {
+          const x = xAt(times[i]);
+          const y = yAt(curve.values[i]);
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      });
+      let lx = 70;
+      const ly = 26;
+      ctx.font = "12px Noto Sans JP";
+      curves.forEach((curve) => {
+        ctx.fillStyle = curve.color;
+        ctx.fillRect(lx, ly - 7, 12, 3);
+        ctx.fillStyle = "#364063";
+        ctx.fillText(curve.label, lx + 16, ly);
+        lx += 60;
+      });
+    }
+
+    function renderRateEquationPanel() {
+      const selectedDeltaE = getSelectedTransitionDeltaEAbs();
+      selectedLaserEnergyEl.value = Number.isFinite(selectedDeltaE) ? selectedDeltaE.toFixed(6) : "-";
+      useSelectedLaserEnergyBtnEl.disabled = !Number.isFinite(selectedDeltaE);
+      if (!laserEnergyEl.value && Number.isFinite(selectedDeltaE)) {
+        laserEnergyEl.value = selectedDeltaE.toFixed(6);
+      }
+      const data = buildRateEquationData();
+      if (!data) {
+        rateOverlapNoteEl.textContent = "";
+        renderRateTimeSeries(null);
+        return;
+      }
+
+      const integrated = integrateRateEquation(data);
+      const displayed = integrated?.finalPopulations
+        ? computeRatePopulationObservables(data, integrated.finalPopulations)
+        : (data.steadyPopulations
+          ? {
+            populations: data.steadyPopulations,
+            incoming: data.steadyIncoming,
+            outgoing: data.steadyOutgoing,
+            excitedPopulation: data.steadyExcitedPopulation
+          }
+          : null);
+      if (!displayed) {
+        renderRateTimeSeries(null);
+        return;
+      }
+
+      rateOverlapNoteEl.textContent = data.excludedNegativeDeltaE > 0
+        ? `${data.excludedNegativeDeltaE} B→B pairs have ΔE < 0 and are excluded from pump / radiative channels in the rate equation.`
+        : "";
+      renderRateTimeSeries(data, integrated);
+    }
+
+    function buildGenericCrystalFieldBaseMatrix(geometry) {
+      const cacheKey = `${ACTIVE_L}:${geometry}:${ORBITAL_BASIS.join(",")}`;
+      if (GENERIC_CF_BASE_CACHE.has(cacheKey)) {
+        return GENERIC_CF_BASE_CACHE.get(cacheKey).map((row) => [...row]);
+      }
       const nOrb = ORBITAL_BASIS.length;
       const H = makeZeroMatrix(nOrb);
       const dirs = (GEOMETRY_DIRECTIONS[geometry] || GEOMETRY_DIRECTIONS.octa).map(normalizeVec);
-      const raw = new Array(nOrb).fill(0);
-      for (let i = 0; i < nOrb; i += 1) {
-        const orb = ORBITAL_BASIS[i];
-        let e = 0;
-        for (const [x, y, z] of dirs) {
-          const f = orbitalAngularNormalized(orb, x, y, z);
-          e += f * f;
+      if (dirs.length === 0 || nOrb === 0) return H;
+
+      const rho = GENERIC_CF_SOURCE_RHO;
+      const dTheta = Math.PI / GENERIC_CF_THETA_STEPS;
+      const dPhi = 2 * Math.PI / GENERIC_CF_PHI_STEPS;
+      for (let ti = 0; ti < GENERIC_CF_THETA_STEPS; ti += 1) {
+        const theta = (ti + 0.5) * dTheta;
+        const sinTheta = Math.sin(theta);
+        const cosTheta = Math.cos(theta);
+        const quadWeight = sinTheta * dTheta * dPhi;
+        for (let pi = 0; pi < GENERIC_CF_PHI_STEPS; pi += 1) {
+          const phi = (pi + 0.5) * dPhi;
+          const x = sinTheta * Math.cos(phi);
+          const y = sinTheta * Math.sin(phi);
+          const z = cosTheta;
+          const amps = ORBITAL_BASIS.map((orb) => orbitalAngularNormalized(orb, x, y, z));
+          let potential = 0;
+          for (const [lx, ly, lz] of dirs) {
+            const dot = x * lx + y * ly + z * lz;
+            potential += 1 / Math.sqrt(1 + rho * rho - 2 * rho * dot);
+          }
+          for (let i = 0; i < nOrb; i += 1) {
+            for (let j = i; j < nOrb; j += 1) {
+              const v = quadWeight * amps[i] * amps[j] * potential;
+              H[i][j] += v;
+              if (i !== j) H[j][i] += v;
+            }
+          }
         }
-        raw[i] = e / Math.max(1, dirs.length);
       }
-      const mean = raw.reduce((s, v) => s + v, 0) / Math.max(1, raw.length);
-      const centered = raw.map((v) => v - mean);
-      const span = Math.max(...centered) - Math.min(...centered);
+
+      const trace = H.reduce((acc, row, i) => acc + row[i], 0);
+      const meanDiag = trace / Math.max(1, nOrb);
+      for (let i = 0; i < nOrb; i += 1) H[i][i] -= meanDiag;
+      GENERIC_CF_BASE_CACHE.set(cacheKey, H.map((row) => [...row]));
+      return H;
+    }
+
+    function buildGenericCrystalFieldHamiltonian(geometry, delta) {
+      const base = buildGenericCrystalFieldBaseMatrix(geometry);
+      const nOrb = base.length;
+      const H = makeZeroMatrix(nOrb);
+      if (nOrb === 0) return H;
+      const eig = jacobiEigenSymmetric(base);
+      const minEval = Math.min(...eig.eigenvalues);
+      const maxEval = Math.max(...eig.eigenvalues);
+      const span = maxEval - minEval;
       const scale = span > 1e-12 ? (delta / span) : 0;
       for (let i = 0; i < nOrb; i += 1) {
-        H[i][i] = centered[i] * scale;
+        for (let j = 0; j < nOrb; j += 1) {
+          H[i][j] = base[i][j] * scale;
+        }
       }
       return H;
     }
@@ -4311,6 +5076,25 @@
       return out;
     }
 
+    function normalizeWeightedMap(map = {}) {
+      const out = {};
+      const entries = Object.entries(map).filter(([, value]) => Number.isFinite(value) && value > 0);
+      const norm = entries.reduce((sum, [, value]) => sum + value, 0) || 1;
+      for (const [key, value] of entries) out[key] = value / norm;
+      return out;
+    }
+
+    function weightedSpecFidelity(specA = "", specB = "") {
+      const a = normalizeWeightedMap(parseWeightedSpec(specA));
+      const b = normalizeWeightedMap(parseWeightedSpec(specB));
+      const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+      let amplitudeOverlap = 0;
+      for (const key of keys) {
+        amplitudeOverlap += Math.sqrt((a[key] || 0) * (b[key] || 0));
+      }
+      return amplitudeOverlap * amplitudeOverlap;
+    }
+
     function computeExactStateMzMap(panel = "initial") {
       const runtime = getPanelRuntime(panel);
       const panelData = panel === "final" ? finalPanelData : initialPanelData;
@@ -4375,10 +5159,9 @@
         const down = (downKey in spinOrbParsed) ? spinOrbParsed[downKey] : fallbackDown;
         return { orb, up, down };
       });
-      const orbitalMax = Math.max(1e-9, ...orbitalSpinPairs.flatMap((p) => [p.up, p.down]));
       const orbitalRows = orbitalSpinPairs.map((p) => {
-        const upW = Math.max(0, Math.min(100, (p.up / orbitalMax) * 100));
-        const dnW = Math.max(0, Math.min(100, (p.down / orbitalMax) * 100));
+        const upW = Math.max(0, Math.min(100, p.up * 100));
+        const dnW = Math.max(0, Math.min(100, p.down * 100));
         return `<div class="coef-row-ud"><span>${p.orb}</span><div class="coef-track"><div class="coef-bar" style="width:${upW.toFixed(1)}%"></div></div><span>${p.up.toFixed(3)}</span><div class="coef-track"><div class="coef-bar" style="width:${dnW.toFixed(1)}%"></div></div><span>${p.down.toFixed(3)}</span></div>`;
       }).join("");
       const mzMap = computeExactStateMzMap(panel) || (() => {
@@ -4394,16 +5177,15 @@
         }
         return out;
       })();
-      const maxMz = Math.max(1e-9, ...Object.values(mzMap).flatMap((sd) => [sd.up, sd.down]));
       const mjMode = Object.values(mzMap).every((entry) => entry && Object.prototype.hasOwnProperty.call(entry, "total"));
       const mzRows = mjMode
         ? Object.entries(mzMap).map(([mLabel, entry]) => {
-          const totalW = Math.max(0, Math.min(100, ((entry.total || 0) / maxMz) * 100));
+          const totalW = Math.max(0, Math.min(100, (entry.total || 0) * 100));
           return `<div class="coef-row-ud"><span>${mLabel}</span><div class="coef-track"><div class="coef-bar" style="width:${totalW.toFixed(1)}%"></div></div><span>${(entry.total || 0).toFixed(3)}</span><span></span><span></span></div>`;
         }).join("")
         : Object.entries(mzMap).map(([mLabel, sd]) => {
-          const upW = Math.max(0, Math.min(100, (sd.up / maxMz) * 100));
-          const dnW = Math.max(0, Math.min(100, (sd.down / maxMz) * 100));
+          const upW = Math.max(0, Math.min(100, sd.up * 100));
+          const dnW = Math.max(0, Math.min(100, sd.down * 100));
           return `<div class="coef-row-ud"><span>${mLabel}</span><div class="coef-track"><div class="coef-bar" style="width:${upW.toFixed(1)}%"></div></div><span>${sd.up.toFixed(3)}</span><div class="coef-track"><div class="coef-bar" style="width:${dnW.toFixed(1)}%"></div></div><span>${sd.down.toFixed(3)}</span></div>`;
         }).join("");
 
@@ -4575,7 +5357,7 @@
       return { shiftedLevels: shifted, cfShiftEnergy };
     }
 
-    function renderDiagram({ targetEl = diagramEl, transitionData = currentTransitionData, freeLevels = [], nl, scaleMode = "deformed", stage1Levels, stage1Label, stage1Tag, stage2Levels, stage2Label, stage2Tag, stage3Levels, lambdaValue, bField, selectedStage = null, selectedIndex = null }) {
+    function renderDiagram({ targetEl = diagramEl, transitionData = currentTransitionData, freeLevels = [], nl, scaleMode = "deformed", stage1Levels, stage1Label, stage1Tag, stage2Levels, stage2Label, stage2Tag, stage3Levels, lambdaValue, bField, selectedStage = null, selectedIndex = null, selectedArrowColor = "#d83a3a", diagramEnergyOrigin = 0 }) {
       const yMid = 226;
       const labelBandTop = 14;
       const labelBandBottom = 50;
@@ -4583,12 +5365,14 @@
       const yBottom = 346;
       const SPLIT_GAIN = 2.6;
       const MIN_HALF_SPAN_PX = 22;
-      const allEnergies = [...stage1Levels, ...stage2Levels, ...stage3Levels].map((l) => l.energy);
+      const plotEnergyOf = (energy) => energy - diagramEnergyOrigin;
+      const allEnergies = [...(freeLevels || []), ...stage1Levels, ...stage2Levels, ...stage3Levels].map((l) => plotEnergyOf(l.energy));
       const maxE = Math.max(...allEnergies, 0.001);
       const minE = Math.min(...allEnergies, -0.001);
       const positiveExtent = Math.max(maxE, 0.001);
       const negativeExtent = Math.max(-minE, 0.001);
       const scale = Math.min((yMid - yTop) / positiveExtent, (yBottom - yMid) / negativeExtent);
+      const freeStageYOf = (energy) => yMid - plotEnergyOf(energy) * scale;
 
       const xFree0 = 20;
       const xFree1 = 124;
@@ -4604,10 +5388,10 @@
       const freeHalfLen = 48;
       function pushFrontArrowLeft(targetParts, tipX, y, labelText = "") {
         const tailX = tipX + 34;
-        targetParts.push(`<line x1="${tailX - 8}" y1="${y}" x2="${tipX + 3}" y2="${y}" stroke="#d83a3a" stroke-width="4.0" stroke-linecap="round"/>`);
-        targetParts.push(`<polygon points="${tipX},${y} ${tipX + 13},${y - 10} ${tipX + 13},${y + 10}" fill="#d83a3a"/>`);
+        targetParts.push(`<line x1="${tailX - 8}" y1="${y}" x2="${tipX + 3}" y2="${y}" stroke="${selectedArrowColor}" stroke-width="4.0" stroke-linecap="round"/>`);
+        targetParts.push(`<polygon points="${tipX},${y} ${tipX + 13},${y - 10} ${tipX + 13},${y + 10}" fill="${selectedArrowColor}"/>`);
         if (labelText) {
-          targetParts.push(`<text x="${tailX + 6}" y="${y + 4}" style="fill:#d83a3a; font-size:13px; font-weight:800;">${labelText}</text>`);
+          targetParts.push(`<text x="${tailX + 6}" y="${y + 4}" style="fill:${selectedArrowColor}; font-size:13px; font-weight:800;">${labelText}</text>`);
         }
       }
 
@@ -4694,10 +5478,10 @@
         if (scaleMode === "accurate") {
           return (energy) => yMid - energy * scale;
         }
-        const center = levels.reduce((s, lv) => s + lv.energy, 0) / levels.length;
+        const center = levels.reduce((s, lv) => s + plotEnergyOf(lv.energy), 0) / levels.length;
         let halfRange = 0;
         for (const lv of levels) {
-          halfRange = Math.max(halfRange, Math.abs(lv.energy - center));
+          halfRange = Math.max(halfRange, Math.abs(plotEnergyOf(lv.energy) - center));
         }
         const baseHalfPx = Math.max(1e-6, halfRange * scale);
         const targetAmp = Math.max(SPLIT_GAIN, MIN_HALF_SPAN_PX / baseHalfPx);
@@ -4706,7 +5490,7 @@
         const high = yMid - (yTop + 8);
         let maxAmpFit = Number.POSITIVE_INFINITY;
         for (const lv of levels) {
-          const d = (lv.energy - center) * scale;
+          const d = (plotEnergyOf(lv.energy) - center) * scale;
           if (d > 1e-12) {
             maxAmpFit = Math.min(maxAmpFit, (high - base) / d);
           } else if (d < -1e-12) {
@@ -4728,7 +5512,7 @@
         const halfLen = 48;
         for (let i = 0; i < levels.length; i += 1) {
           const lv = levels[i];
-          const y = yOf(lv.energy);
+          const y = yOf(plotEnergyOf(lv.energy));
           yList.push(y);
           nodes.push({ xLeft: xCenter - halfLen, xRight: xCenter + halfLen, y, w: levelWeights(lv) });
           parts.push(drawLevelGroup({
@@ -4766,6 +5550,7 @@
       function drawFreeStage(levels) {
         const normalizedLevels = levels && levels.length ? levels : [{
           label: "free",
+          energy: 0,
           stateIndices: Array.from({ length: 2 * ORBITAL_BASIS.length }, (_, i) => i),
           degenerateMixSpec: FREE_MIX,
           degenerateMzSpec: FREE_MZ,
@@ -4776,25 +5561,24 @@
         const yList = [];
         if (normalizedLevels.length === 1) {
           const lv = normalizedLevels[0];
-          parts.push(`<g class="orbital-hit" data-orbital="mixed" data-label="Free Ion" data-stage="FREE" data-level-index="0" data-energy="0" data-mix="${lv.degenerateMixSpec || FREE_MIX}" data-mz="${lv.degenerateMzSpec || FREE_MZ}" data-spin="${lv.degenerateSpinSpec || FREE_SPIN}" data-spinorb="${lv.degenerateSpinOrbSpec || FREE_SPINORB}">`);
-          parts.push(`<rect x="${freeCx - 34}" y="${yMid - 14}" width="68" height="28" fill="rgba(0,0,0,0.001)"/>`);
-          parts.push(`<line x1="${freeCx - freeHalfLen}" y1="${yMid}" x2="${freeCx + freeHalfLen}" y2="${yMid}" stroke="#7a4fb3" stroke-width="2.2" stroke-linecap="round"/>`);
+          const y = freeStageYOf(lv.energy || 0);
+          parts.push(`<g class="orbital-hit" data-orbital="mixed" data-label="Free Ion" data-stage="FREE" data-level-index="0" data-energy="${lv.energy || 0}" data-mix="${lv.degenerateMixSpec || FREE_MIX}" data-mz="${lv.degenerateMzSpec || FREE_MZ}" data-spin="${lv.degenerateSpinSpec || FREE_SPIN}" data-spinorb="${lv.degenerateSpinOrbSpec || FREE_SPINORB}">`);
+          parts.push(`<rect x="${freeCx - 34}" y="${y - 14}" width="68" height="28" fill="rgba(0,0,0,0.001)"/>`);
+          parts.push(`<line x1="${freeCx - freeHalfLen}" y1="${y}" x2="${freeCx + freeHalfLen}" y2="${y}" stroke="#7a4fb3" stroke-width="2.2" stroke-linecap="round"/>`);
           parts.push(`</g>`);
-          nodes.push({ xLeft: freeCx - freeHalfLen, xRight: freeCx + freeHalfLen, y: yMid, w: levelWeights(lv) });
-          yList.push(yMid);
+          nodes.push({ xLeft: freeCx - freeHalfLen, xRight: freeCx + freeHalfLen, y, w: levelWeights(lv) });
+          yList.push(y);
           return { nodes, yList, levels: normalizedLevels };
         }
-        const gap = Math.min(38, Math.max(20, 180 / Math.max(1, normalizedLevels.length - 1)));
-        const startY = yMid - gap * (normalizedLevels.length - 1) * 0.5;
         for (let i = 0; i < normalizedLevels.length; i += 1) {
           const lv = normalizedLevels[i];
-          const y = startY + i * gap;
+          const y = freeStageYOf(lv.energy || 0);
           yList.push(y);
           nodes.push({ xLeft: freeCx - freeHalfLen, xRight: freeCx + freeHalfLen, y, w: levelWeights(lv) });
           parts.push(drawLevelGroup({
             y,
             label: lv.label,
-            energy: 0,
+            energy: lv.energy || 0,
             orbitalNames: [lv.label],
             hoverOrbitalNames: [lv.previewOrbital || "mixed"],
             mixSpecs: [lv.degenerateMixSpec || ""],
@@ -4807,7 +5591,7 @@
             degenerateSpinOrbSpec: lv.degenerateSpinOrbSpec || "",
             levelIndex: i,
             stageTag: "FREE",
-            levelEnergy: 0,
+            levelEnergy: lv.energy || 0,
             orbitalOcc: [0],
             color: "#7a4fb3",
             x0: xFree0,
@@ -4888,7 +5672,12 @@
       renderSelectedTransitionPanel(panel);
     }
 
-    function computePanelData({ nValue, lValue, lambdaValue, geometry, delta, delta2, bField, bTheta, bPhi }) {
+    function applyEnergyOffsetToLevels(levels, offset) {
+      if (!(Math.abs(offset) > 0)) return;
+      for (const lv of levels || []) lv.energy += offset;
+    }
+
+    function computePanelData({ nValue, lValue, lambdaValue, geometry, delta, delta2, bField, bTheta, bPhi, energyOffset = 0 }) {
       const nl = `${nValue}${lValue}`;
       setActiveSubshell(nl);
       const nOrb = ORBITAL_BASIS.length;
@@ -4933,11 +5722,16 @@
       const M_free_to_1 = buildStateCouplingMatrix(freeStagePseudo, stage1, subtractMatrices(H1, Hfree));
       const M_1_to_2 = buildStateCouplingMatrix(stage1, stage2, subtractMatrices(H2, H1));
       const M_2_to_3 = buildStateCouplingMatrix(stage2, stage3, subtractMatrices(H3, H2));
+      applyEnergyOffsetToLevels(freeStageLevels, energyOffset);
+      applyEnergyOffsetToLevels(stage1.levels, energyOffset);
+      applyEnergyOffsetToLevels(stage2.levels, energyOffset);
+      applyEnergyOffsetToLevels(stage3.levels, energyOffset);
       return {
         nl,
         nOrb,
         preset,
         d2,
+        energyOffset,
         soiFirst,
         useMjInB: magneticActive && Math.abs(Number(lambdaValue) || 0) > 1e-14 && Math.abs(delta) <= 1e-12 && Math.abs(d2) <= 1e-12 && ACTIVE_L > 0,
         stage1,
@@ -4983,6 +5777,7 @@
       const delta2Initial = Number(delta2InitialEl.value);
       const deltaFinal = Number(deltaFinalEl.value);
       const delta2Final = Number(delta2FinalEl.value);
+      const finalEnergyOffset = Number(finalEnergyOffsetEl.value);
       const lambdaValue = Number(lambdaEl.value);
       const lambdaFinalValue = Number(lambdaFinalEl.value);
       const bField = Number(bFieldEl.value);
@@ -5002,6 +5797,10 @@
       }
       if (!Number.isFinite(lambdaFinalValue) || lambdaFinalValue < 0) {
         document.getElementById("status").textContent = "Final lambda must be >= 0.";
+        return;
+      }
+      if (!Number.isFinite(finalEnergyOffset)) {
+        document.getElementById("status").textContent = "Final-state offset must be a number.";
         return;
       }
       if (!Number.isFinite(bField) || bField < 0) {
@@ -5037,7 +5836,8 @@
         delta2: delta2Initial,
         bField,
         bTheta,
-        bPhi
+        bPhi,
+        energyOffset: 0
       });
       const finalData = computePanelData({
         nValue: nFinalEl.value,
@@ -5048,7 +5848,8 @@
         delta2: delta2Final,
         bField,
         bTheta,
-        bPhi
+        bPhi,
+        energyOffset: finalEnergyOffset
       });
       initialPanelData = initialData;
       finalPanelData = finalData;
@@ -5114,7 +5915,9 @@
         lambdaValue,
         bField,
         selectedStage: orbitalView.stageTag,
-        selectedIndex: orbitalView.stageLevelIndex
+        selectedIndex: orbitalView.stageLevelIndex,
+        selectedArrowColor: "#2b6cff",
+        diagramEnergyOrigin: 0
       });
       setActiveSubshell(finalData.nl);
       renderDiagram({
@@ -5133,12 +5936,15 @@
         lambdaValue: lambdaFinalValue,
         bField,
         selectedStage: finalOrbitalView.stageTag,
-        selectedIndex: finalOrbitalView.stageLevelIndex
+        selectedIndex: finalOrbitalView.stageLevelIndex,
+        selectedArrowColor: "#d83a3a",
+        diagramEnergyOrigin: finalEnergyOffset
       });
       setActiveSubshell(initialData.nl);
       setPanelDiagramData("initial", {
         targetEl: diagramEl,
         transitionData: initialData.transitionData,
+        freeLevels: initialData.freeStageLevels,
         nl: initialData.nl,
         scaleMode,
         stage1Levels: initialData.stage1.levels,
@@ -5149,11 +5955,14 @@
         stage2Tag: initialData.stage2Tag,
         stage3Levels: initialData.stage3.levels,
         lambdaValue,
-        bField
+        bField,
+        selectedArrowColor: "#2b6cff",
+        diagramEnergyOrigin: 0
       });
       setPanelDiagramData("final", {
         targetEl: finalDiagramEl,
         transitionData: finalData.transitionData,
+        freeLevels: finalData.freeStageLevels,
         nl: finalData.nl,
         scaleMode,
         stage1Levels: finalData.stage1.levels,
@@ -5164,7 +5973,9 @@
         stage2Tag: finalData.stage2Tag,
         stage3Levels: finalData.stage3.levels,
         lambdaValue: lambdaFinalValue,
-        bField
+        bField,
+        selectedArrowColor: "#d83a3a",
+        diagramEnergyOrigin: finalEnergyOffset
       });
 
 
@@ -5179,6 +5990,7 @@
           delta_final_ev: Number(deltaFinal.toFixed(4)),
           delta2_final_ev: Number(finalData.d2.toFixed(4)),
           lambda_final_ev: Number(lambdaFinalValue.toFixed(4)),
+          final_offset_ev: Number(finalEnergyOffset.toFixed(4)),
           b_field_t: Number(bField.toFixed(4)),
           b_theta_deg: Number(bTheta.toFixed(2)),
           b_phi_deg: Number(bPhi.toFixed(2)),
@@ -5216,13 +6028,61 @@
     delta2InitialEl.addEventListener("input", () => calculate(true, "delta2_initial_input"));
     deltaFinalEl.addEventListener("input", () => calculate(true, "delta_final_input"));
     delta2FinalEl.addEventListener("input", () => calculate(true, "delta2_final_input"));
+    finalEnergyOffsetEl.addEventListener("input", () => calculate(true, "final_offset_input"));
     lambdaInitialEl.addEventListener("input", () => calculate(true, "lambda_input"));
     lambdaFinalEl.addEventListener("input", () => calculate(true, "lambda_final_input"));
     polarizationModeEl.addEventListener("change", () => {
       renderTransitionSummary();
       renderTransitionMatrix();
     });
-    loadBenchmarkEl.addEventListener("click", () => loadBenchmarkConfiguration());
+    [laserEnergyEl, laserWidthEl, pumpRateEl, radiativeLifetimeEl, relaxationRateEl, initialTemperatureEl, excitationPolarizationEl, timeMaxEl, timeStepsEl].forEach((el) => {
+      el.addEventListener("input", () => {
+        if (el === laserEnergyEl) laserEnergyEl.dataset.userEdited = "1";
+        renderRateEquationPanel();
+      });
+    });
+    excitationPolarizationEl.addEventListener("change", () => renderRateEquationPanel());
+    useSelectedLaserEnergyBtnEl.addEventListener("click", () => {
+      const selectedDeltaE = getSelectedTransitionDeltaEAbs();
+      if (!Number.isFinite(selectedDeltaE)) return;
+      laserEnergyEl.value = selectedDeltaE.toFixed(6);
+      laserEnergyEl.dataset.userEdited = "1";
+      renderRateEquationPanel();
+    });
+    rateTimeCanvasEl.addEventListener("mouseleave", () => hideRateTooltip());
+    rateTimeCanvasEl.addEventListener("mousemove", (event) => {
+      if (!latestRateSeriesPlot) {
+        hideRateTooltip();
+        return;
+      }
+      const rect = rateTimeCanvasEl.getBoundingClientRect();
+      const scaleX = rateTimeCanvasEl.width / rect.width;
+      const scaleY = rateTimeCanvasEl.height / rect.height;
+      const mx = (event.clientX - rect.left) * scaleX;
+      const my = (event.clientY - rect.top) * scaleY;
+      let best = null;
+      for (let i = 0; i < latestRateSeriesPlot.states.length; i += 1) {
+        const state = latestRateSeriesPlot.states[i];
+        const values = latestRateSeriesPlot.series[i];
+        for (let k = 0; k < latestRateSeriesPlot.times.length; k += 1) {
+          const x = latestRateSeriesPlot.xAt(latestRateSeriesPlot.times[k]);
+          const y = latestRateSeriesPlot.yAt(values[k]);
+          const d2 = (mx - x) * (mx - x) + (my - y) * (my - y);
+          if (!best || d2 < best.d2) {
+            best = { d2, state, time: latestRateSeriesPlot.times[k], value: values[k], x, y };
+          }
+        }
+      }
+      if (!best || best.d2 > 160) {
+        hideRateTooltip();
+        return;
+      }
+      showRateTooltip(
+        `<div><strong>${best.state.label}</strong> ${best.state.longLabel}</div><div>t = ${best.time.toFixed(3)}</div><div>N = ${best.value.toFixed(6)}</div>`,
+        event.clientX - rect.left,
+        event.clientY - rect.top
+      );
+    });
     downloadMatrixCsvEl.addEventListener("click", () => downloadTransitionMatrixCsv());
     transitionMatrixWrapEl.addEventListener("click", (event) => {
       const cell = event.target.closest(".matrix-cell");
