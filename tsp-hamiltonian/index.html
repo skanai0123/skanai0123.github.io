@@ -367,6 +367,18 @@
       background: rgba(3, 13, 22, 0.9);
     }
 
+    .matrix-table .cell-active {
+      background: rgba(255, 143, 107, 0.3);
+      color: #fff7ef;
+      font-weight: 700;
+    }
+
+    .matrix-table .label-active {
+      background: rgba(255, 191, 117, 0.22);
+      color: #fff7ef;
+      font-weight: 800;
+    }
+
     .matrix-table thead th {
       position: sticky;
       top: 0;
@@ -682,8 +694,8 @@
       },
       {
         key: "asia-capitals",
-        label: "Geographic Asia capitals",
-        copy: "Geographic grouping used for this page's reference set. West Asian countries are included on a geographic basis.",
+        label: "Geographic Asian cities",
+        copy: "Geographic grouping used for this page's reference set. West Asian cities are included on a geographic basis.",
         meta: "City count: 49",
         mapCenter: [32.0, 90.0],
         mapZoom: 3,
@@ -1048,6 +1060,7 @@
       let selectedIndices = [];
       let forceShowMatrices = false;
       let activeSolverMode = "valid";
+      let currentRouteOrder = null;
       let annealRunning = false;
       let annealTimer = null;
       let annealSession = null;
@@ -1175,16 +1188,20 @@
         return Math.round(value * 100) / 100;
       }
 
-      function tableHtml(matrix, rowLabels, colLabels) {
-        const head = `<tr><th></th>${colLabels.map((label) => `<th>${label}</th>`).join("")}</tr>`;
+      function tableHtml(matrix, rowLabels, colLabels, options = {}) {
+        const activeRows = new Set(options.activeRows || []);
+        const activeCols = new Set(options.activeCols || []);
+        const activeCells = new Set(options.activeCells || []);
+        const head = `<tr><th></th>${colLabels.map((label, colIndex) => `<th class="${activeCols.has(colIndex) ? "label-active" : ""}">${label}</th>`).join("")}</tr>`;
         const rows = matrix.map((row, idx) => (
-          `<tr><td>${rowLabels[idx]}</td>${row.map((value) => `<td>${round2(value).toFixed(2)}</td>`).join("")}</tr>`
+          `<tr><td class="${activeRows.has(idx) ? "label-active" : ""}">${rowLabels[idx]}</td>${row.map((value, colIndex) => `<td class="${activeCells.has(`${idx}:${colIndex}`) ? "cell-active" : ""}">${round2(value).toFixed(2)}</td>`).join("")}</tr>`
         )).join("");
         return `<div class="matrix-scroll"><table class="matrix-table"><thead>${head}</thead><tbody>${rows}</tbody></table></div>`;
       }
 
-      function vectorHtml(vector, labels) {
-        const rows = vector.map((value, idx) => `<tr><td>${labels[idx]}</td><td>${round2(value).toFixed(2)}</td></tr>`).join("");
+      function vectorHtml(vector, labels, options = {}) {
+        const activeRows = new Set(options.activeRows || []);
+        const rows = vector.map((value, idx) => `<tr><td class="${activeRows.has(idx) ? "label-active" : ""}">${labels[idx]}</td><td class="${activeRows.has(idx) ? "cell-active" : ""}">${round2(value).toFixed(2)}</td></tr>`).join("");
         return `<div class="matrix-scroll"><table class="matrix-table"><tbody>${rows}</tbody></table></div>`;
       }
 
@@ -1278,6 +1295,38 @@
           x[city * n + slot] = 1;
         });
         return x;
+      }
+
+      function routeMatrixHighlights(order) {
+        if (!order || !order.length) {
+          return {
+            activeCityIndices: [],
+            activeVariableIndices: [],
+            activeDistanceCells: [],
+            activeVariableCells: []
+          };
+        }
+        const n = order.length;
+        const activeVariableIndices = order.map((city, slot) => city * n + slot);
+        const activeVariableCells = [];
+        activeVariableIndices.forEach((rowIndex) => {
+          activeVariableIndices.forEach((colIndex) => {
+            activeVariableCells.push(`${rowIndex}:${colIndex}`);
+          });
+        });
+        const activeDistanceCells = [];
+        for (let slot = 0; slot < n; slot += 1) {
+          const from = order[slot];
+          const to = order[(slot + 1) % n];
+          activeDistanceCells.push(`${from}:${to}`);
+          activeDistanceCells.push(`${to}:${from}`);
+        }
+        return {
+          activeCityIndices: Array.from({ length: n }, (_, index) => index),
+          activeVariableIndices,
+          activeDistanceCells,
+          activeVariableCells
+        };
       }
 
       function quboEnergy(Q, x) {
@@ -1617,6 +1666,7 @@
             solverOutputEl.innerHTML = "";
             updateRouteOverlay(points, null);
             updateSummary(points.length, "--");
+            currentRouteOrder = null;
             return;
           }
           const cityLabels = points.map((item, index) => `${index + 1}: ${item[0]}`);
@@ -1638,8 +1688,10 @@
             `;
             routeSolution = { order: validSource.bestValidOrder };
             updateSummary(points.length, `${round2(validSource.bestValidLength).toFixed(2)} km`);
+            currentRouteOrder = validSource.bestValidOrder.slice();
           } else {
             updateSummary(points.length, "--");
+            currentRouteOrder = null;
           }
           const elapsedMs = annealRunning && annealSession ? performance.now() - annealSession.startedAt : 0;
           solverOutputEl.innerHTML = `
@@ -1663,6 +1715,7 @@
           solverOutputEl.innerHTML = "";
           updateRouteOverlay(points, null);
           updateSummary(points.length, "--");
+          currentRouteOrder = null;
           return;
         }
         const cityLabels = points.map((item, index) => `${index + 1}: ${item[0]}`);
@@ -1683,11 +1736,13 @@
         `;
         updateRouteOverlay(points, solution);
         updateSummary(points.length, `${round2(solution.length).toFixed(2)} km`);
+        currentRouteOrder = solution.order.slice();
       }
 
       function renderNumericMatrices(points, D, A, B) {
         const k = points.length;
         if (k < 1) {
+          currentRouteOrder = null;
           matrixOutputEl.innerHTML = `
             <article class="matrix-card">
               <h4>Numeric Hamiltonian</h4>
@@ -1701,6 +1756,7 @@
         const qubo = buildQuboMatrix(D, A, B);
         const ising = buildIsingFromQubo(qubo);
         const datasetSlug = activeDataset.key.replace(/[^a-z0-9-]+/gi, "-");
+        const highlights = routeMatrixHighlights(currentRouteOrder);
 
         if (k > 6 && !forceShowMatrices) {
           matrixOutputEl.innerHTML = `
@@ -1740,7 +1796,11 @@
               <div class="action-row">
                 <button type="button" class="action-btn" data-action="download-distance">Download CSV</button>
               </div>
-              ${tableHtml(D, cityLabels, cityLabels)}
+              ${tableHtml(D, cityLabels, cityLabels, {
+                activeRows: highlights.activeCityIndices,
+                activeCols: highlights.activeCityIndices,
+                activeCells: highlights.activeDistanceCells
+              })}
             </article>
             <article class="matrix-card">
               <h4>QUBO Matrix Q (${labels.length} x ${labels.length})</h4>
@@ -1748,7 +1808,11 @@
               <div class="action-row">
                 <button type="button" class="action-btn" data-action="download-qubo">Download CSV</button>
               </div>
-              ${tableHtml(qubo, labels, labels)}
+              ${tableHtml(qubo, labels, labels, {
+                activeRows: highlights.activeVariableIndices,
+                activeCols: highlights.activeVariableIndices,
+                activeCells: highlights.activeVariableCells
+              })}
             </article>
           `;
           matrixOutputEl.querySelector('[data-action="download-distance"]').addEventListener("click", () => {
@@ -1767,14 +1831,20 @@
             <div class="action-row">
               <button type="button" class="action-btn" data-action="download-distance">Download CSV</button>
             </div>
-            ${tableHtml(D, cityLabels, cityLabels)}
+            ${tableHtml(D, cityLabels, cityLabels, {
+              activeRows: highlights.activeCityIndices,
+              activeCols: highlights.activeCityIndices,
+              activeCells: highlights.activeDistanceCells
+            })}
           </article>
           <article class="matrix-card">
             <h4>Ising Vector h (${labels.length})</h4>
             <div class="action-row">
               <button type="button" class="action-btn" data-action="download-ising-h">Download CSV</button>
             </div>
-            ${vectorHtml(ising.h, labels)}
+            ${vectorHtml(ising.h, labels, {
+              activeRows: highlights.activeVariableIndices
+            })}
           </article>
           <article class="matrix-card">
             <h4>Ising Matrix J (${labels.length} x ${labels.length})</h4>
@@ -1782,7 +1852,11 @@
             <div class="action-row">
               <button type="button" class="action-btn" data-action="download-ising-j">Download CSV</button>
             </div>
-            ${tableHtml(ising.J, labels, labels)}
+            ${tableHtml(ising.J, labels, labels, {
+              activeRows: highlights.activeVariableIndices,
+              activeCols: highlights.activeVariableIndices,
+              activeCells: highlights.activeVariableCells
+            })}
           </article>
         `;
         matrixOutputEl.querySelector('[data-action="download-distance"]').addEventListener("click", () => {
