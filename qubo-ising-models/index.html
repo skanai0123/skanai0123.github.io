@@ -1,0 +1,1078 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QUBO / Ising Models</title>
+  <link rel="icon" href="../fabicons/magnetic.svg" type="image/svg+xml">
+  <script defer src="../shared/mathjax-loader.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <link rel="stylesheet" href="../shared/back-to-hub.css">
+  <script defer src="../shared/back-to-hub.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-0: #06141d;
+      --bg-1: #0d2636;
+      --panel: rgba(6, 20, 34, 0.8);
+      --panel-strong: rgba(7, 16, 28, 0.92);
+      --line: rgba(154, 209, 255, 0.18);
+      --text: #e9f3ff;
+      --muted: #95abc3;
+      --accent: #73d1ff;
+      --qubo: #ffbf75;
+      --qubo-bg: rgba(147, 84, 27, 0.2);
+      --ising: #8be0a0;
+      --ising-bg: rgba(47, 119, 74, 0.18);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100dvh;
+      font-family: "Noto Sans", system-ui, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 12% 18%, rgba(115, 209, 255, 0.16), transparent 34%),
+        radial-gradient(circle at 88% 16%, rgba(255, 208, 113, 0.14), transparent 30%),
+        linear-gradient(145deg, var(--bg-0) 0%, var(--bg-1) 100%);
+      padding: 24px;
+    }
+
+    .shell {
+      width: min(1220px, 100%);
+      margin: 0 auto;
+      display: grid;
+      gap: 18px;
+    }
+
+    .hero,
+    .problem-section {
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      background: var(--panel);
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
+      overflow: hidden;
+    }
+
+    .hero {
+      padding: 26px 28px;
+    }
+
+    .eyebrow,
+    .section-kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border: 1px solid rgba(154, 209, 255, 0.16);
+      border-radius: 999px;
+      background: rgba(8, 20, 32, 0.72);
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 14px 0 10px;
+      font-size: clamp(30px, 4.2vw, 52px);
+      line-height: 1.05;
+      letter-spacing: -0.02em;
+    }
+
+    .lead {
+      max-width: 900px;
+      margin: 0;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.8;
+    }
+
+    .hero-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border: 1px solid rgba(154, 209, 255, 0.16);
+      border-radius: 999px;
+      background: rgba(7, 16, 28, 0.6);
+      color: #dbe9fb;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .problem-list,
+    .content,
+    .formula-grid {
+      display: grid;
+      gap: 18px;
+    }
+
+    .content {
+      padding: 24px;
+    }
+
+    .panel-grid,
+    .mini-grid,
+    .sample-layout {
+      display: grid;
+      gap: 16px;
+    }
+
+    .panel-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .mini-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .sample-layout {
+      grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.9fr);
+      align-items: start;
+    }
+
+    .panel,
+    .mini-card,
+    .formula-card,
+    .note-card {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--panel-strong);
+      padding: 18px;
+    }
+
+    .problem-title {
+      margin: 10px 0 8px;
+      font-size: clamp(24px, 3vw, 34px);
+      line-height: 1.1;
+    }
+
+    .problem-sub,
+    .panel p,
+    .sample-copy,
+    .sample-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.75;
+    }
+
+    .mini-card h3,
+    .note-card h3,
+    .sample-card h3 {
+      margin: 0 0 8px;
+      color: var(--accent);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .sample-card h3,
+    .note-card h3 {
+      color: var(--text);
+      font-size: 16px;
+      text-transform: none;
+      letter-spacing: 0;
+    }
+
+    .math-block {
+      border: 1px solid rgba(154, 209, 255, 0.12);
+      border-radius: 14px;
+      background: rgba(3, 13, 22, 0.76);
+      padding: 14px;
+      color: #f8fbff;
+      font-size: 15px;
+      line-height: 1.7;
+      overflow-x: auto;
+    }
+
+    .formula-toolbar,
+    .dataset-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .formula-btn,
+    .dataset-btn {
+      border: 1px solid rgba(154, 209, 255, 0.16);
+      border-radius: 999px;
+      background: rgba(8, 20, 32, 0.78);
+      color: #d8e8fb;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 700;
+      padding: 8px 12px;
+      cursor: pointer;
+    }
+
+    .formula-btn.active,
+    .dataset-btn.active {
+      border-color: rgba(115, 209, 255, 0.56);
+      background: linear-gradient(180deg, rgba(17, 43, 64, 0.96), rgba(8, 20, 32, 0.92));
+      color: #f6fbff;
+    }
+
+    .formula-card.hidden {
+      display: none;
+    }
+
+    .formula-card.qubo {
+      background: linear-gradient(180deg, rgba(11, 22, 33, 0.96), var(--qubo-bg));
+    }
+
+    .formula-card.ising {
+      background: linear-gradient(180deg, rgba(11, 22, 33, 0.96), var(--ising-bg));
+    }
+
+    .formula-tag {
+      display: inline-flex;
+      margin-bottom: 10px;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .formula-card.qubo .formula-tag {
+      color: var(--qubo);
+    }
+
+    .formula-card.ising .formula-tag {
+      color: var(--ising);
+    }
+
+    .note-card ul {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.8;
+    }
+
+    .sample-meta,
+    .map-caption,
+    .footer-note {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.7;
+    }
+
+    .sample-controls {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 140px));
+      gap: 10px;
+      margin: 14px 0;
+    }
+
+    .sample-field {
+      display: grid;
+      gap: 6px;
+    }
+
+    .sample-field span {
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .sample-field input {
+      width: 100%;
+      border: 1px solid rgba(154, 209, 255, 0.18);
+      border-radius: 10px;
+      background: rgba(8, 20, 32, 0.84);
+      color: #f3f8ff;
+      padding: 10px 12px;
+      font: inherit;
+    }
+
+    .map-frame {
+      border: 1px solid rgba(154, 209, 255, 0.12);
+      border-radius: 16px;
+      background: rgba(8, 20, 32, 0.82);
+      padding: 12px;
+    }
+
+    .sample-map {
+      width: 100%;
+      min-height: 420px;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .matrix-output {
+      display: grid;
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .matrix-card {
+      border: 1px solid rgba(154, 209, 255, 0.12);
+      border-radius: 14px;
+      background: rgba(3, 13, 22, 0.76);
+      padding: 12px;
+    }
+
+    .matrix-card h4 {
+      margin: 0 0 8px;
+      color: var(--accent);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .matrix-scroll {
+      overflow: auto;
+      max-width: 100%;
+    }
+
+    .matrix-table {
+      border-collapse: collapse;
+      font-size: 12px;
+      color: #eaf3ff;
+      white-space: nowrap;
+    }
+
+    .matrix-table th,
+    .matrix-table td {
+      border: 1px solid rgba(154, 209, 255, 0.12);
+      padding: 4px 6px;
+      text-align: right;
+      min-width: 56px;
+    }
+
+    .matrix-table th:first-child,
+    .matrix-table td:first-child {
+      position: sticky;
+      left: 0;
+      background: rgba(6, 20, 34, 0.96);
+      text-align: left;
+      min-width: 78px;
+      z-index: 1;
+    }
+
+    .matrix-note {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.7;
+      margin: 0;
+    }
+
+    .selection-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      margin: 12px 0 0;
+    }
+
+    .selection-count {
+      color: #dbe9fb;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .selection-btn {
+      border: 1px solid rgba(154, 209, 255, 0.16);
+      border-radius: 999px;
+      background: rgba(8, 20, 32, 0.78);
+      color: #d8e8fb;
+      font: inherit;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 7px 12px;
+      cursor: pointer;
+    }
+
+    .mjx-container {
+      color: #f8fbff !important;
+    }
+
+    @media (max-width: 980px) {
+      .panel-grid,
+      .mini-grid,
+      .sample-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <section class="hero">
+      <div class="eyebrow">QUBO / ISING REFERENCE</div>
+      <h1>Optimization Hamiltonian Gallery</h1>
+      <p class="lead">
+        A compact reference page for several optimization problems in both QUBO and Ising form.
+      </p>
+      <div class="hero-meta">
+        <span class="chip">Variables: \(x_i \in \{0,1\},\; s_i \in \{-1,1\}\)</span>
+        <span class="chip">Conversion: \(x_i = \frac{1-s_i}{2}\)</span>
+        <span class="chip">Problems: Max-Cut / Max-SAT</span>
+      </div>
+    </section>
+
+    <section id="problemList" class="problem-list" aria-label="Optimization problems"></section>
+
+    <p class="footer-note">
+      For Max-SAT, the general form becomes higher-order. The page shows the structure and keeps the formulas short enough to scan.
+    </p>
+  </div>
+
+  <script>
+    const tspDatasets = [
+      {
+        key: "us-capitals",
+        label: "U.S. state capitals",
+        copy: "Example dataset using the capitals of the 50 U.S. states.",
+        meta: "City count: 50",
+        mapCenter: [39.5, -98.35],
+        mapZoom: 4,
+        mapPoints: [
+          ["Montgomery", 32.377716, -86.300568], ["Juneau", 58.301598, -134.420212], ["Phoenix", 33.448143, -112.096962],
+          ["Little Rock", 34.746613, -92.288986], ["Sacramento", 38.576668, -121.493629], ["Denver", 39.739227, -104.984856],
+          ["Hartford", 41.764046, -72.682198], ["Dover", 39.157307, -75.519722], ["Tallahassee", 30.438118, -84.281296],
+          ["Atlanta", 33.749027, -84.388229], ["Honolulu", 21.307442, -157.857376], ["Boise", 43.617775, -116.199722],
+          ["Springfield", 39.798363, -89.654961], ["Indianapolis", 39.768623, -86.162643], ["Des Moines", 41.591087, -93.603729],
+          ["Topeka", 39.048191, -95.677956], ["Frankfort", 38.186722, -84.875374], ["Baton Rouge", 30.457069, -91.187393],
+          ["Augusta", 44.307167, -69.781693], ["Annapolis", 38.978764, -76.490936], ["Boston", 42.358162, -71.063698],
+          ["Lansing", 42.733635, -84.555328], ["Saint Paul", 44.955097, -93.102211], ["Jackson", 32.303848, -90.182106],
+          ["Jefferson City", 38.579201, -92.172935], ["Helena", 46.585709, -112.018417], ["Lincoln", 40.808075, -96.699654],
+          ["Carson City", 39.163914, -119.766121], ["Concord", 43.206898, -71.537994], ["Trenton", 40.220596, -74.769913],
+          ["Santa Fe", 35.68224, -105.939728], ["Albany", 42.652843, -73.757874], ["Raleigh", 35.78043, -78.639099],
+          ["Bismarck", 46.82085, -100.783318], ["Columbus", 39.961346, -82.999069], ["Oklahoma City", 35.492207, -97.503342],
+          ["Salem", 44.938461, -123.030403], ["Harrisburg", 40.264378, -76.883598], ["Providence", 41.830914, -71.414963],
+          ["Columbia", 34.000343, -81.033211], ["Pierre", 44.367031, -100.346405], ["Nashville", 36.16581, -86.784241],
+          ["Austin", 30.27467, -97.740349], ["Salt Lake City", 40.777477, -111.888237], ["Montpelier", 44.262436, -72.580536],
+          ["Richmond", 37.538857, -77.43364], ["Olympia", 47.035805, -122.905014], ["Charleston", 38.336246, -81.612328],
+          ["Madison", 43.074684, -89.384445], ["Cheyenne", 41.140259, -104.820236]
+        ]
+      },
+      {
+        key: "eu27-capitals",
+        label: "EU27 capitals",
+        copy: "Example dataset using the capitals of the EU27 member states.",
+        meta: "City count: 27",
+        mapCenter: [50.5, 12.5],
+        mapZoom: 4,
+        mapPoints: [
+          ["Vienna", 48.2064, 16.3707], ["Brussels", 50.8467, 4.3499], ["Sofia", 42.6975, 23.3242],
+          ["Zagreb", 45.8144, 15.978], ["Nicosia", 35.1595, 33.3669], ["Prague", 50.088, 14.4208],
+          ["Copenhagen", 55.6759, 12.5655], ["Tallinn", 59.437, 24.7535], ["Helsinki", 60.1692, 24.9402],
+          ["Paris", 48.8534, 2.3488], ["Berlin", 52.5244, 13.4105], ["Athens", 37.9534, 23.749],
+          ["Budapest", 47.498, 19.0399], ["Dublin", 53.3331, -6.2489], ["Rome", 41.8947, 12.4811],
+          ["Riga", 56.946, 24.1059], ["Vilnius", 54.6892, 25.2798], ["Luxembourg", 49.6117, 6.13],
+          ["Valletta", 35.8997, 14.5147], ["Amsterdam", 52.374, 4.8897], ["Warsaw", 52.2298, 21.0118],
+          ["Lisbon", 38.7169, -9.1399], ["Bucharest", 44.4328, 26.1043], ["Bratislava", 48.1482, 17.1067],
+          ["Ljubljana", 46.0511, 14.5051], ["Madrid", 40.4165, -3.7026], ["Stockholm", 59.3326, 18.0649]
+        ]
+      },
+      {
+        key: "jp-prefectures",
+        label: "Japan prefectural capitals",
+        copy: "Example dataset using the capitals of the 47 prefectures of Japan.",
+        meta: "City count: 47",
+        mapCenter: [36.2, 138.2],
+        mapZoom: 5,
+        mapPoints: [
+          ["Sapporo", 43.0619, 141.3544], ["Aomori", 40.8222, 140.7474], ["Morioka", 39.7036, 141.1527],
+          ["Sendai", 38.2682, 140.8694], ["Akita", 39.7186, 140.1024], ["Yamagata", 38.2554, 140.3396],
+          ["Fukushima", 37.7608, 140.4747], ["Mito", 36.3659, 140.4712], ["Utsunomiya", 36.5551, 139.8828],
+          ["Maebashi", 36.3895, 139.0634], ["Saitama", 35.8614, 139.6456], ["Chiba", 35.6074, 140.1065],
+          ["Tokyo", 35.6897, 139.6922], ["Yokohama", 35.4442, 139.6381], ["Niigata", 37.9161, 139.0364],
+          ["Toyama", 36.6953, 137.2113], ["Kanazawa", 36.5613, 136.6562], ["Fukui", 36.0641, 136.2196],
+          ["Kofu", 35.6639, 138.5683], ["Nagano", 36.6485, 138.1942], ["Gifu", 35.4233, 136.7607],
+          ["Shizuoka", 34.9756, 138.3828], ["Nagoya", 35.1833, 136.9], ["Tsu", 34.7303, 136.5086],
+          ["Otsu", 35.0176, 135.8547], ["Kyoto", 35.0117, 135.7683], ["Osaka", 34.6939, 135.5022],
+          ["Kobe", 34.69, 135.1956], ["Nara", 34.6851, 135.8048], ["Wakayama", 34.2305, 135.1708],
+          ["Tottori", 35.5011, 134.2351], ["Matsue", 35.4681, 133.0484], ["Okayama", 34.6618, 133.935],
+          ["Hiroshima", 34.3914, 132.4519], ["Yamaguchi", 34.1785, 131.4737], ["Tokushima", 34.0658, 134.5593],
+          ["Takamatsu", 34.3428, 134.0466], ["Matsuyama", 33.8392, 132.7657], ["Kochi", 33.5597, 133.5311],
+          ["Fukuoka", 33.59, 130.4017], ["Saga", 33.2635, 130.3009], ["Nagasaki", 32.7503, 129.8777],
+          ["Kumamoto", 32.8031, 130.7079], ["Oita", 33.2396, 131.6093], ["Miyazaki", 31.9077, 131.4202],
+          ["Kagoshima", 31.5966, 130.5571], ["Naha", 26.2124, 127.6809]
+        ]
+      }
+    ];
+
+    const problems = [
+      {
+        key: "maxcut",
+        buttonTitle: "Max-Cut",
+        title: "Max-Cut",
+        subtitle: "A graph partitioning problem that is especially natural in Ising form.",
+        variable: String.raw`\[
+          x_i \in \{0,1\},\quad s_i \in \{-1,1\},\quad x_i=\frac{1-s_i}{2}
+        \]`,
+        objective: String.raw`\[
+          \max \sum_{(i,j)\in E} w_{ij}(x_i+x_j-2x_ix_j)
+        \]`,
+        penalty: String.raw`\[
+          \text{No explicit constraint term is needed}
+        \]`,
+        quboLead: "QUBO is written as a minimization by flipping the sign.",
+        qubo: String.raw`\[
+          H_{\mathrm{Q}} = -\sum_{(i,j)\in E} w_{ij}(x_i+x_j-2x_ix_j)
+        \]`,
+        isingLead: "The Ising expression is very compact.",
+        ising: String.raw`\[
+          H_{\mathrm{I}} = -\frac{1}{2}\sum_{(i,j)\in E}w_{ij}(1-s_is_j)
+        \]`,
+        interpretation: [
+          "Edges with \(s_is_j=-1\) are cut.",
+          "The constant term does not change the optimizer.",
+          "This is a common annealing benchmark."
+        ],
+        implementation: [
+          "For unweighted graphs, use \(w_{ij}=1\).",
+          "Interactions live only on the edge set \(E\).",
+          "Problem size grows with the node count."
+        ]
+      },
+      {
+        key: "maxsat",
+        buttonTitle: "Max-SAT",
+        title: "Weighted Max-SAT / Max-2-SAT",
+        subtitle: "Unsatisfied clauses contribute penalty terms.",
+        variable: String.raw`\[
+          x_i \in \{0,1\}, \quad
+          v(\ell)=
+          \begin{cases}
+          x_i & \ell=x_i \\
+          1-x_i & \ell=\neg x_i
+          \end{cases}
+        \]`,
+        objective: String.raw`\[
+          \min \sum_{m=1}^{M} w_m \prod_{\ell\in C_m}(1-v(\ell))
+        \]`,
+        penalty: String.raw`\[
+          \text{General Max-SAT is higher-order; Max-2-SAT is directly quadratic}
+        \]`,
+        quboLead: "General Max-SAT is higher-order, while Max-2-SAT is quadratic.",
+        qubo: String.raw`\[
+          H_{\mathrm{Q}}^{\mathrm{general}} =
+          \sum_{m=1}^{M} w_m \prod_{\ell\in C_m}(1-v(\ell))
+        \]`,
+        isingLead: "The Ising form follows from \(x_i=(1-s_i)/2\).",
+        ising: String.raw`\[
+          H_{\mathrm{I}}^{\mathrm{general}} =
+          \sum_{m=1}^{M} w_m \prod_{\ell\in C_m}
+          \left(1-v\left(\ell;\frac{1-s}{2}\right)\right)
+        \]`,
+        interpretation: [
+          "Only unsatisfied clauses contribute cost.",
+          "General Max-SAT becomes a higher-order pseudo-Boolean problem.",
+          "Max-2-SAT maps much more directly to QUBO and Ising."
+        ],
+        implementation: [
+          "Weighted clauses fit the same structure.",
+          "Auxiliary variables are common for 3-SAT and above.",
+          "The page keeps the formulas compact for readability."
+        ]
+      }
+    ];
+
+    const problemListEl = document.getElementById("problemList");
+
+    function safeRenderMath(target) {
+      if (typeof window.renderMath === "function") {
+        return window.renderMath(target);
+      }
+      return Promise.resolve();
+    }
+
+    function renderList(items, target) {
+      target.innerHTML = "";
+      items.forEach((item) => {
+        const li = document.createElement("li");
+        li.innerHTML = item;
+        target.appendChild(li);
+      });
+    }
+
+    function buildSampleSection(problem) {
+      if (!problem.sampleDatasets) return "";
+      return `
+        <section class="note-card sample-card" data-sample-root="${problem.key}">
+          <h3>${problem.sampleTitle}</h3>
+          <p>${problem.sampleLead}</p>
+          <div class="dataset-toolbar"></div>
+          <div class="sample-layout">
+            <div>
+              <div class="sample-copy"></div>
+              <p class="sample-meta"></p>
+              <div class="sample-controls">
+                <label class="sample-field">
+                  <span>Penalty A</span>
+                  <input type="number" step="0.1" value="8" data-param="A">
+                </label>
+                <label class="sample-field">
+                  <span>Distance B</span>
+                  <input type="number" step="0.1" value="1" data-param="B">
+                </label>
+              </div>
+              <div class="selection-bar">
+                <span class="selection-count" data-selection-count>Selected: 0 cities</span>
+                <button type="button" class="selection-btn" data-selection-clear>Clear</button>
+              </div>
+              <div class="math-block" data-sample-hamiltonian></div>
+              <div class="matrix-output" data-matrix-output></div>
+            </div>
+            <div class="map-frame">
+              <div class="sample-map"></div>
+              <p class="map-caption"></p>
+            </div>
+          </div>
+        </section>
+      `;
+    }
+
+    function hydrateSampleSection(section, problem) {
+      if (!problem.sampleDatasets) return;
+      const root = section.querySelector(`[data-sample-root="${problem.key}"]`);
+      const toolbar = root.querySelector(".dataset-toolbar");
+      const copyEl = root.querySelector(".sample-copy");
+      const metaEl = root.querySelector(".sample-meta");
+      const hamiltonianEl = root.querySelector("[data-sample-hamiltonian]");
+      const matrixOutputEl = root.querySelector("[data-matrix-output]");
+      const mapEl = root.querySelector(".sample-map");
+      const captionEl = root.querySelector(".map-caption");
+      const inputAEl = root.querySelector('[data-param="A"]');
+      const inputBEl = root.querySelector('[data-param="B"]');
+      const selectionCountEl = root.querySelector("[data-selection-count]");
+      const clearBtnEl = root.querySelector("[data-selection-clear]");
+      let activeDataset = problem.sampleDatasets[0];
+      let activeMode = "qubo";
+      let map = null;
+      let markers = null;
+      let markerRefs = [];
+      let selectedIndices = [];
+
+      function num(el, fallback) {
+        const value = Number(el.value);
+        return Number.isFinite(value) ? value : fallback;
+      }
+
+      function haversineKm(lat1, lon1, lat2, lon2) {
+        const toRad = (deg) => deg * Math.PI / 180;
+        const R = 6371;
+        const dLat = toRad(lat2 - lat1);
+        const dLon = toRad(lon2 - lon1);
+        const a =
+          Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+          Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+          Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        return 2 * R * Math.asin(Math.sqrt(a));
+      }
+
+      function buildDistanceMatrix(points) {
+        const n = points.length;
+        const D = Array.from({ length: n }, () => Array(n).fill(0));
+        for (let i = 0; i < n; i += 1) {
+          for (let j = i + 1; j < n; j += 1) {
+            const d = haversineKm(points[i][1], points[i][2], points[j][1], points[j][2]);
+            D[i][j] = d;
+            D[j][i] = d;
+          }
+        }
+        return D;
+      }
+
+      function buildQuboMatrix(D, A, B) {
+        const n = D.length;
+        const size = n * n;
+        const Q = Array.from({ length: size }, () => Array(size).fill(0));
+        const idx = (city, slot) => city * n + slot;
+
+        for (let slot = 0; slot < n; slot += 1) {
+          for (let city = 0; city < n; city += 1) {
+            Q[idx(city, slot)][idx(city, slot)] += -A;
+          }
+          for (let c1 = 0; c1 < n; c1 += 1) {
+            for (let c2 = c1 + 1; c2 < n; c2 += 1) {
+              const a = idx(c1, slot);
+              const b = idx(c2, slot);
+              Q[a][b] += A;
+              Q[b][a] += A;
+            }
+          }
+        }
+
+        for (let city = 0; city < n; city += 1) {
+          for (let slot = 0; slot < n; slot += 1) {
+            Q[idx(city, slot)][idx(city, slot)] += -A;
+          }
+          for (let t1 = 0; t1 < n; t1 += 1) {
+            for (let t2 = t1 + 1; t2 < n; t2 += 1) {
+              const a = idx(city, t1);
+              const b = idx(city, t2);
+              Q[a][b] += A;
+              Q[b][a] += A;
+            }
+          }
+        }
+
+        for (let slot = 0; slot < n; slot += 1) {
+          const next = (slot + 1) % n;
+          for (let i = 0; i < n; i += 1) {
+            for (let j = 0; j < n; j += 1) {
+              if (i === j) continue;
+              const a = idx(i, slot);
+              const b = idx(j, next);
+              if (a === b) {
+                Q[a][b] += B * D[i][j];
+              } else {
+                Q[a][b] += 0.5 * B * D[i][j];
+                Q[b][a] += 0.5 * B * D[i][j];
+              }
+            }
+          }
+        }
+
+        return Q;
+      }
+
+      function buildIsingFromQubo(Q) {
+        const size = Q.length;
+        const h = Array(size).fill(0);
+        const J = Array.from({ length: size }, () => Array(size).fill(0));
+        let offset = 0;
+
+        for (let i = 0; i < size; i += 1) {
+          offset += Q[i][i] / 2;
+          h[i] -= Q[i][i] / 2;
+        }
+
+        for (let i = 0; i < size; i += 1) {
+          for (let j = i + 1; j < size; j += 1) {
+            const q = Q[i][j];
+            offset += q / 2;
+            h[i] -= q / 2;
+            h[j] -= q / 2;
+            J[i][j] = q / 2;
+            J[j][i] = q / 2;
+          }
+        }
+
+        return { h, J, offset };
+      }
+
+      function labelsForVariables(n) {
+        const labels = [];
+        for (let city = 0; city < n; city += 1) {
+          for (let slot = 0; slot < n; slot += 1) {
+            labels.push(`x${city + 1},${slot + 1}`);
+          }
+        }
+        return labels;
+      }
+
+      function round2(value) {
+        return Math.round(value * 100) / 100;
+      }
+
+      function tableHtml(matrix, rowLabels, colLabels) {
+        const head = `<tr><th></th>${colLabels.map((label) => `<th>${label}</th>`).join("")}</tr>`;
+        const rows = matrix.map((row, idx) => (
+          `<tr><td>${rowLabels[idx]}</td>${row.map((value) => `<td>${round2(value).toFixed(2)}</td>`).join("")}</tr>`
+        )).join("");
+        return `<div class="matrix-scroll"><table class="matrix-table"><thead>${head}</thead><tbody>${rows}</tbody></table></div>`;
+      }
+
+      function vectorHtml(vector, labels) {
+        const rows = vector.map((value, idx) => `<tr><td>${labels[idx]}</td><td>${round2(value).toFixed(2)}</td></tr>`).join("");
+        return `<div class="matrix-scroll"><table class="matrix-table"><tbody>${rows}</tbody></table></div>`;
+      }
+
+      function renderNumericMatrices() {
+        const k = selectedIndices.length;
+        if (k < 3 || k > 6) {
+          matrixOutputEl.innerHTML = `
+            <article class="matrix-card">
+              <h4>Numeric Hamiltonian</h4>
+              <p class="matrix-note">Select between 3 and 6 cities on the map to build numeric matrices.</p>
+            </article>
+          `;
+          return;
+        }
+        const points = selectedIndices.map((index) => activeDataset.mapPoints[index]);
+        const D = buildDistanceMatrix(points);
+        const A = num(inputAEl, 8);
+        const B = num(inputBEl, 1);
+        const labels = labelsForVariables(k);
+        const qubo = buildQuboMatrix(D, A, B);
+
+        if (activeMode === "qubo") {
+          matrixOutputEl.innerHTML = `
+            <article class="matrix-card">
+              <h4>Distance Matrix D (${k} cities)</h4>
+              ${tableHtml(D, points.map((item) => item[0]), points.map((item) => item[0]))}
+            </article>
+            <article class="matrix-card">
+              <h4>QUBO Matrix Q (${labels.length} x ${labels.length})</h4>
+              <p class="matrix-note">Variables are ordered as x(city, slot), using the currently selected ${k} cities.</p>
+              ${tableHtml(qubo, labels, labels)}
+            </article>
+          `;
+          return;
+        }
+
+        const ising = buildIsingFromQubo(qubo);
+        matrixOutputEl.innerHTML = `
+          <article class="matrix-card">
+            <h4>Distance Matrix D (${k} cities)</h4>
+            ${tableHtml(D, points.map((item) => item[0]), points.map((item) => item[0]))}
+          </article>
+          <article class="matrix-card">
+            <h4>Ising Vector h (${labels.length})</h4>
+            ${vectorHtml(ising.h, labels)}
+          </article>
+          <article class="matrix-card">
+            <h4>Ising Matrix J (${labels.length} x ${labels.length})</h4>
+            <p class="matrix-note">Offset = ${round2(ising.offset).toFixed(2)}</p>
+            ${tableHtml(ising.J, labels, labels)}
+          </article>
+        `;
+      }
+
+      function renderHamiltonian() {
+        const n = selectedIndices.length;
+        const A = num(inputAEl, 8);
+        const B = num(inputBEl, 1);
+        selectionCountEl.textContent = `Selected: ${n} cities`;
+        if (n < 3) {
+          hamiltonianEl.textContent = "Select at least 3 cities on the map to build a TSP Hamiltonian.";
+          matrixOutputEl.innerHTML = "";
+          return;
+        }
+        hamiltonianEl.textContent = activeMode === "ising"
+          ? String.raw`\[
+              \text{Dataset: } ${activeDataset.label},\quad N=${n},\quad A=${A},\quad B=${B}
+            \]
+            \[
+              H_{\mathrm{I}} =
+              ${A}\sum_{t=0}^{${n - 1}}\left(1-\frac{1}{2}\sum_{i=1}^{${n}}(1-s_{i,t})\right)^2
+              + ${A}\sum_{i=1}^{${n}}\left(1-\frac{1}{2}\sum_{t=0}^{${n - 1}}(1-s_{i,t})\right)^2
+              + \frac{${B}}{4}\sum_{t=0}^{${n - 1}}\sum_{i=1}^{${n}}\sum_{j=1}^{${n}}
+              d_{ij}(1-s_{i,t})(1-s_{j,(t+1)\bmod ${n}})
+            \]`
+          : String.raw`\[
+              \text{Dataset: } ${activeDataset.label},\quad N=${n},\quad A=${A},\quad B=${B}
+            \]
+            \[
+              H_{\mathrm{Q}} =
+              ${A}\sum_{t=0}^{${n - 1}}\left(1-\sum_{i=1}^{${n}}x_{i,t}\right)^2
+              + ${A}\sum_{i=1}^{${n}}\left(1-\sum_{t=0}^{${n - 1}}x_{i,t}\right)^2
+              + ${B}\sum_{t=0}^{${n - 1}}\sum_{i=1}^{${n}}\sum_{j=1}^{${n}}
+              d_{ij}x_{i,t}x_{j,(t+1)\bmod ${n}}
+            \]`;
+        safeRenderMath(root);
+        renderNumericMatrices();
+      }
+
+      function ensureMap() {
+        if (!window.L || map) return;
+        map = L.map(mapEl, { zoomControl: true, scrollWheelZoom: false });
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          maxZoom: 19,
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+        markers = L.layerGroup().addTo(map);
+      }
+
+      function updateMarkerStyles() {
+        markerRefs.forEach((marker, index) => {
+          const selected = selectedIndices.includes(index);
+          marker.setStyle({
+            radius: selected ? 8 : 5,
+            color: selected ? "#ffd071" : "#73d1ff",
+            weight: selected ? 2 : 1,
+            fillColor: selected ? "#ff8f6b" : "#ffd071",
+            fillOpacity: selected ? 0.96 : 0.88
+          });
+        });
+        selectionCountEl.textContent = `Selected: ${selectedIndices.length} cities`;
+      }
+
+      function renderDataset(datasetKey) {
+        activeDataset = problem.sampleDatasets.find((item) => item.key === datasetKey) || problem.sampleDatasets[0];
+        selectedIndices = [];
+        toolbar.querySelectorAll(".dataset-btn").forEach((button) => {
+          const active = button.dataset.datasetKey === activeDataset.key;
+          button.classList.toggle("active", active);
+          button.setAttribute("aria-pressed", active ? "true" : "false");
+        });
+        copyEl.textContent = activeDataset.copy;
+        metaEl.textContent = activeDataset.meta;
+        renderHamiltonian();
+
+        ensureMap();
+        if (map && markers) {
+          markers.clearLayers();
+          markerRefs = [];
+          activeDataset.mapPoints.forEach(([, lat, lng], index) => {
+            const marker = L.circleMarker([lat, lng], {
+              radius: 5,
+              color: "#73d1ff",
+              weight: 1,
+              fillColor: "#ffd071",
+              fillOpacity: 0.88
+            }).addTo(markers);
+            marker.on("click", () => {
+              const pos = selectedIndices.indexOf(index);
+              if (pos >= 0) {
+                selectedIndices.splice(pos, 1);
+              } else {
+                selectedIndices.push(index);
+              }
+              updateMarkerStyles();
+              renderHamiltonian();
+            });
+            markerRefs.push(marker);
+          });
+          map.setView(activeDataset.mapCenter, activeDataset.mapZoom);
+          setTimeout(() => map.invalidateSize(), 0);
+          captionEl.innerHTML = 'Map tiles by <a href="https://www.openstreetmap.org/" target="_blank" rel="noopener noreferrer">OpenStreetMap</a>.';
+          updateMarkerStyles();
+        } else {
+          captionEl.textContent = "Map library failed to load.";
+        }
+      }
+
+      problem.sampleDatasets.forEach((dataset, index) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "dataset-btn";
+        button.dataset.datasetKey = dataset.key;
+        button.textContent = dataset.label;
+        button.setAttribute("aria-pressed", index === 0 ? "true" : "false");
+        button.addEventListener("click", () => renderDataset(dataset.key));
+        toolbar.appendChild(button);
+      });
+
+      inputAEl.addEventListener("input", renderHamiltonian);
+      inputBEl.addEventListener("input", renderHamiltonian);
+      clearBtnEl.addEventListener("click", () => {
+        selectedIndices = [];
+        updateMarkerStyles();
+        renderHamiltonian();
+      });
+      root.addEventListener("sample:formula-mode", (event) => {
+        activeMode = event.detail.mode;
+        renderHamiltonian();
+      });
+
+      renderDataset(problem.sampleDatasets[0].key);
+    }
+
+    function hydrateFormulaSection(section, problem) {
+      const root = section.querySelector(`[data-formula-root="${problem.key}"]`);
+      const buttons = root.querySelectorAll(".formula-btn");
+      const cards = root.querySelectorAll(".formula-card");
+
+      function renderFormula(mode) {
+        buttons.forEach((button) => {
+          const active = button.dataset.formulaMode === mode;
+          button.classList.toggle("active", active);
+          button.setAttribute("aria-pressed", active ? "true" : "false");
+        });
+        cards.forEach((card) => {
+          card.classList.toggle("hidden", card.dataset.formulaMode !== mode);
+        });
+        const sampleRoot = section.querySelector(`[data-sample-root="${problem.key}"]`);
+        if (sampleRoot) {
+          sampleRoot.dispatchEvent(new CustomEvent("sample:formula-mode", { detail: { mode } }));
+        }
+      }
+
+      buttons.forEach((button) => {
+        button.addEventListener("click", () => renderFormula(button.dataset.formulaMode));
+      });
+      renderFormula("qubo");
+    }
+
+    problems.forEach((problem) => {
+      const section = document.createElement("section");
+      section.className = "problem-section";
+      section.id = problem.key;
+      section.innerHTML = `
+        <main class="content">
+          <section class="panel">
+            <div class="section-kicker">${problem.buttonTitle}</div>
+            <h2 class="problem-title">${problem.title}</h2>
+            <p class="problem-sub">${problem.subtitle}</p>
+          </section>
+
+          <section class="mini-grid">
+            <article class="mini-card">
+              <h3>Binary Variables</h3>
+              <div class="math-block">${problem.variable}</div>
+            </article>
+            <article class="mini-card">
+              <h3>Objective</h3>
+              <div class="math-block">${problem.objective}</div>
+            </article>
+            <article class="mini-card">
+              <h3>Penalty / Notes</h3>
+              <div class="math-block">${problem.penalty}</div>
+            </article>
+          </section>
+
+          <section class="formula-grid" data-formula-root="${problem.key}">
+            <div class="formula-toolbar">
+              <button type="button" class="formula-btn active" data-formula-mode="qubo" aria-pressed="true">QUBO</button>
+              <button type="button" class="formula-btn" data-formula-mode="ising" aria-pressed="false">Ising</button>
+            </div>
+            <article class="formula-card qubo" data-formula-mode="qubo">
+              <div class="formula-tag">QUBO Hamiltonian</div>
+              <p>${problem.quboLead}</p>
+              <div class="math-block">${problem.qubo}</div>
+            </article>
+            <article class="formula-card ising hidden" data-formula-mode="ising">
+              <div class="formula-tag">Ising Hamiltonian</div>
+              <p>${problem.isingLead}</p>
+              <div class="math-block">${problem.ising}</div>
+            </article>
+          </section>
+
+          <section class="panel-grid">
+            <article class="note-card">
+              <h3>Interpretation</h3>
+              <ul class="interpretation-list"></ul>
+            </article>
+            <article class="note-card">
+              <h3>Implementation Notes</h3>
+              <ul class="implementation-list"></ul>
+            </article>
+          </section>
+          ${buildSampleSection(problem)}
+        </main>
+      `;
+
+      renderList(problem.interpretation, section.querySelector(".interpretation-list"));
+      renderList(problem.implementation, section.querySelector(".implementation-list"));
+      hydrateSampleSection(section, problem);
+      hydrateFormulaSection(section, problem);
+      problemListEl.appendChild(section);
+    });
+
+    safeRenderMath(document.body);
+  </script>
+</body>
+</html>

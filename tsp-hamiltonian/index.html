@@ -1,0 +1,2096 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TSP Hamiltonian Explorer</title>
+  <link rel="icon" href="../fabicons/computer science.svg" type="image/svg+xml">
+  <script defer src="../shared/mathjax-loader.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <link rel="stylesheet" href="../shared/back-to-hub.css">
+  <script defer src="../shared/back-to-hub.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-0: #06141d;
+      --bg-1: #0d2636;
+      --panel: rgba(6, 20, 34, 0.8);
+      --panel-strong: rgba(7, 16, 28, 0.92);
+      --line: rgba(154, 209, 255, 0.18);
+      --text: #e9f3ff;
+      --muted: #95abc3;
+      --accent: #73d1ff;
+      --qubo: #ffbf75;
+      --qubo-bg: rgba(147, 84, 27, 0.2);
+      --ising: #8be0a0;
+      --ising-bg: rgba(47, 119, 74, 0.18);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100dvh;
+      font-family: "Noto Sans", system-ui, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 12% 18%, rgba(115, 209, 255, 0.16), transparent 34%),
+        radial-gradient(circle at 88% 16%, rgba(255, 208, 113, 0.14), transparent 30%),
+        linear-gradient(145deg, var(--bg-0) 0%, var(--bg-1) 100%);
+      padding: 24px;
+    }
+
+    .shell {
+      width: min(1220px, 100%);
+      margin: 0 auto;
+      display: grid;
+      gap: 18px;
+    }
+
+    .hero,
+    .problem-section {
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      background: var(--panel);
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
+      overflow: hidden;
+    }
+
+    .hero {
+      padding: 26px 28px;
+    }
+
+    .eyebrow,
+    .section-kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border: 1px solid rgba(154, 209, 255, 0.16);
+      border-radius: 999px;
+      background: rgba(8, 20, 32, 0.72);
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 14px 0 10px;
+      font-size: clamp(30px, 4.2vw, 52px);
+      line-height: 1.05;
+      letter-spacing: -0.02em;
+    }
+
+    .lead {
+      max-width: 900px;
+      margin: 0;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.8;
+    }
+
+    .hero-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border: 1px solid rgba(154, 209, 255, 0.16);
+      border-radius: 999px;
+      background: rgba(7, 16, 28, 0.6);
+      color: #dbe9fb;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .problem-list,
+    .content,
+    .formula-grid {
+      display: grid;
+      gap: 18px;
+    }
+
+    .content {
+      padding: 24px;
+    }
+
+    .panel-grid,
+    .mini-grid,
+    .sample-layout {
+      display: grid;
+      gap: 16px;
+    }
+
+    .panel-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .mini-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .sample-layout {
+      grid-template-columns: 1fr;
+      align-items: start;
+    }
+
+    .panel,
+    .mini-card,
+    .formula-card,
+    .note-card {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--panel-strong);
+      padding: 18px;
+    }
+
+    .problem-title {
+      margin: 10px 0 8px;
+      font-size: clamp(24px, 3vw, 34px);
+      line-height: 1.1;
+    }
+
+    .problem-sub,
+    .panel p,
+    .sample-copy,
+    .sample-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.75;
+    }
+
+    .mini-card h3,
+    .note-card h3,
+    .sample-card h3 {
+      margin: 0 0 8px;
+      color: var(--accent);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .sample-card h3,
+    .note-card h3 {
+      color: var(--text);
+      font-size: 16px;
+      text-transform: none;
+      letter-spacing: 0;
+    }
+
+    .math-block {
+      border: 1px solid rgba(154, 209, 255, 0.12);
+      border-radius: 14px;
+      background: rgba(3, 13, 22, 0.76);
+      padding: 14px;
+      color: #f8fbff;
+      font-size: 15px;
+      line-height: 1.7;
+      overflow-x: auto;
+    }
+
+    .formula-toolbar,
+    .dataset-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .formula-btn,
+    .dataset-btn {
+      border: 1px solid rgba(154, 209, 255, 0.16);
+      border-radius: 999px;
+      background: rgba(8, 20, 32, 0.78);
+      color: #d8e8fb;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 700;
+      padding: 8px 12px;
+      cursor: pointer;
+    }
+
+    .formula-btn.active,
+    .dataset-btn.active {
+      border-color: rgba(115, 209, 255, 0.56);
+      background: linear-gradient(180deg, rgba(17, 43, 64, 0.96), rgba(8, 20, 32, 0.92));
+      color: #f6fbff;
+    }
+
+    .formula-card.hidden {
+      display: none;
+    }
+
+    .formula-card.qubo {
+      background: linear-gradient(180deg, rgba(11, 22, 33, 0.96), var(--qubo-bg));
+    }
+
+    .formula-card.ising {
+      background: linear-gradient(180deg, rgba(11, 22, 33, 0.96), var(--ising-bg));
+    }
+
+    .formula-tag {
+      display: inline-flex;
+      margin-bottom: 10px;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .formula-card.qubo .formula-tag {
+      color: var(--qubo);
+    }
+
+    .formula-card.ising .formula-tag {
+      color: var(--ising);
+    }
+
+    .note-card ul {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.8;
+    }
+
+    .sample-meta,
+    .map-caption,
+    .footer-note {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.7;
+    }
+
+    .sample-controls {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 140px));
+      gap: 10px;
+      margin: 14px 0;
+    }
+
+    .sample-field {
+      display: grid;
+      gap: 6px;
+    }
+
+    .sample-field span {
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .sample-field input {
+      width: 100%;
+      border: 1px solid rgba(154, 209, 255, 0.18);
+      border-radius: 10px;
+      background: rgba(8, 20, 32, 0.84);
+      color: #f3f8ff;
+      padding: 10px 12px;
+      font: inherit;
+    }
+
+    .map-frame {
+      border: 1px solid rgba(154, 209, 255, 0.12);
+      border-radius: 16px;
+      background: rgba(8, 20, 32, 0.82);
+      padding: 12px;
+    }
+
+    .sample-map {
+      width: 100%;
+      min-height: 560px;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .matrix-output {
+      display: grid;
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .solver-output {
+      display: grid;
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .matrix-card {
+      border: 1px solid rgba(154, 209, 255, 0.12);
+      border-radius: 14px;
+      background: rgba(3, 13, 22, 0.76);
+      padding: 12px;
+    }
+
+    .matrix-card h4 {
+      margin: 0 0 8px;
+      color: var(--accent);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .matrix-scroll {
+      overflow: auto;
+      max-width: 100%;
+      max-height: 22rem;
+      border: 1px solid rgba(154, 209, 255, 0.08);
+      border-radius: 10px;
+    }
+
+    .matrix-table {
+      border-collapse: collapse;
+      font-size: 12px;
+      color: #eaf3ff;
+      white-space: nowrap;
+    }
+
+    .matrix-table th,
+    .matrix-table td {
+      border: 1px solid rgba(154, 209, 255, 0.12);
+      padding: 4px 6px;
+      text-align: right;
+      min-width: 56px;
+      background: rgba(3, 13, 22, 0.9);
+    }
+
+    .matrix-table thead th {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: rgba(6, 20, 34, 0.98);
+    }
+
+    .matrix-table th:first-child,
+    .matrix-table td:first-child {
+      position: sticky;
+      left: 0;
+      background: rgba(6, 20, 34, 0.96);
+      text-align: left;
+      min-width: 78px;
+      z-index: 1;
+    }
+
+    .matrix-note {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.7;
+      margin: 0;
+    }
+
+    .solver-route {
+      color: #f3f8ff;
+      font-size: 14px;
+      line-height: 1.8;
+      word-break: break-word;
+    }
+
+    .distance-highlight {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin: 8px 0 10px;
+      padding: 8px 12px;
+      border: 1px solid rgba(255, 208, 113, 0.28);
+      border-radius: 999px;
+      background: rgba(147, 84, 27, 0.16);
+      color: #fff0d6;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .summary-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 12px 0 14px;
+    }
+
+    .summary-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border: 1px solid rgba(154, 209, 255, 0.16);
+      border-radius: 999px;
+      background: rgba(8, 20, 32, 0.72);
+      color: #eaf3ff;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .summary-pill span {
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .selection-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      margin: 12px 0 0;
+    }
+
+    .selection-count {
+      color: #dbe9fb;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .selection-btn {
+      border: 1px solid rgba(154, 209, 255, 0.16);
+      border-radius: 999px;
+      background: rgba(8, 20, 32, 0.78);
+      color: #d8e8fb;
+      font: inherit;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 7px 12px;
+      cursor: pointer;
+    }
+
+    .solver-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 12px 0 0;
+    }
+
+    .solver-btn {
+      border: 1px solid rgba(154, 209, 255, 0.16);
+      border-radius: 999px;
+      background: rgba(8, 20, 32, 0.78);
+      color: #d8e8fb;
+      font: inherit;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 7px 12px;
+      cursor: pointer;
+    }
+
+    .solver-btn.active {
+      border-color: rgba(115, 209, 255, 0.56);
+      background: linear-gradient(180deg, rgba(17, 43, 64, 0.96), rgba(8, 20, 32, 0.92));
+      color: #f6fbff;
+    }
+
+    .action-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .action-btn {
+      border: 1px solid rgba(154, 209, 255, 0.16);
+      border-radius: 999px;
+      background: rgba(8, 20, 32, 0.78);
+      color: #d8e8fb;
+      font: inherit;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 7px 12px;
+      cursor: pointer;
+    }
+
+    .mjx-container {
+      color: #f8fbff !important;
+    }
+
+    @media (max-width: 980px) {
+      .panel-grid,
+      .mini-grid,
+      .sample-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <section class="hero">
+      <div class="eyebrow">TSP / QUBO / ISING</div>
+      <h1>TSP Hamiltonian Explorer</h1>
+      <p class="lead">
+        Build a Traveling Salesman Problem directly from map selections and inspect the resulting QUBO or Ising Hamiltonian.
+      </p>
+      <div class="hero-meta">
+        <span class="chip">Variables: \(x_i \in \{0,1\},\; s_i \in \{-1,1\}\)</span>
+        <span class="chip">Conversion: \(x_i = \frac{1-s_i}{2}\)</span>
+        <span class="chip">Problem: Traveling Salesman Problem</span>
+      </div>
+    </section>
+
+    <section id="problemList" class="problem-list" aria-label="Optimization problems"></section>
+
+    <section class="panel">
+      <div class="section-kicker">Notes</div>
+      <h2 class="problem-title">How To Read This Page</h2>
+      <div class="panel-grid">
+        <article class="note-card">
+          <h3>Valid Tour Solver</h3>
+          <p>
+            This solver searches only over valid TSP tours. For small city counts it uses brute force,
+            and for larger sets it switches to a heuristic route search. Because it compares only valid tours,
+            changing penalty A usually does not change the best route.
+          </p>
+        </article>
+        <article class="note-card">
+          <h3>QUBO Annealing</h3>
+          <p>
+            This solver minimizes the TSP QUBO directly over binary variables. It can temporarily visit
+            invalid states, so changing penalty A can change the returned state and the recovered route.
+          </p>
+        </article>
+        <article class="note-card">
+          <h3>Penalty A And Distance B</h3>
+          <p>
+            A controls how strongly the solver penalizes violating the one-city-per-slot and one-slot-per-city
+            constraints. B scales the route distance term.
+          </p>
+        </article>
+        <article class="note-card">
+          <h3>Why The Matrix Grows Fast</h3>
+          <p>
+            TSP uses variables x(i,t), so N cities create N^2 binary variables. The QUBO matrix therefore has
+            size N^2 x N^2, which means the number of matrix entries grows like N^4.
+          </p>
+        </article>
+      </div>
+    </section>
+
+    <p class="footer-note">
+      Select cities on the map to keep the TSP instance small enough to inspect numerically.
+    </p>
+  </div>
+
+  <script>
+    const tspDatasets = [
+      {
+        key: "us-capitals",
+        label: "U.S. state capitals",
+        copy: "Example dataset using the capitals of the 50 U.S. states.",
+        meta: "City count: 50",
+        mapCenter: [39.5, -98.35],
+        mapZoom: 4,
+        mapPoints: [
+          ["Montgomery", 32.377716, -86.300568], ["Juneau", 58.301598, -134.420212], ["Phoenix", 33.448143, -112.096962],
+          ["Little Rock", 34.746613, -92.288986], ["Sacramento", 38.576668, -121.493629], ["Denver", 39.739227, -104.984856],
+          ["Hartford", 41.764046, -72.682198], ["Dover", 39.157307, -75.519722], ["Tallahassee", 30.438118, -84.281296],
+          ["Atlanta", 33.749027, -84.388229], ["Honolulu", 21.307442, -157.857376], ["Boise", 43.617775, -116.199722],
+          ["Springfield", 39.798363, -89.654961], ["Indianapolis", 39.768623, -86.162643], ["Des Moines", 41.591087, -93.603729],
+          ["Topeka", 39.048191, -95.677956], ["Frankfort", 38.186722, -84.875374], ["Baton Rouge", 30.457069, -91.187393],
+          ["Augusta", 44.307167, -69.781693], ["Annapolis", 38.978764, -76.490936], ["Boston", 42.358162, -71.063698],
+          ["Lansing", 42.733635, -84.555328], ["Saint Paul", 44.955097, -93.102211], ["Jackson", 32.303848, -90.182106],
+          ["Jefferson City", 38.579201, -92.172935], ["Helena", 46.585709, -112.018417], ["Lincoln", 40.808075, -96.699654],
+          ["Carson City", 39.163914, -119.766121], ["Concord", 43.206898, -71.537994], ["Trenton", 40.220596, -74.769913],
+          ["Santa Fe", 35.68224, -105.939728], ["Albany", 42.652843, -73.757874], ["Raleigh", 35.78043, -78.639099],
+          ["Bismarck", 46.82085, -100.783318], ["Columbus", 39.961346, -82.999069], ["Oklahoma City", 35.492207, -97.503342],
+          ["Salem", 44.938461, -123.030403], ["Harrisburg", 40.264378, -76.883598], ["Providence", 41.830914, -71.414963],
+          ["Columbia", 34.000343, -81.033211], ["Pierre", 44.367031, -100.346405], ["Nashville", 36.16581, -86.784241],
+          ["Austin", 30.27467, -97.740349], ["Salt Lake City", 40.777477, -111.888237], ["Montpelier", 44.262436, -72.580536],
+          ["Richmond", 37.538857, -77.43364], ["Olympia", 47.035805, -122.905014], ["Charleston", 38.336246, -81.612328],
+          ["Madison", 43.074684, -89.384445], ["Cheyenne", 41.140259, -104.820236]
+        ]
+      },
+      {
+        key: "eu27-capitals",
+        label: "EU member state capitals",
+        copy: "Example dataset using one capital city for each EU member state in this page's reference set.",
+        meta: "City count: 27",
+        mapCenter: [50.5, 12.5],
+        mapZoom: 4,
+        mapPoints: [
+          ["Vienna", 48.2064, 16.3707], ["Brussels", 50.8467, 4.3499], ["Sofia", 42.6975, 23.3242],
+          ["Zagreb", 45.8144, 15.978], ["Nicosia", 35.1595, 33.3669], ["Prague", 50.088, 14.4208],
+          ["Copenhagen", 55.6759, 12.5655], ["Tallinn", 59.437, 24.7535], ["Helsinki", 60.1692, 24.9402],
+          ["Paris", 48.8534, 2.3488], ["Berlin", 52.5244, 13.4105], ["Athens", 37.9534, 23.749],
+          ["Budapest", 47.498, 19.0399], ["Dublin", 53.3331, -6.2489], ["Rome", 41.8947, 12.4811],
+          ["Riga", 56.946, 24.1059], ["Vilnius", 54.6892, 25.2798], ["Luxembourg", 49.6117, 6.13],
+          ["Valletta", 35.8997, 14.5147], ["Amsterdam", 52.374, 4.8897], ["Warsaw", 52.2298, 21.0118],
+          ["Lisbon", 38.7169, -9.1399], ["Bucharest", 44.4328, 26.1043], ["Bratislava", 48.1482, 17.1067],
+          ["Ljubljana", 46.0511, 14.5051], ["Madrid", 40.4165, -3.7026], ["Stockholm", 59.3326, 18.0649]
+        ]
+      },
+      {
+        key: "jp-prefectures",
+        label: "Japan prefectural capitals",
+        copy: "Example dataset using the capitals of the 47 prefectures of Japan.",
+        meta: "City count: 47",
+        mapCenter: [36.2, 138.2],
+        mapZoom: 5,
+        mapPoints: [
+          ["Sapporo", 43.0619, 141.3544], ["Aomori", 40.8222, 140.7474], ["Morioka", 39.7036, 141.1527],
+          ["Sendai", 38.2682, 140.8694], ["Akita", 39.7186, 140.1024], ["Yamagata", 38.2554, 140.3396],
+          ["Fukushima", 37.7608, 140.4747], ["Mito", 36.3659, 140.4712], ["Utsunomiya", 36.5551, 139.8828],
+          ["Maebashi", 36.3895, 139.0634], ["Saitama", 35.8614, 139.6456], ["Chiba", 35.6074, 140.1065],
+          ["Tokyo", 35.6897, 139.6922], ["Yokohama", 35.4442, 139.6381], ["Niigata", 37.9161, 139.0364],
+          ["Toyama", 36.6953, 137.2113], ["Kanazawa", 36.5613, 136.6562], ["Fukui", 36.0641, 136.2196],
+          ["Kofu", 35.6639, 138.5683], ["Nagano", 36.6485, 138.1942], ["Gifu", 35.4233, 136.7607],
+          ["Shizuoka", 34.9756, 138.3828], ["Nagoya", 35.1833, 136.9], ["Tsu", 34.7303, 136.5086],
+          ["Otsu", 35.0176, 135.8547], ["Kyoto", 35.0117, 135.7683], ["Osaka", 34.6939, 135.5022],
+          ["Kobe", 34.69, 135.1956], ["Nara", 34.6851, 135.8048], ["Wakayama", 34.2305, 135.1708],
+          ["Tottori", 35.5011, 134.2351], ["Matsue", 35.4681, 133.0484], ["Okayama", 34.6618, 133.935],
+          ["Hiroshima", 34.3914, 132.4519], ["Yamaguchi", 34.1785, 131.4737], ["Tokushima", 34.0658, 134.5593],
+          ["Takamatsu", 34.3428, 134.0466], ["Matsuyama", 33.8392, 132.7657], ["Kochi", 33.5597, 133.5311],
+          ["Fukuoka", 33.59, 130.4017], ["Saga", 33.2635, 130.3009], ["Nagasaki", 32.7503, 129.8777],
+          ["Kumamoto", 32.8031, 130.7079], ["Oita", 33.2396, 131.6093], ["Miyazaki", 31.9077, 131.4202],
+          ["Kagoshima", 31.5966, 130.5571], ["Naha", 26.2124, 127.6809]
+        ]
+      },
+      {
+        key: "africa-capitals",
+        label: "African country capitals",
+        copy: "Example dataset using one capital city for each African country in this page's reference set.",
+        meta: "City count: 54",
+        mapCenter: [3.0, 20.0],
+        mapZoom: 3,
+        mapPoints: [
+          ["Algiers", 36.7538, 3.0588], ["Luanda", -8.8383, 13.2344], ["Porto-Novo", 6.4969, 2.6289],
+          ["Gaborone", -24.6282, 25.9231], ["Ouagadougou", 12.3714, -1.5197], ["Gitega", -3.4264, 29.9306],
+          ["Praia", 14.9331, -23.5133], ["Yaounde", 3.8480, 11.5021], ["Bangui", 4.3947, 18.5582],
+          ["N'Djamena", 12.1348, 15.0557], ["Moroni", -11.7042, 43.2402], ["Kinshasa", -4.4419, 15.2663],
+          ["Brazzaville", -4.2634, 15.2429], ["Yamoussoukro", 6.8276, -5.2893], ["Djibouti", 11.5721, 43.1456],
+          ["Cairo", 30.0444, 31.2357], ["Malabo", 3.7504, 8.7371], ["Asmara", 15.3229, 38.9251],
+          ["Mbabane", -26.3054, 31.1367], ["Addis Ababa", 8.9806, 38.7578], ["Libreville", 0.4162, 9.4673],
+          ["Banjul", 13.4549, -16.5790], ["Accra", 5.6037, -0.1870], ["Conakry", 9.6412, -13.5784],
+          ["Bissau", 11.8817, -15.6178], ["Nairobi", -1.2864, 36.8172], ["Maseru", -29.3101, 27.4782],
+          ["Monrovia", 6.3156, -10.8074], ["Tripoli", 32.8872, 13.1913], ["Antananarivo", -18.8792, 47.5079],
+          ["Lilongwe", -13.9626, 33.7741], ["Bamako", 12.6392, -8.0029], ["Nouakchott", 18.0735, -15.9582],
+          ["Port Louis", -20.1609, 57.5012], ["Rabat", 34.0209, -6.8416], ["Maputo", -25.9692, 32.5732],
+          ["Windhoek", -22.5609, 17.0658], ["Niamey", 13.5116, 2.1254], ["Abuja", 9.0765, 7.3986],
+          ["Kigali", -1.9441, 30.0619], ["Sao Tome", 0.3365, 6.7273], ["Dakar", 14.7167, -17.4677],
+          ["Victoria", -4.6191, 55.4513], ["Freetown", 8.4657, -13.2317], ["Mogadishu", 2.0469, 45.3182],
+          ["Pretoria", -25.7479, 28.2293], ["Juba", 4.8594, 31.5713], ["Khartoum", 15.5007, 32.5599],
+          ["Dodoma", -6.1630, 35.7516], ["Lome", 6.1319, 1.2228], ["Tunis", 36.8065, 10.1815],
+          ["Kampala", 0.3476, 32.5825], ["Lusaka", -15.3875, 28.3228], ["Harare", -17.8252, 31.0335]
+        ]
+      },
+      {
+        key: "asia-capitals",
+        label: "Geographic Asia capitals",
+        copy: "Geographic grouping used for this page's reference set. West Asian countries are included on a geographic basis.",
+        meta: "City count: 49",
+        mapCenter: [32.0, 90.0],
+        mapZoom: 3,
+        mapPoints: [
+          ["Kabul", 34.5553, 69.2075], ["Yerevan", 40.1792, 44.4991], ["Baku", 40.4093, 49.8671],
+          ["Manama", 26.2235, 50.5876], ["Dhaka", 23.8103, 90.4125], ["Thimphu", 27.4728, 89.6390],
+          ["Bandar Seri Begawan", 4.9031, 114.9398], ["Phnom Penh", 11.5564, 104.9282], ["Beijing", 39.9042, 116.4074],
+          ["Nicosia", 35.1856, 33.3823], ["Tbilisi", 41.7151, 44.8271], ["New Delhi", 28.6139, 77.2090],
+          ["Jakarta", -6.2088, 106.8456], ["Tehran", 35.6892, 51.3890], ["Baghdad", 33.3152, 44.3661],
+          ["Jerusalem", 31.7683, 35.2137], ["Tokyo", 35.6897, 139.6922], ["Amman", 31.9539, 35.9106],
+          ["Astana", 51.1694, 71.4491], ["Kuwait City", 29.3759, 47.9774], ["Bishkek", 42.8746, 74.5698],
+          ["Vientiane", 17.9757, 102.6331], ["Beirut", 33.8938, 35.5018], ["Kuala Lumpur", 3.1390, 101.6869],
+          ["Male", 4.1755, 73.5093], ["Ulaanbaatar", 47.8864, 106.9057], ["Naypyidaw", 19.7633, 96.0785],
+          ["Kathmandu", 27.7172, 85.3240], ["Pyongyang", 39.0392, 125.7625], ["Muscat", 23.5880, 58.3829],
+          ["Islamabad", 33.6844, 73.0479], ["Manila", 14.5995, 120.9842], ["Ramallah", 31.9038, 35.2034],
+          ["Doha", 25.2854, 51.5310], ["Riyadh", 24.7136, 46.6753], ["Singapore", 1.2903, 103.8519],
+          ["Seoul", 37.5665, 126.9780], ["Sri Jayawardenepura Kotte", 6.8941, 79.9025], ["Damascus", 33.5138, 36.2765],
+          ["Dushanbe", 38.5598, 68.7870], ["Bangkok", 13.7563, 100.5018], ["Dili", -8.5569, 125.5603],
+          ["Ankara", 39.9334, 32.8597], ["Ashgabat", 37.9601, 58.3261], ["Abu Dhabi", 24.4539, 54.3773],
+          ["Tashkent", 41.2995, 69.2401], ["Hanoi", 21.0278, 105.8342], ["Sanaa", 15.3694, 44.1910],
+          ["Taipei", 25.0330, 121.5654]
+        ]
+      },
+      {
+        key: "un-member-capitals",
+        label: "UN member state capitals",
+        copy: "Example dataset using one capital city for each UN member state in this page's reference set.",
+        meta: "City count: 192",
+        mapCenter: [18.0, 10.0],
+        mapZoom: 2,
+        mapPoints: [
+          ["Kabul", 34.52, 69.18],
+          ["Tirana", 41.32, 19.82],
+          ["Algiers", 36.75, 3.05],
+          ["Andorra la Vella", 42.5, 1.52],
+          ["Luanda", -8.83, 13.22],
+          ["Saint John's", 17.12, -61.85],
+          ["Buenos Aires", -34.58, -58.67],
+          ["Yerevan", 40.17, 44.5],
+          ["Canberra", -35.27, 149.13],
+          ["Vienna", 48.2, 16.37],
+          ["Baku", 40.38, 49.87],
+          ["Nassau", 25.08, -77.35],
+          ["Manama", 26.23, 50.57],
+          ["Dhaka", 23.72, 90.4],
+          ["Bridgetown", 13.1, -59.62],
+          ["Minsk", 53.9, 27.57],
+          ["Brussels", 50.83, 4.33],
+          ["Belmopan", 17.25, -88.77],
+          ["Porto-Novo", 6.48, 2.62],
+          ["Thimphu", 27.47, 89.63],
+          ["Sucre", -19.02, -65.26],
+          ["Sarajevo", 43.87, 18.42],
+          ["Gaborone", -24.63, 25.9],
+          ["Brasilia", -15.79, -47.88],
+          ["Bandar Seri Begawan", 4.88, 114.93],
+          ["Sofia", 42.68, 23.32],
+          ["Ouagadougou", 12.37, -1.52],
+          ["Gitega", -3.43, 29.93],
+          ["Phnom Penh", 11.55, 104.92],
+          ["Yaounde", 3.85, 11.5],
+          ["Ottawa", 45.42, -75.7],
+          ["Praia", 14.92, -23.52],
+          ["Bangui", 4.37, 18.58],
+          ["N'Djamena", 12.1, 15.03],
+          ["Santiago", -33.45, -70.67],
+          ["Beijing", 39.92, 116.38],
+          ["Bogota", 4.71, -74.07],
+          ["Moroni", -11.7, 43.23],
+          ["San Jose", 9.93, -84.09],
+          ["Zagreb", 45.8, 16],
+          ["Havana", 23.12, -82.35],
+          ["Nicosia", 35.17, 33.37],
+          ["Prague", 50.08, 14.47],
+          ["Copenhagen", 55.67, 12.58],
+          ["Djibouti", 11.58, 43.15],
+          ["Roseau", 15.3, -61.4],
+          ["Santo Domingo", 18.47, -69.9],
+          ["Kinshasa", -4.32, 15.3],
+          ["Quito", -0.22, -78.5],
+          ["Cairo", 30.05, 31.25],
+          ["San Salvador", 13.7, -89.2],
+          ["Ciudad de la Paz", 1.35, 10.49],
+          ["Asmara", 15.33, 38.93],
+          ["Tallinn", 59.43, 24.72],
+          ["Mbabane", -26.32, 31.13],
+          ["Addis Ababa", 9.03, 38.7],
+          ["Suva", -18.13, 178.42],
+          ["Helsinki", 60.17, 24.93],
+          ["Paris", 48.87, 2.33],
+          ["Libreville", 0.38, 9.45],
+          ["Banjul", 13.45, -16.57],
+          ["Tbilisi", 41.68, 44.83],
+          ["Berlin", 52.52, 13.4],
+          ["Accra", 5.55, -0.22],
+          ["Athens", 37.98, 23.73],
+          ["St. George's", 32.38, -64.68],
+          ["Guatemala City", 14.62, -90.52],
+          ["Conakry", 9.5, -13.7],
+          ["Georgetown", 6.8, -58.15],
+          ["Port-au-Prince", 18.53, -72.33],
+          ["Tegucigalpa", 14.1, -87.22],
+          ["Budapest", 47.5, 19.08],
+          ["Reykjavik", 64.15, -21.95],
+          ["New Delhi", 28.6, 77.2],
+          ["Jakarta", -6.17, 106.82],
+          ["Tehran", 35.7, 51.42],
+          ["Baghdad", 33.33, 44.4],
+          ["Dublin", 53.32, -6.23],
+          ["Jerusalem", 31.77, 35.23],
+          ["Rome", 41.9, 12.48],
+          ["Yamoussoukro", 6.82, -5.27],
+          ["Kingston", 17.99702, -76.79358],
+          ["Tokyo", 35.68, 139.75],
+          ["Amman", 31.95, 35.93],
+          ["Astana", 51.16, 71.45],
+          ["Nairobi", -1.28, 36.82],
+          ["South Tarawa", 1.33, 172.98],
+          ["Kuwait City", 29.37, 47.97],
+          ["Bishkek", 42.87, 74.6],
+          ["Vientiane", 17.97, 102.6],
+          ["Riga", 56.95, 24.1],
+          ["Beirut", 33.87, 35.5],
+          ["Maseru", -29.32, 27.48],
+          ["Monrovia", 6.3, -10.8],
+          ["Tripoli", 32.88, 13.17],
+          ["Vaduz", 47.13, 9.52],
+          ["Vilnius", 54.68, 25.32],
+          ["Luxembourg", 49.6, 6.12],
+          ["Antananarivo", -18.92, 47.52],
+          ["Lilongwe", -13.97, 33.78],
+          ["Kuala Lumpur", 3.17, 101.7],
+          ["Male", 4.17, 73.51],
+          ["Bamako", 12.65, -8],
+          ["Valletta", 35.88, 14.5],
+          ["Majuro", 7.1, 171.38],
+          ["Nouakchott", 18.07, -15.97],
+          ["Port Louis", -20.15, 57.48],
+          ["Mexico City", 19.43, -99.13],
+          ["Palikir", 6.92, 158.15],
+          ["Chisinau", 47.01, 28.9],
+          ["Monaco", 43.73, 7.42],
+          ["Ulan Bator", 47.92, 106.91],
+          ["Podgorica", 42.43, 19.27],
+          ["Rabat", 34.02, -6.82],
+          ["Maputo", -25.95, 32.58],
+          ["Naypyidaw", 19.76, 96.07],
+          ["Windhoek", -22.57, 17.08],
+          ["Yaren", -0.55, 166.92],
+          ["Kathmandu", 27.72, 85.32],
+          ["Amsterdam", 52.35, 4.92],
+          ["Wellington", -41.3, 174.78],
+          ["Managua", 12.13, -86.25],
+          ["Niamey", 13.52, 2.12],
+          ["Abuja", 9.08, 7.53],
+          ["Pyongyang", 39.02, 125.75],
+          ["Skopje", 42, 21.43],
+          ["Oslo", 59.92, 10.75],
+          ["Muscat", 23.62, 58.58],
+          ["Islamabad", 33.68, 73.05],
+          ["Ngerulmud", 7.5, 134.62],
+          ["Panama City", 8.97, -79.53],
+          ["Port Moresby", -9.45, 147.18],
+          ["Asuncion", -25.28, -57.57],
+          ["Lima", -12.05, -77.05],
+          ["Manila", 14.6, 120.97],
+          ["Warsaw", 52.25, 21],
+          ["Lisbon", 38.72, -9.13],
+          ["Doha", 25.28, 51.53],
+          ["Brazzaville", -4.25, 15.28],
+          ["Bucharest", 44.43, 26.1],
+          ["Moscow", 55.75, 37.6],
+          ["Kigali", -1.95, 30.05],
+          ["Basseterre", 17.3, -62.72],
+          ["Castries", 14, -61],
+          ["Kingstown", 13.13, -61.22],
+          ["Apia", -13.82, -171.77],
+          ["City of San Marino", 43.94, 12.45],
+          ["Sao Tome", 0.34, 6.73],
+          ["Riyadh", 24.65, 46.7],
+          ["Dakar", 14.73, -17.63],
+          ["Belgrade", 44.83, 20.5],
+          ["Victoria", -4.62, 55.45],
+          ["Freetown", 8.48, -13.23],
+          ["Singapore", 1.28, 103.85],
+          ["Bratislava", 48.15, 17.12],
+          ["Ljubljana", 46.05, 14.52],
+          ["Honiara", -9.43, 159.95],
+          ["Mogadishu", 2.07, 45.33],
+          ["Pretoria", -25.7, 28.22],
+          ["Seoul", 37.55, 126.98],
+          ["Juba", 4.85, 31.62],
+          ["Madrid", 40.4, -3.68],
+          ["Sri Jayawardenepura Kotte", 6.89, 79.9],
+          ["Khartoum", 15.6, 32.53],
+          ["Paramaribo", 5.83, -55.17],
+          ["Stockholm", 59.33, 18.05],
+          ["Bern", 46.92, 7.47],
+          ["Damascus", 33.5, 36.3],
+          ["Dushanbe", 38.55, 68.77],
+          ["Dodoma", -6.16, 35.75],
+          ["Bangkok", 13.75, 100.52],
+          ["Dili", -8.58, 125.6],
+          ["Lome", 6.14, 1.21],
+          ["Nuku'alofa", -21.13, -175.2],
+          ["Port of Spain", 10.65, -61.52],
+          ["Tunis", 36.8, 10.18],
+          ["Ankara", 39.93, 32.87],
+          ["Ashgabat", 37.95, 58.38],
+          ["Funafuti", -8.52, 179.22],
+          ["Kampala", 0.32, 32.55],
+          ["Kyiv", 50.43, 30.52],
+          ["Abu Dhabi", 24.47, 54.37],
+          ["London", 51.5, -0.08],
+          ["Washington, D.C.", 38.89, -77.05],
+          ["Montevideo", -34.85, -56.17],
+          ["Tashkent", 41.32, 69.25],
+          ["Port Vila", -17.73, 168.32],
+          ["Caracas", 10.48, -66.87],
+          ["Hanoi", 21.03, 105.85],
+          ["Sana'a", 15.37, 44.19],
+          ["Lusaka", -15.42, 28.28],
+          ["Harare", -17.82, 31.03]
+        ]
+      }
+    ];
+
+    const problems = [
+      {
+        key: "tsp",
+        buttonTitle: "TSP",
+        title: "Traveling Salesman Problem",
+        subtitle: "Binary variables indicate whether city i is placed at tour slot t.",
+        quboLead: "Standard TSP QUBO with permutation penalties and distance cost.",
+        qubo: String.raw`\[
+          H_{\mathrm{Q}} =
+          A \sum_{t=0}^{N-1}\left(1-\sum_{i=1}^{N}x_{i,t}\right)^2
+          + A \sum_{i=1}^{N}\left(1-\sum_{t=0}^{N-1}x_{i,t}\right)^2
+          + B \sum_{t=0}^{N-1}\sum_{i=1}^{N}\sum_{j=1}^{N}
+          d_{ij}x_{i,t}x_{j,(t+1)\bmod N}
+        \]`,
+        isingLead: "Ising form obtained from \(x_{i,t}=(1-s_{i,t})/2\).",
+        ising: String.raw`\[
+          H_{\mathrm{I}} =
+          A \sum_{t=0}^{N-1}\left(1-\frac{1}{2}\sum_{i=1}^{N}(1-s_{i,t})\right)^2
+          + A \sum_{i=1}^{N}\left(1-\frac{1}{2}\sum_{t=0}^{N-1}(1-s_{i,t})\right)^2
+          + \frac{B}{4}\sum_{t=0}^{N-1}\sum_{i=1}^{N}\sum_{j=1}^{N}
+          d_{ij}(1-s_{i,t})(1-s_{j,(t+1)\bmod N})
+        \]`,
+        interpretation: [
+          "The minimum corresponds to a valid tour permutation.",
+          "The variable count scales as \(N^2\).",
+          "The ratio of A to B controls feasibility versus distance preference."
+        ],
+        implementation: [
+          "A is typically chosen much larger than B.",
+          "The dataset switch below changes N in the displayed Hamiltonian.",
+          "The map is only a visual reference for the city set."
+        ],
+        sampleTitle: "TSP Dataset And Hamiltonian",
+        sampleLead: "Switch the city set, adjust A and B, and toggle QUBO or Ising.",
+        sampleDatasets: tspDatasets
+      }
+    ];
+
+    const problemListEl = document.getElementById("problemList");
+
+    function safeRenderMath(target) {
+      if (typeof window.renderMath === "function") {
+        return window.renderMath(target);
+      }
+      return Promise.resolve();
+    }
+
+    function renderList(items, target) {
+      target.innerHTML = "";
+      items.forEach((item) => {
+        const li = document.createElement("li");
+        li.innerHTML = item;
+        target.appendChild(li);
+      });
+    }
+
+    function buildSampleSection(problem) {
+      if (!problem.sampleDatasets) return "";
+      return `
+        <section class="note-card sample-card" data-sample-root="${problem.key}">
+          <h3>${problem.sampleTitle}</h3>
+          <p>${problem.sampleLead}</p>
+          <div class="dataset-toolbar"></div>
+          <div class="sample-layout">
+            <div>
+              <div class="sample-copy"></div>
+              <p class="sample-meta"></p>
+              <div class="sample-controls">
+                <label class="sample-field">
+                  <span>Penalty A</span>
+                  <input type="number" step="1" value="8" data-param="A">
+                </label>
+                <label class="sample-field">
+                  <span>Distance B</span>
+                  <input type="number" step="1" value="1" data-param="B">
+                </label>
+              </div>
+              <div class="solver-toolbar" data-solver-toolbar>
+                <button type="button" class="solver-btn active" data-solver-mode="valid" aria-pressed="true">Valid tour solver</button>
+                <button type="button" class="solver-btn" data-solver-mode="anneal" aria-pressed="false">QUBO annealing</button>
+                <button type="button" class="solver-btn" data-anneal-action="start">Start annealing</button>
+                <button type="button" class="solver-btn" data-anneal-action="stop">Stop annealing</button>
+              </div>
+              <div class="selection-bar">
+                <span class="selection-count" data-selection-count>Selected: 0 cities</span>
+                <button type="button" class="selection-btn" data-selection-add-random>Add random city</button>
+                <button type="button" class="selection-btn" data-selection-remove-random>Remove random city</button>
+                <button type="button" class="selection-btn" data-selection-all>Select all</button>
+                <button type="button" class="selection-btn" data-selection-clear>Clear</button>
+              </div>
+              <div class="summary-strip">
+                <div class="summary-pill"><span>Cities</span><strong data-summary-cities>0</strong></div>
+                <div class="summary-pill"><span>Shortest distance</span><strong data-summary-distance>--</strong></div>
+              </div>
+              <div class="map-frame">
+                <div class="sample-map"></div>
+                <p class="map-caption"></p>
+              </div>
+              <div class="solver-output" data-solver-output></div>
+              <div class="matrix-output" data-matrix-output></div>
+            </div>
+          </div>
+        </section>
+      `;
+    }
+
+    function hydrateSampleSection(section, problem) {
+      if (!problem.sampleDatasets) return;
+      const root = section.querySelector(`[data-sample-root="${problem.key}"]`);
+      const toolbar = root.querySelector(".dataset-toolbar");
+      const copyEl = root.querySelector(".sample-copy");
+      const metaEl = root.querySelector(".sample-meta");
+      const solverOutputEl = root.querySelector("[data-solver-output]");
+      const matrixOutputEl = root.querySelector("[data-matrix-output]");
+      const mapEl = root.querySelector(".sample-map");
+      const captionEl = root.querySelector(".map-caption");
+      const inputAEl = root.querySelector('[data-param="A"]');
+      const inputBEl = root.querySelector('[data-param="B"]');
+      const solverButtons = root.querySelectorAll(".solver-btn");
+      const startAnnealBtnEl = root.querySelector('[data-anneal-action="start"]');
+      const stopAnnealBtnEl = root.querySelector('[data-anneal-action="stop"]');
+      const selectionCountEl = root.querySelector("[data-selection-count]");
+      const summaryCitiesEl = root.querySelector("[data-summary-cities]");
+      const summaryDistanceEl = root.querySelector("[data-summary-distance]");
+      const addRandomBtnEl = root.querySelector("[data-selection-add-random]");
+      const removeRandomBtnEl = root.querySelector("[data-selection-remove-random]");
+      const selectAllBtnEl = root.querySelector("[data-selection-all]");
+      const clearBtnEl = root.querySelector("[data-selection-clear]");
+      let activeDataset = problem.sampleDatasets[0];
+      let activeMode = "qubo";
+      let map = null;
+      let markers = null;
+      let routeLayer = null;
+      let markerRefs = [];
+      let selectedIndices = [];
+      let forceShowMatrices = false;
+      let activeSolverMode = "valid";
+      let annealRunning = false;
+      let annealTimer = null;
+      let annealSession = null;
+
+      function num(el, fallback) {
+        const value = Number(el.value);
+        return Number.isFinite(value) ? value : fallback;
+      }
+
+      function haversineKm(lat1, lon1, lat2, lon2) {
+        const toRad = (deg) => deg * Math.PI / 180;
+        const R = 6371;
+        const dLat = toRad(lat2 - lat1);
+        const dLon = toRad(lon2 - lon1);
+        const a =
+          Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+          Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+          Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        return 2 * R * Math.asin(Math.sqrt(a));
+      }
+
+      function buildDistanceMatrix(points) {
+        const n = points.length;
+        const D = Array.from({ length: n }, () => Array(n).fill(0));
+        for (let i = 0; i < n; i += 1) {
+          for (let j = i + 1; j < n; j += 1) {
+            const d = haversineKm(points[i][1], points[i][2], points[j][1], points[j][2]);
+            D[i][j] = d;
+            D[j][i] = d;
+          }
+        }
+        return D;
+      }
+
+      function buildQuboMatrix(D, A, B) {
+        const n = D.length;
+        const size = n * n;
+        const Q = Array.from({ length: size }, () => Array(size).fill(0));
+        const idx = (city, slot) => city * n + slot;
+
+        for (let slot = 0; slot < n; slot += 1) {
+          for (let city = 0; city < n; city += 1) {
+            Q[idx(city, slot)][idx(city, slot)] += -A;
+          }
+          for (let c1 = 0; c1 < n; c1 += 1) {
+            for (let c2 = c1 + 1; c2 < n; c2 += 1) {
+              const a = idx(c1, slot);
+              const b = idx(c2, slot);
+              Q[a][b] += A;
+              Q[b][a] += A;
+            }
+          }
+        }
+
+        for (let city = 0; city < n; city += 1) {
+          for (let slot = 0; slot < n; slot += 1) {
+            Q[idx(city, slot)][idx(city, slot)] += -A;
+          }
+          for (let t1 = 0; t1 < n; t1 += 1) {
+            for (let t2 = t1 + 1; t2 < n; t2 += 1) {
+              const a = idx(city, t1);
+              const b = idx(city, t2);
+              Q[a][b] += A;
+              Q[b][a] += A;
+            }
+          }
+        }
+
+        for (let slot = 0; slot < n; slot += 1) {
+          const next = (slot + 1) % n;
+          for (let i = 0; i < n; i += 1) {
+            for (let j = 0; j < n; j += 1) {
+              if (i === j) continue;
+              const a = idx(i, slot);
+              const b = idx(j, next);
+              if (a === b) {
+                Q[a][b] += B * D[i][j];
+              } else {
+                Q[a][b] += 0.5 * B * D[i][j];
+                Q[b][a] += 0.5 * B * D[i][j];
+              }
+            }
+          }
+        }
+
+        return Q;
+      }
+
+      function buildIsingFromQubo(Q) {
+        const size = Q.length;
+        const h = Array(size).fill(0);
+        const J = Array.from({ length: size }, () => Array(size).fill(0));
+        let offset = 0;
+
+        for (let i = 0; i < size; i += 1) {
+          offset += Q[i][i] / 2;
+          h[i] -= Q[i][i] / 2;
+        }
+
+        for (let i = 0; i < size; i += 1) {
+          for (let j = i + 1; j < size; j += 1) {
+            const q = Q[i][j];
+            offset += q / 2;
+            h[i] -= q / 2;
+            h[j] -= q / 2;
+            J[i][j] = q / 2;
+            J[j][i] = q / 2;
+          }
+        }
+
+        return { h, J, offset };
+      }
+
+      function labelsForVariables(n) {
+        const labels = [];
+        for (let city = 0; city < n; city += 1) {
+          for (let slot = 0; slot < n; slot += 1) {
+            labels.push(`x${city + 1},${slot + 1}`);
+          }
+        }
+        return labels;
+      }
+
+      function round2(value) {
+        return Math.round(value * 100) / 100;
+      }
+
+      function tableHtml(matrix, rowLabels, colLabels) {
+        const head = `<tr><th></th>${colLabels.map((label) => `<th>${label}</th>`).join("")}</tr>`;
+        const rows = matrix.map((row, idx) => (
+          `<tr><td>${rowLabels[idx]}</td>${row.map((value) => `<td>${round2(value).toFixed(2)}</td>`).join("")}</tr>`
+        )).join("");
+        return `<div class="matrix-scroll"><table class="matrix-table"><thead>${head}</thead><tbody>${rows}</tbody></table></div>`;
+      }
+
+      function vectorHtml(vector, labels) {
+        const rows = vector.map((value, idx) => `<tr><td>${labels[idx]}</td><td>${round2(value).toFixed(2)}</td></tr>`).join("");
+        return `<div class="matrix-scroll"><table class="matrix-table"><tbody>${rows}</tbody></table></div>`;
+      }
+
+      function csvEscape(value) {
+        const text = String(value);
+        if (/[",\n]/.test(text)) {
+          return `"${text.replace(/"/g, "\"\"")}"`;
+        }
+        return text;
+      }
+
+      function matrixCsv(matrix, rowLabels, colLabels) {
+        const lines = [];
+        lines.push(["", ...colLabels].map(csvEscape).join(","));
+        matrix.forEach((row, index) => {
+          lines.push([rowLabels[index], ...row.map((value) => round2(value).toFixed(2))].map(csvEscape).join(","));
+        });
+        return lines.join("\n");
+      }
+
+      function vectorCsv(vector, labels) {
+        return labels.map((label, index) => [label, round2(vector[index]).toFixed(2)].map(csvEscape).join(",")).join("\n");
+      }
+
+      function downloadCsv(filename, content) {
+        const blob = new Blob([content], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 0);
+      }
+
+      function stopAnnealLoop() {
+        annealRunning = false;
+        if (annealTimer) {
+          clearTimeout(annealTimer);
+          annealTimer = null;
+        }
+      }
+
+      function updateAnnealButtons() {
+        const annealMode = activeSolverMode === "anneal";
+        startAnnealBtnEl.disabled = !annealMode || annealRunning;
+        stopAnnealBtnEl.disabled = !annealMode || !annealRunning;
+        startAnnealBtnEl.setAttribute("aria-disabled", String(startAnnealBtnEl.disabled));
+        stopAnnealBtnEl.setAttribute("aria-disabled", String(stopAnnealBtnEl.disabled));
+      }
+
+      function updateSummary(citiesCount, distanceText) {
+        summaryCitiesEl.textContent = String(citiesCount);
+        summaryDistanceEl.textContent = distanceText;
+      }
+
+      function routeLength(order, D) {
+        const n = order.length;
+        if (n <= 1) return 0;
+        let total = 0;
+        for (let i = 0; i < n; i += 1) {
+          const a = order[i];
+          const b = order[(i + 1) % n];
+          total += D[a][b];
+        }
+        return total;
+      }
+
+      function nextPermutation(values) {
+        let i = values.length - 2;
+        while (i >= 0 && values[i] >= values[i + 1]) i -= 1;
+        if (i < 0) return false;
+        let j = values.length - 1;
+        while (values[j] <= values[i]) j -= 1;
+        [values[i], values[j]] = [values[j], values[i]];
+        let left = i + 1;
+        let right = values.length - 1;
+        while (left < right) {
+          [values[left], values[right]] = [values[right], values[left]];
+          left += 1;
+          right -= 1;
+        }
+        return true;
+      }
+
+      function buildAssignmentVector(order) {
+        const n = order.length;
+        const x = Array(n * n).fill(0);
+        order.forEach((city, slot) => {
+          x[city * n + slot] = 1;
+        });
+        return x;
+      }
+
+      function quboEnergy(Q, x) {
+        let energy = 0;
+        for (let i = 0; i < Q.length; i += 1) {
+          for (let j = 0; j < Q.length; j += 1) {
+            energy += x[i] * Q[i][j] * x[j];
+          }
+        }
+        return energy;
+      }
+
+      function nearestNeighborTour(D) {
+        const n = D.length;
+        const visited = Array(n).fill(false);
+        const order = [0];
+        visited[0] = true;
+        while (order.length < n) {
+          const current = order[order.length - 1];
+          let bestNext = -1;
+          let bestDistance = Infinity;
+          for (let candidate = 0; candidate < n; candidate += 1) {
+            if (visited[candidate] || candidate === current) continue;
+            if (D[current][candidate] < bestDistance) {
+              bestDistance = D[current][candidate];
+              bestNext = candidate;
+            }
+          }
+          if (bestNext < 0) break;
+          visited[bestNext] = true;
+          order.push(bestNext);
+        }
+        return order;
+      }
+
+      function twoOptTour(order, D) {
+        const n = order.length;
+        if (n < 4) return { order: [...order], improvements: 0 };
+        const best = [...order];
+        let improved = true;
+        let improvements = 0;
+
+        while (improved) {
+          improved = false;
+          for (let i = 1; i < n - 2; i += 1) {
+            for (let k = i + 1; k < n - 1; k += 1) {
+              const a = best[i - 1];
+              const b = best[i];
+              const c = best[k];
+              const d = best[(k + 1) % n];
+              const delta = (D[a][c] + D[b][d]) - (D[a][b] + D[c][d]);
+              if (delta < -1e-9) {
+                const reversed = best.slice(i, k + 1).reverse();
+                best.splice(i, k - i + 1, ...reversed);
+                improved = true;
+                improvements += 1;
+              }
+            }
+          }
+        }
+
+        return { order: best, improvements };
+      }
+
+      function solveTsp(points, D, A, B) {
+        const n = points.length;
+        if (n === 0) return null;
+        if (n === 1) {
+          return {
+            order: [0],
+            length: 0,
+            evaluations: 1,
+            quboEnergyValue: quboEnergy(buildQuboMatrix(D, A, B), [1]),
+            method: "degenerate"
+          };
+        }
+
+        if (n <= 9) {
+          const perm = Array.from({ length: n - 1 }, (_, index) => index + 1);
+          let bestOrder = [0, ...perm];
+          let bestLength = routeLength(bestOrder, D);
+          let evaluations = 1;
+
+          while (nextPermutation(perm)) {
+            const order = [0, ...perm];
+            const length = routeLength(order, D);
+            evaluations += 1;
+            if (length < bestLength) {
+              bestLength = length;
+              bestOrder = [...order];
+            }
+          }
+
+          const Q = buildQuboMatrix(D, A, B);
+          const x = buildAssignmentVector(bestOrder);
+          return {
+            order: bestOrder,
+            length: bestLength,
+            evaluations,
+            quboEnergyValue: quboEnergy(Q, x),
+            method: "brute-force"
+          };
+        }
+
+        const seedOrder = nearestNeighborTour(D);
+        const optimized = twoOptTour(seedOrder, D);
+        const Q = buildQuboMatrix(D, A, B);
+        const x = buildAssignmentVector(optimized.order);
+        return {
+          order: optimized.order,
+          length: routeLength(optimized.order, D),
+          evaluations: optimized.improvements,
+          quboEnergyValue: quboEnergy(Q, x),
+          method: "nearest-neighbor + 2-opt"
+        };
+      }
+
+      function shuffledPermutation(n) {
+        const perm = Array.from({ length: n }, (_, index) => index);
+        for (let i = n - 1; i > 1; i -= 1) {
+          const j = 1 + Math.floor(Math.random() * i);
+          [perm[i], perm[j]] = [perm[j], perm[i]];
+        }
+        return perm;
+      }
+
+      function evaluateTspQuboState(bits, rowSums, colSums, D, A, B) {
+        const n = D.length;
+        let energy = 0;
+        for (let slot = 0; slot < n; slot += 1) {
+          energy += A * (1 - colSums[slot]) * (1 - colSums[slot]);
+        }
+        for (let city = 0; city < n; city += 1) {
+          energy += A * (1 - rowSums[city]) * (1 - rowSums[city]);
+        }
+        for (let slot = 0; slot < n; slot += 1) {
+          const next = (slot + 1) % n;
+          for (let i = 0; i < n; i += 1) {
+            const xi = bits[i * n + slot];
+            if (!xi) continue;
+            for (let j = 0; j < n; j += 1) {
+              const xj = bits[j * n + next];
+              if (!xj) continue;
+              energy += B * D[i][j] * xi * xj;
+            }
+          }
+        }
+        return energy;
+      }
+
+      function annealTspQubo(points, D, A, B) {
+        const n = points.length;
+        if (n === 0) return null;
+        const size = n * n;
+        const idx = (city, slot) => city * n + slot;
+        const initialOrder = shuffledPermutation(n);
+        const bits = Array(size).fill(0);
+        const rowSums = Array(n).fill(0);
+        const colSums = Array(n).fill(0);
+        initialOrder.forEach((city, slot) => {
+          bits[idx(city, slot)] = 1;
+          rowSums[city] += 1;
+          colSums[slot] += 1;
+        });
+
+        let energy = evaluateTspQuboState(bits, rowSums, colSums, D, A, B);
+        let bestBits = bits.slice();
+        let bestRowSums = rowSums.slice();
+        let bestColSums = colSums.slice();
+        let bestEnergy = energy;
+        let bestValidBits = bits.slice();
+        let bestValidRowSums = rowSums.slice();
+        let bestValidColSums = colSums.slice();
+        let bestValidEnergy = energy;
+        const steps = Math.max(3000, Math.min(90000, n * n * 80));
+        const tStart = Math.max(5, A + B * 50);
+        const tEnd = 0.02;
+        let accepted = 0;
+
+        for (let step = 0; step < steps; step += 1) {
+          const city = Math.floor(Math.random() * n);
+          const slot = Math.floor(Math.random() * n);
+          const bitIndex = idx(city, slot);
+          const oldBit = bits[bitIndex];
+          const deltaBit = oldBit ? -1 : 1;
+          const oldCol = colSums[slot];
+          const oldRow = rowSums[city];
+          const newCol = oldCol + deltaBit;
+          const newRow = oldRow + deltaBit;
+          let delta =
+            A * ((1 - newCol) * (1 - newCol) - (1 - oldCol) * (1 - oldCol)) +
+            A * ((1 - newRow) * (1 - newRow) - (1 - oldRow) * (1 - oldRow));
+          const prev = (slot - 1 + n) % n;
+          const next = (slot + 1) % n;
+          let neighborCost = 0;
+          for (let j = 0; j < n; j += 1) {
+            neighborCost += D[city][j] * bits[idx(j, next)];
+            neighborCost += D[j][city] * bits[idx(j, prev)];
+          }
+          delta += B * deltaBit * neighborCost;
+
+          const ratio = step / Math.max(1, steps - 1);
+          const temperature = tStart * Math.pow(tEnd / tStart, ratio);
+          if (delta <= 0 || Math.random() < Math.exp(-delta / Math.max(temperature, 1e-9))) {
+            bits[bitIndex] = oldBit ? 0 : 1;
+            rowSums[city] = newRow;
+            colSums[slot] = newCol;
+            energy += delta;
+            accepted += 1;
+            if (energy < bestEnergy) {
+              bestEnergy = energy;
+              bestBits = bits.slice();
+              bestRowSums = rowSums.slice();
+              bestColSums = colSums.slice();
+            }
+            const currentValid = rowSums.every((sum) => sum === 1) && colSums.every((sum) => sum === 1);
+            if (currentValid && energy < bestValidEnergy) {
+              bestValidEnergy = energy;
+              bestValidBits = bits.slice();
+              bestValidRowSums = rowSums.slice();
+              bestValidColSums = colSums.slice();
+            }
+          }
+        }
+
+        const valid = bestRowSums.every((sum) => sum === 1) && bestColSums.every((sum) => sum === 1);
+        const hasValidTour = bestValidRowSums.every((sum) => sum === 1) && bestValidColSums.every((sum) => sum === 1);
+        let order = null;
+        let length = null;
+        if (valid) {
+          order = Array(n).fill(0);
+          for (let slot = 0; slot < n; slot += 1) {
+            for (let city = 0; city < n; city += 1) {
+              if (bestBits[idx(city, slot)] === 1) {
+                order[slot] = city;
+                break;
+              }
+            }
+          }
+          length = routeLength(order, D);
+        }
+        let bestValidOrder = null;
+        let bestValidLength = null;
+        if (hasValidTour) {
+          bestValidOrder = Array(n).fill(0);
+          for (let slot = 0; slot < n; slot += 1) {
+            for (let city = 0; city < n; city += 1) {
+              if (bestValidBits[idx(city, slot)] === 1) {
+                bestValidOrder[slot] = city;
+                break;
+              }
+            }
+          }
+          bestValidLength = routeLength(bestValidOrder, D);
+        }
+        const violation =
+          bestRowSums.reduce((sum, value) => sum + Math.abs(value - 1), 0) +
+          bestColSums.reduce((sum, value) => sum + Math.abs(value - 1), 0);
+
+        return {
+          bits: bestBits,
+          rowSums: bestRowSums,
+          colSums: bestColSums,
+          valid,
+          order,
+          length,
+          energy: bestEnergy,
+          bestValidOrder,
+          bestValidLength,
+          bestValidEnergy,
+          steps,
+          accepted,
+          violation,
+          method: "simulated annealing"
+        };
+      }
+
+      function startAnnealLoop(points, D, A, B) {
+        if (!points.length) return;
+        stopAnnealLoop();
+        annealRunning = true;
+        annealSession = {
+          startedAt: performance.now(),
+          runs: 0,
+          bestEnergy: Infinity,
+          bestOverall: null,
+          bestValidLength: Infinity,
+          bestValid: null,
+          points,
+          D,
+          A,
+          B
+        };
+        updateAnnealButtons();
+
+        function tick() {
+          if (!annealRunning || !annealSession) return;
+          const result = annealTspQubo(annealSession.points, annealSession.D, annealSession.A, annealSession.B);
+          annealSession.runs += 1;
+          if (result.energy < annealSession.bestEnergy) {
+            annealSession.bestEnergy = result.energy;
+            annealSession.bestOverall = result;
+          }
+          if (result.bestValidOrder && result.bestValidLength < annealSession.bestValidLength) {
+            annealSession.bestValidLength = result.bestValidLength;
+            annealSession.bestValid = result;
+          }
+          renderHamiltonian();
+          annealTimer = setTimeout(tick, 0);
+        }
+
+        tick();
+      }
+
+      function updateRouteOverlay(points, solution) {
+        if (!map) return;
+        if (routeLayer) {
+          routeLayer.remove();
+          routeLayer = null;
+        }
+        if (!solution || !solution.order || solution.order.length === 0) return;
+        const latlngs = solution.order.map((index) => [points[index][1], points[index][2]]);
+        if (solution.order.length > 1) {
+          latlngs.push([points[solution.order[0]][1], points[solution.order[0]][2]]);
+        }
+        routeLayer = L.polyline(latlngs, {
+          color: "#ff8f6b",
+          weight: 3,
+          opacity: 0.9
+        }).addTo(map);
+      }
+
+      function renderSolverOutput(points, D, A, B) {
+        if (activeSolverMode === "anneal") {
+          const annealed = annealSession ? (annealSession.bestOverall || annealTspQubo(points, D, A, B)) : annealTspQubo(points, D, A, B);
+          if (!annealed) {
+            solverOutputEl.innerHTML = "";
+            updateRouteOverlay(points, null);
+            updateSummary(points.length, "--");
+            return;
+          }
+          const cityLabels = points.map((item, index) => `${index + 1}: ${item[0]}`);
+          const rowSummary = annealed.rowSums.map((sum, index) => `${index + 1}:${sum}`).join(", ");
+          const colSummary = annealed.colSums.map((sum, index) => `${index + 1}:${sum}`).join(", ");
+          let routeBlock = '<p class="matrix-note">No valid permutation was decoded from the best-energy bitstring.</p>';
+          let routeSolution = null;
+          const validSource = annealSession && annealSession.bestValid ? annealSession.bestValid : annealed;
+          if (validSource.bestValidOrder) {
+            const routeLabels = validSource.bestValidOrder.map((index) => cityLabels[index]);
+            if (validSource.bestValidOrder.length > 1) {
+              routeLabels.push(cityLabels[validSource.bestValidOrder[0]]);
+            }
+            routeBlock = `
+              <div class="distance-highlight">Shortest valid tour distance: ${round2(validSource.bestValidLength).toFixed(2)} km</div>
+              <p class="matrix-note">Best valid tour found during annealing. Route length: ${round2(validSource.bestValidLength).toFixed(2)} km.</p>
+              <p class="matrix-note">Valid-tour QUBO energy: ${round2(validSource.bestValidEnergy).toFixed(2)}</p>
+              <div class="solver-route">${routeLabels.join(" -> ")}</div>
+            `;
+            routeSolution = { order: validSource.bestValidOrder };
+            updateSummary(points.length, `${round2(validSource.bestValidLength).toFixed(2)} km`);
+          } else {
+            updateSummary(points.length, "--");
+          }
+          const elapsedMs = annealRunning && annealSession ? performance.now() - annealSession.startedAt : 0;
+          solverOutputEl.innerHTML = `
+            <article class="matrix-card">
+              <h4>Tour Solver</h4>
+              <p class="matrix-note">Mode: QUBO annealing. This solver minimizes the TSP QUBO directly, so changing A can change the result.</p>
+              <p class="matrix-note">Method: ${annealed.method}. Steps per run: ${annealed.steps}. Accepted flips in current best-energy run: ${annealed.accepted}.</p>
+              <p class="matrix-note">Status: ${annealRunning ? "running" : "single run"}. Runs: ${annealRunning && annealSession ? annealSession.runs : 1}. Elapsed: ${(elapsedMs / 1000).toFixed(1)} s.</p>
+              <p class="matrix-note">Best QUBO energy: ${round2(annealed.energy).toFixed(2)}. Constraint violation score: ${annealed.violation}.</p>
+              <p class="matrix-note">City sums: ${rowSummary}</p>
+              <p class="matrix-note">Slot sums: ${colSummary}</p>
+              ${routeBlock}
+            </article>
+          `;
+          updateRouteOverlay(points, routeSolution);
+          return;
+        }
+
+        const solution = solveTsp(points, D, A, B);
+        if (!solution) {
+          solverOutputEl.innerHTML = "";
+          updateRouteOverlay(points, null);
+          updateSummary(points.length, "--");
+          return;
+        }
+        const cityLabels = points.map((item, index) => `${index + 1}: ${item[0]}`);
+        const routeLabels = solution.order.map((index) => cityLabels[index]);
+        if (solution.order.length > 1) {
+          routeLabels.push(cityLabels[solution.order[0]]);
+        }
+        solverOutputEl.innerHTML = `
+          <article class="matrix-card">
+            <h4>Tour Solver</h4>
+            <p class="matrix-note">Mode: Valid tour solver. Start city fixed to 1 to remove equivalent rotations.</p>
+            <p class="matrix-note">Method: ${solution.method}.</p>
+            <div class="distance-highlight">Shortest tour distance: ${round2(solution.length).toFixed(2)} km</div>
+            <p class="matrix-note">${solution.method === "brute-force" ? "Tours checked" : "2-opt improvements"}: ${solution.evaluations}. Best tour length: ${round2(solution.length).toFixed(2)} km.</p>
+            <p class="matrix-note">QUBO energy of the best valid tour: ${round2(solution.quboEnergyValue).toFixed(2)}</p>
+            <div class="solver-route">${routeLabels.join(" -> ")}</div>
+          </article>
+        `;
+        updateRouteOverlay(points, solution);
+        updateSummary(points.length, `${round2(solution.length).toFixed(2)} km`);
+      }
+
+      function renderNumericMatrices(points, D, A, B) {
+        const k = points.length;
+        if (k < 1) {
+          matrixOutputEl.innerHTML = `
+            <article class="matrix-card">
+              <h4>Numeric Hamiltonian</h4>
+              <p class="matrix-note">Select at least 1 city on the map to build numeric matrices.</p>
+            </article>
+          `;
+          return;
+        }
+        const labels = labelsForVariables(k);
+        const cityLabels = points.map((item, index) => `${index + 1}: ${item[0]}`);
+        const qubo = buildQuboMatrix(D, A, B);
+        const ising = buildIsingFromQubo(qubo);
+        const datasetSlug = activeDataset.key.replace(/[^a-z0-9-]+/gi, "-");
+
+        if (k > 6 && !forceShowMatrices) {
+          matrixOutputEl.innerHTML = `
+            <article class="matrix-card">
+              <h4>Numeric Hamiltonian</h4>
+              <p class="matrix-note">Matrices are auto-hidden for more than 6 selected cities because the tables get large.</p>
+              <div class="action-row">
+                <button type="button" class="action-btn" data-action="show-matrices">Show matrices</button>
+                <button type="button" class="action-btn" data-action="download-distance">Download Distance CSV</button>
+                <button type="button" class="action-btn" data-action="${activeMode === "qubo" ? "download-qubo" : "download-ising"}">${activeMode === "qubo" ? "Download QUBO CSV" : "Download Ising CSVs"}</button>
+              </div>
+            </article>
+          `;
+          matrixOutputEl.querySelector('[data-action="show-matrices"]').addEventListener("click", () => {
+            forceShowMatrices = true;
+            renderHamiltonian();
+          });
+          matrixOutputEl.querySelector('[data-action="download-distance"]').addEventListener("click", () => {
+            downloadCsv(`tsp-distance-${datasetSlug}-${k}.csv`, matrixCsv(D, cityLabels, cityLabels));
+          });
+          matrixOutputEl.querySelector(`[data-action="${activeMode === "qubo" ? "download-qubo" : "download-ising"}"]`).addEventListener("click", () => {
+            if (activeMode === "qubo") {
+              downloadCsv(`tsp-qubo-${datasetSlug}-${k}.csv`, matrixCsv(qubo, labels, labels));
+            } else {
+              downloadCsv(`tsp-ising-h-${datasetSlug}-${k}.csv`, vectorCsv(ising.h, labels));
+              downloadCsv(`tsp-ising-j-${datasetSlug}-${k}.csv`, matrixCsv(ising.J, labels, labels));
+            }
+          });
+          return;
+        }
+
+        if (activeMode === "qubo") {
+          matrixOutputEl.innerHTML = `
+            <article class="matrix-card">
+              <h4>Distance Matrix D (${k} cities)</h4>
+              <p class="matrix-note">Cities are indexed by selection order: ${cityLabels.join(", ")}.</p>
+              <div class="action-row">
+                <button type="button" class="action-btn" data-action="download-distance">Download CSV</button>
+              </div>
+              ${tableHtml(D, cityLabels, cityLabels)}
+            </article>
+            <article class="matrix-card">
+              <h4>QUBO Matrix Q (${labels.length} x ${labels.length})</h4>
+              <p class="matrix-note">Variables are ordered as x(city, slot), using the currently selected ${k} cities.</p>
+              <div class="action-row">
+                <button type="button" class="action-btn" data-action="download-qubo">Download CSV</button>
+              </div>
+              ${tableHtml(qubo, labels, labels)}
+            </article>
+          `;
+          matrixOutputEl.querySelector('[data-action="download-distance"]').addEventListener("click", () => {
+            downloadCsv(`tsp-distance-${datasetSlug}-${k}.csv`, matrixCsv(D, cityLabels, cityLabels));
+          });
+          matrixOutputEl.querySelector('[data-action="download-qubo"]').addEventListener("click", () => {
+            downloadCsv(`tsp-qubo-${datasetSlug}-${k}.csv`, matrixCsv(qubo, labels, labels));
+          });
+          return;
+        }
+
+        matrixOutputEl.innerHTML = `
+          <article class="matrix-card">
+            <h4>Distance Matrix D (${k} cities)</h4>
+            <p class="matrix-note">Cities are indexed by selection order: ${cityLabels.join(", ")}.</p>
+            <div class="action-row">
+              <button type="button" class="action-btn" data-action="download-distance">Download CSV</button>
+            </div>
+            ${tableHtml(D, cityLabels, cityLabels)}
+          </article>
+          <article class="matrix-card">
+            <h4>Ising Vector h (${labels.length})</h4>
+            <div class="action-row">
+              <button type="button" class="action-btn" data-action="download-ising-h">Download CSV</button>
+            </div>
+            ${vectorHtml(ising.h, labels)}
+          </article>
+          <article class="matrix-card">
+            <h4>Ising Matrix J (${labels.length} x ${labels.length})</h4>
+            <p class="matrix-note">Offset = ${round2(ising.offset).toFixed(2)}</p>
+            <div class="action-row">
+              <button type="button" class="action-btn" data-action="download-ising-j">Download CSV</button>
+            </div>
+            ${tableHtml(ising.J, labels, labels)}
+          </article>
+        `;
+        matrixOutputEl.querySelector('[data-action="download-distance"]').addEventListener("click", () => {
+          downloadCsv(`tsp-distance-${datasetSlug}-${k}.csv`, matrixCsv(D, cityLabels, cityLabels));
+        });
+        matrixOutputEl.querySelector('[data-action="download-ising-h"]').addEventListener("click", () => {
+          downloadCsv(`tsp-ising-h-${datasetSlug}-${k}.csv`, vectorCsv(ising.h, labels));
+        });
+        matrixOutputEl.querySelector('[data-action="download-ising-j"]').addEventListener("click", () => {
+          downloadCsv(`tsp-ising-j-${datasetSlug}-${k}.csv`, matrixCsv(ising.J, labels, labels));
+        });
+      }
+
+      function renderHamiltonian() {
+        const n = selectedIndices.length;
+        selectionCountEl.textContent = `Selected: ${n} cities`;
+        updateAnnealButtons();
+        if (n < 1) {
+          updateSummary(0, "--");
+          solverOutputEl.innerHTML = `
+            <article class="matrix-card">
+              <h4>Tour Solver</h4>
+              <p class="matrix-note">Select at least 1 city on the map to search for a tour.</p>
+            </article>
+          `;
+          matrixOutputEl.innerHTML = `
+            <article class="matrix-card">
+              <h4>Numeric Hamiltonian</h4>
+              <p class="matrix-note">Select at least 1 city on the map to build numeric matrices.</p>
+            </article>
+          `;
+          updateRouteOverlay([], null);
+          return;
+        }
+        const points = selectedIndices.map((index) => activeDataset.mapPoints[index]);
+        const D = buildDistanceMatrix(points);
+        const A = num(inputAEl, 8);
+        const B = num(inputBEl, 1);
+        renderSolverOutput(points, D, A, B);
+        renderNumericMatrices(points, D, A, B);
+      }
+
+      function ensureMap() {
+        if (!window.L || map) return;
+        map = L.map(mapEl, { zoomControl: true, scrollWheelZoom: false });
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          maxZoom: 19,
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+        markers = L.layerGroup().addTo(map);
+      }
+
+      function updateMarkerStyles() {
+        markerRefs.forEach((marker, index) => {
+          const selected = selectedIndices.includes(index);
+          marker.setStyle({
+            radius: selected ? 8 : 5,
+            color: selected ? "#ffd071" : "#73d1ff",
+            weight: selected ? 2 : 1,
+            fillColor: selected ? "#ff8f6b" : "#ffd071",
+            fillOpacity: selected ? 0.96 : 0.88
+          });
+        });
+        selectionCountEl.textContent = `Selected: ${selectedIndices.length} cities`;
+      }
+
+      function randomSampleIndices(total, count) {
+        const indices = Array.from({ length: total }, (_, index) => index);
+        for (let i = indices.length - 1; i > 0; i -= 1) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [indices[i], indices[j]] = [indices[j], indices[i]];
+        }
+        return indices.slice(0, Math.min(count, total));
+      }
+
+      function pickRandom(array) {
+        if (!array.length) return null;
+        return array[Math.floor(Math.random() * array.length)];
+      }
+
+      function renderDataset(datasetKey) {
+        stopAnnealLoop();
+        annealSession = null;
+        activeDataset = problem.sampleDatasets.find((item) => item.key === datasetKey) || problem.sampleDatasets[0];
+        selectedIndices = randomSampleIndices(activeDataset.mapPoints.length, 10);
+        forceShowMatrices = false;
+        toolbar.querySelectorAll(".dataset-btn").forEach((button) => {
+          const active = button.dataset.datasetKey === activeDataset.key;
+          button.classList.toggle("active", active);
+          button.setAttribute("aria-pressed", active ? "true" : "false");
+        });
+        copyEl.textContent = activeDataset.copy;
+        metaEl.textContent = activeDataset.meta;
+        renderHamiltonian();
+
+        ensureMap();
+        if (map && markers) {
+          markers.clearLayers();
+          markerRefs = [];
+          activeDataset.mapPoints.forEach(([, lat, lng], index) => {
+            const marker = L.circleMarker([lat, lng], {
+              radius: 5,
+              color: "#73d1ff",
+              weight: 1,
+              fillColor: "#ffd071",
+              fillOpacity: 0.88
+            }).addTo(markers);
+            marker.on("click", () => {
+              stopAnnealLoop();
+              annealSession = null;
+              const pos = selectedIndices.indexOf(index);
+              if (pos >= 0) {
+                selectedIndices.splice(pos, 1);
+              } else {
+                selectedIndices.push(index);
+              }
+              forceShowMatrices = false;
+              updateMarkerStyles();
+              renderHamiltonian();
+            });
+            markerRefs.push(marker);
+          });
+          map.setView(activeDataset.mapCenter, activeDataset.mapZoom);
+          setTimeout(() => map.invalidateSize(), 0);
+          captionEl.innerHTML = 'Map tiles by <a href="https://www.openstreetmap.org/" target="_blank" rel="noopener noreferrer">OpenStreetMap</a>.';
+          updateMarkerStyles();
+        } else {
+          captionEl.textContent = "Map library failed to load.";
+        }
+      }
+
+      problem.sampleDatasets.forEach((dataset, index) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "dataset-btn";
+        button.dataset.datasetKey = dataset.key;
+        button.textContent = dataset.label;
+        button.setAttribute("aria-pressed", index === 0 ? "true" : "false");
+        button.addEventListener("click", () => renderDataset(dataset.key));
+        toolbar.appendChild(button);
+      });
+
+      inputAEl.addEventListener("input", () => {
+        stopAnnealLoop();
+        annealSession = null;
+        renderHamiltonian();
+      });
+      inputBEl.addEventListener("input", () => {
+        stopAnnealLoop();
+        annealSession = null;
+        renderHamiltonian();
+      });
+      solverButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+          if (!button.dataset.solverMode) return;
+          activeSolverMode = button.dataset.solverMode;
+          if (activeSolverMode !== "anneal") {
+            stopAnnealLoop();
+            annealSession = null;
+          }
+          solverButtons.forEach((item) => {
+            const active = item.dataset.solverMode === activeSolverMode;
+            item.classList.toggle("active", active);
+            item.setAttribute("aria-pressed", active ? "true" : "false");
+          });
+          updateAnnealButtons();
+          renderHamiltonian();
+        });
+      });
+      startAnnealBtnEl.addEventListener("click", () => {
+        const points = selectedIndices.map((index) => activeDataset.mapPoints[index]);
+        if (!points.length) return;
+        const D = buildDistanceMatrix(points);
+        const A = num(inputAEl, 8);
+        const B = num(inputBEl, 1);
+        activeSolverMode = "anneal";
+        solverButtons.forEach((item) => {
+          const active = item.dataset.solverMode === activeSolverMode;
+          if (item.dataset.solverMode) {
+            item.classList.toggle("active", active);
+            item.setAttribute("aria-pressed", active ? "true" : "false");
+          }
+        });
+        startAnnealLoop(points, D, A, B);
+        renderHamiltonian();
+      });
+      stopAnnealBtnEl.addEventListener("click", () => {
+        stopAnnealLoop();
+        renderHamiltonian();
+      });
+      clearBtnEl.addEventListener("click", () => {
+        stopAnnealLoop();
+        annealSession = null;
+        selectedIndices = [];
+        forceShowMatrices = false;
+        updateMarkerStyles();
+        renderHamiltonian();
+      });
+      addRandomBtnEl.addEventListener("click", () => {
+        stopAnnealLoop();
+        annealSession = null;
+        const available = activeDataset.mapPoints
+          .map((_, index) => index)
+          .filter((index) => !selectedIndices.includes(index));
+        const picked = pickRandom(available);
+        if (picked === null) return;
+        selectedIndices.push(picked);
+        forceShowMatrices = false;
+        updateMarkerStyles();
+        renderHamiltonian();
+      });
+      removeRandomBtnEl.addEventListener("click", () => {
+        stopAnnealLoop();
+        annealSession = null;
+        const picked = pickRandom(selectedIndices);
+        if (picked === null) return;
+        selectedIndices = selectedIndices.filter((index) => index !== picked);
+        forceShowMatrices = false;
+        updateMarkerStyles();
+        renderHamiltonian();
+      });
+      selectAllBtnEl.addEventListener("click", () => {
+        stopAnnealLoop();
+        annealSession = null;
+        selectedIndices = activeDataset.mapPoints.map((_, index) => index);
+        forceShowMatrices = false;
+        updateMarkerStyles();
+        renderHamiltonian();
+      });
+      root.addEventListener("sample:formula-mode", (event) => {
+        activeMode = event.detail.mode;
+        renderHamiltonian();
+      });
+
+      renderDataset(problem.sampleDatasets[0].key);
+    }
+
+    function hydrateFormulaSection(section, problem) {
+      const root = section.querySelector(`[data-formula-root="${problem.key}"]`);
+      const buttons = root.querySelectorAll(".formula-btn");
+      const cards = root.querySelectorAll(".formula-card");
+
+      function renderFormula(mode) {
+        buttons.forEach((button) => {
+          const active = button.dataset.formulaMode === mode;
+          button.classList.toggle("active", active);
+          button.setAttribute("aria-pressed", active ? "true" : "false");
+        });
+        cards.forEach((card) => {
+          card.classList.toggle("hidden", card.dataset.formulaMode !== mode);
+        });
+        const sampleRoot = section.querySelector(`[data-sample-root="${problem.key}"]`);
+        if (sampleRoot) {
+          sampleRoot.dispatchEvent(new CustomEvent("sample:formula-mode", { detail: { mode } }));
+        }
+      }
+
+      buttons.forEach((button) => {
+        button.addEventListener("click", () => renderFormula(button.dataset.formulaMode));
+      });
+      renderFormula("qubo");
+    }
+
+    problems.forEach((problem) => {
+      const section = document.createElement("section");
+      section.className = "problem-section";
+      section.id = problem.key;
+      section.innerHTML = `
+        <main class="content">
+          <section class="formula-grid" data-formula-root="${problem.key}">
+            <div class="formula-toolbar">
+              <button type="button" class="formula-btn active" data-formula-mode="qubo" aria-pressed="true">QUBO</button>
+              <button type="button" class="formula-btn" data-formula-mode="ising" aria-pressed="false">Ising</button>
+            </div>
+            <article class="formula-card qubo" data-formula-mode="qubo">
+              <div class="formula-tag">QUBO Hamiltonian</div>
+              <p>${problem.quboLead}</p>
+              <div class="math-block">${problem.qubo}</div>
+            </article>
+            <article class="formula-card ising hidden" data-formula-mode="ising">
+              <div class="formula-tag">Ising Hamiltonian</div>
+              <p>${problem.isingLead}</p>
+              <div class="math-block">${problem.ising}</div>
+            </article>
+          </section>
+
+          <section class="panel-grid">
+            <article class="note-card">
+              <h3>Interpretation</h3>
+              <ul class="interpretation-list"></ul>
+            </article>
+            <article class="note-card">
+              <h3>Implementation Notes</h3>
+              <ul class="implementation-list"></ul>
+            </article>
+          </section>
+          ${buildSampleSection(problem)}
+        </main>
+      `;
+
+      renderList(problem.interpretation, section.querySelector(".interpretation-list"));
+      renderList(problem.implementation, section.querySelector(".implementation-list"));
+      hydrateSampleSection(section, problem);
+      hydrateFormulaSection(section, problem);
+      problemListEl.appendChild(section);
+    });
+
+    safeRenderMath(document.body);
+  </script>
+</body>
+</html>
