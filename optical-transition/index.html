@@ -498,9 +498,36 @@
       letter-spacing: 0.05em;
     }
 
+    .rate-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
     .rate-results {
       display: grid;
       gap: 12px;
+    }
+
+    .rate-results-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 0.88fr) minmax(360px, 1.12fr);
+      gap: 12px;
+      align-items: start;
+    }
+
+    .rate-time-column {
+      display: grid;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .rate-spectrum-column {
+      display: grid;
+      gap: 12px;
+      min-width: 0;
     }
 
     .rate-cards {
@@ -585,6 +612,20 @@
     }
     .rate-canvas-wrap {
       position: relative;
+    }
+
+    .rate-canvas-wrap canvas,
+    .rate-spectrum-canvas {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    .rate-spectrum-controls {
+      display: grid;
+      grid-template-columns: minmax(140px, 220px);
+      gap: 10px 12px;
+      align-items: end;
     }
     .rate-tooltip {
       position: absolute;
@@ -1047,8 +1088,10 @@
       .preview-grid { grid-template-columns: 1fr; }
       .diagram-split { grid-template-columns: 1fr; }
       .rate-grid { grid-template-columns: 1fr; }
+      .rate-results-layout { grid-template-columns: 1fr; }
       .rate-cards { grid-template-columns: 1fr; }
       .rate-controls-grid { grid-template-columns: 1fr; }
+      .rate-spectrum-controls { grid-template-columns: 1fr; }
       #orbitalPreview, #finalOrbitalPreview { width: 100%; }
     }
   </style>
@@ -1057,7 +1100,7 @@
   <main class="wrap">
     <section class="card">
       <div class="topbar">
-        <div class="version">v0.0.2</div>
+        <div class="version">v0.0.3</div>
       </div>
       <h1>Single-Electron Optical Transition Playground</h1>
       <div class="top-panels">
@@ -1394,26 +1437,51 @@
           </div>
         </div>
         <div class="rate-results">
-          <div class="box rate-controls">
-            <div class="transition-label">Time Evolution</div>
-            <div class="rate-controls-grid">
-              <div>
-                <label for="timeMax">t max (ns)</label>
-                <input id="timeMax" type="number" min="0.1" step="0.1" value="1000.0">
+          <div class="rate-results-layout">
+            <div class="rate-time-column">
+              <div class="box rate-controls">
+                <div class="rate-head">
+                  <div class="transition-label">Time Evolution</div>
+                  <button id="downloadRateTimeCsv" type="button" class="state-btn">Download CSV</button>
+                </div>
+                <div class="rate-controls-grid">
+                  <div>
+                    <label for="timeMax">t max (ns)</label>
+                    <input id="timeMax" type="number" min="0.1" step="0.1" value="1000.0">
+                  </div>
+                  <div>
+                    <label for="timeSteps">Steps</label>
+                    <input id="timeSteps" type="number" min="20" step="10" value="500">
+                  </div>
+                </div>
+                <div class="rate-canvas-wrap">
+                  <canvas id="rateTimeCanvas" width="900" height="320" role="img" aria-label="Rate-equation time evolution"></canvas>
+                  <div id="rateTimeTooltip" class="rate-tooltip"></div>
+                </div>
               </div>
-              <div>
-                <label for="timeSteps">Steps</label>
-                <input id="timeSteps" type="number" min="20" step="10" value="500">
+              <div class="box rate-controls">
+                <div class="rate-head">
+                  <div class="transition-label">PL(t)</div>
+                  <button id="downloadPlTimeCsv" type="button" class="state-btn">Download CSV</button>
+                </div>
+                <canvas id="ratePlCanvas" width="900" height="220" role="img" aria-label="Photoluminescence time evolution"></canvas>
               </div>
             </div>
-            <div class="rate-canvas-wrap">
-              <canvas id="rateTimeCanvas" width="1080" height="360" role="img" aria-label="Rate-equation time evolution"></canvas>
-              <div id="rateTimeTooltip" class="rate-tooltip"></div>
+            <div class="rate-spectrum-column">
+              <div class="box rate-controls">
+                <div class="rate-head">
+                  <div class="transition-label">PL Spectrum</div>
+                  <button id="downloadPlSpectrumCsv" type="button" class="state-btn">Download CSV</button>
+                </div>
+                <div class="rate-spectrum-controls">
+                  <div>
+                    <label for="plSpectrumWidth">PL Width (eV)</label>
+                    <input id="plSpectrumWidth" type="number" min="0.0001" step="0.001" value="0.030">
+                  </div>
+                </div>
+                <canvas id="rateSpectrumCanvas" class="rate-spectrum-canvas" width="1080" height="564" role="img" aria-label="Polarization-resolved photoluminescence spectrum"></canvas>
+              </div>
             </div>
-          </div>
-          <div class="box rate-controls">
-            <div class="transition-label">PL(t)</div>
-            <canvas id="ratePlCanvas" width="1080" height="220" role="img" aria-label="Photoluminescence time evolution"></canvas>
           </div>
         </div>
       </div>
@@ -1492,6 +1560,12 @@
     const rateTimeTooltipEl = document.getElementById("rateTimeTooltip");
     const ratePlCanvasEl = document.getElementById("ratePlCanvas");
     const ratePlCtx = ratePlCanvasEl.getContext("2d");
+    const downloadRateTimeCsvEl = document.getElementById("downloadRateTimeCsv");
+    const downloadPlTimeCsvEl = document.getElementById("downloadPlTimeCsv");
+    const downloadPlSpectrumCsvEl = document.getElementById("downloadPlSpectrumCsv");
+    const plSpectrumWidthEl = document.getElementById("plSpectrumWidth");
+    const rateSpectrumCanvasEl = document.getElementById("rateSpectrumCanvas");
+    const rateSpectrumCtx = rateSpectrumCanvasEl.getContext("2d");
     const delta2WrapEls = Array.from(document.querySelectorAll(".delta2-wrap"));
     const nEl = nInitialEl;
     const lEl = lInitialEl;
@@ -1502,11 +1576,15 @@
     const DEFAULT_VIEW_ZOOM = 0.84;
     const MU_B_EV_T = 5.788381806e-5;
     const K_B_EV_K = 8.617333262145e-5;
+    const HC_EV_NM = 1239.841984;
     const RELAXATION_REFERENCE_EV = 0.01;
     const GENERIC_CF_SOURCE_RHO = 0.65;
     const GENERIC_CF_THETA_STEPS = 40;
     const GENERIC_CF_PHI_STEPS = 80;
     let latestRateSeriesPlot = null;
+    let latestRateEquationData = null;
+    let latestRateIntegrated = null;
+    let latestPlSpectrumData = null;
     const GENERIC_CF_BASE_CACHE = new Map();
     const orbitalView = {
       name: null,
@@ -2825,6 +2903,18 @@
       URL.revokeObjectURL(url);
     }
 
+    function downloadCsvFile(filename, csv) {
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
     function renderTransitionSummary() {
       const summary = computeSelectedTransitionStrength();
       const matrixData = buildTransitionMatrixData();
@@ -3070,34 +3160,61 @@
       };
     }
 
-    function applyGeneratorUniformization(generator, vec, dt) {
+    function multiplySquareMatrices(A, B) {
+      const n = A.length;
+      const out = Array.from({ length: n }, () => new Array(n).fill(0));
+      for (let i = 0; i < n; i += 1) {
+        for (let k = 0; k < n; k += 1) {
+          const aik = A[i][k];
+          if (Math.abs(aik) <= 1e-18) continue;
+          for (let j = 0; j < n; j += 1) {
+            out[i][j] += aik * B[k][j];
+          }
+        }
+      }
+      return out;
+    }
+
+    function applySquareMatrix(A, vec) {
+      const n = A.length;
+      const out = new Array(n).fill(0);
+      for (let i = 0; i < n; i += 1) {
+        let sum = 0;
+        for (let j = 0; j < n; j += 1) sum += A[i][j] * vec[j];
+        out[i] = sum;
+      }
+      return out;
+    }
+
+    function buildGeneratorPropagator(generator, dt) {
       const nStates = generator.length;
       const q = Math.max(1e-12, ...generator.map((row, idx) => Math.max(0, -(row[idx] || 0))));
-      if (!(q > 0) || !(dt > 0)) return [...vec];
+      if (!(q > 0) || !(dt > 0)) {
+        return Array.from({ length: nStates }, (_, i) => (
+          Array.from({ length: nStates }, (_, j) => (i === j ? 1 : 0))
+        ));
+      }
       const lambda = q * dt;
       const transition = Array.from({ length: nStates }, (_, i) => (
         Array.from({ length: nStates }, (_, j) => (i === j ? 1 : 0) + (generator[i][j] || 0) / q)
       ));
-      const applyTransition = (input) => {
-        const out = new Array(nStates).fill(0);
-        for (let i = 0; i < nStates; i += 1) {
-          let sum = 0;
-          for (let j = 0; j < nStates; j += 1) sum += transition[i][j] * input[j];
-          out[i] = sum;
-        }
-        return out;
-      };
-      let term = [...vec];
+      let transitionPower = Array.from({ length: nStates }, (_, i) => (
+        Array.from({ length: nStates }, (_, j) => (i === j ? 1 : 0))
+      ));
       let poissonWeight = Math.exp(-lambda);
-      let accum = term.map((value) => poissonWeight * value);
+      let propagator = transitionPower.map((row) => row.map((value) => value * poissonWeight));
       const maxIter = Math.max(64, Math.min(4096, Math.ceil(lambda + 12 * Math.sqrt(lambda + 1) + 32)));
       for (let k = 1; k < maxIter; k += 1) {
-        term = applyTransition(term);
+        transitionPower = multiplySquareMatrices(transition, transitionPower);
         poissonWeight *= lambda / k;
-        for (let i = 0; i < nStates; i += 1) accum[i] += poissonWeight * term[i];
+        for (let i = 0; i < nStates; i += 1) {
+          for (let j = 0; j < nStates; j += 1) {
+            propagator[i][j] += poissonWeight * transitionPower[i][j];
+          }
+        }
         if (poissonWeight < 1e-12 && k > lambda) break;
       }
-      return accum;
+      return propagator;
     }
 
     function integrateRateEquation(data) {
@@ -3126,8 +3243,9 @@
       const pl = [data.radiativePairs.reduce((sum, pair) => sum + pair.rate * current[pair.from], 0)];
       const plSigmaPlus = [data.radiativePairs.reduce((sum, pair) => sum + pair.sigmaPlusRate * current[pair.from], 0)];
       const plSigmaMinus = [data.radiativePairs.reduce((sum, pair) => sum + pair.sigmaMinusRate * current[pair.from], 0)];
+      const propagator = buildGeneratorPropagator(data.generator, dt);
       for (let step = 1; step <= steps; step += 1) {
-        current = applyGeneratorUniformization(data.generator, current, dt);
+        current = applySquareMatrix(propagator, current);
         current = current.map((v) => Math.max(0, v));
         const norm = current.reduce((s, v) => s + v, 0) || 1;
         current = current.map((v) => v / norm);
@@ -3198,6 +3316,8 @@
       const ctx = rateTimeCtx;
       const canvas = rateTimeCanvasEl;
       if (!data) {
+        latestRateEquationData = null;
+        latestRateIntegrated = null;
         latestRateSeriesPlot = null;
         renderScalarSeries(ctx, canvas, null, "Population");
         renderPlTimeSeries(null);
@@ -3205,10 +3325,13 @@
       }
       const integrated = integratedOverride || integrateRateEquation(data);
       if (!integrated) return;
+      latestRateEquationData = data;
+      latestRateIntegrated = integrated;
       const base = renderScalarSeries(ctx, canvas, { times: integrated.times, series: integrated.series }, "Population");
       const { times, series } = integrated;
       const { xAt, yAt, pad, w } = base;
       latestRateSeriesPlot = {
+        data,
         times,
         series,
         states: data.states.map((state, i) => ({ ...state, color: getRateSeriesColor(state, i, data.states.length) })),
@@ -3265,6 +3388,7 @@
       const canvas = ratePlCanvasEl;
       if (!integrated) {
         renderScalarSeries(ctx, canvas, null, "PL(t)");
+        renderPlSpectrum(null, null);
         return;
       }
       const base = renderScalarSeries(ctx, canvas, { times: integrated.times, series: [integrated.plSigmaPlus, integrated.plSigmaMinus] }, "PL(t)");
@@ -3296,6 +3420,186 @@
         ctx.fillText(curve.label, lx + 16, ly);
         lx += 60;
       });
+      renderPlSpectrum(latestRateSeriesPlot ? latestRateSeriesPlot.data : null, integrated);
+    }
+
+    function buildPlSpectrumData(data, integrated) {
+      if (!data || !integrated || !integrated.finalPopulations) return null;
+      const width = Math.max(1e-4, Number(plSpectrumWidthEl.value) || 0.03);
+      const populations = integrated.finalPopulations;
+      const lines = [];
+      let minE = Number.POSITIVE_INFINITY;
+      let maxE = Number.NEGATIVE_INFINITY;
+      for (const pair of data.radiativePairs) {
+        const pop = populations[pair.from] || 0;
+        if (!(pop > 0)) continue;
+        const fromState = data.states[pair.from];
+        const toState = data.states[pair.to];
+        const energy = fromState.energy - toState.energy;
+        if (!(energy > 0)) continue;
+        const sigmaPlus = (pair.sigmaPlusRate || 0) * pop;
+        const sigmaMinus = (pair.sigmaMinusRate || 0) * pop;
+        if (!(sigmaPlus > 0 || sigmaMinus > 0)) continue;
+        lines.push({ energy, sigmaPlus, sigmaMinus });
+        minE = Math.min(minE, energy);
+        maxE = Math.max(maxE, energy);
+      }
+      if (!lines.length || !Number.isFinite(minE) || !Number.isFinite(maxE)) return null;
+      const padding = Math.max(width * 3, 0.01);
+      const e0 = Math.max(0, minE - padding);
+      const e1 = maxE + padding;
+      const points = 320;
+      const energies = [];
+      const wavelengths = [];
+      const sigmaPlus = [];
+      const sigmaMinus = [];
+      for (let i = 0; i < points; i += 1) {
+        const lambdaNm = (HC_EV_NM / e1) + ((HC_EV_NM / e0) - (HC_EV_NM / e1)) * (i / (points - 1));
+        const e = HC_EV_NM / lambdaNm;
+        let spE = 0;
+        let smE = 0;
+        for (const line of lines) {
+          const g = gaussianProfile(e - line.energy, width);
+          spE += line.sigmaPlus * g;
+          smE += line.sigmaMinus * g;
+        }
+        energies.push(e);
+        wavelengths.push(lambdaNm);
+        const jacobian = HC_EV_NM / (lambdaNm * lambdaNm);
+        sigmaPlus.push(spE * jacobian);
+        sigmaMinus.push(smE * jacobian);
+      }
+      return { energies, wavelengths, sigmaPlus, sigmaMinus };
+    }
+
+    function renderPlSpectrum(data, integrated) {
+      const ctx = rateSpectrumCtx;
+      const canvas = rateSpectrumCanvasEl;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "#fcfdff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      const spectrum = buildPlSpectrumData(data, integrated);
+      if (!spectrum) {
+        latestPlSpectrumData = null;
+        ctx.fillStyle = "#6f779a";
+        ctx.font = "14px Noto Sans JP";
+        ctx.fillText("PL spectrum will appear after the rate-equation model is solved.", 20, 34);
+        return;
+      }
+      latestPlSpectrumData = spectrum;
+      const { wavelengths, sigmaPlus, sigmaMinus } = spectrum;
+      const pad = { left: 64, right: 18, top: 18, bottom: 36 };
+      const w = canvas.width - pad.left - pad.right;
+      const h = canvas.height - pad.top - pad.bottom;
+      const wlMin = wavelengths[0];
+      const wlMax = wavelengths[wavelengths.length - 1];
+      const maxY = Math.max(1e-12, ...sigmaPlus, ...sigmaMinus);
+      const xAt = (wl) => pad.left + (wlMax <= wlMin ? 0 : ((wl - wlMin) / (wlMax - wlMin)) * w);
+      const yAt = (v) => pad.top + (1 - v / maxY) * h;
+
+      ctx.strokeStyle = "#d7dceb";
+      ctx.lineWidth = 1;
+      for (let gy = 0; gy <= 4; gy += 1) {
+        const y = pad.top + (gy / 4) * h;
+        ctx.beginPath();
+        ctx.moveTo(pad.left, y);
+        ctx.lineTo(pad.left + w, y);
+        ctx.stroke();
+      }
+      ctx.strokeStyle = "#8d97b6";
+      ctx.beginPath();
+      ctx.moveTo(pad.left, pad.top);
+      ctx.lineTo(pad.left, pad.top + h);
+      ctx.lineTo(pad.left + w, pad.top + h);
+      ctx.stroke();
+
+      ctx.fillStyle = "#5f678b";
+      ctx.font = "12px Noto Sans JP";
+      for (let gy = 0; gy <= 4; gy += 1) {
+        const v = maxY * (1 - gy / 4);
+        const y = pad.top + (gy / 4) * h;
+        ctx.fillText(formatRateValue(v), 10, y + 4);
+      }
+      const xTicks = 5;
+      for (let gx = 0; gx <= xTicks; gx += 1) {
+        const wl = wlMin + (wlMax - wlMin) * (gx / xTicks);
+        const x = xAt(wl);
+        ctx.fillText(wl.toFixed(0), x - 12, canvas.height - 10);
+      }
+      ctx.fillText("PL Spectrum", 10, 14);
+      ctx.fillText("Emission Wavelength (nm)", pad.left + w - 162, canvas.height - 10);
+
+      const curves = [
+        { values: sigmaPlus, color: "rgba(214, 73, 73, 0.95)", label: "σ+" },
+        { values: sigmaMinus, color: "rgba(66, 118, 221, 0.95)", label: "σ-" }
+      ];
+      curves.forEach((curve) => {
+        ctx.strokeStyle = curve.color;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        for (let i = 0; i < wavelengths.length; i += 1) {
+          const x = xAt(wavelengths[i]);
+          const y = yAt(curve.values[i]);
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      });
+
+      let lx = pad.left + 8;
+      const ly = pad.top + 14;
+      ctx.font = "12px Noto Sans JP";
+      curves.forEach((curve) => {
+        ctx.fillStyle = curve.color;
+        ctx.fillRect(lx, ly - 7, 12, 3);
+        ctx.fillStyle = "#364063";
+        ctx.fillText(curve.label, lx + 16, ly);
+        lx += 60;
+      });
+    }
+
+    function downloadRateTimeSeriesCsv() {
+      if (!latestRateSeriesPlot) return;
+      const rows = [];
+      const header = ["t_ns", ...latestRateSeriesPlot.states.map((state) => state.label)];
+      rows.push(header);
+      for (let i = 0; i < latestRateSeriesPlot.times.length; i += 1) {
+        rows.push([
+          latestRateSeriesPlot.times[i].toFixed(6),
+          ...latestRateSeriesPlot.series.map((series) => (series[i] || 0).toExponential(8))
+        ]);
+      }
+      const csv = rows.map((row) => row.map(csvEscape).join(",")).join("\n");
+      downloadCsvFile("rate-time-evolution.csv", csv);
+    }
+
+    function downloadPlTimeCsv() {
+      if (!latestRateIntegrated) return;
+      const rows = [["t_ns", "pl_sigma_plus", "pl_sigma_minus"]];
+      for (let i = 0; i < latestRateIntegrated.times.length; i += 1) {
+        rows.push([
+          latestRateIntegrated.times[i].toFixed(6),
+          (latestRateIntegrated.plSigmaPlus[i] || 0).toExponential(8),
+          (latestRateIntegrated.plSigmaMinus[i] || 0).toExponential(8)
+        ]);
+      }
+      const csv = rows.map((row) => row.map(csvEscape).join(",")).join("\n");
+      downloadCsvFile("pl-time-series.csv", csv);
+    }
+
+    function downloadPlSpectrumCsv() {
+      if (!latestPlSpectrumData) return;
+      const rows = [["wavelength_nm", "energy_eV", "pl_sigma_plus", "pl_sigma_minus"]];
+      for (let i = 0; i < latestPlSpectrumData.wavelengths.length; i += 1) {
+        rows.push([
+          latestPlSpectrumData.wavelengths[i].toFixed(6),
+          latestPlSpectrumData.energies[i].toFixed(6),
+          (latestPlSpectrumData.sigmaPlus[i] || 0).toExponential(8),
+          (latestPlSpectrumData.sigmaMinus[i] || 0).toExponential(8)
+        ]);
+      }
+      const csv = rows.map((row) => row.map(csvEscape).join(",")).join("\n");
+      downloadCsvFile("pl-spectrum.csv", csv);
     }
 
     function renderRateEquationPanel() {
@@ -6035,7 +6339,7 @@
       renderTransitionSummary();
       renderTransitionMatrix();
     });
-    [laserEnergyEl, laserWidthEl, pumpRateEl, radiativeLifetimeEl, relaxationRateEl, initialTemperatureEl, excitationPolarizationEl, timeMaxEl, timeStepsEl].forEach((el) => {
+    [laserEnergyEl, laserWidthEl, pumpRateEl, radiativeLifetimeEl, relaxationRateEl, initialTemperatureEl, excitationPolarizationEl, timeMaxEl, timeStepsEl, plSpectrumWidthEl].forEach((el) => {
       el.addEventListener("input", () => {
         if (el === laserEnergyEl) laserEnergyEl.dataset.userEdited = "1";
         renderRateEquationPanel();
@@ -6049,6 +6353,9 @@
       laserEnergyEl.dataset.userEdited = "1";
       renderRateEquationPanel();
     });
+    downloadRateTimeCsvEl.addEventListener("click", () => downloadRateTimeSeriesCsv());
+    downloadPlTimeCsvEl.addEventListener("click", () => downloadPlTimeCsv());
+    downloadPlSpectrumCsvEl.addEventListener("click", () => downloadPlSpectrumCsv());
     rateTimeCanvasEl.addEventListener("mouseleave", () => hideRateTooltip());
     rateTimeCanvasEl.addEventListener("mousemove", (event) => {
       if (!latestRateSeriesPlot) {
