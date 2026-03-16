@@ -23,7 +23,7 @@
   <main class="app">
     <header class="hero">
       <h1><i>T</i><sub>2</sub></h1>
-      <p class="meta">beta-0.0.0</p>
+      <p class="meta">beta-0.1.0</p>
     </header>
 
     <section class="card" aria-labelledby="calc-title">
@@ -53,9 +53,37 @@
 
         <button type="submit">Calculate <i>T</i><sub>2</sub></button>
       </form>
+      <p class="formula-note">Element-level natural-abundance <i>T</i><sub>2</sub> is shown together with the isotope-engineering upper bound <i>T</i><sub>2,max</sub>.</p>
       <p id="result" class="result"></p>
       <p id="mixed-result" class="result"></p>
+      <p id="max-result" class="result"></p>
       <p id="meta" class="meta"></p>
+      <div id="binary-panel" class="embedded-plot-panel" hidden>
+        <h3 class="embedded-plot-title">Binary Isotope Mixing Graph</h3>
+        <select id="binary-element" name="binary-element" hidden aria-hidden="true" tabindex="-1">
+          <option value="">Select a binary isotope system</option>
+        </select>
+        <p class="meta">For a two-isotope system, the graph shows <i>T</i><sub>2</sub>(x) with fixed total spinful nuclear density n, where x is the fraction of the first isotope.</p>
+        <div id="binary-plot" class="binary-plot" aria-label="Binary isotope mixing plot">
+          <div id="binary-tooltip" class="plot-tooltip" hidden></div>
+        </div>
+        <button type="button" id="binary-download-btn" class="secondary-btn">Download data (CSV)</button>
+        <div id="binary-legend" class="binary-legend" aria-label="Binary isotope mixing legend"></div>
+        <p id="binary-summary" class="meta"></p>
+      </div>
+      <div id="ternary-panel" class="embedded-plot-panel" hidden>
+        <h3 class="embedded-plot-title">Ternary Isotope Mixing Graph</h3>
+        <select id="ternary-element" name="ternary-element" hidden aria-hidden="true" tabindex="-1">
+          <option value="">Select a ternary isotope system</option>
+        </select>
+        <p class="meta">For a three-isotope system, the ternary plot shows <i>T</i><sub>2</sub>(x, y, z) with fixed total spinful nuclear density n and x + y + z = 1.</p>
+        <div id="ternary-plot" class="binary-plot" aria-label="Ternary isotope mixing plot">
+          <div id="ternary-tooltip" class="plot-tooltip" hidden></div>
+        </div>
+        <button type="button" id="ternary-download-btn" class="secondary-btn">Download data (CSV)</button>
+        <div id="ternary-legend" class="binary-legend" aria-label="Ternary isotope mixing legend"></div>
+        <p id="ternary-summary" class="meta"></p>
+      </div>
     </section>
 
     <section class="card" aria-labelledby="cif-title">
@@ -80,6 +108,10 @@
       <p class="meta">
         S. Kanai, F. J. Heremans, H. Seo, G. Wolfowicz, C. P. Anderson, S. E. Sullivan, M. Onizhuk, G. Galli, D. D. Awschalom, and H. Ohno, Proc. Natl. Acad. Sci. U.S.A. 119, e2121808119(1)-(8) (2022). DOI:
         <a href="https://doi.org/10.1073/pnas.2121808119" target="_blank" rel="noopener noreferrer">https://doi.org/10.1073/pnas.2121808119</a>
+      </p>
+      <p class="meta">
+        S. Kanai, S. Suzuki, and C. P. Anderson, "A unified periodic table of quantum coherence for isotope engineering," MRS Bulletin 51, 1-6 (2026). DOI:
+        <a href="https://doi.org/10.1557/s43577-025-01052-0" target="_blank" rel="noopener noreferrer">https://doi.org/10.1557/s43577-025-01052-0</a>
       </p>
     </section>
 

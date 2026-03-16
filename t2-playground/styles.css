@@ -107,10 +107,38 @@ button:hover {
   filter: brightness(1.05);
 }
 
+.secondary-btn {
+  background: #fff;
+  color: var(--ink);
+  border: 1px solid var(--line);
+}
+
+.secondary-btn:hover {
+  background: #ffe6cd;
+  filter: none;
+}
+
 .result {
   margin: 0;
   font-size: clamp(1.25rem, 4vw, 1.85rem);
   font-weight: 700;
+}
+
+.formula-note {
+  margin: 0.9rem 0 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.embedded-plot-panel {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+}
+
+.embedded-plot-title {
+  margin: 0 0 0.6rem;
+  font-size: 1rem;
 }
 
 .meta {
@@ -194,4 +222,83 @@ button:hover {
 .pt-custom-btn.active {
   background: #ffd9b8;
   border-color: var(--accent);
+}
+
+.binary-plot {
+  position: relative;
+  margin-top: 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(255, 248, 239, 0.9));
+  padding: 0.65rem;
+  min-height: 17rem;
+}
+
+.binary-plot svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.binary-plot-empty {
+  display: grid;
+  min-height: 15rem;
+  place-items: center;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.plot-tooltip {
+  position: absolute;
+  z-index: 3;
+  max-width: min(18rem, calc(100% - 1rem));
+  padding: 0.45rem 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.96);
+  color: var(--ink);
+  font-size: 0.85rem;
+  line-height: 1.35;
+  pointer-events: none;
+  box-shadow: 0 10px 24px rgba(86, 58, 31, 0.12);
+}
+
+.binary-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem 1.2rem;
+  margin-top: 0.75rem;
+  color: var(--ink);
+  font-size: 0.92rem;
+}
+
+.binary-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.binary-legend-swatch {
+  width: 2rem;
+  height: 0;
+  border-top-width: 3px;
+  border-top-style: solid;
+}
+
+.binary-legend-swatch.mix {
+  border-top-color: var(--accent);
+}
+
+.binary-legend-swatch.natural {
+  border-top-color: #2e6f68;
+  border-top-style: dashed;
+  border-top-width: 2px;
+}
+
+.binary-legend-swatch.max {
+  border-top-color: #4d3c91;
+  border-top-style: dashed;
+  border-top-width: 2px;
 }

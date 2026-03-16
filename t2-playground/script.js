@@ -147,6 +147,7 @@ const G_EXP = -1.65;
 const I_EXP = -1.09;
 const N_EXP = -1.0;
 const N_INPUT_SCALE = 1e23; // input n is in units of 1e23 cm^-3
+const BINARY_PLOT_POINTS = 201;
 
 function formatTimeValue(seconds) {
   const abs = Math.abs(seconds);
@@ -177,11 +178,34 @@ const densityInput = document.getElementById("density");
 const densityLabelEl = document.getElementById("density-label");
 const resultEl = document.getElementById("result");
 const mixedResultEl = document.getElementById("mixed-result");
+const maxResultEl = document.getElementById("max-result");
 const metaEl = document.getElementById("meta");
+const binaryPanelEl = document.getElementById("binary-panel");
 const periodicTableEl = document.getElementById("periodic-table");
 const isotopeCandidatesInput = document.getElementById("isotope-candidates");
 const customModeBtn = document.getElementById("pt-custom-btn");
+const binaryElementSelect = document.getElementById("binary-element");
+const binaryPlotEl = document.getElementById("binary-plot");
+const binaryDownloadBtn = document.getElementById("binary-download-btn");
+const binaryLegendEl = document.getElementById("binary-legend");
+const binarySummaryEl = document.getElementById("binary-summary");
+const binaryTooltipEl = document.getElementById("binary-tooltip");
+const ternaryPanelEl = document.getElementById("ternary-panel");
+const ternaryElementSelect = document.getElementById("ternary-element");
+const ternaryPlotEl = document.getElementById("ternary-plot");
+const ternaryDownloadBtn = document.getElementById("ternary-download-btn");
+const ternaryLegendEl = document.getElementById("ternary-legend");
+const ternarySummaryEl = document.getElementById("ternary-summary");
+const ternaryTooltipEl = document.getElementById("ternary-tooltip");
 const NATURAL_OPTION_PREFIX = "NAT:";
+let currentBinaryPlotSvg = "";
+let currentBinaryPlotFileStem = "";
+let currentTernaryPlotSvg = "";
+let currentTernaryPlotFileStem = "";
+let currentBinaryCsv = "";
+let currentTernaryCsv = "";
+let currentBinaryHoverPoints = [];
+let currentTernaryHoverPoints = [];
 
 const PERIODIC_TABLE_ROWS = [
   ["H", null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, "He"],
@@ -232,11 +256,25 @@ const DISABLED_ELEMENTS = new Set([
   "Ac", "Th", "Pa", "U", "Np", "Pu", "Am", "Cm", "Bk", "Cf", "Es", "Fm", "Md", "No", "Lr",
 ]);
 
+const ELEMENTS_WITH_STABLE_ZERO_SPIN = new Set([
+  "He", "C", "O", "Ne", "Mg", "Si", "S", "Ar", "Ca", "Ti", "Cr", "Fe", "Ni", "Zn", "Ge", "Se",
+  "Kr", "Sr", "Zr", "Mo", "Ru", "Pd", "Cd", "Sn", "Te", "Xe", "Ba", "Ce", "Nd", "Sm", "Gd",
+  "Dy", "Er", "Yb", "Hf", "W", "Os", "Pt", "Hg", "Pb",
+]);
+
 function computeG(mu, I) {
   if (!Number.isFinite(mu) || !Number.isFinite(I) || I === 0) {
     return null;
   }
   return mu / I;
+}
+
+function supportsElementNaturalMode(symbol) {
+  return ((isotopesByElement[symbol] || []).length > 0) || ELEMENTS_WITH_STABLE_ZERO_SPIN.has(symbol);
+}
+
+function elementHasStableZeroSpinIsotope(symbol) {
+  return ELEMENTS_WITH_STABLE_ZERO_SPIN.has(symbol);
 }
 
 function populateNuclides() {
@@ -276,6 +314,29 @@ function getRepresentativeIsotopeForElement(symbol) {
   }
   isotopes.sort((a, b) => b.abundanceFraction - a.abundanceFraction);
   return isotopes[0];
+}
+
+function syncBinarySelectionFromElement(symbol) {
+  if (!binaryElementSelect) {
+    return;
+  }
+  if (symbol && getBinarySystemBySymbol(symbol)) {
+    binaryElementSelect.value = symbol;
+  }
+}
+
+function syncTernarySelectionFromElement(symbol) {
+  if (!ternaryElementSelect) {
+    return;
+  }
+  if (symbol && getTernarySystemBySymbol(symbol)) {
+    ternaryElementSelect.value = symbol;
+  }
+}
+
+function getCurrentElementSymbol() {
+  const selected = getSelectedNuclide();
+  return selectedElementFromTable || (selected ? isotopeElementSymbol(selected.id) : null);
 }
 
 function setDefaultsFromNuclide() {
@@ -376,7 +437,8 @@ function populateIsotopeCandidates(symbol, selectedValue = "") {
     }
     return a.label.localeCompare(b.label);
   });
-  const hasAnyOption = isotopes.length > 0;
+  const supportsNaturalOnly = elementHasStableZeroSpinIsotope(symbol);
+  const hasAnyOption = isotopes.length > 0 || supportsNaturalOnly;
 
   isotopeCandidatesInput.innerHTML = "";
 
@@ -385,7 +447,7 @@ function populateIsotopeCandidates(symbol, selectedValue = "") {
   placeholder.textContent = hasAnyOption ? `Select option for ${symbol}` : `No isotope data for ${symbol}`;
   isotopeCandidatesInput.appendChild(placeholder);
 
-  if (isotopes.length > 0) {
+  if (hasAnyOption) {
     const naturalOption = document.createElement("option");
     naturalOption.value = naturalOptionValue(symbol);
     naturalOption.textContent = `Natural abundance (${symbol})`;
@@ -423,6 +485,7 @@ function enableCustomManualMode() {
   abundanceInput.placeholder = "Enter label (optional)";
   resultEl.style.display = "";
   renderElementMixedResult();
+  renderElementMaxResult();
   syncPeriodicSelection();
   updateDensityLabel();
   updateSubmitButtonVisibility();
@@ -430,7 +493,11 @@ function enableCustomManualMode() {
 }
 
 function computeElementNaturalAbundanceMix(symbol, nCm3, eta = 2) {
-  if (symbol === "Ce") {
+  const isotopes = (isotopesByElement[symbol] || []).filter((iso) =>
+    Number.isFinite(iso.g) && Number.isFinite(iso.I) && iso.I > 0 && Number.isFinite(iso.abundanceFraction) && iso.abundanceFraction > 0
+  );
+
+  if (isotopes.length === 0 && elementHasStableZeroSpinIsotope(symbol)) {
     return {
       symbol,
       eta,
@@ -439,10 +506,6 @@ function computeElementNaturalAbundanceMix(symbol, nCm3, eta = 2) {
       t2Seconds: Infinity,
     };
   }
-
-  const isotopes = (isotopesByElement[symbol] || []).filter((iso) =>
-    Number.isFinite(iso.g) && Number.isFinite(iso.I) && iso.I > 0 && Number.isFinite(iso.abundanceFraction) && iso.abundanceFraction > 0
-  );
 
   if (isotopes.length === 0) {
     return null;
@@ -473,6 +536,877 @@ function computeElementNaturalAbundanceMix(symbol, nCm3, eta = 2) {
     abundanceCoverage: abundanceSum,
     t2Seconds: Math.pow(mixedPowerSum, -1 / eta),
   };
+}
+
+function computeBeta(g, I) {
+  if (!Number.isFinite(g) || g === 0 || !Number.isFinite(I) || I <= 0) {
+    return null;
+  }
+  return SCALE * Math.pow(Math.abs(g), G_EXP) * Math.pow(I, I_EXP);
+}
+
+function computeElementT2Max(symbol, nCm3) {
+  if (!Number.isFinite(nCm3) || nCm3 <= 0) {
+    return null;
+  }
+
+  if (elementHasStableZeroSpinIsotope(symbol)) {
+    return {
+      symbol,
+      isotopeCount: 0,
+      t2Seconds: Infinity,
+    };
+  }
+
+  const isotopes = (isotopesByElement[symbol] || []).filter((iso) =>
+    Number.isFinite(iso.g) && Number.isFinite(iso.I) && iso.I > 0 && Number.isFinite(iso.abundanceFraction) && iso.abundanceFraction > 0
+  );
+  if (isotopes.length === 0) {
+    return null;
+  }
+
+  let betaSquaredSum = 0;
+  isotopes.forEach((iso) => {
+    const beta = computeBeta(iso.g, iso.I);
+    if (Number.isFinite(beta) && beta > 0) {
+      betaSquaredSum += beta * beta;
+    }
+  });
+
+  if (!(betaSquaredSum > 0)) {
+    return null;
+  }
+
+  return {
+    symbol,
+    isotopeCount: isotopes.length,
+    t2Seconds: Math.sqrt(betaSquaredSum) / nCm3,
+  };
+}
+
+function getStableSpinfulIsotopesForElement(symbol) {
+  return (isotopesByElement[symbol] || [])
+    .filter((iso) =>
+      Number.isFinite(iso.g) &&
+      Number.isFinite(iso.I) &&
+      iso.I > 0 &&
+      Number.isFinite(iso.abundanceFraction) &&
+      iso.abundanceFraction > 0
+    )
+    .slice()
+    .sort((a, b) => a.label.localeCompare(b.label));
+}
+
+function buildBinaryIsotopeSystems() {
+  return Object.keys(isotopesByElement)
+    .map((symbol) => {
+      const isotopes = getStableSpinfulIsotopesForElement(symbol);
+      if (isotopes.length !== 2) {
+        return null;
+      }
+      const naturalTotal = isotopes[0].abundanceFraction + isotopes[1].abundanceFraction;
+      if (!(naturalTotal > 0)) {
+        return null;
+      }
+      return {
+        symbol,
+        isotopes,
+        naturalFractions: [
+          isotopes[0].abundanceFraction / naturalTotal,
+          isotopes[1].abundanceFraction / naturalTotal,
+        ],
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.symbol.localeCompare(b.symbol));
+}
+
+function buildTernaryIsotopeSystems() {
+  return Object.keys(isotopesByElement)
+    .map((symbol) => {
+      const isotopes = getStableSpinfulIsotopesForElement(symbol);
+      if (isotopes.length !== 3) {
+        return null;
+      }
+      const naturalTotal = isotopes.reduce((sum, iso) => sum + iso.abundanceFraction, 0);
+      if (!(naturalTotal > 0)) {
+        return null;
+      }
+      return {
+        symbol,
+        isotopes,
+        naturalFractions: isotopes.map((iso) => iso.abundanceFraction / naturalTotal),
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.symbol.localeCompare(b.symbol));
+}
+
+function getBinarySystemBySymbol(symbol) {
+  return binaryIsotopeSystems.find((entry) => entry.symbol === symbol) || null;
+}
+
+function getTernarySystemBySymbol(symbol) {
+  return ternaryIsotopeSystems.find((entry) => entry.symbol === symbol) || null;
+}
+
+function calculateBinaryMixtureT2Seconds(binarySystem, fractionFirst, nCm3, eta = 2) {
+  if (!binarySystem || !Number.isFinite(fractionFirst) || !Number.isFinite(nCm3) || nCm3 <= 0 || !(eta > 0)) {
+    return null;
+  }
+
+  const x = Math.max(0, Math.min(1, fractionFirst));
+  const fractions = [x, 1 - x];
+  let mixedPowerSum = 0;
+
+  binarySystem.isotopes.forEach((iso, index) => {
+    const fi = fractions[index];
+    if (!(fi > 0)) {
+      return;
+    }
+    const niCm3 = nCm3 * fi;
+    const t2i = calculateT2Seconds(iso.g, iso.I, niCm3);
+    if (Number.isFinite(t2i) && t2i > 0) {
+      mixedPowerSum += Math.pow(t2i, -eta);
+    }
+  });
+
+  if (!(mixedPowerSum > 0)) {
+    return Infinity;
+  }
+
+  return Math.pow(mixedPowerSum, -1 / eta);
+}
+
+function calculateBinaryT2MaxSeconds(binarySystem, nCm3) {
+  if (!binarySystem || !Number.isFinite(nCm3) || nCm3 <= 0) {
+    return null;
+  }
+
+  let betaSquaredSum = 0;
+  binarySystem.isotopes.forEach((iso) => {
+    const beta = computeBeta(iso.g, iso.I);
+    if (Number.isFinite(beta) && beta > 0) {
+      betaSquaredSum += beta * beta;
+    }
+  });
+
+  if (!(betaSquaredSum > 0)) {
+    return null;
+  }
+
+  return Math.sqrt(betaSquaredSum) / nCm3;
+}
+
+function calculateBinaryOptimalFractions(binarySystem) {
+  if (!binarySystem) {
+    return null;
+  }
+
+  const betaSquares = binarySystem.isotopes.map((iso) => {
+    const beta = computeBeta(iso.g, iso.I);
+    return Number.isFinite(beta) && beta > 0 ? beta * beta : 0;
+  });
+  const total = betaSquares[0] + betaSquares[1];
+  if (!(total > 0)) {
+    return null;
+  }
+
+  return [
+    betaSquares[0] / total,
+    betaSquares[1] / total,
+  ];
+}
+
+function calculateTernaryMixtureT2Seconds(ternarySystem, fractions, nCm3, eta = 2) {
+  if (!ternarySystem || !Array.isArray(fractions) || fractions.length !== 3 || !Number.isFinite(nCm3) || nCm3 <= 0 || !(eta > 0)) {
+    return null;
+  }
+
+  let mixedPowerSum = 0;
+  ternarySystem.isotopes.forEach((iso, index) => {
+    const fi = fractions[index];
+    if (!Number.isFinite(fi) || !(fi > 0)) {
+      return;
+    }
+    const niCm3 = nCm3 * fi;
+    const t2i = calculateT2Seconds(iso.g, iso.I, niCm3);
+    if (Number.isFinite(t2i) && t2i > 0) {
+      mixedPowerSum += Math.pow(t2i, -eta);
+    }
+  });
+
+  if (!(mixedPowerSum > 0)) {
+    return Infinity;
+  }
+  return Math.pow(mixedPowerSum, -1 / eta);
+}
+
+function calculateTernaryT2MaxSeconds(ternarySystem, nCm3) {
+  if (!ternarySystem || !Number.isFinite(nCm3) || nCm3 <= 0) {
+    return null;
+  }
+
+  let betaSquaredSum = 0;
+  ternarySystem.isotopes.forEach((iso) => {
+    const beta = computeBeta(iso.g, iso.I);
+    if (Number.isFinite(beta) && beta > 0) {
+      betaSquaredSum += beta * beta;
+    }
+  });
+  if (!(betaSquaredSum > 0)) {
+    return null;
+  }
+  return Math.sqrt(betaSquaredSum) / nCm3;
+}
+
+function calculateTernaryOptimalFractions(ternarySystem) {
+  if (!ternarySystem) {
+    return null;
+  }
+  const betaSquares = ternarySystem.isotopes.map((iso) => {
+    const beta = computeBeta(iso.g, iso.I);
+    return Number.isFinite(beta) && beta > 0 ? beta * beta : 0;
+  });
+  const total = betaSquares.reduce((sum, value) => sum + value, 0);
+  if (!(total > 0)) {
+    return null;
+  }
+  return betaSquares.map((value) => value / total);
+}
+
+function ternaryToCartesian(fractions, vertices) {
+  return {
+    x: fractions[0] * vertices[0].x + fractions[1] * vertices[1].x + fractions[2] * vertices[2].x,
+    y: fractions[0] * vertices[0].y + fractions[1] * vertices[1].y + fractions[2] * vertices[2].y,
+  };
+}
+
+function interpolateColor(value, min, max) {
+  if (!Number.isFinite(value) || !Number.isFinite(min) || !Number.isFinite(max) || !(max > min)) {
+    return "#b85b1f";
+  }
+  const t = Math.max(0, Math.min(1, (value - min) / (max - min)));
+  const start = [255, 236, 204];
+  const end = [184, 91, 31];
+  const mix = start.map((component, index) => Math.round(component + (end[index] - component) * t));
+  return `rgb(${mix[0]}, ${mix[1]}, ${mix[2]})`;
+}
+
+function formatFractionPercent(value) {
+  return `${(value * 100).toFixed(2)}%`;
+}
+
+function csvEscape(value) {
+  const text = String(value ?? "");
+  if (/[",\n]/.test(text)) {
+    return `"${text.replace(/"/g, "\"\"")}"`;
+  }
+  return text;
+}
+
+function downloadTextFile(content, filename, mimeType) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+function hideTooltip(tooltipEl) {
+  if (!tooltipEl) {
+    return;
+  }
+  tooltipEl.hidden = true;
+}
+
+function showTooltip(containerEl, tooltipEl, html, x, y) {
+  if (!containerEl || !tooltipEl) {
+    return;
+  }
+  tooltipEl.innerHTML = html;
+  tooltipEl.hidden = false;
+  const padding = 12;
+  const maxLeft = Math.max(padding, containerEl.clientWidth - tooltipEl.offsetWidth - padding);
+  const maxTop = Math.max(padding, containerEl.clientHeight - tooltipEl.offsetHeight - padding);
+  const left = Math.min(maxLeft, Math.max(padding, x + 14));
+  const top = Math.min(maxTop, Math.max(padding, y - tooltipEl.offsetHeight - 14));
+  tooltipEl.style.left = `${left}px`;
+  tooltipEl.style.top = `${top}px`;
+}
+
+function findNearestPoint(points, x, y, maxDistancePx = 18) {
+  if (!Array.isArray(points) || points.length === 0) {
+    return null;
+  }
+  let best = null;
+  let bestDistanceSq = maxDistancePx * maxDistancePx;
+  points.forEach((point) => {
+    const dx = point.cx - x;
+    const dy = point.cy - y;
+    const distanceSq = dx * dx + dy * dy;
+    if (distanceSq <= bestDistanceSq) {
+      best = point;
+      bestDistanceSq = distanceSq;
+    }
+  });
+  return best;
+}
+
+function escapeSvgText(text) {
+  return String(text)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function renderBinaryMixingPlot() {
+  if (!binaryPlotEl || !binarySummaryEl || !binaryLegendEl) {
+    return;
+  }
+
+  const currentSymbol = getCurrentElementSymbol();
+  const system = getBinarySystemBySymbol(binaryElementSelect ? binaryElementSelect.value : "");
+  const nInput = Number(densityInput.value);
+  const supportsFiniteBinaryMixing = !!currentSymbol && !elementHasStableZeroSpinIsotope(currentSymbol);
+
+  if (binaryPanelEl) {
+    const showPanel =
+      selectedCalculationMode === "natural" &&
+      supportsFiniteBinaryMixing &&
+      !!system &&
+      system.symbol === currentSymbol;
+    binaryPanelEl.hidden = !showPanel;
+    if (!showPanel) {
+      currentBinaryHoverPoints = [];
+      hideTooltip(binaryTooltipEl);
+      return;
+    }
+  }
+
+  if (!system) {
+    binaryPlotEl.innerHTML = '<div class="binary-plot-empty">Select a two-isotope system to plot isotope mixing.</div>';
+    binaryLegendEl.innerHTML = "";
+    binarySummaryEl.textContent = "";
+    currentBinaryPlotSvg = "";
+    currentBinaryPlotFileStem = "";
+    currentBinaryCsv = "";
+    currentBinaryHoverPoints = [];
+    hideTooltip(binaryTooltipEl);
+    if (binaryDownloadBtn) {
+      binaryDownloadBtn.disabled = true;
+    }
+    return;
+  }
+
+  if (!Number.isFinite(nInput) || nInput <= 0) {
+    binaryPlotEl.innerHTML = '<div class="binary-plot-empty">Enter n > 0 in the main input section to draw the mixing graph.</div>';
+    binaryLegendEl.innerHTML = "";
+    binarySummaryEl.textContent = "";
+    currentBinaryPlotSvg = "";
+    currentBinaryPlotFileStem = "";
+    currentBinaryCsv = "";
+    currentBinaryHoverPoints = [];
+    hideTooltip(binaryTooltipEl);
+    if (binaryDownloadBtn) {
+      binaryDownloadBtn.disabled = true;
+    }
+    return;
+  }
+
+  const nCm3 = nInput * N_INPUT_SCALE;
+  const points = [];
+  let minT2 = Infinity;
+  let maxT2 = 0;
+  for (let i = 0; i < BINARY_PLOT_POINTS; i += 1) {
+    const x = i / (BINARY_PLOT_POINTS - 1);
+    const t2 = calculateBinaryMixtureT2Seconds(system, x, nCm3, 2);
+    points.push({ x, t2 });
+    if (Number.isFinite(t2) && t2 > 0) {
+      minT2 = Math.min(minT2, t2);
+      maxT2 = Math.max(maxT2, t2);
+    }
+  }
+
+  const naturalX = system.naturalFractions[0];
+  const naturalT2 = calculateBinaryMixtureT2Seconds(system, naturalX, nCm3, 2);
+  const t2max = calculateBinaryT2MaxSeconds(system, nCm3);
+  const optimalFractions = calculateBinaryOptimalFractions(system);
+  if (Number.isFinite(naturalT2) && naturalT2 > 0) {
+    minT2 = Math.min(minT2, naturalT2);
+    maxT2 = Math.max(maxT2, naturalT2);
+  }
+  if (Number.isFinite(t2max) && t2max > 0) {
+    minT2 = Math.min(minT2, t2max);
+    maxT2 = Math.max(maxT2, t2max);
+  }
+
+  if (!(maxT2 > 0) || !Number.isFinite(minT2)) {
+    binaryPlotEl.innerHTML = '<div class="binary-plot-empty">Could not compute the binary isotope mixing graph.</div>';
+    binaryLegendEl.innerHTML = "";
+    binarySummaryEl.textContent = "";
+    currentBinaryPlotSvg = "";
+    currentBinaryPlotFileStem = "";
+    currentBinaryCsv = "";
+    currentBinaryHoverPoints = [];
+    hideTooltip(binaryTooltipEl);
+    if (binaryDownloadBtn) {
+      binaryDownloadBtn.disabled = true;
+    }
+    return;
+  }
+
+  const width = 720;
+  const height = 420;
+  const margin = { top: 28, right: 26, bottom: 52, left: 74 };
+  const plotWidth = width - margin.left - margin.right;
+  const plotHeight = height - margin.top - margin.bottom;
+  const yMax = maxT2 * 1.08;
+  const yMin = 0;
+  const mapX = (x) => margin.left + x * plotWidth;
+  const mapY = (t2) => margin.top + plotHeight - ((t2 - yMin) / (yMax - yMin)) * plotHeight;
+  const pathData = points.map((point, index) => `${index === 0 ? "M" : "L"} ${mapX(point.x).toFixed(2)} ${mapY(point.t2).toFixed(2)}`).join(" ");
+  const naturalCx = mapX(naturalX);
+  const naturalCy = mapY(naturalT2);
+  const t2maxCy = mapY(t2max);
+  const optimalX = optimalFractions ? optimalFractions[0] : null;
+  const optimalCx = Number.isFinite(optimalX) ? mapX(optimalX) : null;
+
+  const yTicks = 4;
+  const yGrid = Array.from({ length: yTicks + 1 }, (_, idx) => {
+    const value = yMin + ((yMax - yMin) * idx) / yTicks;
+    const y = mapY(value);
+    return `
+      <line x1="${margin.left}" y1="${y.toFixed(2)}" x2="${(width - margin.right).toFixed(2)}" y2="${y.toFixed(2)}" stroke="#ead8c1" stroke-width="1" />
+      <text x="${(margin.left - 10).toFixed(2)}" y="${(y + 4).toFixed(2)}" text-anchor="end" fill="#6f5a48" font-size="12">${escapeSvgText(formatTimeValue(value))}</text>
+    `;
+  }).join("");
+
+  const xTicks = [0, 0.25, 0.5, 0.75, 1];
+  const xGrid = xTicks.map((tick) => {
+    const x = mapX(tick);
+    return `
+      <line x1="${x.toFixed(2)}" y1="${margin.top}" x2="${x.toFixed(2)}" y2="${(height - margin.bottom).toFixed(2)}" stroke="#f0e3d3" stroke-width="1" />
+      <text x="${x.toFixed(2)}" y="${(height - margin.bottom + 22).toFixed(2)}" text-anchor="middle" fill="#6f5a48" font-size="12">${escapeSvgText(tick.toFixed(2))}</text>
+    `;
+  }).join("");
+
+  currentBinaryPlotSvg = `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeSvgText(system.symbol)} binary isotope mixing graph">
+      <rect x="0" y="0" width="${width}" height="${height}" fill="transparent"></rect>
+      ${yGrid}
+      ${xGrid}
+      <line x1="${margin.left}" y1="${(height - margin.bottom).toFixed(2)}" x2="${(width - margin.right).toFixed(2)}" y2="${(height - margin.bottom).toFixed(2)}" stroke="#8d6d52" stroke-width="1.5" />
+      <line x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${(height - margin.bottom).toFixed(2)}" stroke="#8d6d52" stroke-width="1.5" />
+      <path d="${pathData}" fill="none" stroke="#b85b1f" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
+      <line x1="${naturalCx.toFixed(2)}" y1="${margin.top}" x2="${naturalCx.toFixed(2)}" y2="${(height - margin.bottom).toFixed(2)}" stroke="#2e6f68" stroke-width="2" stroke-dasharray="7 5"></line>
+      <line x1="${margin.left}" y1="${naturalCy.toFixed(2)}" x2="${naturalCx.toFixed(2)}" y2="${naturalCy.toFixed(2)}" stroke="#2e6f68" stroke-width="2" stroke-dasharray="7 5"></line>
+      <circle cx="${naturalCx.toFixed(2)}" cy="${naturalCy.toFixed(2)}" r="5.5" fill="#2e6f68"></circle>
+      <line x1="${margin.left}" y1="${t2maxCy.toFixed(2)}" x2="${(width - margin.right).toFixed(2)}" y2="${t2maxCy.toFixed(2)}" stroke="#4d3c91" stroke-width="2" stroke-dasharray="10 6"></line>
+      <line x1="${naturalCx.toFixed(2)}" y1="${margin.top}" x2="${naturalCx.toFixed(2)}" y2="${t2maxCy.toFixed(2)}" stroke="#4d3c91" stroke-width="2" stroke-dasharray="10 6"></line>
+      ${optimalCx !== null ? `<line x1="${optimalCx.toFixed(2)}" y1="${margin.top}" x2="${optimalCx.toFixed(2)}" y2="${(height - margin.bottom).toFixed(2)}" stroke="#4d3c91" stroke-width="2" stroke-dasharray="10 6"></line>` : ""}
+      <text x="${margin.left}" y="16" fill="#2b1f16" font-size="15" font-weight="700">${escapeSvgText(system.isotopes[0].label)} fraction x</text>
+      <text x="${(width / 2).toFixed(2)}" y="${(height - 12).toFixed(2)}" text-anchor="middle" fill="#2b1f16" font-size="14">${escapeSvgText(`${system.isotopes[0].label} fraction x, ${system.isotopes[1].label} fraction 1 - x`)}</text>
+      <text x="18" y="${(height / 2).toFixed(2)}" transform="rotate(-90 18 ${(height / 2).toFixed(2)})" text-anchor="middle" fill="#2b1f16" font-size="14"><tspan><tspan font-style="italic">T</tspan><tspan baseline-shift="sub" font-size="11">2</tspan></tspan></text>
+    </svg>
+  `;
+  binaryPlotEl.innerHTML = currentBinaryPlotSvg;
+  if (binaryTooltipEl) {
+    binaryPlotEl.appendChild(binaryTooltipEl);
+  }
+  currentBinaryPlotFileStem = `${system.symbol}-${system.isotopes[0].label}-${system.isotopes[1].label}-t2-mixing`.toLowerCase();
+  currentBinaryHoverPoints = points.map((point, index) => ({
+    cx: mapX(point.x),
+    cy: mapY(point.t2),
+    html:
+      `${escapeSvgText(system.isotopes[0].label)} = ${formatFractionPercent(point.x)}<br>` +
+      `${escapeSvgText(system.isotopes[1].label)} = ${formatFractionPercent(1 - point.x)}<br>` +
+      `<i>T</i><sub>2</sub> = ${escapeSvgText(formatTimeValue(point.t2))}`,
+    key: `curve-${index}`,
+  }));
+  currentBinaryHoverPoints.push({
+    cx: naturalCx,
+    cy: naturalCy,
+    html:
+      `Natural abundance<br>${escapeSvgText(system.isotopes[0].label)} = ${formatFractionPercent(naturalX)}<br>` +
+      `${escapeSvgText(system.isotopes[1].label)} = ${formatFractionPercent(system.naturalFractions[1])}<br>` +
+      `<i>T</i><sub>2</sub> = ${escapeSvgText(formatTimeValue(naturalT2))}`,
+    key: "natural",
+  });
+  if (optimalCx !== null) {
+    currentBinaryHoverPoints.push({
+      cx: optimalCx,
+      cy: t2maxCy,
+      html:
+        `T<sub>2,max</sub> optimum<br>${escapeSvgText(system.isotopes[0].label)} = ${formatFractionPercent(optimalFractions[0])}<br>` +
+        `${escapeSvgText(system.isotopes[1].label)} = ${formatFractionPercent(optimalFractions[1])}<br>` +
+        `<i>T</i><sub>2,max</sub> = ${escapeSvgText(formatTimeValue(t2max))}`,
+      key: "optimal",
+    });
+  }
+  if (binaryDownloadBtn) {
+    binaryDownloadBtn.disabled = false;
+  }
+  binaryLegendEl.innerHTML = `
+    <span class="binary-legend-item"><span class="binary-legend-swatch mix"></span>Mixing <i>T</i><sub>2</sub>(x)</span>
+    <span class="binary-legend-item"><span class="binary-legend-swatch natural"></span>Natural abundance</span>
+    <span class="binary-legend-item"><span class="binary-legend-swatch max"></span><i>T</i><sub>2,max</sub></span>
+  `;
+
+  binarySummaryEl.innerHTML =
+    `${system.symbol}: natural ${system.isotopes[0].label}=${formatFractionPercent(naturalX)}, ${system.isotopes[1].label}=${formatFractionPercent(system.naturalFractions[1])} | ` +
+    `${optimalFractions ? `optimal ${system.isotopes[0].label}=${formatFractionPercent(optimalFractions[0])}, ${system.isotopes[1].label}=${formatFractionPercent(optimalFractions[1])} | ` : ""}` +
+    `natural-abundance <i>T</i><sub>2</sub>=${formatTimeValue(naturalT2)} | ` +
+    `<i>T</i><sub>2,max</sub>=${formatTimeValue(t2max)} | ` +
+    `n_input=${nInput.toFixed(4)} (x1e23 cm^-3)`;
+
+  const binaryRows = [
+    ["type", "element", "isotope_1", "isotope_2", "fraction_isotope_1", "fraction_isotope_2", "t2_seconds", "t2_formatted", "n_input_1e23_cm3", "tag"],
+    ...points.map((point) => [
+      "curve",
+      system.symbol,
+      system.isotopes[0].label,
+      system.isotopes[1].label,
+      point.x.toFixed(6),
+      (1 - point.x).toFixed(6),
+      Number.isFinite(point.t2) ? point.t2.toExponential(12) : "Infinity",
+      formatTimeValue(point.t2),
+      nInput.toFixed(6),
+      "",
+    ]),
+    [
+      "marker",
+      system.symbol,
+      system.isotopes[0].label,
+      system.isotopes[1].label,
+      naturalX.toFixed(6),
+      system.naturalFractions[1].toFixed(6),
+      Number.isFinite(naturalT2) ? naturalT2.toExponential(12) : "Infinity",
+      formatTimeValue(naturalT2),
+      nInput.toFixed(6),
+      "natural_abundance",
+    ],
+    [
+      "marker",
+      system.symbol,
+      system.isotopes[0].label,
+      system.isotopes[1].label,
+      optimalFractions ? optimalFractions[0].toFixed(6) : "",
+      optimalFractions ? optimalFractions[1].toFixed(6) : "",
+      Number.isFinite(t2max) ? t2max.toExponential(12) : "Infinity",
+      formatTimeValue(t2max),
+      nInput.toFixed(6),
+      "t2_maximum",
+    ],
+  ];
+  currentBinaryCsv = binaryRows.map((row) => row.map(csvEscape).join(",")).join("\n");
+}
+
+function downloadCurrentBinaryPlotCsv() {
+  if (!currentBinaryCsv) {
+    return;
+  }
+
+  if (typeof window.gtag === "function") {
+    const system = getBinarySystemBySymbol(binaryElementSelect ? binaryElementSelect.value : "");
+    window.gtag("event", "download_t2_binary_graph", {
+      event_category: "t2",
+      material: system ? system.symbol : "",
+      isotopes: system ? `${system.isotopes[0].label}/${system.isotopes[1].label}` : "",
+      file_type: "csv",
+      page_path: location.pathname
+    });
+  }
+
+  downloadTextFile(currentBinaryCsv, `${currentBinaryPlotFileStem || "binary-isotope-mixing"}.csv`, "text/csv;charset=utf-8");
+}
+
+function renderTernaryMixingPlot() {
+  if (!ternaryPlotEl || !ternarySummaryEl || !ternaryLegendEl) {
+    return;
+  }
+
+  const currentSymbol = getCurrentElementSymbol();
+  const system = getTernarySystemBySymbol(ternaryElementSelect ? ternaryElementSelect.value : "");
+  const nInput = Number(densityInput.value);
+  const supportsFiniteTernaryMixing = !!currentSymbol && !elementHasStableZeroSpinIsotope(currentSymbol);
+
+  if (ternaryPanelEl) {
+    const showPanel =
+      selectedCalculationMode === "natural" &&
+      supportsFiniteTernaryMixing &&
+      !!system &&
+      system.symbol === currentSymbol;
+    ternaryPanelEl.hidden = !showPanel;
+    if (!showPanel) {
+      currentTernaryHoverPoints = [];
+      hideTooltip(ternaryTooltipEl);
+      return;
+    }
+  }
+
+  if (!system) {
+    ternaryPlotEl.innerHTML = '<div class="binary-plot-empty">Select a three-isotope system to plot ternary isotope mixing.</div>';
+    ternaryLegendEl.innerHTML = "";
+    ternarySummaryEl.textContent = "";
+    currentTernaryPlotSvg = "";
+    currentTernaryPlotFileStem = "";
+    currentTernaryCsv = "";
+    currentTernaryHoverPoints = [];
+    hideTooltip(ternaryTooltipEl);
+    if (ternaryDownloadBtn) {
+      ternaryDownloadBtn.disabled = true;
+    }
+    return;
+  }
+
+  if (!Number.isFinite(nInput) || nInput <= 0) {
+    ternaryPlotEl.innerHTML = '<div class="binary-plot-empty">Enter n > 0 in the main input section to draw the ternary graph.</div>';
+    ternaryLegendEl.innerHTML = "";
+    ternarySummaryEl.textContent = "";
+    currentTernaryPlotSvg = "";
+    currentTernaryPlotFileStem = "";
+    currentTernaryCsv = "";
+    currentTernaryHoverPoints = [];
+    hideTooltip(ternaryTooltipEl);
+    if (ternaryDownloadBtn) {
+      ternaryDownloadBtn.disabled = true;
+    }
+    return;
+  }
+
+  const nCm3 = nInput * N_INPUT_SCALE;
+  const samples = [];
+  const divisions = 18;
+  let minT2 = Infinity;
+  let maxT2 = 0;
+  for (let i = 0; i <= divisions; i += 1) {
+    for (let j = 0; j <= divisions - i; j += 1) {
+      const k = divisions - i - j;
+      const fractions = [i / divisions, j / divisions, k / divisions];
+      const t2 = calculateTernaryMixtureT2Seconds(system, fractions, nCm3, 2);
+      samples.push({ fractions, t2 });
+      if (Number.isFinite(t2) && t2 > 0) {
+        minT2 = Math.min(minT2, t2);
+        maxT2 = Math.max(maxT2, t2);
+      }
+    }
+  }
+
+  const naturalFractions = system.naturalFractions;
+  const naturalT2 = calculateTernaryMixtureT2Seconds(system, naturalFractions, nCm3, 2);
+  const optimalFractions = calculateTernaryOptimalFractions(system);
+  const t2max = calculateTernaryT2MaxSeconds(system, nCm3);
+  if (Number.isFinite(naturalT2) && naturalT2 > 0) {
+    minT2 = Math.min(minT2, naturalT2);
+    maxT2 = Math.max(maxT2, naturalT2);
+  }
+  if (Number.isFinite(t2max) && t2max > 0) {
+    minT2 = Math.min(minT2, t2max);
+    maxT2 = Math.max(maxT2, t2max);
+  }
+
+  if (!(maxT2 > 0) || !Number.isFinite(minT2)) {
+    ternaryPlotEl.innerHTML = '<div class="binary-plot-empty">Could not compute the ternary isotope mixing graph.</div>';
+    ternaryLegendEl.innerHTML = "";
+    ternarySummaryEl.textContent = "";
+    currentTernaryPlotSvg = "";
+    currentTernaryPlotFileStem = "";
+    currentTernaryCsv = "";
+    currentTernaryHoverPoints = [];
+    hideTooltip(ternaryTooltipEl);
+    if (ternaryDownloadBtn) {
+      ternaryDownloadBtn.disabled = true;
+    }
+    return;
+  }
+
+  const width = 720;
+  const height = 620;
+  const vertices = [
+    { x: width / 2, y: 52 },
+    { x: 110, y: 520 },
+    { x: 610, y: 520 },
+  ];
+  const triangles = [];
+  for (let i = 0; i < divisions; i += 1) {
+    for (let j = 0; j < divisions - i; j += 1) {
+      const p1 = [i / divisions, j / divisions, (divisions - i - j) / divisions];
+      const p2 = [(i + 1) / divisions, j / divisions, (divisions - i - j - 1) / divisions];
+      const p3 = [i / divisions, (j + 1) / divisions, (divisions - i - j - 1) / divisions];
+      const t2a = calculateTernaryMixtureT2Seconds(system, p1, nCm3, 2);
+      const t2b = calculateTernaryMixtureT2Seconds(system, p2, nCm3, 2);
+      const t2c = calculateTernaryMixtureT2Seconds(system, p3, nCm3, 2);
+      const avg1 = (t2a + t2b + t2c) / 3;
+      triangles.push({ points: [p1, p2, p3], t2: avg1 });
+
+      if (j < divisions - i - 1) {
+        const p4 = [(i + 1) / divisions, (j + 1) / divisions, (divisions - i - j - 2) / divisions];
+        const t2d = calculateTernaryMixtureT2Seconds(system, p4, nCm3, 2);
+        const avg2 = (t2b + t2c + t2d) / 3;
+        triangles.push({ points: [p2, p4, p3], t2: avg2 });
+      }
+    }
+  }
+
+  const triangleSvg = triangles.map((triangle) => {
+    const pts = triangle.points.map((fractions) => ternaryToCartesian(fractions, vertices));
+    const pointsAttr = pts.map((point) => `${point.x.toFixed(2)},${point.y.toFixed(2)}`).join(" ");
+    return `<polygon points="${pointsAttr}" fill="${interpolateColor(triangle.t2, minT2, maxT2)}" stroke="none"></polygon>`;
+  }).join("");
+
+  const naturalPoint = ternaryToCartesian(naturalFractions, vertices);
+  const optimalPoint = optimalFractions ? ternaryToCartesian(optimalFractions, vertices) : null;
+  const boundary = vertices.map((point) => `${point.x.toFixed(2)},${point.y.toFixed(2)}`).join(" ");
+
+  currentTernaryPlotSvg = `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeSvgText(system.symbol)} ternary isotope mixing graph">
+      <rect x="0" y="0" width="${width}" height="${height}" fill="transparent"></rect>
+      ${triangleSvg}
+      <polygon points="${boundary}" fill="none" stroke="#8d6d52" stroke-width="2"></polygon>
+      <circle cx="${naturalPoint.x.toFixed(2)}" cy="${naturalPoint.y.toFixed(2)}" r="7" fill="#2e6f68"></circle>
+      ${optimalPoint ? `<circle cx="${optimalPoint.x.toFixed(2)}" cy="${optimalPoint.y.toFixed(2)}" r="7" fill="#4d3c91"></circle>` : ""}
+      <text x="${vertices[0].x.toFixed(2)}" y="26" text-anchor="middle" fill="#2b1f16" font-size="16" font-weight="700">${escapeSvgText(system.isotopes[0].label)}</text>
+      <text x="${(vertices[1].x - 24).toFixed(2)}" y="${(vertices[1].y + 24).toFixed(2)}" text-anchor="end" fill="#2b1f16" font-size="16" font-weight="700">${escapeSvgText(system.isotopes[1].label)}</text>
+      <text x="${(vertices[2].x + 24).toFixed(2)}" y="${(vertices[2].y + 24).toFixed(2)}" text-anchor="start" fill="#2b1f16" font-size="16" font-weight="700">${escapeSvgText(system.isotopes[2].label)}</text>
+      <text x="${(width / 2).toFixed(2)}" y="586" text-anchor="middle" fill="#2b1f16" font-size="14">Color scale: low <tspan font-style="italic">T</tspan><tspan baseline-shift="sub" font-size="11">2</tspan> to high <tspan font-style="italic">T</tspan><tspan baseline-shift="sub" font-size="11">2</tspan></text>
+      <rect x="250" y="596" width="220" height="16" fill="url(#t2Gradient)"></rect>
+      <defs>
+        <linearGradient id="t2Gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="rgb(255, 236, 204)"></stop>
+          <stop offset="100%" stop-color="rgb(184, 91, 31)"></stop>
+        </linearGradient>
+      </defs>
+      <text x="244" y="610" text-anchor="end" fill="#6f5a48" font-size="12">${escapeSvgText(formatTimeValue(minT2))}</text>
+      <text x="476" y="610" text-anchor="start" fill="#6f5a48" font-size="12">${escapeSvgText(formatTimeValue(maxT2))}</text>
+    </svg>
+  `;
+  ternaryPlotEl.innerHTML = currentTernaryPlotSvg;
+  if (ternaryTooltipEl) {
+    ternaryPlotEl.appendChild(ternaryTooltipEl);
+  }
+  currentTernaryPlotFileStem = `${system.symbol}-${system.isotopes.map((iso) => iso.label).join("-")}-t2-ternary`.toLowerCase();
+  currentTernaryHoverPoints = samples.map((sample, index) => {
+    const point = ternaryToCartesian(sample.fractions, vertices);
+    return {
+      cx: point.x,
+      cy: point.y,
+      html:
+        `${escapeSvgText(system.isotopes[0].label)} = ${formatFractionPercent(sample.fractions[0])}<br>` +
+        `${escapeSvgText(system.isotopes[1].label)} = ${formatFractionPercent(sample.fractions[1])}<br>` +
+        `${escapeSvgText(system.isotopes[2].label)} = ${formatFractionPercent(sample.fractions[2])}<br>` +
+        `<i>T</i><sub>2</sub> = ${escapeSvgText(formatTimeValue(sample.t2))}`,
+      key: `grid-${index}`,
+    };
+  });
+  currentTernaryHoverPoints.push({
+    cx: naturalPoint.x,
+    cy: naturalPoint.y,
+    html:
+      `Natural abundance<br>${escapeSvgText(system.isotopes[0].label)} = ${formatFractionPercent(naturalFractions[0])}<br>` +
+      `${escapeSvgText(system.isotopes[1].label)} = ${formatFractionPercent(naturalFractions[1])}<br>` +
+      `${escapeSvgText(system.isotopes[2].label)} = ${formatFractionPercent(naturalFractions[2])}<br>` +
+      `<i>T</i><sub>2</sub> = ${escapeSvgText(formatTimeValue(naturalT2))}`,
+    key: "natural",
+  });
+  if (optimalPoint && optimalFractions) {
+    currentTernaryHoverPoints.push({
+      cx: optimalPoint.x,
+      cy: optimalPoint.y,
+      html:
+        `T<sub>2,max</sub> optimum<br>${escapeSvgText(system.isotopes[0].label)} = ${formatFractionPercent(optimalFractions[0])}<br>` +
+        `${escapeSvgText(system.isotopes[1].label)} = ${formatFractionPercent(optimalFractions[1])}<br>` +
+        `${escapeSvgText(system.isotopes[2].label)} = ${formatFractionPercent(optimalFractions[2])}<br>` +
+        `<i>T</i><sub>2,max</sub> = ${escapeSvgText(formatTimeValue(t2max))}`,
+      key: "optimal",
+    });
+  }
+  if (ternaryDownloadBtn) {
+    ternaryDownloadBtn.disabled = false;
+  }
+  ternaryLegendEl.innerHTML = `
+    <span class="binary-legend-item"><span class="binary-legend-swatch mix"></span>Ternary <i>T</i><sub>2</sub> heatmap</span>
+    <span class="binary-legend-item"><span class="binary-legend-swatch natural"></span>Natural abundance point</span>
+    <span class="binary-legend-item"><span class="binary-legend-swatch max"></span><i>T</i><sub>2,max</sub> optimal point</span>
+  `;
+  ternarySummaryEl.innerHTML =
+    `${system.symbol}: natural ${system.isotopes.map((iso, index) => `${iso.label}=${formatFractionPercent(naturalFractions[index])}`).join(", ")} | ` +
+    `${optimalFractions ? `optimal ${system.isotopes.map((iso, index) => `${iso.label}=${formatFractionPercent(optimalFractions[index])}`).join(", ")} | ` : ""}` +
+    `natural-abundance <i>T</i><sub>2</sub>=${formatTimeValue(naturalT2)} | ` +
+    `<i>T</i><sub>2,max</sub>=${formatTimeValue(t2max)} | ` +
+    `n_input=${nInput.toFixed(4)} (x1e23 cm^-3)`;
+
+  const ternaryRows = [
+    ["type", "element", "isotope_1", "isotope_2", "isotope_3", "fraction_isotope_1", "fraction_isotope_2", "fraction_isotope_3", "t2_seconds", "t2_formatted", "n_input_1e23_cm3", "tag"],
+    ...samples.map((sample) => [
+      "grid",
+      system.symbol,
+      system.isotopes[0].label,
+      system.isotopes[1].label,
+      system.isotopes[2].label,
+      sample.fractions[0].toFixed(6),
+      sample.fractions[1].toFixed(6),
+      sample.fractions[2].toFixed(6),
+      Number.isFinite(sample.t2) ? sample.t2.toExponential(12) : "Infinity",
+      formatTimeValue(sample.t2),
+      nInput.toFixed(6),
+      "",
+    ]),
+    [
+      "marker",
+      system.symbol,
+      system.isotopes[0].label,
+      system.isotopes[1].label,
+      system.isotopes[2].label,
+      naturalFractions[0].toFixed(6),
+      naturalFractions[1].toFixed(6),
+      naturalFractions[2].toFixed(6),
+      Number.isFinite(naturalT2) ? naturalT2.toExponential(12) : "Infinity",
+      formatTimeValue(naturalT2),
+      nInput.toFixed(6),
+      "natural_abundance",
+    ],
+    [
+      "marker",
+      system.symbol,
+      system.isotopes[0].label,
+      system.isotopes[1].label,
+      system.isotopes[2].label,
+      optimalFractions ? optimalFractions[0].toFixed(6) : "",
+      optimalFractions ? optimalFractions[1].toFixed(6) : "",
+      optimalFractions ? optimalFractions[2].toFixed(6) : "",
+      Number.isFinite(t2max) ? t2max.toExponential(12) : "Infinity",
+      formatTimeValue(t2max),
+      nInput.toFixed(6),
+      "t2_maximum",
+    ],
+  ];
+  currentTernaryCsv = ternaryRows.map((row) => row.map(csvEscape).join(",")).join("\n");
+}
+
+function downloadCurrentTernaryPlotCsv() {
+  if (!currentTernaryCsv) {
+    return;
+  }
+
+  if (typeof window.gtag === "function") {
+    const system = getTernarySystemBySymbol(ternaryElementSelect ? ternaryElementSelect.value : "");
+    window.gtag("event", "download_t2_ternary_graph", {
+      event_category: "t2",
+      material: system ? system.symbol : "",
+      isotopes: system ? system.isotopes.map((iso) => iso.label).join("/") : "",
+      file_type: "csv",
+      page_path: location.pathname
+    });
+  }
+
+  downloadTextFile(currentTernaryCsv, `${currentTernaryPlotFileStem || "ternary-isotope-mixing"}.csv`, "text/csv;charset=utf-8");
 }
 
 function renderElementMixedResult() {
@@ -513,6 +1447,44 @@ function renderElementMixedResult() {
   mixedResultEl.innerHTML = `${symbol} natural-abundance mix <i>T</i><sub>2</sub> = ${formatTimeValue(mixed.t2Seconds)}`;
 }
 
+function renderElementMaxResult() {
+  if (!maxResultEl) {
+    return;
+  }
+
+  if (selectedCalculationMode !== "natural") {
+    maxResultEl.style.display = "none";
+    return;
+  }
+
+  maxResultEl.style.display = "";
+  const selected = getSelectedNuclide();
+  const symbol = selectedElementFromTable || (selected ? isotopeElementSymbol(selected.id) : null);
+  const nInput = Number(densityInput.value);
+  if (!symbol) {
+    maxResultEl.textContent = "Element isotope-engineering upper bound: select an element first";
+    return;
+  }
+  if (!Number.isFinite(nInput) || nInput <= 0) {
+    maxResultEl.textContent = `Element isotope-engineering upper bound (${symbol}): enter n > 0`;
+    return;
+  }
+
+  const nCm3 = nInput * N_INPUT_SCALE;
+  const t2max = computeElementT2Max(symbol, nCm3);
+  if (!t2max) {
+    maxResultEl.textContent = `Element isotope-engineering upper bound (${symbol}): no usable isotope data`;
+    return;
+  }
+
+  if (!Number.isFinite(t2max.t2Seconds)) {
+    maxResultEl.innerHTML = `${symbol} isotope-engineering <i>T</i><sub>2,max</sub> = &infin;`;
+    return;
+  }
+
+  maxResultEl.innerHTML = `${symbol} isotope-engineering <i>T</i><sub>2,max</sub> = ${formatTimeValue(t2max.t2Seconds)}`;
+}
+
 function buildPeriodicTable() {
   if (!periodicTableEl) {
     return;
@@ -534,7 +1506,7 @@ function buildPeriodicTable() {
       button.textContent = symbol;
       button.dataset.element = symbol;
 
-      const hasData = (isotopesByElement[symbol] || []).length > 0;
+      const hasData = supportsElementNaturalMode(symbol);
       const isDisabledByPolicy = DISABLED_ELEMENTS.has(symbol);
       if (!hasData || isDisabledByPolicy) {
         button.classList.add("disabled");
@@ -545,6 +1517,8 @@ function buildPeriodicTable() {
         button.addEventListener("click", () => {
           selectedElementFromTable = symbol;
           selectedCalculationMode = "natural";
+          syncBinarySelectionFromElement(symbol);
+          syncTernarySelectionFromElement(symbol);
           populateIsotopeCandidates(symbol, naturalOptionValue(symbol));
           setFieldsFromNaturalElement(symbol);
           runMainCalculation();
@@ -565,6 +1539,8 @@ nuclideInput.addEventListener("change", () => {
   selectedElementFromTable = selected ? isotopeElementSymbol(selected.id) : null;
   selectedCalculationMode = "isotope";
   setDefaultsFromNuclide();
+  syncBinarySelectionFromElement(selectedElementFromTable);
+  syncTernarySelectionFromElement(selectedElementFromTable);
   if (selectedElementFromTable) {
     populateIsotopeCandidates(selectedElementFromTable, nuclideInput.value);
   }
@@ -598,6 +1574,8 @@ if (isotopeCandidatesInput) {
       }
       selectedCalculationMode = "natural";
       selectedElementFromTable = symbol;
+      syncBinarySelectionFromElement(symbol);
+      syncTernarySelectionFromElement(symbol);
       setFieldsFromNaturalElement(symbol);
 runMainCalculation();
 trackAutoRun("nuclide_change");
@@ -609,6 +1587,8 @@ trackAutoRun("nuclide_change");
     nuclideInput.value = selectedValue;
     selectedElementFromTable = isotopeElementSymbol(selectedValue);
     setDefaultsFromNuclide();
+    syncBinarySelectionFromElement(selectedElementFromTable);
+    syncTernarySelectionFromElement(selectedElementFromTable);
 runMainCalculation();
 trackAutoRun("nuclide_change");
     syncPeriodicSelection();
@@ -619,9 +1599,14 @@ densityInput.addEventListener("input", () => {
   if (selectedCalculationMode !== "custom") {
 runMainCalculation();
 trackAutoRun("nuclide_change");
+    renderBinaryMixingPlot();
+    renderTernaryMixingPlot();
     return;
   }
   renderElementMixedResult();
+  renderElementMaxResult();
+  renderBinaryMixingPlot();
+  renderTernaryMixingPlot();
 });
 
 if (customModeBtn) {
@@ -635,6 +1620,10 @@ function runMainCalculation() {
   if (!Number.isFinite(nInput) || nInput <= 0) {
     resultEl.textContent = "Input error: concentration n must be greater than 0.";
     resultEl.classList.add("error");
+    renderElementMixedResult();
+    renderElementMaxResult();
+    renderBinaryMixingPlot();
+    renderTernaryMixingPlot();
     return false;
   }
 
@@ -649,6 +1638,9 @@ function runMainCalculation() {
       resultEl.textContent = "Input error: no usable natural-abundance isotope data for selected element.";
       resultEl.classList.add("error");
       renderElementMixedResult();
+      renderElementMaxResult();
+      renderBinaryMixingPlot();
+      renderTernaryMixingPlot();
       return false;
     }
 
@@ -656,9 +1648,12 @@ function runMainCalculation() {
     resultEl.classList.remove("error");
     metaEl.textContent =
       `Mode: Natural abundance (${mixed.symbol}) | eta=2 | isotopes used=${mixed.isotopeCount} | ` +
-      `coverage=${(mixed.abundanceCoverage * 100).toFixed(3)}% | n_i model: n_i=n*abundance | ` +
+      `coverage=${(mixed.abundanceCoverage * 100).toFixed(3)}% | stable I=0 isotope=${elementHasStableZeroSpinIsotope(mixed.symbol) ? "yes" : "no"} | n_i model: n_i=n*abundance | ` +
       `n_input=${nInput.toFixed(4)} (x1e23 cm^-3) | n=${nCm3.toExponential(4)} cm^-3`;
     renderElementMixedResult();
+    renderElementMaxResult();
+    renderBinaryMixingPlot();
+    renderTernaryMixingPlot();
     return true;
   }
 
@@ -671,6 +1666,9 @@ function runMainCalculation() {
     if (!Number.isFinite(g) || g === 0 || !Number.isFinite(I) || I <= 0) {
       resultEl.textContent = "Input error: custom mode requires g != 0 and I > 0.";
       resultEl.classList.add("error");
+      renderElementMaxResult();
+      renderBinaryMixingPlot();
+      renderTernaryMixingPlot();
       return false;
     }
 
@@ -681,6 +1679,9 @@ function runMainCalculation() {
     metaEl.textContent =
       `Mode: Custom | abundance=${abundanceText} | g=${g} | I=${I} | ` +
       `n_input=${nInput.toFixed(4)} (x1e23 cm^-3) | n=${nCm3.toExponential(4)} cm^-3`;
+    renderElementMaxResult();
+    renderBinaryMixingPlot();
+    renderTernaryMixingPlot();
     return true;
   }
 
@@ -692,6 +1693,9 @@ function runMainCalculation() {
     resultEl.textContent = "Input error: g must be non-zero, and I must be greater than 0.";
     resultEl.classList.add("error");
     renderElementMixedResult();
+    renderElementMaxResult();
+    renderBinaryMixingPlot();
+    renderTernaryMixingPlot();
     return false;
   }
 
@@ -706,6 +1710,9 @@ function runMainCalculation() {
     `n_input=${nInput.toFixed(4)} (x1e23 cm^-3) | n=${nCm3.toExponential(4)} cm^-3`;
 
   renderElementMixedResult();
+  renderElementMaxResult();
+  renderBinaryMixingPlot();
+  renderTernaryMixingPlot();
   return true;
 }
 
@@ -790,14 +1797,83 @@ function buildIsotopeIndexByElement() {
 }
 
 const isotopesByElement = buildIsotopeIndexByElement();
+const binaryIsotopeSystems = buildBinaryIsotopeSystems();
+const ternaryIsotopeSystems = buildTernaryIsotopeSystems();
 buildPeriodicTable();
 selectedElementFromTable = null;
 if (isotopeCandidatesInput) {
   isotopeCandidatesInput.innerHTML = '<option value="">Select an element first</option>';
   isotopeCandidatesInput.disabled = true;
 }
+if (binaryElementSelect) {
+  binaryElementSelect.innerHTML = '<option value="">Select a binary isotope system</option>';
+  binaryIsotopeSystems.forEach((entry) => {
+    const option = document.createElement("option");
+    option.value = entry.symbol;
+    option.textContent = `${entry.symbol}: ${entry.isotopes[0].label} / ${entry.isotopes[1].label}`;
+    binaryElementSelect.appendChild(option);
+  });
+  binaryElementSelect.addEventListener("change", () => {
+    renderBinaryMixingPlot();
+  });
+}
+if (binaryDownloadBtn) {
+  binaryDownloadBtn.disabled = true;
+  binaryDownloadBtn.addEventListener("click", downloadCurrentBinaryPlotCsv);
+}
+if (binaryPlotEl) {
+  binaryPlotEl.addEventListener("mousemove", (event) => {
+    const rect = binaryPlotEl.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    const nearest = findNearestPoint(currentBinaryHoverPoints, x, y, 20);
+    if (!nearest) {
+      hideTooltip(binaryTooltipEl);
+      return;
+    }
+    showTooltip(binaryPlotEl, binaryTooltipEl, nearest.html, x, y);
+  });
+  binaryPlotEl.addEventListener("mouseleave", () => {
+    hideTooltip(binaryTooltipEl);
+  });
+}
+if (ternaryElementSelect) {
+  ternaryElementSelect.innerHTML = '<option value="">Select a ternary isotope system</option>';
+  ternaryIsotopeSystems.forEach((entry) => {
+    const option = document.createElement("option");
+    option.value = entry.symbol;
+    option.textContent = `${entry.symbol}: ${entry.isotopes.map((iso) => iso.label).join(" / ")}`;
+    ternaryElementSelect.appendChild(option);
+  });
+  ternaryElementSelect.addEventListener("change", () => {
+    renderTernaryMixingPlot();
+  });
+}
+if (ternaryDownloadBtn) {
+  ternaryDownloadBtn.disabled = true;
+  ternaryDownloadBtn.addEventListener("click", downloadCurrentTernaryPlotCsv);
+}
+if (ternaryPlotEl) {
+  ternaryPlotEl.addEventListener("mousemove", (event) => {
+    const rect = ternaryPlotEl.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    const nearest = findNearestPoint(currentTernaryHoverPoints, x, y, 22);
+    if (!nearest) {
+      hideTooltip(ternaryTooltipEl);
+      return;
+    }
+    showTooltip(ternaryPlotEl, ternaryTooltipEl, nearest.html, x, y);
+  });
+  ternaryPlotEl.addEventListener("mouseleave", () => {
+    hideTooltip(ternaryTooltipEl);
+  });
+}
 syncPeriodicSelection();
 renderElementMixedResult();
+renderElementMaxResult();
+renderBinaryMixingPlot();
+renderTernaryMixingPlot();
 
 function calculateT2Seconds(g, I, nCm3) {
   const term = Math.pow(Math.abs(g), G_EXP) * Math.pow(I, I_EXP) * Math.pow(nCm3, N_EXP);
