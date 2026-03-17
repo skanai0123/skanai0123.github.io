@@ -136,7 +136,9 @@
     .bdir-row {
       display: flex;
       gap: 6px;
-      flex-wrap: wrap;
+      flex-wrap: nowrap;
+      align-items: center;
+      justify-content: flex-start;
     }
 
     .bdir-btn {
@@ -168,17 +170,9 @@
       font-size: 11px;
     }
 
-    .b-top-row {
-      display: flex;
-      align-items: end;
-      justify-content: space-between;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-
     .b-field-row {
       display: grid;
-      grid-template-columns: repeat(3, minmax(56px, 1fr));
+      grid-template-columns: repeat(3, minmax(56px, 1fr)) auto;
       gap: 6px;
       align-items: end;
     }
@@ -241,6 +235,49 @@
       align-content: start;
     }
 
+    .workspace-panel {
+      display: grid;
+      gap: 12px;
+      min-width: 0;
+      align-content: start;
+    }
+
+    .workspace-tabs {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .workspace-tab {
+      min-height: 34px;
+      padding: 0 14px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #fff;
+      color: var(--sub);
+      font-size: 13px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .workspace-tab.is-active {
+      background: var(--accent-soft);
+      border-color: #d6bff0;
+      color: var(--accent);
+    }
+
+    .workspace-pane {
+      display: none;
+      min-width: 0;
+    }
+
+    .workspace-pane.is-active {
+      display: grid;
+      gap: 16px;
+      min-width: 0;
+    }
+
     .diagram-box-row {
       min-height: 264px;
     }
@@ -253,14 +290,15 @@
 
     .panel-state-settings {
       display: grid;
-      grid-template-columns: repeat(4, minmax(54px, max-content));
+      grid-template-columns: 56px 56px 106px 106px 156px 106px;
       gap: 6px;
       justify-content: start;
       align-content: start;
     }
 
+    .panel-state-settings > div,
     .panel-state-settings .delta2-wrap {
-      min-width: 54px;
+      min-width: 0;
     }
 
     .result-head {
@@ -464,9 +502,13 @@
 
     .rate-grid {
       display: grid;
-      grid-template-columns: minmax(320px, 420px) 1fr;
+      grid-template-columns: minmax(300px, 380px) minmax(0, 0.92fr) minmax(0, 1.08fr);
       gap: 16px;
       align-items: start;
+    }
+
+    .rate-grid > * {
+      min-width: 0;
     }
 
     .rate-controls {
@@ -507,27 +549,36 @@
     }
 
     .rate-results {
-      display: grid;
-      gap: 12px;
+      display: contents;
+      min-width: 0;
     }
 
     .rate-results-layout {
-      display: grid;
-      grid-template-columns: minmax(0, 0.88fr) minmax(360px, 1.12fr);
-      gap: 12px;
-      align-items: start;
+      display: contents;
     }
 
     .rate-time-column {
       display: grid;
       gap: 12px;
       min-width: 0;
+      grid-column: 2;
+      align-content: start;
     }
 
     .rate-spectrum-column {
       display: grid;
       gap: 12px;
       min-width: 0;
+      grid-column: 3;
+      align-content: start;
+    }
+
+    .rate-map-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 12px;
+      min-width: 0;
+      grid-column: 2 / 4;
     }
 
     .rate-cards {
@@ -610,6 +661,26 @@
       color: #5f678b;
       font-size: 12px;
     }
+
+    .rate-inline-value {
+      font-size: 12px;
+      color: #5f678b;
+      font-weight: 700;
+    }
+
+    .rate-inline-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-top: 6px;
+    }
+
+    .rate-inline-row .secondary-btn {
+      min-height: 28px;
+      padding: 0 10px;
+      font-size: 12px;
+    }
     .rate-canvas-wrap {
       position: relative;
     }
@@ -617,13 +688,19 @@
     .rate-canvas-wrap canvas,
     .rate-spectrum-canvas {
       width: 100%;
+      max-width: 100%;
       height: auto;
       display: block;
     }
 
+    .rate-results .box {
+      min-width: 0;
+      overflow: hidden;
+    }
+
     .rate-spectrum-controls {
       display: grid;
-      grid-template-columns: minmax(140px, 220px);
+      grid-template-columns: repeat(2, minmax(140px, 220px));
       gap: 10px 12px;
       align-items: end;
     }
@@ -1088,7 +1165,11 @@
       .preview-grid { grid-template-columns: 1fr; }
       .diagram-split { grid-template-columns: 1fr; }
       .rate-grid { grid-template-columns: 1fr; }
-      .rate-results-layout { grid-template-columns: 1fr; }
+      .rate-results { display: grid; gap: 12px; }
+      .rate-results-layout { display: grid; grid-template-columns: 1fr; gap: 12px; }
+      .rate-time-column,
+      .rate-spectrum-column { grid-column: auto; }
+      .rate-map-grid { grid-template-columns: 1fr; grid-column: auto; }
       .rate-cards { grid-template-columns: 1fr; }
       .rate-controls-grid { grid-template-columns: 1fr; }
       .rate-spectrum-controls { grid-template-columns: 1fr; }
@@ -1128,13 +1209,6 @@
               </div>
             </div>
             <div class="form-block">
-              <div class="b-top-row">
-                <div class="bdir-row">
-                  <button type="button" class="bdir-btn" id="bDirX">x</button>
-                  <button type="button" class="bdir-btn" id="bDirY">y</button>
-                  <button type="button" class="bdir-btn" id="bDirZ">z</button>
-                </div>
-              </div>
               <div class="b-field-row">
                 <div class="bangle-item">
                   <label for="bTheta">θ</label>
@@ -1147,6 +1221,14 @@
                 <div>
                   <label for="bField">B (T)</label>
                   <input id="bField" type="number" min="0" step="0.01" value="0.01">
+                </div>
+                <div class="bangle-item">
+                  <label aria-hidden="true">&nbsp;</label>
+                  <div class="bdir-row">
+                    <button type="button" class="bdir-btn" id="bDirX">x</button>
+                    <button type="button" class="bdir-btn" id="bDirY">y</button>
+                    <button type="button" class="bdir-btn" id="bDirZ">z</button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1207,14 +1289,20 @@
         </div>
       </section>
 
-      <section class="state-stack">
+      <section class="workspace-panel">
+        <div class="workspace-tabs" role="tablist" aria-label="Workspace views">
+          <button type="button" id="workspaceStatesTab" class="workspace-tab" role="tab" aria-selected="false" aria-controls="workspaceStatesPane">Final State + Initial State</button>
+          <button type="button" id="workspaceRateTab" class="workspace-tab is-active" role="tab" aria-selected="true" aria-controls="workspaceRatePane">Laser / Rate Equation</button>
+        </div>
+        <div id="workspaceStatesPane" class="workspace-pane" role="tabpanel" aria-labelledby="workspaceStatesTab">
+          <section class="state-stack">
         <section class="card result result-panel">
           <div class="result-head">
             <div class="result-meta">
               <div class="result-kicker">Final State</div>
-              <div id="finalSummary" class="result-summary">Octahedral (Oh) / 3d</div>
+              <div id="finalSummary" class="result-summary"></div>
             </div>
-            <div><span id="finalStatus" class="pill">Preparing</span></div>
+            <div><span id="finalStatus" class="pill" style="display:none;"></span></div>
           </div>
           <div class="state-main-grid">
             <div class="state-visual-col">
@@ -1294,9 +1382,9 @@
           <div class="result-head">
             <div class="result-meta">
               <div class="result-kicker">Initial State</div>
-              <div id="initialSummary" class="result-summary">Octahedral (Oh) / 3d</div>
+              <div id="initialSummary" class="result-summary"></div>
             </div>
-            <div><span id="status" class="pill">Ready</span></div>
+            <div><span id="status" class="pill" style="display:none;"></span></div>
           </div>
           <div class="state-main-grid">
             <div class="state-visual-col">
@@ -1366,11 +1454,16 @@
               </div>
             </div>
           </div>
-        </section>
+            </section>
+          </section>
+        </div>
+        <div id="workspaceRatePane" class="workspace-pane is-active" role="tabpanel" aria-labelledby="workspaceRateTab">
+          <div id="workspaceRateHost"></div>
+        </div>
       </section>
     </section>
 
-    <section class="card rate-panel" aria-label="Laser and rate equation panel">
+    <section id="ratePanel" class="card rate-panel" aria-label="Laser and rate equation panel">
       <div class="topbar">
         <div class="form-section-title">Laser / Rate Equation</div>
       </div>
@@ -1383,6 +1476,10 @@
               <div>
                 <label for="laserEnergy">Laser Energy (eV)</label>
                 <input id="laserEnergy" type="number" min="0" step="0.001" value="1.000">
+                <div class="rate-inline-row">
+                  <div id="selectedLaserEnergy" class="rate-inline-value">Current ΔE: -</div>
+                  <button id="useSelectedLaserEnergyBtn" class="secondary-btn" type="button">Use Current Transition ΔE</button>
+                </div>
               </div>
               <div>
                 <label for="laserWidth">Laser Width (eV)</label>
@@ -1395,18 +1492,10 @@
               <div>
                 <label for="excitationPolarization">Excitation Polarization</label>
                 <select id="excitationPolarization">
-                  <option value="unpolarized" selected>Unpolarized</option>
-                  <option value="sigma_plus">sigma+</option>
+                  <option value="unpolarized">Unpolarized</option>
+                  <option value="sigma_plus" selected>sigma+</option>
                   <option value="sigma_minus">sigma-</option>
                 </select>
-              </div>
-              <div>
-                <label for="selectedLaserEnergy">Current Transition ΔE (eV)</label>
-                <input id="selectedLaserEnergy" type="text" value="-" readonly>
-              </div>
-              <div>
-                <label>&nbsp;</label>
-                <button id="useSelectedLaserEnergyBtn" class="secondary-btn" type="button">Use Current Transition ΔE</button>
               </div>
             </div>
           </div>
@@ -1455,7 +1544,7 @@
                   </div>
                 </div>
                 <div class="rate-canvas-wrap">
-                  <canvas id="rateTimeCanvas" width="900" height="320" role="img" aria-label="Rate-equation time evolution"></canvas>
+                  <canvas id="rateTimeCanvas" width="820" height="280" role="img" aria-label="Rate-equation time evolution"></canvas>
                   <div id="rateTimeTooltip" class="rate-tooltip"></div>
                 </div>
               </div>
@@ -1464,7 +1553,8 @@
                   <div class="transition-label">PL(t)</div>
                   <button id="downloadPlTimeCsv" type="button" class="state-btn">Download CSV</button>
                 </div>
-                <canvas id="ratePlCanvas" width="900" height="220" role="img" aria-label="Photoluminescence time evolution"></canvas>
+                <canvas id="ratePlCanvas" width="820" height="190" role="img" aria-label="Photoluminescence time evolution"></canvas>
+                <div id="plDocpValue" class="rate-inline-value">DOCP = -</div>
               </div>
             </div>
             <div class="rate-spectrum-column">
@@ -1476,11 +1566,33 @@
                 <div class="rate-spectrum-controls">
                   <div>
                     <label for="plSpectrumWidth">PL Width (eV)</label>
-                    <input id="plSpectrumWidth" type="number" min="0.0001" step="0.001" value="0.030">
+                    <input id="plSpectrumWidth" type="number" min="0.0001" step="0.001" value="0.4">
                   </div>
+                <div>
+                    <label for="plDocpError">PL Error (% of total peak)</label>
+                    <input id="plDocpError" type="number" min="0" step="0.01" value="0.01">
                 </div>
-                <canvas id="rateSpectrumCanvas" class="rate-spectrum-canvas" width="1080" height="564" role="img" aria-label="Polarization-resolved photoluminescence spectrum"></canvas>
+                </div>
+                <canvas id="rateSpectrumCanvas" class="rate-spectrum-canvas" width="940" height="460" role="img" aria-label="Polarization-resolved photoluminescence spectrum"></canvas>
+                <div class="transition-label">DOCP(λ)</div>
+                <canvas id="rateDocpSpectrumCanvas" class="rate-spectrum-canvas" width="940" height="360" role="img" aria-label="Wavelength-dependent degree of circular polarization"></canvas>
               </div>
+            </div>
+          </div>
+          <div class="rate-map-grid">
+            <div class="box rate-controls">
+              <div class="rate-head">
+                <div class="transition-label">PL Excitation-Emission Map</div>
+                <button id="downloadPleMapCsv" type="button" class="state-btn">Download CSV</button>
+              </div>
+              <canvas id="ratePleMapCanvas" class="rate-spectrum-canvas" width="940" height="460" role="img" aria-label="Photoluminescence excitation-emission map"></canvas>
+            </div>
+            <div class="box rate-controls">
+              <div class="rate-head">
+                <div class="transition-label">DOCP Excitation-Emission Map</div>
+                <button id="downloadDocpMapCsv" type="button" class="state-btn">Download CSV</button>
+              </div>
+              <canvas id="rateDocpMapCanvas" class="rate-spectrum-canvas" width="940" height="460" role="img" aria-label="DOCP excitation-emission map"></canvas>
             </div>
           </div>
         </div>
@@ -1510,6 +1622,12 @@
     const scaleModeEl = document.getElementById("scaleMode");
     const diagramEl = document.getElementById("diagram");
     const finalDiagramEl = document.getElementById("finalDiagram");
+    const workspaceStatesTabEl = document.getElementById("workspaceStatesTab");
+    const workspaceRateTabEl = document.getElementById("workspaceRateTab");
+    const workspaceStatesPaneEl = document.getElementById("workspaceStatesPane");
+    const workspaceRatePaneEl = document.getElementById("workspaceRatePane");
+    const workspaceRateHostEl = document.getElementById("workspaceRateHost");
+    const ratePanelEl = document.getElementById("ratePanel");
     const orbitalPreviewEl = document.getElementById("orbitalPreview");
     const orbitalCtx = orbitalPreviewEl.getContext("2d");
     const orbitalCoeffEl = document.getElementById("orbitalCoeff");
@@ -1560,13 +1678,42 @@
     const rateTimeTooltipEl = document.getElementById("rateTimeTooltip");
     const ratePlCanvasEl = document.getElementById("ratePlCanvas");
     const ratePlCtx = ratePlCanvasEl.getContext("2d");
+    const plDocpValueEl = document.getElementById("plDocpValue");
     const downloadRateTimeCsvEl = document.getElementById("downloadRateTimeCsv");
     const downloadPlTimeCsvEl = document.getElementById("downloadPlTimeCsv");
     const downloadPlSpectrumCsvEl = document.getElementById("downloadPlSpectrumCsv");
+    const downloadPleMapCsvEl = document.getElementById("downloadPleMapCsv");
+    const downloadDocpMapCsvEl = document.getElementById("downloadDocpMapCsv");
     const plSpectrumWidthEl = document.getElementById("plSpectrumWidth");
+    const plDocpErrorEl = document.getElementById("plDocpError");
     const rateSpectrumCanvasEl = document.getElementById("rateSpectrumCanvas");
     const rateSpectrumCtx = rateSpectrumCanvasEl.getContext("2d");
+    const rateDocpSpectrumCanvasEl = document.getElementById("rateDocpSpectrumCanvas");
+    const rateDocpSpectrumCtx = rateDocpSpectrumCanvasEl.getContext("2d");
+    const ratePleMapCanvasEl = document.getElementById("ratePleMapCanvas");
+    const ratePleMapCtx = ratePleMapCanvasEl.getContext("2d");
+    const rateDocpMapCanvasEl = document.getElementById("rateDocpMapCanvas");
+    const rateDocpMapCtx = rateDocpMapCanvasEl.getContext("2d");
     const delta2WrapEls = Array.from(document.querySelectorAll(".delta2-wrap"));
+
+    function setWorkspacePane(mode) {
+      const showStates = mode !== "rate";
+      workspaceStatesTabEl.classList.toggle("is-active", showStates);
+      workspaceRateTabEl.classList.toggle("is-active", !showStates);
+      workspaceStatesTabEl.setAttribute("aria-selected", showStates ? "true" : "false");
+      workspaceRateTabEl.setAttribute("aria-selected", showStates ? "false" : "true");
+      workspaceStatesPaneEl.classList.toggle("is-active", showStates);
+      workspaceRatePaneEl.classList.toggle("is-active", !showStates);
+      if (!showStates && pleMapsDirty && latestRateEquationData) {
+        renderPleMaps(latestRateEquationData);
+      }
+    }
+
+    if (workspaceRateHostEl && ratePanelEl) {
+      workspaceRateHostEl.appendChild(ratePanelEl);
+    }
+    workspaceStatesTabEl.addEventListener("click", () => setWorkspacePane("states"));
+    workspaceRateTabEl.addEventListener("click", () => setWorkspacePane("rate"));
     const nEl = nInitialEl;
     const lEl = lInitialEl;
     const lambdaEl = lambdaInitialEl;
@@ -1577,6 +1724,7 @@
     const MU_B_EV_T = 5.788381806e-5;
     const K_B_EV_K = 8.617333262145e-5;
     const HC_EV_NM = 1239.841984;
+    const PL_MAX_WAVELENGTH_NM = 1500;
     const RELAXATION_REFERENCE_EV = 0.01;
     const GENERIC_CF_SOURCE_RHO = 0.65;
     const GENERIC_CF_THETA_STEPS = 40;
@@ -1585,6 +1733,10 @@
     let latestRateEquationData = null;
     let latestRateIntegrated = null;
     let latestPlSpectrumData = null;
+    let latestPlSpectrumPlot = null;
+    let latestPleMapData = null;
+    let selectedPleMapPoint = null;
+    let pleMapsDirty = true;
     const GENERIC_CF_BASE_CACHE = new Map();
     const orbitalView = {
       name: null,
@@ -2405,8 +2557,8 @@
     }
 
     function syncStateSummaries() {
-      initialSummaryEl.textContent = buildStateSummary(geometryEl.value, nInitialEl.value, lInitialEl.value);
-      finalSummaryEl.textContent = buildStateSummary(geometryEl.value, nFinalEl.value, lFinalEl.value);
+      initialSummaryEl.textContent = "";
+      finalSummaryEl.textContent = "";
     }
 
     function computeAngularDipoleIntegral(finalOrbital, initialOrbital, component) {
@@ -2921,7 +3073,7 @@
       const matrixMax = matrixData ? matrixData.maxValue : 0;
       if (!summary) {
         transitionSummaryGridEl.innerHTML = `<div class="transition-cell"><div class="transition-label">Selection</div><div class="transition-subvalue">Pick one level on each side to evaluate the transition intensity.</div></div>`;
-        renderRateEquationPanel();
+        safeRenderRateEquationPanel();
         return;
       }
       const modeLabel = getPolarizationAppearance(summary.mode).label;
@@ -2929,9 +3081,9 @@
         ? `sigma+ = ${formatNorm100(summary.sigmaPlus, matrixMax)}, sigma- = ${formatNorm100(summary.sigmaMinus, matrixMax)}`
         : `${modeLabel} = ${formatNorm100(summary.selected, matrixMax)} / 100`;
       const cartesianText = `x = ${formatRawTransitionValue(summary.x)}, y = ${formatRawTransitionValue(summary.y)}, z = ${formatRawTransitionValue(summary.z)}`;
-      transitionSummaryGridEl.innerHTML = `<div class="transition-cell"><div class="transition-label">Selected Levels</div><div class="transition-subvalue">Initial: ${summary.initial.label} -> Final: ${summary.final.label}: ΔE = ${summary.deltaE.toFixed(8)} eV</div><div class="transition-subvalue">Intensity: ${intensityText}</div><div class="transition-subvalue">Cartesian dipole: ${cartesianText}</div></div>`;
+      transitionSummaryGridEl.innerHTML = `<div class="transition-cell"><div class="transition-label">Selected Levels</div><div class="transition-subvalue">Initial: ${summary.initial.label} -> Final: ${summary.final.label}: ΔE = ${summary.deltaE.toFixed(8)} eV</div><div class="transition-subvalue">Intensity: ${intensityText} | Cartesian dipole: ${cartesianText}</div></div>`;
       transitionNoteEl.textContent = "";
-      renderRateEquationPanel();
+      safeRenderRateEquationPanel();
     }
 
     function gaussianProfile(x, width) {
@@ -3013,6 +3165,17 @@
       return Math.abs(summary.deltaE);
     }
 
+    function getCurrentOrDefaultTransitionDeltaEAbs() {
+      const selected = getSelectedTransitionDeltaEAbs();
+      if (Number.isFinite(selected)) return selected;
+      const matrixData = buildTransitionMatrixData();
+      const fallback = matrixData?.matrix?.[0]?.[0];
+      if (fallback && Number.isFinite(fallback.deltaE)) {
+        return Math.abs(fallback.deltaE);
+      }
+      return null;
+    }
+
     function getExcitationStrength(item) {
       if (!item) return 0;
       const mode = excitationPolarizationEl.value;
@@ -3021,13 +3184,13 @@
       return item.avg || 0;
     }
 
-    function buildRateEquationData() {
+    function buildRateEquationData(options = {}) {
       if (!initialPanelData || !finalPanelData) return null;
       const initialLevels = stageStateLevels.B || [];
       const finalLevels = finalStageStateLevels.B || [];
       if (!initialLevels.length || !finalLevels.length) return null;
 
-      const laserEnergy = Number(laserEnergyEl.value);
+      const laserEnergy = Number(options.laserEnergy ?? laserEnergyEl.value);
       const laserWidth = Number(laserWidthEl.value);
       const pumpRate = Number(pumpRateEl.value);
       const radiativeLifetime = Number(radiativeLifetimeEl.value);
@@ -3146,6 +3309,7 @@
         states,
         flow,
         generator: K,
+        matrixData,
         steadyPopulations: steadyObservables ? steadyObservables.populations : null,
         steadyIncoming: steadyObservables ? steadyObservables.incoming : null,
         steadyOutgoing: steadyObservables ? steadyObservables.outgoing : null,
@@ -3387,12 +3551,17 @@
       const ctx = ratePlCtx;
       const canvas = ratePlCanvasEl;
       if (!integrated) {
+        if (plDocpValueEl) plDocpValueEl.textContent = "DOCP = -";
         renderScalarSeries(ctx, canvas, null, "PL(t)");
         renderPlSpectrum(null, null);
         return;
       }
-      const base = renderScalarSeries(ctx, canvas, { times: integrated.times, series: [integrated.plSigmaPlus, integrated.plSigmaMinus] }, "PL(t)");
-      const { times, plSigmaPlus, plSigmaMinus } = integrated;
+      const { times } = integrated;
+      const totalIntegral = integrateSeriesSum(times, [integrated.plSigmaPlus, integrated.plSigmaMinus]);
+      const norm = totalIntegral > 1e-18 ? totalIntegral : 1;
+      const plSigmaPlus = integrated.plSigmaPlus.map((v) => v / norm);
+      const plSigmaMinus = integrated.plSigmaMinus.map((v) => v / norm);
+      const base = renderScalarSeries(ctx, canvas, { times, series: [plSigmaPlus, plSigmaMinus] }, "PL(t)");
       const { xAt, yAt } = base;
       const curves = [
         { values: plSigmaPlus, color: "rgba(214, 73, 73, 0.95)", label: "σ+" },
@@ -3420,18 +3589,73 @@
         ctx.fillText(curve.label, lx + 16, ly);
         lx += 60;
       });
+      const lastPlus = plSigmaPlus[plSigmaPlus.length - 1] || 0;
+      const lastMinus = plSigmaMinus[plSigmaMinus.length - 1] || 0;
+      const denom = lastPlus + lastMinus;
+      const docp = denom > 1e-18 ? (lastPlus - lastMinus) / denom : null;
+      if (plDocpValueEl) {
+        plDocpValueEl.textContent = docp === null
+          ? "DOCP = -"
+          : `DOCP = (I+ - I-) / (I+ + I-) = ${docp.toFixed(4)} at t = ${times[times.length - 1].toFixed(2)} ns`;
+      }
       renderPlSpectrum(latestRateSeriesPlot ? latestRateSeriesPlot.data : null, integrated);
     }
 
-    function buildPlSpectrumData(data, integrated) {
-      if (!data || !integrated || !integrated.finalPopulations) return null;
-      const width = Math.max(1e-4, Number(plSpectrumWidthEl.value) || 0.03);
-      const populations = integrated.finalPopulations;
+    function integrateSeriesSum(xValues, ySeries) {
+      if (!Array.isArray(xValues) || xValues.length < 2 || !Array.isArray(ySeries) || !ySeries.length) return 0;
+      let sum = 0;
+      for (let i = 1; i < xValues.length; i += 1) {
+        const dx = xValues[i] - xValues[i - 1];
+        const y0 = ySeries.reduce((acc, series) => acc + (series[i - 1] || 0), 0);
+        const y1 = ySeries.reduce((acc, series) => acc + (series[i] || 0), 0);
+        sum += 0.5 * (y0 + y1) * dx;
+      }
+      return sum;
+    }
+
+    function buildPlEmissionGrid(data, options = {}) {
+      if (!data || !Array.isArray(data.radiativePairs)) return null;
+      const width = Math.max(1e-4, Number(options.width) || Number(plSpectrumWidthEl.value) || 0.03);
+      let minE = Number.POSITIVE_INFINITY;
+      let maxE = Number.NEGATIVE_INFINITY;
+      for (const pair of data.radiativePairs) {
+        const fromState = data.states?.[pair.from];
+        const toState = data.states?.[pair.to];
+        if (!fromState || !toState) continue;
+        const energy = fromState.energy - toState.energy;
+        const hasWeight = (pair.sigmaPlusRate || 0) > 0 || (pair.sigmaMinusRate || 0) > 0 || (pair.rate || 0) > 0;
+        if (!(energy > 0) || !hasWeight) continue;
+        minE = Math.min(minE, energy);
+        maxE = Math.max(maxE, energy);
+      }
+      if (!Number.isFinite(minE) || !Number.isFinite(maxE)) return null;
+      const padding = Math.max(width * 3, 0.01);
+      const e0 = Math.max(1e-6, minE - padding);
+      const e1 = maxE + padding;
+      const lambdaMin = HC_EV_NM / e1;
+      const lambdaMax = Math.min(HC_EV_NM / e0, PL_MAX_WAVELENGTH_NM);
+      if (!(lambdaMax > lambdaMin)) return null;
+      const points = 320;
+      const energies = [];
+      const wavelengths = [];
+      for (let i = 0; i < points; i += 1) {
+        const lambdaNm = lambdaMin + (lambdaMax - lambdaMin) * (i / (points - 1));
+        wavelengths.push(lambdaNm);
+        energies.push(HC_EV_NM / lambdaNm);
+      }
+      return { energies, wavelengths, width };
+    }
+
+    function buildPlSpectrumFromPopulations(data, populations, options = {}) {
+      if (!data) return null;
+      const width = Math.max(1e-4, Number(options.width) || Number(plSpectrumWidthEl.value) || 0.03);
+      const normalize = options.normalize !== false;
+      const grid = options.grid || null;
       const lines = [];
       let minE = Number.POSITIVE_INFINITY;
       let maxE = Number.NEGATIVE_INFINITY;
       for (const pair of data.radiativePairs) {
-        const pop = populations[pair.from] || 0;
+        const pop = populations ? (populations[pair.from] || 0) : 0;
         if (!(pop > 0)) continue;
         const fromState = data.states[pair.from];
         const toState = data.states[pair.to];
@@ -3444,18 +3668,28 @@
         minE = Math.min(minE, energy);
         maxE = Math.max(maxE, energy);
       }
-      if (!lines.length || !Number.isFinite(minE) || !Number.isFinite(maxE)) return null;
-      const padding = Math.max(width * 3, 0.01);
-      const e0 = Math.max(0, minE - padding);
-      const e1 = maxE + padding;
-      const points = 320;
-      const energies = [];
-      const wavelengths = [];
+      if (!lines.length && !grid) return null;
+      const energies = grid ? grid.energies.slice() : [];
+      const wavelengths = grid ? grid.wavelengths.slice() : [];
       const sigmaPlus = [];
       const sigmaMinus = [];
-      for (let i = 0; i < points; i += 1) {
-        const lambdaNm = (HC_EV_NM / e1) + ((HC_EV_NM / e0) - (HC_EV_NM / e1)) * (i / (points - 1));
-        const e = HC_EV_NM / lambdaNm;
+      if (!grid) {
+        const padding = Math.max(width * 3, 0.01);
+        const e0 = Math.max(1e-6, minE - padding);
+        const e1 = maxE + padding;
+        const lambdaMin = HC_EV_NM / e1;
+        const lambdaMax = Math.min(HC_EV_NM / e0, PL_MAX_WAVELENGTH_NM);
+        if (!(lambdaMax > lambdaMin)) return null;
+        const points = 320;
+        for (let i = 0; i < points; i += 1) {
+          const lambdaNm = lambdaMin + (lambdaMax - lambdaMin) * (i / (points - 1));
+          wavelengths.push(lambdaNm);
+          energies.push(HC_EV_NM / lambdaNm);
+        }
+      }
+      for (let i = 0; i < wavelengths.length; i += 1) {
+        const lambdaNm = wavelengths[i];
+        const e = energies[i];
         let spE = 0;
         let smE = 0;
         for (const line of lines) {
@@ -3463,13 +3697,408 @@
           spE += line.sigmaPlus * g;
           smE += line.sigmaMinus * g;
         }
-        energies.push(e);
-        wavelengths.push(lambdaNm);
         const jacobian = HC_EV_NM / (lambdaNm * lambdaNm);
         sigmaPlus.push(spE * jacobian);
         sigmaMinus.push(smE * jacobian);
       }
-      return { energies, wavelengths, sigmaPlus, sigmaMinus };
+      const totalArea = integrateSeriesSum(wavelengths, [sigmaPlus, sigmaMinus]);
+      const norm = normalize && totalArea > 1e-18 ? totalArea : 1;
+      return {
+        energies,
+        wavelengths,
+        sigmaPlus: sigmaPlus.map((v) => v / norm),
+        sigmaMinus: sigmaMinus.map((v) => v / norm)
+      };
+    }
+
+    function buildPlSpectrumData(data, integrated) {
+      if (!data || !integrated || !integrated.finalPopulations) return null;
+      const grid = buildPlEmissionGrid(data, { width: Number(plSpectrumWidthEl.value) || 0.03 });
+      if (!grid) return null;
+      return buildPlSpectrumFromPopulations(data, integrated.finalPopulations, {
+        normalize: true,
+        grid,
+        width: grid.width
+      });
+    }
+
+    function drawHeatMap(ctx, canvas, image, config) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "#fcfdff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      if (!image) {
+        ctx.fillStyle = "#6f779a";
+        ctx.font = "14px Noto Sans JP";
+        ctx.fillText(config.emptyText, 20, 34);
+        return;
+      }
+      const { excitationWavelengths, emissionWavelengths, values, minValue, maxValue, diverging, logScale } = image;
+      const pad = { left: 66, right: 18, top: 24, bottom: 38 };
+      const w = canvas.width - pad.left - pad.right;
+      const h = canvas.height - pad.top - pad.bottom;
+      const nX = emissionWavelengths.length;
+      const nY = excitationWavelengths.length;
+      const xAt = (idx) => pad.left + (idx / Math.max(1, nX - 1)) * w;
+      const yAt = (idx) => pad.top + (1 - idx / Math.max(1, nY - 1)) * h;
+      const toColor = (value) => {
+        if (diverging) {
+          const v = Math.max(-1, Math.min(1, value));
+          const mag = Math.abs(v);
+          if (v >= 0) {
+            const r = Math.round(245 - 25 * mag);
+            const g = Math.round(246 - 156 * mag);
+            const b = Math.round(255 - 190 * mag);
+            return `rgb(${r},${g},${b})`;
+          }
+          const r = Math.round(255 - 190 * mag);
+          const g = Math.round(246 - 156 * mag);
+          const b = Math.round(245 - 25 * mag);
+          return `rgb(${r},${g},${b})`;
+        }
+        let t;
+        if (logScale) {
+          const floor = Math.max(1e-12, minValue);
+          const clipped = Math.max(floor, value);
+          const logMin = Math.log10(floor);
+          const logMax = Math.log10(Math.max(floor * 1.0001, maxValue));
+          const denom = Math.max(1e-18, logMax - logMin);
+          t = Math.max(0, Math.min(1, (Math.log10(clipped) - logMin) / denom));
+        } else {
+          const denom = Math.max(1e-18, maxValue - minValue);
+          t = Math.max(0, Math.min(1, (value - minValue) / denom));
+        }
+        const hue = 220 * (1 - t);
+        const sat = 84;
+        const light = 50;
+        return `hsl(${hue.toFixed(1)}, ${sat}%, ${light}%)`;
+      };
+
+      for (let iy = 0; iy < nY - 1; iy += 1) {
+        const y0 = yAt(iy + 1);
+        const y1 = yAt(iy);
+        for (let ix = 0; ix < nX - 1; ix += 1) {
+          const x0 = xAt(ix);
+          const x1 = xAt(ix + 1);
+          ctx.fillStyle = toColor(values[iy][ix]);
+          ctx.fillRect(x0, y0, Math.max(1, x1 - x0 + 1), Math.max(1, y1 - y0 + 1));
+        }
+      }
+
+      ctx.strokeStyle = "#8d97b6";
+      ctx.beginPath();
+      ctx.moveTo(pad.left, pad.top);
+      ctx.lineTo(pad.left, pad.top + h);
+      ctx.lineTo(pad.left + w, pad.top + h);
+      ctx.stroke();
+
+      ctx.fillStyle = "#5f678b";
+      ctx.font = "12px Noto Sans JP";
+      const xTicks = 5;
+      for (let gx = 0; gx <= xTicks; gx += 1) {
+        const idx = Math.round((gx / xTicks) * (nX - 1));
+        const x = xAt(idx);
+        ctx.fillText(emissionWavelengths[idx].toFixed(0), x - 12, canvas.height - 10);
+      }
+      const yTicks = 5;
+      for (let gy = 0; gy <= yTicks; gy += 1) {
+        const idx = Math.round((gy / yTicks) * (nY - 1));
+        const y = yAt(idx);
+        ctx.fillText(excitationWavelengths[idx].toFixed(0), 14, y + 4);
+      }
+      ctx.fillText(config.title, 10, 16);
+      ctx.fillText("Emission Wavelength (nm)", pad.left + w - 162, canvas.height - 10);
+      ctx.save();
+      ctx.translate(16, pad.top + h - 10);
+      ctx.rotate(-Math.PI / 2);
+      ctx.fillText("Excitation Wavelength (nm)", 0, 0);
+      ctx.restore();
+
+      if (config.selectedPoint && Number.isFinite(config.selectedPoint.iy)) {
+        const iy = Math.max(0, Math.min(nY - 1, config.selectedPoint.iy));
+        const sy = yAt(iy);
+        ctx.strokeStyle = "rgba(232, 113, 37, 0.98)";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(pad.left, sy);
+        ctx.lineTo(pad.left + w, sy);
+        ctx.stroke();
+        ctx.fillStyle = "rgba(232, 113, 37, 0.98)";
+        ctx.beginPath();
+        ctx.moveTo(pad.left + 2, sy);
+        ctx.lineTo(pad.left + 12, sy - 6);
+        ctx.lineTo(pad.left + 12, sy + 6);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      if (config.selectedPoint && Number.isFinite(config.selectedPoint.ix) && Number.isFinite(config.selectedPoint.iy)) {
+        const sx = xAt(Math.max(0, Math.min(nX - 1, config.selectedPoint.ix)));
+        const sy = yAt(Math.max(0, Math.min(nY - 1, config.selectedPoint.iy)));
+        ctx.strokeStyle = "rgba(232, 113, 37, 0.98)";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(sx, sy, 6, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(sx - 10, sy);
+        ctx.lineTo(sx + 10, sy);
+        ctx.moveTo(sx, sy - 10);
+        ctx.lineTo(sx, sy + 10);
+        ctx.stroke();
+      }
+    }
+
+    function getPleMapPointFromPointer(event, canvas, image) {
+      if (!canvas || !image) return null;
+      const rect = canvas.getBoundingClientRect();
+      if (!(rect.width > 0) || !(rect.height > 0)) return null;
+      const px = ((event.clientX - rect.left) / rect.width) * canvas.width;
+      const py = ((event.clientY - rect.top) / rect.height) * canvas.height;
+      const pad = { left: 66, right: 18, top: 24, bottom: 38 };
+      const w = canvas.width - pad.left - pad.right;
+      const h = canvas.height - pad.top - pad.bottom;
+      if (px < pad.left || px > pad.left + w || py < pad.top || py > pad.top + h) return null;
+      const nX = image.emissionWavelengths.length;
+      const nY = image.excitationWavelengths.length;
+      const xNorm = (px - pad.left) / Math.max(1, w);
+      const yNorm = 1 - ((py - pad.top) / Math.max(1, h));
+      const ix = Math.max(0, Math.min(nX - 1, Math.round(xNorm * (nX - 1))));
+      const iy = Math.max(0, Math.min(nY - 1, Math.round(yNorm * (nY - 1))));
+      return { ix, iy };
+    }
+
+    function setLaserEnergyFromPleMapPixelY(pixelY, canvas) {
+      if (!latestPleMapData) return;
+      const pad = { left: 66, right: 18, top: 24, bottom: 38 };
+      const h = canvas.height - pad.top - pad.bottom;
+      const nY = latestPleMapData.excitationWavelengths.length;
+      const clampedY = Math.max(pad.top, Math.min(pad.top + h, pixelY));
+      const yNorm = 1 - ((clampedY - pad.top) / Math.max(1, h));
+      const iy = Math.max(0, Math.min(nY - 1, Math.round(yNorm * (nY - 1))));
+      selectedPleMapPoint = {
+        ix: selectedPleMapPoint?.ix ?? 0,
+        iy
+      };
+      const excitationWavelength = latestPleMapData.excitationWavelengths[iy];
+      if (Number.isFinite(excitationWavelength) && excitationWavelength > 0) {
+        laserEnergyEl.value = (HC_EV_NM / excitationWavelength).toFixed(6);
+        laserEnergyEl.dataset.userEdited = "1";
+      }
+      safeRenderRateEquationPanel();
+    }
+
+    function getCanvasPointerPosition(event, canvas) {
+      const rect = canvas.getBoundingClientRect();
+      if (!(rect.width > 0) || !(rect.height > 0)) return null;
+      return {
+        x: ((event.clientX - rect.left) / rect.width) * canvas.width,
+        y: ((event.clientY - rect.top) / rect.height) * canvas.height
+      };
+    }
+
+    function setLaserEnergyFromSpectrumPixelX(pixelX) {
+      if (!latestPlSpectrumPlot) return;
+      const { pad, w, wlMin, wlMax } = latestPlSpectrumPlot;
+      const clampedX = Math.max(pad.left, Math.min(pad.left + w, pixelX));
+      const frac = (clampedX - pad.left) / Math.max(1, w);
+      const wavelength = wlMin + (wlMax - wlMin) * frac;
+      if (!(wavelength > 0)) return;
+      laserEnergyEl.value = (HC_EV_NM / wavelength).toFixed(6);
+      laserEnergyEl.dataset.userEdited = "1";
+      safeRenderRateEquationPanel();
+    }
+
+    function handlePlSpectrumClick(event) {
+      if (!latestPlSpectrumPlot) return;
+      const pos = getCanvasPointerPosition(event, rateSpectrumCanvasEl);
+      if (!pos) return;
+      const { pad, h } = latestPlSpectrumPlot;
+      const withinChart = pos.y >= pad.top && pos.y <= pad.top + h;
+      if (!withinChart) return;
+      setLaserEnergyFromSpectrumPixelX(pos.x);
+      event.preventDefault();
+    }
+
+    function handlePleMapClick(event) {
+      if (!latestPleMapData) return;
+      const canvas = event.currentTarget;
+      const pos = getCanvasPointerPosition(event, canvas);
+      if (!pos) return;
+      const pad = { left: 66, right: 18, top: 24, bottom: 38 };
+      const h = canvas.height - pad.top - pad.bottom;
+      if (pos.y < pad.top || pos.y > pad.top + h) return;
+      setLaserEnergyFromPleMapPixelY(pos.y, canvas);
+    }
+
+    function renderPleMaps(baseData) {
+      if (!workspaceRatePaneEl.classList.contains("is-active")) {
+        pleMapsDirty = true;
+        return;
+      }
+      if (!baseData || !baseData.matrixData || !baseData.matrixData.matrix) {
+        latestPleMapData = null;
+        pleMapsDirty = false;
+        drawHeatMap(ratePleMapCtx, ratePleMapCanvasEl, null, {
+          emptyText: "PL excitation-emission map will appear after the rate-equation model is solved.",
+          title: "PL Excitation-Emission Map"
+        });
+        drawHeatMap(rateDocpMapCtx, rateDocpMapCanvasEl, null, {
+          emptyText: "DOCP excitation-emission map will appear after the rate-equation model is solved.",
+          title: "DOCP Excitation-Emission Map"
+        });
+        return;
+      }
+      const initialLevelsForMap = baseData.matrixData.initialLevels || [];
+      const finalLevelsForMap = baseData.matrixData.finalLevels || [];
+      const initialGround = initialLevelsForMap[0] || null;
+      const finalGround = finalLevelsForMap[0] || null;
+      const finalTop = finalLevelsForMap[finalLevelsForMap.length - 1] || null;
+      const minExcE = initialGround && finalGround ? (finalGround.energy - initialGround.energy) : NaN;
+      const maxExcEBase = initialGround && finalTop ? (finalTop.energy - initialGround.energy) : NaN;
+      const laserWidth = Math.max(0, Number(laserWidthEl.value) || 0);
+      const plWidth = Math.max(0, Number(plSpectrumWidthEl.value) || 0);
+      const maxExcE = Number.isFinite(maxExcEBase)
+        ? maxExcEBase + 3 * laserWidth + 2 * plWidth
+        : NaN;
+      if (!(minExcE > 1e-9) || !(maxExcE > minExcE)) {
+        latestPleMapData = null;
+        pleMapsDirty = false;
+        drawHeatMap(ratePleMapCtx, ratePleMapCanvasEl, null, {
+          emptyText: "No positive-energy I#1 -> F manifold absorption range is available for the PLE map.",
+          title: "PL Excitation-Emission Map"
+        });
+        drawHeatMap(rateDocpMapCtx, rateDocpMapCanvasEl, null, {
+          emptyText: "No positive-energy I#1 -> F manifold absorption range is available for the DOCP map.",
+          title: "DOCP Excitation-Emission Map"
+        });
+        return;
+      }
+
+      const pointsExc = 56;
+      const minExcWl = HC_EV_NM / maxExcE;
+      const maxExcWl = HC_EV_NM / minExcE;
+      const excitationWavelengths = Array.from({ length: pointsExc }, (_, i) => (
+        minExcWl + (maxExcWl - minExcWl) * (i / Math.max(1, pointsExc - 1))
+      ));
+      const emissionGrid = buildPlEmissionGrid(baseData, { width: Number(plSpectrumWidthEl.value) || 0.03 });
+      if (!emissionGrid) {
+        latestPleMapData = null;
+        pleMapsDirty = false;
+        drawHeatMap(ratePleMapCtx, ratePleMapCanvasEl, null, {
+          emptyText: "PL excitation-emission map could not be constructed for the current parameters.",
+          title: "PL Excitation-Emission Map"
+        });
+        drawHeatMap(rateDocpMapCtx, rateDocpMapCanvasEl, null, {
+          emptyText: "DOCP excitation-emission map could not be constructed for the current parameters.",
+          title: "DOCP Excitation-Emission Map"
+        });
+        return;
+      }
+
+      const emissionTemplate = emissionGrid.wavelengths;
+      const pleValues = [];
+      const docpValues = [];
+      const zeroRow = new Array(emissionTemplate.length).fill(0);
+      for (let ix = 0; ix < excitationWavelengths.length; ix += 1) {
+        const energy = HC_EV_NM / excitationWavelengths[ix];
+        const scanData = buildRateEquationData({ laserEnergy: energy });
+        let populations = scanData?.steadyPopulations || null;
+        if (!populations && scanData) {
+          const integrated = integrateRateEquation(scanData);
+          populations = integrated?.finalPopulations || null;
+        }
+        const spectrum = scanData
+          ? buildPlSpectrumFromPopulations(scanData, populations, { normalize: false, grid: emissionGrid, width: emissionGrid.width })
+          : null;
+        if (!spectrum) {
+          pleValues.push(zeroRow.slice());
+          docpValues.push(zeroRow.slice());
+          continue;
+        }
+        const plRow = [];
+        const docpRow = [];
+        for (let iy = 0; iy < spectrum.wavelengths.length; iy += 1) {
+          const plus = spectrum.sigmaPlus[iy] || 0;
+          const minus = spectrum.sigmaMinus[iy] || 0;
+          const total = plus + minus;
+          plRow.push(total);
+          docpRow.push(total > 1e-18 ? (plus - minus) / total : 0);
+        }
+        pleValues.push(plRow);
+        docpValues.push(docpRow);
+      }
+
+      if (!emissionTemplate || pleValues.length !== excitationWavelengths.length) {
+        latestPleMapData = null;
+        pleMapsDirty = false;
+        drawHeatMap(ratePleMapCtx, ratePleMapCanvasEl, null, {
+          emptyText: "PL excitation-emission map could not be constructed for the current parameters.",
+          title: "PL Excitation-Emission Map"
+        });
+        drawHeatMap(rateDocpMapCtx, rateDocpMapCanvasEl, null, {
+          emptyText: "DOCP excitation-emission map could not be constructed for the current parameters.",
+          title: "DOCP Excitation-Emission Map"
+        });
+        return;
+      }
+
+      const plMax = Math.max(1e-18, ...pleValues.flat());
+      const normalizedPleValues = pleValues.map((row) => row.map((value) => value / plMax));
+      latestPleMapData = {
+        excitationWavelengths,
+        emissionWavelengths: emissionTemplate,
+        pleValues: normalizedPleValues,
+        docpValues
+      };
+      if (selectedPleMapPoint) {
+        selectedPleMapPoint = {
+          ix: Math.max(0, Math.min(emissionTemplate.length - 1, selectedPleMapPoint.ix)),
+          iy: Math.max(0, Math.min(excitationWavelengths.length - 1, selectedPleMapPoint.iy))
+        };
+      }
+      pleMapsDirty = false;
+
+      drawHeatMap(ratePleMapCtx, ratePleMapCanvasEl, {
+        excitationWavelengths,
+        emissionWavelengths: emissionTemplate,
+        values: normalizedPleValues,
+        minValue: 1e-8,
+        maxValue: 1,
+        diverging: false,
+        logScale: true
+      }, {
+        emptyText: "",
+        title: "PL Excitation-Emission Map",
+        selectedPoint: selectedPleMapPoint
+      });
+      drawHeatMap(rateDocpMapCtx, rateDocpMapCanvasEl, {
+        excitationWavelengths,
+        emissionWavelengths: emissionTemplate,
+        values: docpValues,
+        minValue: -1,
+        maxValue: 1,
+        diverging: true
+      }, {
+        emptyText: "",
+        title: "DOCP Excitation-Emission Map",
+        selectedPoint: selectedPleMapPoint
+      });
+    }
+
+    function safeRenderRateEquationPanel() {
+      try {
+        if (rateOverlapNoteEl && String(rateOverlapNoteEl.dataset.renderError || "") === "1") {
+          rateOverlapNoteEl.dataset.renderError = "0";
+          rateOverlapNoteEl.textContent = "";
+        }
+        renderRateEquationPanel();
+      } catch (error) {
+        console.error("Rate-equation panel rendering failed:", error);
+        if (rateOverlapNoteEl) {
+          rateOverlapNoteEl.dataset.renderError = "1";
+          rateOverlapNoteEl.textContent = `Rate-equation render error: ${error?.message || error}`;
+        }
+      }
     }
 
     function renderPlSpectrum(data, integrated) {
@@ -3481,9 +4110,11 @@
       const spectrum = buildPlSpectrumData(data, integrated);
       if (!spectrum) {
         latestPlSpectrumData = null;
+        latestPlSpectrumPlot = null;
         ctx.fillStyle = "#6f779a";
         ctx.font = "14px Noto Sans JP";
         ctx.fillText("PL spectrum will appear after the rate-equation model is solved.", 20, 34);
+        renderDocpSpectrum(null);
         return;
       }
       latestPlSpectrumData = spectrum;
@@ -3556,6 +4187,148 @@
         ctx.fillText(curve.label, lx + 16, ly);
         lx += 60;
       });
+
+      if (data && Number.isFinite(data.laserEnergy) && data.laserEnergy > 0) {
+        const excitationWavelength = HC_EV_NM / data.laserEnergy;
+        if (excitationWavelength >= wlMin && excitationWavelength <= wlMax) {
+          const xExc = xAt(excitationWavelength);
+          latestPlSpectrumPlot = { pad, w, h, wlMin, wlMax, excitationX: xExc };
+          const yTopArrow = pad.top + 18;
+          const yTip = pad.top + 44;
+          ctx.strokeStyle = "rgba(232, 113, 37, 0.95)";
+          ctx.lineWidth = 1.8;
+          ctx.beginPath();
+          ctx.moveTo(xExc, yTip);
+          ctx.lineTo(xExc, pad.top + h);
+          ctx.stroke();
+          ctx.fillStyle = "rgba(232, 113, 37, 0.98)";
+          ctx.beginPath();
+          ctx.moveTo(xExc, yTip);
+          ctx.lineTo(xExc - 7, yTopArrow);
+          ctx.lineTo(xExc + 7, yTopArrow);
+          ctx.closePath();
+          ctx.fill();
+          ctx.font = "12px Noto Sans JP";
+          ctx.fillText("Excitation", Math.min(pad.left + w - 72, xExc + 8), yTopArrow - 2);
+        }
+      } else {
+        latestPlSpectrumPlot = { pad, w, h, wlMin, wlMax, excitationX: null };
+      }
+      renderDocpSpectrum(spectrum);
+    }
+
+    function renderDocpSpectrum(spectrum) {
+      const ctx = rateDocpSpectrumCtx;
+      const canvas = rateDocpSpectrumCanvasEl;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "#fcfdff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      if (!spectrum) {
+        ctx.fillStyle = "#6f779a";
+        ctx.font = "14px Noto Sans JP";
+        ctx.fillText("DOCP(λ) will appear with the PL spectrum.", 20, 34);
+        return;
+      }
+      const { wavelengths, sigmaPlus, sigmaMinus } = spectrum;
+      const plPeakErrFrac = Math.max(0, Number(plDocpErrorEl.value) || 0) / 100;
+      const totalPeak = wavelengths.reduce((maxValue, _, i) => {
+        const total = (sigmaPlus[i] || 0) + (sigmaMinus[i] || 0);
+        return Math.max(maxValue, Math.abs(total));
+      }, 0);
+      const plAbsErr = totalPeak * plPeakErrFrac;
+      const docp = wavelengths.map((_, i) => {
+        const plus = sigmaPlus[i] || 0;
+        const minus = sigmaMinus[i] || 0;
+        const denom = plus + minus;
+        return denom > 1e-18 ? (plus - minus) / denom : 0;
+      });
+      const docpErr = wavelengths.map((_, i) => {
+        const plus = sigmaPlus[i] || 0;
+        const minus = sigmaMinus[i] || 0;
+        const denom = plus + minus;
+        if (!(denom > 1e-18)) return 0;
+        const dFdPlus = (2 * minus) / (denom * denom);
+        const dFdMinus = (-2 * plus) / (denom * denom);
+        const variance = (dFdPlus * plAbsErr) * (dFdPlus * plAbsErr)
+          + (dFdMinus * plAbsErr) * (dFdMinus * plAbsErr);
+        return Math.sqrt(Math.max(0, variance));
+      });
+      const pad = { left: 64, right: 18, top: 18, bottom: 36 };
+      const w = canvas.width - pad.left - pad.right;
+      const h = canvas.height - pad.top - pad.bottom;
+      const wlMin = wavelengths[0];
+      const wlMax = wavelengths[wavelengths.length - 1];
+      const xAt = (wl) => pad.left + (wlMax <= wlMin ? 0 : ((wl - wlMin) / (wlMax - wlMin)) * w);
+      const yAt = (v) => pad.top + (1 - (v + 1) / 2) * h;
+
+      ctx.strokeStyle = "#d7dceb";
+      ctx.lineWidth = 1;
+      for (let gy = 0; gy <= 4; gy += 1) {
+        const y = pad.top + (gy / 4) * h;
+        ctx.beginPath();
+        ctx.moveTo(pad.left, y);
+        ctx.lineTo(pad.left + w, y);
+        ctx.stroke();
+      }
+      ctx.strokeStyle = "#8d97b6";
+      ctx.beginPath();
+      ctx.moveTo(pad.left, pad.top);
+      ctx.lineTo(pad.left, pad.top + h);
+      ctx.lineTo(pad.left + w, pad.top + h);
+      ctx.stroke();
+
+      ctx.fillStyle = "#5f678b";
+      ctx.font = "12px Noto Sans JP";
+      const yTicks = [1, 0.5, 0, -0.5, -1];
+      for (let i = 0; i < yTicks.length; i += 1) {
+        const y = yAt(yTicks[i]);
+        ctx.fillText(`${Math.round(yTicks[i] * 100)}%`, 14, y + 4);
+      }
+      const xTicks = 5;
+      for (let gx = 0; gx <= xTicks; gx += 1) {
+        const wl = wlMin + (wlMax - wlMin) * (gx / xTicks);
+        const x = xAt(wl);
+        ctx.fillText(wl.toFixed(0), x - 12, canvas.height - 10);
+      }
+      ctx.fillText("DOCP(λ) [%]", 10, 14);
+      ctx.fillText("Emission Wavelength (nm)", pad.left + w - 162, canvas.height - 10);
+
+      const yZero = yAt(0);
+      ctx.strokeStyle = "rgba(140, 151, 182, 0.85)";
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(pad.left, yZero);
+      ctx.lineTo(pad.left + w, yZero);
+      ctx.stroke();
+
+      ctx.strokeStyle = "rgba(111, 80, 184, 0.98)";
+      ctx.lineWidth = 2;
+      ctx.fillStyle = "rgba(111, 80, 184, 0.26)";
+      ctx.beginPath();
+      for (let i = 0; i < wavelengths.length; i += 1) {
+        const x = xAt(wavelengths[i]);
+        const y = yAt(Math.max(-1, Math.min(1, docp[i] + docpErr[i])));
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      for (let i = wavelengths.length - 1; i >= 0; i -= 1) {
+        const x = xAt(wavelengths[i]);
+        const y = yAt(Math.max(-1, Math.min(1, docp[i] - docpErr[i])));
+        ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.strokeStyle = "rgba(111, 80, 184, 0.98)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      for (let i = 0; i < wavelengths.length; i += 1) {
+        const x = xAt(wavelengths[i]);
+        const y = yAt(docp[i]);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
     }
 
     function downloadRateTimeSeriesCsv() {
@@ -3602,17 +4375,55 @@
       downloadCsvFile("pl-spectrum.csv", csv);
     }
 
+    function downloadPleMapCsv() {
+      if (!latestPleMapData) return;
+      const rows = [["excitation_wavelength_nm", "emission_wavelength_nm", "pl_intensity_norm"]];
+      for (let iy = 0; iy < latestPleMapData.excitationWavelengths.length; iy += 1) {
+        const exc = latestPleMapData.excitationWavelengths[iy];
+        for (let ix = 0; ix < latestPleMapData.emissionWavelengths.length; ix += 1) {
+          rows.push([
+            exc.toFixed(6),
+            latestPleMapData.emissionWavelengths[ix].toFixed(6),
+            (latestPleMapData.pleValues[iy]?.[ix] || 0).toExponential(8)
+          ]);
+        }
+      }
+      const csv = rows.map((row) => row.map(csvEscape).join(",")).join("\n");
+      downloadCsvFile("pl-excitation-emission-map.csv", csv);
+    }
+
+    function downloadDocpMapCsv() {
+      if (!latestPleMapData) return;
+      const rows = [["excitation_wavelength_nm", "emission_wavelength_nm", "docp"]];
+      for (let iy = 0; iy < latestPleMapData.excitationWavelengths.length; iy += 1) {
+        const exc = latestPleMapData.excitationWavelengths[iy];
+        for (let ix = 0; ix < latestPleMapData.emissionWavelengths.length; ix += 1) {
+          rows.push([
+            exc.toFixed(6),
+            latestPleMapData.emissionWavelengths[ix].toFixed(6),
+            (latestPleMapData.docpValues[iy]?.[ix] || 0).toFixed(8)
+          ]);
+        }
+      }
+      const csv = rows.map((row) => row.map(csvEscape).join(",")).join("\n");
+      downloadCsvFile("docp-excitation-emission-map.csv", csv);
+    }
+
     function renderRateEquationPanel() {
-      const selectedDeltaE = getSelectedTransitionDeltaEAbs();
-      selectedLaserEnergyEl.value = Number.isFinite(selectedDeltaE) ? selectedDeltaE.toFixed(6) : "-";
+      const selectedDeltaE = getCurrentOrDefaultTransitionDeltaEAbs();
+      selectedLaserEnergyEl.textContent = Number.isFinite(selectedDeltaE)
+        ? `Current ΔE: ${selectedDeltaE.toFixed(6)} eV`
+        : "Current ΔE: -";
       useSelectedLaserEnergyBtnEl.disabled = !Number.isFinite(selectedDeltaE);
-      if (!laserEnergyEl.value && Number.isFinite(selectedDeltaE)) {
+      if ((!laserEnergyEl.dataset.initialized || !laserEnergyEl.value) && Number.isFinite(selectedDeltaE)) {
         laserEnergyEl.value = selectedDeltaE.toFixed(6);
+        laserEnergyEl.dataset.initialized = "1";
       }
       const data = buildRateEquationData();
       if (!data) {
         rateOverlapNoteEl.textContent = "";
         renderRateTimeSeries(null);
+        renderPleMaps(null);
         return;
       }
 
@@ -3629,6 +4440,7 @@
           : null);
       if (!displayed) {
         renderRateTimeSeries(null);
+        renderPleMaps(null);
         return;
       }
 
@@ -3636,6 +4448,8 @@
         ? `${data.excludedNegativeDeltaE} B→B pairs have ΔE < 0 and are excluded from pump / radiative channels in the rate equation.`
         : "";
       renderRateTimeSeries(data, integrated);
+      pleMapsDirty = true;
+      renderPleMaps(data);
     }
 
     function buildGenericCrystalFieldBaseMatrix(geometry) {
@@ -4673,12 +5487,13 @@
     function buildStateCouplingMatrix(fromStage, toStage, deltaH) {
       const fromVecs = fromStage.stateVectors || [];
       const toVecs = toStage.stateVectors || [];
-      if (!fromVecs.length || !toVecs.length || !deltaH) return [];
-      const dv = toVecs.map((v) => applyOperatorToVector(deltaH, v));
+      if (!fromVecs.length || !toVecs.length) return [];
       const mat = Array.from({ length: fromVecs.length }, () => new Array(toVecs.length).fill(0));
       for (let i = 0; i < fromVecs.length; i += 1) {
         for (let j = 0; j < toVecs.length; j += 1) {
-          mat[i][j] = Math.sqrt(complexAbsSquared(complexInnerProduct(fromVecs[i], dv[j])));
+          // Track stages by actual state continuity, not by the perturbation matrix element.
+          // |<from|to>|^2 gives the natural adiabatic connection between successive stages.
+          mat[i][j] = complexAbsSquared(complexInnerProduct(fromVecs[i], toVecs[j]));
         }
       }
       return mat;
@@ -5782,30 +6597,20 @@
         if (scaleMode === "accurate") {
           return (energy) => yMid - energy * scale;
         }
-        const center = levels.reduce((s, lv) => s + plotEnergyOf(lv.energy), 0) / levels.length;
-        let halfRange = 0;
-        for (const lv of levels) {
-          halfRange = Math.max(halfRange, Math.abs(plotEnergyOf(lv.energy) - center));
+        const sorted = levels
+          .map((lv, idx) => ({ idx, energy: plotEnergyOf(lv.energy) }))
+          .sort((a, b) => a.energy - b.energy);
+        if (sorted.length === 1) {
+          return () => yMid;
         }
-        const baseHalfPx = Math.max(1e-6, halfRange * scale);
-        const targetAmp = Math.max(SPLIT_GAIN, MIN_HALF_SPAN_PX / baseHalfPx);
-        const base = center * scale;
-        const low = yMid - (yBottom - 8);
-        const high = yMid - (yTop + 8);
-        let maxAmpFit = Number.POSITIVE_INFINITY;
-        for (const lv of levels) {
-          const d = (plotEnergyOf(lv.energy) - center) * scale;
-          if (d > 1e-12) {
-            maxAmpFit = Math.min(maxAmpFit, (high - base) / d);
-          } else if (d < -1e-12) {
-            maxAmpFit = Math.min(maxAmpFit, (base - low) / (-d));
-          }
+        const topPad = yTop + 18;
+        const botPad = yBottom - 18;
+        const step = (botPad - topPad) / (sorted.length - 1);
+        const yByIndex = new Array(levels.length).fill(yMid);
+        for (let rank = 0; rank < sorted.length; rank += 1) {
+          yByIndex[sorted[rank].idx] = botPad - rank * step;
         }
-        if (!Number.isFinite(maxAmpFit) || maxAmpFit <= 0) {
-          maxAmpFit = targetAmp;
-        }
-        const amp = Math.max(0.35, Math.min(targetAmp, maxAmpFit));
-        return (energy) => yMid - (center * scale + (energy - center) * scale * amp);
+        return (_energy, idx) => yByIndex[idx];
       }
 
       function drawStage(levels, x0, x1, showEnergy, stageTag = "") {
@@ -5816,7 +6621,7 @@
         const halfLen = 48;
         for (let i = 0; i < levels.length; i += 1) {
           const lv = levels[i];
-          const y = yOf(plotEnergyOf(lv.energy));
+          const y = yOf(plotEnergyOf(lv.energy), i);
           yList.push(y);
           nodes.push({ xLeft: xCenter - halfLen, xRight: xCenter + halfLen, y, w: levelWeights(lv) });
           parts.push(drawLevelGroup({
@@ -6177,8 +6982,8 @@
       finalStageStateLevels.B = finalData.stage3.levels.map((lv) => ({ ...lv }));
       setActiveSubshell(initialData.nl);
 
-      document.getElementById("status").textContent = `${initialData.preset.label} / ${initialData.nl}`;
-      finalStatusEl.textContent = `${finalData.preset.label} / ${finalData.nl}`;
+      document.getElementById("status").textContent = "";
+      finalStatusEl.textContent = "";
       const defaultStageTag = getTransitionMatrixStageTag();
       const initialDefaultLevels = defaultStageTag === "FREE" ? (stageStateLevels.FREE || []) : (stageStateLevels.B || []);
       if (initialDefaultLevels.length > 0) {
@@ -6282,6 +7087,8 @@
         diagramEnergyOrigin: finalEnergyOffset
       });
 
+      safeRenderRateEquationPanel();
+
 
       if (trackEvent && typeof window.gtag === "function") {
         window.gtag("event", "crystal_field_calculated", {
@@ -6327,6 +7134,7 @@
     geometryEl.addEventListener("change", () => {
       syncDelta2Visibility();
       calculate(true, "geometry_change");
+      syncLaserEnergyToCurrentTransition();
     });
     deltaInitialEl.addEventListener("input", () => calculate(true, "delta_initial_input"));
     delta2InitialEl.addEventListener("input", () => calculate(true, "delta2_initial_input"));
@@ -6339,23 +7147,32 @@
       renderTransitionSummary();
       renderTransitionMatrix();
     });
-    [laserEnergyEl, laserWidthEl, pumpRateEl, radiativeLifetimeEl, relaxationRateEl, initialTemperatureEl, excitationPolarizationEl, timeMaxEl, timeStepsEl, plSpectrumWidthEl].forEach((el) => {
+    [laserEnergyEl, laserWidthEl, pumpRateEl, radiativeLifetimeEl, relaxationRateEl, initialTemperatureEl, excitationPolarizationEl, timeMaxEl, timeStepsEl, plSpectrumWidthEl, plDocpErrorEl].forEach((el) => {
       el.addEventListener("input", () => {
         if (el === laserEnergyEl) laserEnergyEl.dataset.userEdited = "1";
-        renderRateEquationPanel();
+        safeRenderRateEquationPanel();
       });
     });
-    excitationPolarizationEl.addEventListener("change", () => renderRateEquationPanel());
-    useSelectedLaserEnergyBtnEl.addEventListener("click", () => {
+    excitationPolarizationEl.addEventListener("change", () => safeRenderRateEquationPanel());
+    function syncLaserEnergyToCurrentTransition() {
       const selectedDeltaE = getSelectedTransitionDeltaEAbs();
       if (!Number.isFinite(selectedDeltaE)) return;
       laserEnergyEl.value = selectedDeltaE.toFixed(6);
+      laserEnergyEl.dataset.initialized = "1";
+      safeRenderRateEquationPanel();
+    }
+    useSelectedLaserEnergyBtnEl.addEventListener("click", () => {
+      syncLaserEnergyToCurrentTransition();
       laserEnergyEl.dataset.userEdited = "1";
-      renderRateEquationPanel();
     });
     downloadRateTimeCsvEl.addEventListener("click", () => downloadRateTimeSeriesCsv());
     downloadPlTimeCsvEl.addEventListener("click", () => downloadPlTimeCsv());
     downloadPlSpectrumCsvEl.addEventListener("click", () => downloadPlSpectrumCsv());
+    downloadPleMapCsvEl.addEventListener("click", () => downloadPleMapCsv());
+    downloadDocpMapCsvEl.addEventListener("click", () => downloadDocpMapCsv());
+    ratePleMapCanvasEl.addEventListener("click", handlePleMapClick);
+    rateDocpMapCanvasEl.addEventListener("click", handlePleMapClick);
+    rateSpectrumCanvasEl.addEventListener("click", handlePlSpectrumClick);
     rateTimeCanvasEl.addEventListener("mouseleave", () => hideRateTooltip());
     rateTimeCanvasEl.addEventListener("mousemove", (event) => {
       if (!latestRateSeriesPlot) {
