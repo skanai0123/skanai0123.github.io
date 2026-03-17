@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Subpage Title</title>
+  <meta name="description" content="Short description for this subpage.">
+  <!-- Choose the favicon that best matches the page topic from ../shared/icons/. -->
+  <link rel="icon" href="../shared/icons/general.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../shared/back-to-hub.css">
+  <script defer src="../shared/back-to-hub.js"></script>
+  <style>
+    :root {
+      --page-bg: #f4f7fb;
+      --page-bg-accent: #e6edf8;
+      --page-panel: rgba(255, 255, 255, 0.9);
+      --page-line: #c8d6ea;
+      --page-text: #1d2940;
+      --page-muted: #5f7396;
+      --page-accent: #275dad;
+      --page-accent-soft: rgba(39, 93, 173, 0.12);
+      --page-shadow: 0 20px 48px rgba(34, 52, 84, 0.12);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100dvh;
+      font-family: "Segoe UI", "Hiragino Sans", "Yu Gothic UI", sans-serif;
+      color: var(--page-text);
+      background:
+        radial-gradient(circle at top left, rgba(112, 161, 255, 0.18), transparent 32%),
+        linear-gradient(180deg, var(--page-bg) 0%, var(--page-bg-accent) 100%);
+      padding: 24px;
+    }
+
+    .page-shell {
+      width: min(960px, 100%);
+      margin: 0 auto;
+      padding-top: 52px;
+    }
+
+    .hero,
+    .content-card {
+      border: 1px solid var(--page-line);
+      border-radius: 20px;
+      background: var(--page-panel);
+      box-shadow: var(--page-shadow);
+    }
+
+    .hero {
+      padding: 28px;
+      margin-bottom: 18px;
+      background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(241, 246, 255, 0.92)),
+        var(--page-panel);
+    }
+
+    .eyebrow {
+      display: inline-block;
+      margin-bottom: 10px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: var(--page-accent-soft);
+      color: var(--page-accent);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0 0 10px;
+      font-size: clamp(30px, 5vw, 48px);
+      line-height: 1.08;
+    }
+
+    .lead {
+      margin: 0;
+      color: var(--page-muted);
+      font-size: 16px;
+      line-height: 1.7;
+      max-width: 64ch;
+    }
+
+    .content-grid {
+      display: grid;
+      gap: 18px;
+    }
+
+    .content-card {
+      padding: 22px;
+    }
+
+    h2 {
+      margin: 0 0 12px;
+      font-size: 22px;
+    }
+
+    p {
+      margin: 0;
+      line-height: 1.7;
+    }
+
+    .stack {
+      display: grid;
+      gap: 12px;
+    }
+
+    .note {
+      padding: 14px 16px;
+      border-left: 4px solid var(--page-accent);
+      border-radius: 12px;
+      background: rgba(39, 93, 173, 0.08);
+      color: var(--page-muted);
+    }
+
+    code {
+      padding: 0.1em 0.35em;
+      border-radius: 6px;
+      background: rgba(29, 41, 64, 0.08);
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 0.95em;
+    }
+
+    @media (max-width: 720px) {
+      body {
+        padding: 16px;
+      }
+
+      .page-shell {
+        padding-top: 64px;
+      }
+
+      .hero,
+      .content-card {
+        padding: 18px;
+        border-radius: 16px;
+      }
+    }
+  </style>
+</head>
+<body data-page-copyright="© 2026 skanai">
+  <main class="page-shell">
+    <section class="hero">
+      <div class="eyebrow">Template</div>
+      <h1>Subpage Title</h1>
+      <p class="lead">
+        Replace this with a one- or two-sentence summary of the page. Keep it short and clear.
+      </p>
+    </section>
+
+    <div class="content-grid">
+      <section class="content-card stack">
+        <h2>Overview</h2>
+        <p>
+          Use this file as the starting point for new subpages. Duplicate it into a new folder as
+          <code>index.html</code>, then update the title, description, and body content.
+        </p>
+        <div class="note">
+          The top-left shared panel automatically shows <code>Back to Hub</code>,
+          <code>Report Bug</code>, and the metadata from the <code>data-page-*</code> attributes on
+          <code>&lt;body&gt;</code>.
+        </div>
+      </section>
+
+      <section class="content-card stack">
+        <h2>Starter Checklist</h2>
+        <p>1. Update <code>&lt;title&gt;</code> and the description meta tag.</p>
+        <p>2. Pick a favicon from <code>../shared/icons/</code> that matches the topic instead of leaving the default blindly.</p>
+        <p>3. Add <code>data-page-version</code> or <code>data-page-updated</code> when you want to override the site-wide values.</p>
+        <p>4. Replace the hero text and add your page sections.</p>
+      </section>
+
+      <section class="content-card stack">
+        <h2>Version Policy</h2>
+        <p>The shared header displays versions as <code>v x.x.x</code>.</p>
+        <p>Default auto behavior: use the latest Git tag when available; otherwise fall back to <code>0.0.0</code>.</p>
+        <p>Use <code>data-page-updated</code> to pin the last substantive content update when metadata-only edits should not change the displayed date.</p>
+        <p>When creating a new page or making a larger update, ask whether the site should stay on the current <code>major.minor</code> line or bump to the next one.</p>
+        <p>Examples: keep <code>0.1.x</code> for small additions, bump to <code>0.2.x</code> for a new feature batch, bump to <code>1.0.x</code> for a major milestone.</p>
+      </section>
+
+      <section class="content-card stack">
+        <h2>Favicon Guide</h2>
+        <p><code>general.svg</code>: default fallback for uncategorized utilities and mixed pages.</p>
+        <p><code>magnetic.svg</code>: magnetism, spintronics, LLG, SHNO, magnetic materials.</p>
+        <p><code>color center.svg</code>: crystal-field, optical transition, spectroscopy, defect physics.</p>
+        <p><code>computer science.svg</code>: graph problems, algorithms, data structures, combinatorics.</p>
+        <p><code>numerical simulation.svg</code>: dynamics, mechanics, pendulum, simulation-heavy pages.</p>
+        <p><code>quantum information.svg</code>: quantum/T2/coherence/information topics.</p>
+        <p><code>thermal.svg</code>: heat, temperature, timers, thermal processes.</p>
+        <p><code>utility.svg</code>: converters, support tools, measurement helpers.</p>
+        <p><code>electrical.svg</code>: circuits, op-amps, electronics.</p>
+        <p><code>core.svg</code> and <code>just for fun.svg</code>: use when the page is central branding or playful/experimental.</p>
+      </section>
+    </div>
+  </main>
+</body>
+</html>

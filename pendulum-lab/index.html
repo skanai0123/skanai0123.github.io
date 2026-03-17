@@ -1,0 +1,217 @@
+﻿<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pendulum</title>
+  <link rel="icon" href="../shared/icons/numerical simulation.svg" type="image/svg+xml" />
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-118J91MG59"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-118J91MG59');
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;600;700&family=Noto+Sans+JP:wght@400;600;700&display=swap" rel="stylesheet" />
+  <script defer src="../shared/mathjax-loader.js"></script>
+  <link rel="stylesheet" href="../shared/back-to-hub.css" />
+  <script defer src="../shared/back-to-hub.js"></script>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body data-page-version="0.1.2" data-page-updated="2026-02-25">
+  <main class="app">
+    <header class="hero">
+      <h1>Pendulum</h1>
+      <p class="meta">Spring chain: pivot - bob1 - bob2</p>
+    </header>
+
+    <div class="column left-col">
+      <section id="controlsSection" class="card controls" aria-labelledby="control-title">
+        <h2 id="control-title">Parameters</h2>
+        <div class="param-groups">
+          <fieldset class="param-group param-group-wide">
+            <legend>Model</legend>
+            <div class="grid">
+              <label class="check-row">
+                <input id="enableSecond" type="checkbox" checked />
+                Enable second bob
+              </label>
+              <label class="check-row">
+                <input id="useSpring" type="checkbox" />
+                Use spring
+              </label>
+              <label class="check-row">
+                <input id="smallAngleMode" type="checkbox" />
+                Linearized mode (no-spring only)
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset class="param-group param-group-wide">
+            <legend>Global</legend>
+            <div class="grid">
+              <label>Gravity g (m/s^2)
+                <input id="gravity" type="number" min="0.1" step="any" value="9.81" />
+              </label>
+              <label>Step dt (s)
+                <input id="dt" type="number" min="0.0001" step="any" value="0.001" />
+              </label>
+              <label>Time Scale
+                <input id="timeScale" type="number" min="0.1" step="any" value="1.0" />
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset class="param-group">
+            <legend>Bob 1</legend>
+            <div class="grid">
+              <label>Natural length L1 (m)
+                <input id="length" type="number" min="0.01" step="any" value="1.0" />
+              </label>
+              <label>Mass m1 (kg)
+                <input id="mass" type="number" min="0.01" step="any" value="1.0" />
+              </label>
+              <label>Spring constant k1 (N/m)
+                <input id="springK" type="number" min="0" step="any" value="25" />
+              </label>
+              <label>Angular damping c1 (1/s)
+                <input id="damping1" type="number" min="0" step="any" value="0" />
+              </label>
+              <label>Radial damping cr1 (1/s)
+                <input id="radialDamping1" type="number" min="0" step="any" value="0" />
+              </label>
+              <label>Initial theta1 (deg)
+                <input id="theta0" type="number" step="any" value="178.1923" />
+              </label>
+              <label>Initial omega1 (rad/s)
+                <input id="omega0" type="number" step="any" value="0.000000" />
+              </label>
+              <label>Initial r1 (m)
+                <input id="r0" type="number" min="0.05" step="any" value="1.000000" />
+              </label>
+              <label>Initial vr1 (m/s)
+                <input id="vr0" type="number" step="any" value="0.000000" />
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset class="param-group" data-second-only>
+            <legend>Bob 2</legend>
+            <div class="grid">
+              <label>Natural length L2 (m)
+                <input id="length2" type="number" min="0.01" step="any" value="1.0" />
+              </label>
+              <label>Mass m2 (kg)
+                <input id="mass2" type="number" min="0.01" step="any" value="1.0" />
+              </label>
+              <label>Spring constant k2 (N/m)
+                <input id="springK2" type="number" min="0" step="any" value="25" />
+              </label>
+              <label>Angular damping c2 (1/s)
+                <input id="damping2" type="number" min="0" step="any" value="0" />
+              </label>
+              <label>Radial damping cr2 (1/s)
+                <input id="radialDamping2" type="number" min="0" step="any" value="0" />
+              </label>
+              <label>Initial theta2 (deg)
+                <input id="theta02" type="number" step="any" value="-179.4585" />
+              </label>
+              <label>Initial omega2 (rad/s)
+                <input id="omega02" type="number" step="any" value="0.000000" />
+              </label>
+              <label>Initial r2 (m)
+                <input id="r02" type="number" min="0.05" step="any" value="1.000000" />
+              </label>
+              <label>Initial vr2 (m/s)
+                <input id="vr02" type="number" step="any" value="0.000000" />
+              </label>
+            </div>
+          </fieldset>
+        </div>
+        <div class="actions">
+          <button id="applyBtn" type="button">Apply + Reset</button>
+          <button id="toggleBtn" type="button">Start</button>
+          <button id="resetBtn" type="button">Reset</button>
+          <button id="captureBtn" type="button">Set Current as Initial</button>
+        </div>
+        <p id="status" class="status">Ready.</p>
+        <p class="note">Bob2 is connected to Bob1 by spring (serial chain). Drag bobs directly on the motion canvas.</p>
+      </section>
+
+      <section id="motionSection" class="card viz" aria-label="Motion Visualization">
+        <div class="card-head">
+          <h2>Motion</h2>
+          <button id="toggleMotionBtn" class="mini-toggle" type="button">Hide</button>
+        </div>
+        <div id="motionBody" class="card-body">
+          <canvas id="simCanvas"></canvas>
+          <div class="metrics">
+            <div>t = <span id="tNow">0.000</span> s</div>
+            <div>r1 = <span id="rNow">0.000</span> m</div>
+            <div>theta1 = <span id="thetaNow">0.00</span> deg</div>
+            <div>omega1 = <span id="omegaNow">0.000</span> rad/s</div>
+            <div id="metric2">r2 = <span id="rNow2">0.000</span> m | theta2 = <span id="thetaNow2">0.00</span> deg | omega2 = <span id="omegaNow2">0.000</span> rad/s</div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="column right-col">
+      <section id="equationSection" class="card equation" aria-labelledby="equation-title">
+        <h2 id="equation-title">Equations of Motion</h2>
+        <p id="equation-mode" class="meta"></p>
+        <h3 class="equation-subtitle">Lagrangian (Theory)</h3>
+        <div id="equation-lagrangian" class="equation-body math-block"></div>
+        <h3 class="equation-subtitle">Implementation (Integrated ODE)</h3>
+        <div id="equation-impl" class="equation-body math-block"></div>
+      </section>
+
+      <section id="phaseSection" class="card viz" aria-label="Phase Plot">
+        <div class="card-head">
+          <h2>Phase Plot (theta vs omega)</h2>
+          <button id="togglePhaseBtn" class="mini-toggle" type="button">Hide</button>
+        </div>
+        <div id="phaseBody" class="card-body">
+          <canvas id="phaseCanvas"></canvas>
+        </div>
+      </section>
+
+      <section id="energySection" class="card viz" aria-label="Energy Plot">
+        <div class="card-head">
+          <h2>Energy vs Time</h2>
+          <button id="toggleEnergyBtn" class="mini-toggle" type="button">Hide</button>
+        </div>
+        <div id="energyBody" class="card-body">
+          <canvas id="energyCanvas"></canvas>
+          <div class="legend">
+            <span><i class="dot k1"></i>K1</span>
+            <span><i class="dot ug1"></i>Ug1</span>
+            <span><i class="dot us1"></i>Us1</span>
+            <span><i class="dot e1"></i>E1</span>
+            <span><i class="dot k2"></i>K2</span>
+            <span><i class="dot ug2"></i>Ug2</span>
+            <span><i class="dot us2"></i>Us2</span>
+            <span><i class="dot e2"></i>E2</span>
+            <span><i class="dot et"></i>Utotal</span>
+          </div>
+        </div>
+      </section>
+
+      <section id="poincareSection" class="card viz" aria-label="Poincare Section">
+        <div class="card-head">
+          <h2>Poincare Section (theta1 crosses 0 with omega1 > 0)</h2>
+          <button id="togglePoincareBtn" class="mini-toggle" type="button">Hide</button>
+        </div>
+        <div id="poincareBody" class="card-body">
+          <canvas id="poincareCanvas"></canvas>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
+

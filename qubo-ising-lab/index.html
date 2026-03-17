@@ -1,0 +1,1069 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QUBO / Ising Converter</title>
+  <link rel="icon" href="../shared/icons/magnetic.svg" type="image/svg+xml">
+  <script defer src="../shared/mathjax-loader.js"></script>
+  <link rel="stylesheet" href="../shared/back-to-hub.css">
+  <script defer src="../shared/back-to-hub.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-a: #07170f;
+      --bg-b: #163728;
+      --panel: rgba(8, 26, 19, 0.84);
+      --line: rgba(152, 214, 166, 0.32);
+      --text: #eaf2ff;
+      --muted: #9fbbd8;
+      --accent: #ffbf6e;
+      --accent-2: #8de7b0;
+      --danger: #ff9595;
+      --qubo: #ffb45f;
+      --qubo-bg: rgba(156, 92, 24, 0.26);
+      --ising: #8fe9a6;
+      --ising-bg: rgba(45, 124, 72, 0.24);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100dvh;
+      font-family: "Noto Sans", system-ui, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 16% 20%, rgba(255, 184, 92, 0.16), transparent 42%),
+        radial-gradient(circle at 82% 84%, rgba(139, 228, 156, 0.2), transparent 44%),
+        linear-gradient(160deg, var(--bg-a) 0%, var(--bg-b) 100%);
+      padding: 20px;
+    }
+
+    .page {
+      width: min(1080px, 100%);
+      margin: 0 auto;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: var(--panel);
+      backdrop-filter: blur(5px);
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.44);
+      padding: 20px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(24px, 4vw, 36px);
+      letter-spacing: 0.02em;
+    }
+
+    .sub {
+      margin: 8px 0 14px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .formula {
+      margin: 0 0 16px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: rgba(4, 16, 30, 0.72);
+      padding: 12px;
+      font-size: 14px;
+      color: #d8e9ff;
+      line-height: 1.65;
+    }
+
+    .formula-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .formula-card {
+      border: 1px solid rgba(152, 214, 166, 0.26);
+      border-radius: 10px;
+      background: rgba(3, 12, 24, 0.6);
+      padding: 10px;
+      min-width: 0;
+    }
+
+    .formula-title {
+      margin: 0 0 6px;
+      font-size: 12px;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .formula-title.qubo {
+      color: var(--qubo);
+    }
+
+    .formula-title.ising {
+      color: var(--ising);
+    }
+
+    .formula-card-qubo {
+      border-color: rgba(255, 180, 95, 0.45);
+      background: linear-gradient(180deg, rgba(31, 18, 8, 0.66), rgba(156, 92, 24, 0.2));
+    }
+
+    .formula-card-ising {
+      border-color: rgba(143, 233, 166, 0.42);
+      background: linear-gradient(180deg, rgba(8, 25, 15, 0.66), rgba(45, 124, 72, 0.18));
+    }
+
+    .formula-note {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .formula-code {
+      margin: 6px 0 0;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12px;
+      color: #dbecff;
+      line-height: 1.55;
+      word-break: break-word;
+    }
+
+    .legend-list {
+      margin: 0;
+      padding-left: 18px;
+      color: #d8e9ff;
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .legend-list code {
+      color: #fff0d9;
+      font-weight: 700;
+    }
+
+    .formula .mjx-container {
+      font-size: clamp(1.05rem, 1.2vw, 1.22rem) !important;
+    }
+
+    .formula .mjx-container[display="true"] {
+      margin: 0.35em 0 !important;
+    }
+
+    .sample-controls {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .convert-controls {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+      padding: 8px 10px;
+      border: 1px solid rgba(152, 214, 166, 0.3);
+      border-radius: 10px;
+      background: rgba(5, 17, 29, 0.52);
+    }
+
+    .convert-hint {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      white-space: nowrap;
+    }
+
+    .size-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      margin: 0 0 12px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .size-row input {
+      width: 90px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(3, 12, 24, 0.82);
+      color: var(--text);
+      padding: 7px 8px;
+      font-size: 13px;
+    }
+
+    button {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px 12px;
+      background: rgba(7, 20, 38, 0.82);
+      color: var(--text);
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 120ms ease, filter 120ms ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.1);
+    }
+
+    .btn-inline {
+      width: auto;
+      min-width: 120px;
+    }
+
+    .accent {
+      background: linear-gradient(135deg, rgba(255, 180, 95, 0.28), rgba(143, 233, 166, 0.22));
+    }
+
+    #toIsingBtn {
+      border-color: rgba(255, 180, 95, 0.55);
+    }
+
+    #toQuboBtn {
+      border-color: rgba(143, 233, 166, 0.58);
+    }
+
+    .status {
+      min-height: 20px;
+      margin: 0 0 12px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .status.error {
+      color: var(--danger);
+    }
+
+    .io {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: rgba(4, 15, 29, 0.76);
+      padding: 10px;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .panel-qubo {
+      border-color: rgba(255, 180, 95, 0.56);
+      background: linear-gradient(180deg, rgba(4, 15, 29, 0.82), var(--qubo-bg));
+    }
+
+    .panel-ising {
+      border-color: rgba(143, 233, 166, 0.5);
+      background: linear-gradient(180deg, rgba(4, 15, 29, 0.82), var(--ising-bg));
+    }
+
+    .panel-title {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .panel-title-qubo {
+      color: var(--qubo);
+    }
+
+    .panel-title-ising {
+      color: var(--ising);
+    }
+
+    .panel-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 12px;
+      align-items: center;
+      margin-bottom: 2px;
+    }
+
+    .inline-field {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .inline-field input {
+      width: 110px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(2, 10, 22, 0.84);
+      color: var(--text);
+      padding: 6px 8px;
+      font-size: 13px;
+      outline: none;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 170px;
+      resize: vertical;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 12px;
+      background: rgba(2, 10, 22, 0.84);
+      color: #def0ff;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 13px;
+      line-height: 1.5;
+      outline: none;
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .matrix-editor {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: rgba(3, 12, 24, 0.7);
+      padding: 10px;
+      display: grid;
+      gap: 8px;
+      min-height: 150px;
+    }
+
+    .matrix-wrap {
+      overflow-x: auto;
+    }
+
+    .matrix-table {
+      border-collapse: collapse;
+      min-width: max-content;
+      width: 100%;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12px;
+      color: #ddedff;
+    }
+
+    .matrix-table td {
+      border: 1px solid rgba(152, 214, 166, 0.28);
+      padding: 0;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .matrix-table th {
+      border: 1px solid rgba(152, 214, 166, 0.22);
+      padding: 4px 8px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 700;
+      background: rgba(7, 20, 38, 0.74);
+    }
+
+    .matrix-number {
+      width: 100%;
+      min-width: 21px;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      color: #ddedff;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 10px;
+      text-align: right;
+      padding: 2px 3px;
+      outline: none;
+    }
+
+    .json-secondary {
+      border: 1px dashed rgba(152, 214, 166, 0.28);
+      border-radius: 10px;
+      padding: 8px 10px;
+      background: rgba(3, 12, 24, 0.45);
+    }
+
+    .json-secondary > summary {
+      cursor: pointer;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .json-actions {
+      margin-top: 8px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .matrix-placeholder {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 900px) {
+      .formula-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .sample-controls {
+        grid-template-columns: 1fr;
+      }
+
+      .convert-controls {
+        grid-template-columns: 1fr;
+      }
+
+      .convert-hint {
+        text-align: center;
+      }
+
+      .io {
+        grid-template-columns: 1fr;
+      }
+
+      textarea {
+        min-height: 140px;
+      }
+    }
+  </style>
+</head>
+<body data-page-version="0.1.0" data-page-updated="2026-03-01">
+  <main class="page">
+    <h1>QUBO / Ising Converter</h1>
+    <p class="sub">Bidirectional converter between QUBO and Ising. The variable mapping is <code>x = (1 - s) / 2</code> (<code>s = 1 - 2x</code>).</p>
+    <section class="formula" aria-label="Equations and mapping">
+      <div class="formula-grid">
+        <article class="formula-card formula-card-qubo">
+          <h2 class="formula-title qubo">QUBO</h2>
+          \[
+          E_{\mathrm{QUBO}}(x) = x^\mathsf{T} Q x + c
+          \]
+        </article>
+        <article class="formula-card formula-card-ising">
+          <h2 class="formula-title ising">Ising</h2>
+          \[
+          E_{\mathrm{Ising}}(\sigma) = \sum_{i\lt j} J_{ij}\sigma_i\sigma_j + \sum_i h_i\sigma_i + c
+          \]
+        </article>
+        <article class="formula-card">
+          <h2 class="formula-title">Variable Mapping</h2>
+          \[
+          x_i = \frac{1 - \sigma_i}{2}, \quad \sigma_i = 1 - 2x_i
+          \]
+        </article>
+        <article class="formula-card">
+          <h2 class="formula-title">Input JSON</h2>
+          <p class="formula-code">QUBO: { "Q": [[...],[...]], "offset": 0 }</p>
+          <p class="formula-code">Ising: { "h": [...], "J": [[...],[...]], "offset": 0 }</p>
+          <p class="formula-note">Matrix tables are primary input. JSON is secondary.</p>
+        </article>
+        <article class="formula-card">
+          <h2 class="formula-title">Symbol Legend</h2>
+          <ul class="legend-list">
+            <li><code>x_i</code>: QUBO binary variable (0 or 1)</li>
+            <li><code>\sigma_i</code> (or <code>s_i</code>): Ising spin variable (-1 or +1)</li>
+            <li><code>Q</code>: QUBO coefficient matrix</li>
+            <li><code>J</code>: Ising coupling matrix between spins</li>
+            <li><code>h</code>: Ising local field vector</li>
+            <li><code>c</code> / <code>offset</code>: constant energy shift</li>
+            <li><code>n</code>: number of variables / spins</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <div class="sample-controls">
+      <button id="loadQuboSampleBtn">Load Left (QUBO) Sample</button>
+      <button id="loadIsingSampleBtn">Load Right (Ising) Sample</button>
+    </div>
+    <div class="convert-controls">
+      <button id="toIsingBtn" class="accent">Left -> Right (QUBO -> Ising)</button>
+      <div class="convert-hint">CONVERT</div>
+      <button id="toQuboBtn" class="accent">Right -> Left (Ising -> QUBO)</button>
+    </div>
+
+    <div class="size-row">
+      <label class="inline-field" for="dimensionInput">Dimension n
+        <input id="dimensionInput" type="number" min="1" max="12" step="1" value="3">
+      </label>
+      <button id="applyDimensionBtn" class="btn-inline" type="button">Apply Size</button>
+    </div>
+
+    <div id="status" class="status">Edit values directly in matrix tables. Use conversion buttons to copy left/right.</div>
+
+    <section class="io">
+      <div class="panel panel-qubo">
+        <h2 class="panel-title panel-title-qubo">Left: QUBO Matrix (Primary)</h2>
+        <div class="panel-toolbar">
+          <label class="inline-field" for="quboOffsetInput">offset
+            <input id="quboOffsetInput" type="number" step="any" value="0">
+          </label>
+        </div>
+        <div id="quboEditor" class="matrix-editor"></div>
+        <details class="json-secondary">
+          <summary>JSON (Secondary)</summary>
+          <textarea id="quboJson" spellcheck="false"></textarea>
+          <div class="json-actions">
+            <button id="applyQuboJsonBtn" class="btn-inline" type="button">Apply JSON to Left Matrix</button>
+          </div>
+        </details>
+      </div>
+      <div class="panel panel-ising">
+        <h2 class="panel-title panel-title-ising">Right: Ising Matrix (Primary)</h2>
+        <div class="panel-toolbar">
+          <label class="inline-field" for="isingOffsetInput">offset
+            <input id="isingOffsetInput" type="number" step="any" value="0">
+          </label>
+        </div>
+        <div id="isingEditor" class="matrix-editor"></div>
+        <details class="json-secondary">
+          <summary>JSON (Secondary)</summary>
+          <textarea id="isingJson" spellcheck="false"></textarea>
+          <div class="json-actions">
+            <button id="applyIsingJsonBtn" class="btn-inline" type="button">Apply JSON to Right Matrix</button>
+          </div>
+        </details>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const statusEl = document.getElementById('status');
+    const dimensionInputEl = document.getElementById('dimensionInput');
+    const applyDimensionBtn = document.getElementById('applyDimensionBtn');
+
+    const quboEditorEl = document.getElementById('quboEditor');
+    const isingEditorEl = document.getElementById('isingEditor');
+    const quboOffsetInputEl = document.getElementById('quboOffsetInput');
+    const isingOffsetInputEl = document.getElementById('isingOffsetInput');
+    const quboJsonEl = document.getElementById('quboJson');
+    const isingJsonEl = document.getElementById('isingJson');
+    const applyQuboJsonBtn = document.getElementById('applyQuboJsonBtn');
+    const applyIsingJsonBtn = document.getElementById('applyIsingJsonBtn');
+
+    const toIsingBtn = document.getElementById('toIsingBtn');
+    const toQuboBtn = document.getElementById('toQuboBtn');
+    const loadQuboSampleBtn = document.getElementById('loadQuboSampleBtn');
+    const loadIsingSampleBtn = document.getElementById('loadIsingSampleBtn');
+
+    const EPS = 1e-12;
+    const MIN_N = 1;
+    const MAX_N = 12;
+
+    let currentN = 3;
+    let quboState = {
+      Q: createZeroMatrix(currentN),
+      offset: 0
+    };
+    let isingState = {
+      h: createZeroVector(currentN),
+      J: createZeroMatrix(currentN),
+      offset: 0
+    };
+
+    function setStatus(message, isError = false) {
+      statusEl.textContent = message;
+      statusEl.classList.toggle('error', isError);
+    }
+
+    function clampN(value) {
+      const n = Number(value);
+      if (!Number.isInteger(n)) return currentN;
+      return Math.max(MIN_N, Math.min(MAX_N, n));
+    }
+
+    function createZeroVector(n) {
+      return Array.from({ length: n }, () => 0);
+    }
+
+    function createZeroMatrix(n) {
+      return Array.from({ length: n }, () => createZeroVector(n));
+    }
+
+    function roundNum(value) {
+      if (Math.abs(value) < EPS) return 0;
+      return Number(value.toFixed(12));
+    }
+
+    function roundArray(values) {
+      return values.map((v) => roundNum(v));
+    }
+
+    function roundMatrix(values) {
+      return values.map((row) => row.map((v) => roundNum(v)));
+    }
+
+    function safeNumber(value, name) {
+      if (typeof value !== 'number' || !Number.isFinite(value)) {
+        throw new Error(`${name} must be a finite number.`);
+      }
+      return value;
+    }
+
+    function toSquareNumberMatrix(matrix, name) {
+      if (!Array.isArray(matrix) || matrix.length === 0) {
+        throw new Error(`${name} must be a non-empty square matrix.`);
+      }
+      const n = matrix.length;
+      const out = new Array(n);
+      for (let i = 0; i < n; i += 1) {
+        if (!Array.isArray(matrix[i]) || matrix[i].length !== n) {
+          throw new Error(`${name} must be a square matrix (${n} x ${n}).`);
+        }
+        out[i] = new Array(n);
+        for (let j = 0; j < n; j += 1) {
+          out[i][j] = safeNumber(matrix[i][j], `${name}[${i}][${j}]`);
+        }
+      }
+      return out;
+    }
+
+    function parseJsonFrom(el, label) {
+      let parsed;
+      try {
+        parsed = JSON.parse(el.value);
+      } catch {
+        throw new Error(`${label} JSON parse error. Please check the JSON format.`);
+      }
+      if (parsed === null || typeof parsed !== 'object') {
+        throw new Error(`${label} must be a JSON object.`);
+      }
+      return parsed;
+    }
+
+    function convertQuboToIsing(payload) {
+      const Q = toSquareNumberMatrix(payload.Q, 'Q');
+      const n = Q.length;
+      const offset = payload.offset === undefined ? 0 : safeNumber(payload.offset, 'offset');
+
+      const h = new Array(n).fill(0);
+      const J = Array.from({ length: n }, () => new Array(n).fill(0));
+      let sumAllQ = 0;
+
+      for (let i = 0; i < n; i += 1) {
+        let rowSum = 0;
+        let colSum = 0;
+        for (let j = 0; j < n; j += 1) {
+          const qij = Q[i][j];
+          rowSum += qij;
+          colSum += Q[j][i];
+          sumAllQ += qij;
+        }
+        h[i] = -(rowSum + colSum) / 4;
+      }
+
+      for (let i = 0; i < n; i += 1) {
+        for (let j = i + 1; j < n; j += 1) {
+          const jij = (Q[i][j] + Q[j][i]) / 4;
+          J[i][j] = jij;
+          J[j][i] = jij;
+        }
+      }
+
+      return {
+        variable_mapping: 'x = (1 - s) / 2',
+        h: roundArray(h),
+        J: roundMatrix(J),
+        offset: roundNum(offset + sumAllQ / 4)
+      };
+    }
+
+    function convertIsingToQubo(payload) {
+      if (!Array.isArray(payload.h) || payload.h.length === 0) {
+        throw new Error('h must be a non-empty array.');
+      }
+      const n = payload.h.length;
+      const h = payload.h.map((value, i) => safeNumber(value, `h[${i}]`));
+      const rawJ = toSquareNumberMatrix(payload.J, 'J');
+      if (rawJ.length !== n) {
+        throw new Error(`J size must match h length (${n}).`);
+      }
+
+      const J = Array.from({ length: n }, () => new Array(n).fill(0));
+      for (let i = 0; i < n; i += 1) {
+        for (let j = 0; j < n; j += 1) {
+          const avg = (rawJ[i][j] + rawJ[j][i]) / 2;
+          if (Math.abs(rawJ[i][j] - rawJ[j][i]) > 1e-9) {
+            throw new Error('J must be symmetric (J[i][j] == J[j][i]).');
+          }
+          J[i][j] = i === j ? 0 : avg;
+        }
+      }
+
+      const offset = payload.offset === undefined ? 0 : safeNumber(payload.offset, 'offset');
+      const Q = Array.from({ length: n }, () => new Array(n).fill(0));
+
+      for (let i = 0; i < n; i += 1) {
+        let pairSum = 0;
+        for (let j = 0; j < n; j += 1) {
+          if (i !== j) pairSum += J[i][j];
+        }
+        Q[i][i] = -2 * h[i] - 2 * pairSum;
+      }
+
+      for (let i = 0; i < n; i += 1) {
+        for (let j = i + 1; j < n; j += 1) {
+          const jij = J[i][j];
+          Q[i][j] = 2 * jij;
+          Q[j][i] = 2 * jij;
+        }
+      }
+
+      const hSum = h.reduce((acc, v) => acc + v, 0);
+
+      return {
+        variable_mapping: 's = 1 - 2x',
+        Q: roundMatrix(Q),
+        offset: roundNum(offset + hSum / 2)
+      };
+    }
+
+    function clearElement(el) {
+      while (el.firstChild) el.removeChild(el.firstChild);
+    }
+
+    function createNumberCell(value, onChange) {
+      const td = document.createElement('td');
+      const input = document.createElement('input');
+      input.type = 'number';
+      input.step = 'any';
+      input.className = 'matrix-number';
+      input.value = String(value);
+      input.addEventListener('input', () => {
+        const v = Number(input.value);
+        onChange(Number.isFinite(v) ? v : 0);
+      });
+      td.appendChild(input);
+      return td;
+    }
+
+    function buildMatrixTable(matrix, onChange) {
+      const n = matrix.length;
+      const wrap = document.createElement('div');
+      wrap.className = 'matrix-wrap';
+      const table = document.createElement('table');
+      table.className = 'matrix-table';
+
+      const headTr = document.createElement('tr');
+      const corner = document.createElement('th');
+      corner.textContent = '#';
+      headTr.appendChild(corner);
+      for (let j = 0; j < n; j += 1) {
+        const th = document.createElement('th');
+        th.textContent = String(j);
+        headTr.appendChild(th);
+      }
+      table.appendChild(headTr);
+
+      for (let i = 0; i < n; i += 1) {
+        const tr = document.createElement('tr');
+        const rowHead = document.createElement('th');
+        rowHead.textContent = String(i);
+        tr.appendChild(rowHead);
+        for (let j = 0; j < n; j += 1) {
+          tr.appendChild(createNumberCell(matrix[i][j], (val) => onChange(i, j, val)));
+        }
+        table.appendChild(tr);
+      }
+
+      wrap.appendChild(table);
+      return wrap;
+    }
+
+    function buildVectorTable(vector, onChange, label) {
+      const wrap = document.createElement('div');
+      wrap.className = 'matrix-wrap';
+      const table = document.createElement('table');
+      table.className = 'matrix-table';
+
+      const headTr = document.createElement('tr');
+      for (let i = 0; i < vector.length; i += 1) {
+        const th = document.createElement('th');
+        th.textContent = `${label}${i}`;
+        headTr.appendChild(th);
+      }
+      table.appendChild(headTr);
+
+      const tr = document.createElement('tr');
+      for (let i = 0; i < vector.length; i += 1) {
+        tr.appendChild(createNumberCell(vector[i], (val) => onChange(i, val)));
+      }
+      table.appendChild(tr);
+
+      wrap.appendChild(table);
+      return wrap;
+    }
+
+    function resizeState(newN) {
+      const oldQ = quboState.Q;
+      const oldH = isingState.h;
+      const oldJ = isingState.J;
+
+      const nextQ = createZeroMatrix(newN);
+      const nextH = createZeroVector(newN);
+      const nextJ = createZeroMatrix(newN);
+      const min = Math.min(currentN, newN);
+
+      for (let i = 0; i < min; i += 1) {
+        nextH[i] = oldH[i];
+        for (let j = 0; j < min; j += 1) {
+          nextQ[i][j] = oldQ[i][j];
+          nextJ[i][j] = oldJ[i][j];
+        }
+      }
+
+      currentN = newN;
+      quboState.Q = nextQ;
+      isingState.h = nextH;
+      isingState.J = nextJ;
+      dimensionInputEl.value = String(currentN);
+    }
+
+    function syncJsonFromStates() {
+      quboJsonEl.value = JSON.stringify({
+        Q: roundMatrix(quboState.Q),
+        offset: roundNum(quboState.offset)
+      }, null, 2);
+      isingJsonEl.value = JSON.stringify({
+        h: roundArray(isingState.h),
+        J: roundMatrix(isingState.J),
+        offset: roundNum(isingState.offset)
+      }, null, 2);
+    }
+
+    function renderQuboEditor() {
+      clearElement(quboEditorEl);
+      quboEditorEl.appendChild(buildMatrixTable(quboState.Q, (i, j, val) => {
+        quboState.Q[i][j] = val;
+        syncJsonFromStates();
+      }));
+      quboOffsetInputEl.value = String(roundNum(quboState.offset));
+    }
+
+    function renderIsingEditor() {
+      clearElement(isingEditorEl);
+      isingEditorEl.appendChild(buildVectorTable(isingState.h, (i, val) => {
+        isingState.h[i] = val;
+        syncJsonFromStates();
+      }, 'h'));
+      isingEditorEl.appendChild(buildMatrixTable(isingState.J, (i, j, val) => {
+        isingState.J[i][j] = val;
+        syncJsonFromStates();
+      }));
+      isingOffsetInputEl.value = String(roundNum(isingState.offset));
+    }
+
+    function renderAllEditors() {
+      renderQuboEditor();
+      renderIsingEditor();
+      syncJsonFromStates();
+    }
+
+    function applyQuboFromJson() {
+      const parsed = parseJsonFrom(quboJsonEl, 'Left(QUBO)');
+      const Q = toSquareNumberMatrix(parsed.Q, 'Q');
+      const newN = clampN(Q.length);
+      if (newN !== Q.length) {
+        throw new Error(`QUBO size must be between ${MIN_N} and ${MAX_N}.`);
+      }
+      const offset = parsed.offset === undefined ? 0 : safeNumber(parsed.offset, 'offset');
+      currentN = newN;
+      dimensionInputEl.value = String(currentN);
+      quboState = {
+        Q: roundMatrix(Q),
+        offset
+      };
+      if (isingState.h.length !== currentN) {
+        isingState = {
+          h: createZeroVector(currentN),
+          J: createZeroMatrix(currentN),
+          offset: 0
+        };
+      }
+      renderAllEditors();
+      setStatus('Applied left JSON to QUBO matrix.');
+    }
+
+    function applyIsingFromJson() {
+      const parsed = parseJsonFrom(isingJsonEl, 'Right(Ising)');
+      if (!Array.isArray(parsed.h) || parsed.h.length === 0) {
+        throw new Error('h must be a non-empty array.');
+      }
+      const h = parsed.h.map((v, i) => safeNumber(v, `h[${i}]`));
+      const J = toSquareNumberMatrix(parsed.J, 'J');
+      if (J.length !== h.length) {
+        throw new Error(`J size must match h length (${h.length}).`);
+      }
+      const n = clampN(h.length);
+      if (n !== h.length) {
+        throw new Error(`Ising size must be between ${MIN_N} and ${MAX_N}.`);
+      }
+      const offset = parsed.offset === undefined ? 0 : safeNumber(parsed.offset, 'offset');
+      currentN = n;
+      dimensionInputEl.value = String(currentN);
+      isingState = {
+        h: roundArray(h),
+        J: roundMatrix(J),
+        offset
+      };
+      if (quboState.Q.length !== currentN) {
+        quboState = {
+          Q: createZeroMatrix(currentN),
+          offset: 0
+        };
+      }
+      renderAllEditors();
+      setStatus('Applied right JSON to Ising matrix.');
+    }
+
+    function onQuboToIsing() {
+      try {
+        const output = convertQuboToIsing({
+          Q: quboState.Q,
+          offset: quboState.offset
+        });
+        isingState = {
+          h: output.h,
+          J: output.J,
+          offset: output.offset
+        };
+        renderIsingEditor();
+        syncJsonFromStates();
+        setStatus(`QUBO -> Ising conversion completed (n=${currentN}).`);
+      } catch (error) {
+        setStatus(error.message, true);
+      }
+    }
+
+    function onIsingToQubo() {
+      try {
+        const output = convertIsingToQubo({
+          h: isingState.h,
+          J: isingState.J,
+          offset: isingState.offset
+        });
+        quboState = {
+          Q: output.Q,
+          offset: output.offset
+        };
+        renderQuboEditor();
+        syncJsonFromStates();
+        setStatus(`Ising -> QUBO conversion completed (n=${currentN}).`);
+      } catch (error) {
+        setStatus(error.message, true);
+      }
+    }
+
+    function loadQuboSample() {
+      currentN = 3;
+      dimensionInputEl.value = '3';
+      quboState = {
+        Q: [
+          [1.2, -0.8, 0.6],
+          [-0.8, 0.4, 0.2],
+          [0.6, 0.2, -1.0]
+        ],
+        offset: 0
+      };
+      if (isingState.h.length !== currentN) {
+        isingState = {
+          h: createZeroVector(currentN),
+          J: createZeroMatrix(currentN),
+          offset: 0
+        };
+      }
+      renderAllEditors();
+      setStatus('Loaded left (QUBO) sample.');
+    }
+
+    function loadIsingSample() {
+      currentN = 3;
+      dimensionInputEl.value = '3';
+      isingState = {
+        h: [-0.2, 0.7, -0.1],
+        J: [
+          [0, 0.3, -0.4],
+          [0.3, 0, 0.25],
+          [-0.4, 0.25, 0]
+        ],
+        offset: 0
+      };
+      if (quboState.Q.length !== currentN) {
+        quboState = {
+          Q: createZeroMatrix(currentN),
+          offset: 0
+        };
+      }
+      renderAllEditors();
+      setStatus('Loaded right (Ising) sample.');
+    }
+
+    applyDimensionBtn.addEventListener('click', () => {
+      const n = clampN(dimensionInputEl.value);
+      resizeState(n);
+      renderAllEditors();
+      setStatus(`Resized matrices to n=${n}.`);
+    });
+
+    quboOffsetInputEl.addEventListener('input', () => {
+      const v = Number(quboOffsetInputEl.value);
+      quboState.offset = Number.isFinite(v) ? v : 0;
+      syncJsonFromStates();
+    });
+
+    isingOffsetInputEl.addEventListener('input', () => {
+      const v = Number(isingOffsetInputEl.value);
+      isingState.offset = Number.isFinite(v) ? v : 0;
+      syncJsonFromStates();
+    });
+
+    applyQuboJsonBtn.addEventListener('click', () => {
+      try {
+        applyQuboFromJson();
+      } catch (error) {
+        setStatus(error.message, true);
+      }
+    });
+
+    applyIsingJsonBtn.addEventListener('click', () => {
+      try {
+        applyIsingFromJson();
+      } catch (error) {
+        setStatus(error.message, true);
+      }
+    });
+
+    toIsingBtn.addEventListener('click', onQuboToIsing);
+    toQuboBtn.addEventListener('click', onIsingToQubo);
+    loadQuboSampleBtn.addEventListener('click', loadQuboSample);
+    loadIsingSampleBtn.addEventListener('click', loadIsingSample);
+
+    loadQuboSample();
+  </script>
+</body>
+</html>
+

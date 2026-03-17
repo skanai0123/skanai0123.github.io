@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Hub</title>
-  <link rel="icon" href="./fabicons/general.svg" type="image/svg+xml">
+  <link rel="icon" href="./shared/icons/general.svg" type="image/svg+xml">
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-118J91MG59"></script>
   <script>
     window.dataLayer = window.dataLayer || [];
@@ -456,17 +456,17 @@
   <canvas id="heroFx" aria-hidden="true"></canvas>
     <nav class="bookmark-bar" aria-label="Bookmarks">
       <a href="https://skanai0123.github.io/">Hub</a>
-      <a href="https://skanai0123.github.io/llg-playground/">LLG</a>
+      <a href="https://skanai0123.github.io/llg-lab/">LLG</a>
       <a href="https://skanai0123.github.io/SHNO/">SHNO</a>
-      <a href="https://skanai0123.github.io/t2-playground/"><i>T</i><sub>2</sub></a>
+      <a href="https://skanai0123.github.io/t2-lab/"><i>T</i><sub>2</sub></a>
       <a href="https://skanai0123.github.io/crystal-field/">Crystal Field</a>
       <a href="https://skanai0123.github.io/optical-transition/">Optical Transition</a>
-      <a href="https://skanai0123.github.io/pendulum-playground/">Pendulum</a>
-      <a href="https://skanai0123.github.io/bit-rng-playground/">Bit RNG</a>
-      <a href="https://skanai0123.github.io/qubo-ising-playground/">QUBO</a>
+      <a href="https://skanai0123.github.io/pendulum-lab/">Pendulum</a>
+      <a href="https://skanai0123.github.io/bit-rng-lab/">Bit RNG</a>
+      <a href="https://skanai0123.github.io/qubo-ising-lab/">QUBO</a>
       <a href="https://skanai0123.github.io/tsp-hamiltonian/">TSP</a>
       <a href="https://skanai0123.github.io/qubo-ising-models/">QUBO Models</a>
-      <a href="https://skanai0123.github.io/xrr-playground/">XRR</a>
+      <a href="https://skanai0123.github.io/xrr-lab/">XRR</a>
       <a href="https://skanai0123.github.io/Data/">Data</a>
       <a href="https://skanai0123.github.io/marubatsu-ai/">Tic-Tac-Toe AI</a>
       <a id="reportBugBtn" class="report-bug-btn" href="#" target="_blank" rel="noopener noreferrer">Report Bug</a>
@@ -497,7 +497,7 @@
     <span class="hud-item" id="hudHoverStar">Hover: -</span>
   </div>
   <div id="hudCopyright" class="hud-copyright" aria-hidden="true">
-    <span id="hudVersion">-</span> | ﾂｩ 2026 Shun Kanai
+    <span id="hudVersion">-</span> | © 2026 skanai
   </div>
   <button id="agingToggleBtn" class="tool-btn aging-toggle" type="button" aria-label="Enable stellar aging" title="Enable stellar aging">a</button>
   <button id="bhArrowToggleBtn" class="tool-btn bh-arrow-toggle" type="button" aria-label="Show black hole arrows" title="Show black hole arrows">b</button>
@@ -528,7 +528,7 @@
 
   <script>
     (function () {
-      const HUB_VERSION = 'v0.5.0';
+      let hubVersionText = '-';
       // Added parameters for black-hole gimmick:
       // cellSize, rRho, rhoThreshold, spawnCooldownFrames, maxBlackHoles,
       // spawnCellMinCount, spawnSampleMax, spawnMassBase, spawnMassPerRho,
@@ -1039,7 +1039,7 @@
       }
       if (reportBugBtn) {
         const formBase = 'https://docs.google.com/forms/d/e/1FAIpQLSeeOYJFGdl41iEUR_sJ9tm7XFoa8xzdoNlXP7ZflNwjPkf8pQ/viewform';
-        const entryPlaygroundName = 'entry.1663149615';
+        const entryLabName = 'entry.1663149615';
         const path = window.location.pathname.replace(/\/+$/, '');
         const segs = path.split('/').filter(Boolean);
         let pageName = 'Hub';
@@ -1057,7 +1057,7 @@
         }
         const qs = new URLSearchParams({
           usp: 'pp_url',
-          [entryPlaygroundName]: pageName
+          [entryLabName]: pageName
         });
         reportBugBtn.href = `${formBase}?${qs.toString()}`;
       }
@@ -1114,6 +1114,57 @@
       if (!customTextSizeDownBtn) return;
       const customTextSizeUpBtn = document.getElementById('customTextSizeUpBtn');
       if (!customTextSizeUpBtn) return;
+
+      function normalizeDate(value) {
+        if (!value) return '';
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return '';
+        return date.toISOString().slice(0, 10);
+      }
+
+      function fetchJson(url) {
+        return fetch(url, {
+          headers: {
+            Accept: 'application/vnd.github+json'
+          }
+        }).then((response) => {
+          if (!response.ok) {
+            throw new Error('Failed to fetch ' + url);
+          }
+          return response.json();
+        });
+      }
+
+      Promise.all([
+        fetchJson('https://api.github.com/repos/skanai0123/skanai0123.github.io/tags?per_page=1')
+          .then((tags) => Array.isArray(tags) && tags.length > 0 ? (tags[0].name || '') : '')
+          .catch(() => ''),
+        fetchJson('https://api.github.com/repos/skanai0123/skanai0123.github.io/commits?per_page=1')
+          .then((commits) => {
+            const commit = Array.isArray(commits) && commits.length > 0 ? commits[0] : null;
+            const committedAt = commit && commit.commit && commit.commit.committer
+              ? commit.commit.committer.date
+              : '';
+            return {
+              updated: normalizeDate(committedAt),
+              fallbackVersion: '0.0.0'
+            };
+          })
+          .catch(() => ({
+            updated: '',
+            fallbackVersion: '0.0.0'
+          }))
+      ]).then(([versionText, commitMeta]) => {
+        if (versionText || commitMeta.fallbackVersion) {
+          hubVersionText = versionText || commitMeta.fallbackVersion;
+        }
+        if (commitMeta.updated) {
+          hudCopyrightEl.title = 'Updated: ' + commitMeta.updated;
+        }
+        updateUniverseHud(true);
+      }).catch(() => {
+        // Keep fallback values when GitHub metadata is unavailable.
+      });
       const agingToggleBtn = document.getElementById('agingToggleBtn');
       if (!agingToggleBtn) return;
       let dpr = Math.max(1, Math.min(1.5, window.devicePixelRatio || 1));
@@ -3413,7 +3464,7 @@
         const now = performance.now();
         if (!force && hudLastUpdateMs >= 0 && (now - hudLastUpdateMs) < 100) return;
         hudLastUpdateMs = now;
-        hudVersionEl.textContent = HUB_VERSION;
+        hudVersionEl.textContent = hubVersionText;
         hudBbCountEl.textContent = 'BB: ' + bigBangCount;
         hudUniverseAgeEl.textContent = 'AgeU: ' + formatAgeShort(universeAgeSec);
         hudAgingEl.textContent = 'Aging: '

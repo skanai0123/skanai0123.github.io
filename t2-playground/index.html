@@ -1,138 +1,16 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="icon" href="../fabicons/quantum information.svg" type="image/svg+xml" />
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-118J91MG59"></script>
+  <meta charset="UTF-8">
+  <meta http-equiv="refresh" content="0; url=/t2-lab/">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Redirecting...</title>
+  <link rel="canonical" href="https://skanai0123.github.io/t2-lab/">
   <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
-    gtag('config', 'G-118J91MG59');
+    window.location.replace("/t2-lab/");
   </script>
-  <script defer src="../shared/mathjax-loader.js"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Space+Grotesk:wght@600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css" />
-  <link rel="stylesheet" href="../shared/back-to-hub.css" />
-  <script defer src="../shared/back-to-hub.js"></script>
 </head>
 <body>
-  <main class="app">
-    <header class="hero">
-      <h1><i>T</i><sub>2</sub></h1>
-      <p class="meta">beta-0.1.0</p>
-    </header>
-
-    <section class="card" aria-labelledby="calc-title">
-      <h2 id="calc-title">Input</h2>
-      <form id="t2-form" novalidate>
-        <select id="nuclide" name="nuclide" required hidden aria-hidden="true" tabindex="-1"></select>
-        <div class="periodic-table-wrap">
-          <div id="periodic-table" class="periodic-table" aria-label="Periodic table selector"></div>
-          <button type="button" id="pt-custom-btn" class="pt-custom-btn">Custom</button>
-        </div>
-        <label for="isotope-candidates">Selection (isotope or natural abundance)</label>
-        <select id="isotope-candidates" name="isotope-candidates" disabled>
-          <option value="">Select an element first</option>
-        </select>
-
-        <label for="g-factor">g factor (g)</label>
-        <input id="g-factor" name="g-factor" type="number" inputmode="decimal" step="any" required />
-
-        <label for="spin">Nuclear spin (I)</label>
-        <input id="spin" name="spin" type="number" inputmode="decimal" min="0" step="any" required />
-
-        <label for="abundance">Natural abundance</label>
-        <input id="abundance" name="abundance" type="text" readonly />
-
-        <label id="density-label" for="density">concentration n (1e23 cm^-3)</label>
-        <input id="density" name="density" type="number" inputmode="decimal" min="0" step="any" value="1" placeholder="e.g., 0.5" required />
-
-        <button type="submit">Calculate <i>T</i><sub>2</sub></button>
-      </form>
-      <p class="formula-note">Element-level natural-abundance <i>T</i><sub>2</sub> is shown together with the isotope-engineering upper bound <i>T</i><sub>2,max</sub>.</p>
-      <p id="result" class="result"></p>
-      <p id="mixed-result" class="result"></p>
-      <p id="max-result" class="result"></p>
-      <p id="meta" class="meta"></p>
-      <div id="binary-panel" class="embedded-plot-panel" hidden>
-        <h3 class="embedded-plot-title">Binary Isotope Mixing Graph</h3>
-        <select id="binary-element" name="binary-element" hidden aria-hidden="true" tabindex="-1">
-          <option value="">Select a binary isotope system</option>
-        </select>
-        <p class="meta">For a two-isotope system, the graph shows <i>T</i><sub>2</sub>(x) with fixed total spinful nuclear density n, where x is the fraction of the first isotope.</p>
-        <div id="binary-plot" class="binary-plot" aria-label="Binary isotope mixing plot">
-          <div id="binary-tooltip" class="plot-tooltip" hidden></div>
-        </div>
-        <button type="button" id="binary-download-btn" class="secondary-btn">Download data (CSV)</button>
-        <div id="binary-legend" class="binary-legend" aria-label="Binary isotope mixing legend"></div>
-        <p id="binary-summary" class="meta"></p>
-      </div>
-      <div id="ternary-panel" class="embedded-plot-panel" hidden>
-        <h3 class="embedded-plot-title">Ternary Isotope Mixing Graph</h3>
-        <select id="ternary-element" name="ternary-element" hidden aria-hidden="true" tabindex="-1">
-          <option value="">Select a ternary isotope system</option>
-        </select>
-        <p class="meta">For a three-isotope system, the ternary plot shows <i>T</i><sub>2</sub>(x, y, z) with fixed total spinful nuclear density n and x + y + z = 1.</p>
-        <div id="ternary-plot" class="binary-plot" aria-label="Ternary isotope mixing plot">
-          <div id="ternary-tooltip" class="plot-tooltip" hidden></div>
-        </div>
-        <button type="button" id="ternary-download-btn" class="secondary-btn">Download data (CSV)</button>
-        <div id="ternary-legend" class="binary-legend" aria-label="Ternary isotope mixing legend"></div>
-        <p id="ternary-summary" class="meta"></p>
-      </div>
-    </section>
-
-    <section class="card" aria-labelledby="cif-title">
-      <h2 id="cif-title">CIF/JSON-based Material <i>T</i><sub>2</sub></h2>
-      <form id="cif-form" novalidate>
-        <label for="cif-file">Structure file (CIF or JSON)</label>
-        <input id="cif-file" name="cif-file" type="file" accept=".cif,.json,application/json" required />
-        <p class="meta">
-          Example material page:
-          <a href="https://next-gen.materialsproject.org/materials/mp-8062" target="_blank" rel="noopener noreferrer">mp-8062 (SiC, Materials Project)</a>
-        </p>
-
-        <button type="submit">Calculate Natural-Abundance <i>T</i><sub>2</sub> from File</button>
-      </form>
-      <p class="meta">Model: parse composition from CIF (_chemical_formula_sum) or JSON (crystal_structure.atomic_positions), then combine isotope-level <i>T</i><sub>2</sub> by natural abundance and atomic fraction.</p>
-      <p id="cif-result" class="result"></p>
-      <p id="cif-meta" class="meta"></p>
-    </section>
-
-    <section class="card" aria-labelledby="references-title">
-      <h2 id="references-title">References</h2>
-      <p class="meta">
-        S. Kanai, F. J. Heremans, H. Seo, G. Wolfowicz, C. P. Anderson, S. E. Sullivan, M. Onizhuk, G. Galli, D. D. Awschalom, and H. Ohno, Proc. Natl. Acad. Sci. U.S.A. 119, e2121808119(1)-(8) (2022). DOI:
-        <a href="https://doi.org/10.1073/pnas.2121808119" target="_blank" rel="noopener noreferrer">https://doi.org/10.1073/pnas.2121808119</a>
-      </p>
-      <p class="meta">
-        S. Kanai, S. Suzuki, and C. P. Anderson, "A unified periodic table of quantum coherence for isotope engineering," MRS Bulletin 51, 1-6 (2026). DOI:
-        <a href="https://doi.org/10.1557/s43577-025-01052-0" target="_blank" rel="noopener noreferrer">https://doi.org/10.1557/s43577-025-01052-0</a>
-      </p>
-    </section>
-
-    <section class="card" aria-labelledby="disclaimer-title">
-      <h2 id="disclaimer-title">Disclaimer</h2>
-      <p class="meta">This website is a research/demo calculator for quick estimates.</p>
-      <p class="meta">Do not use these results as the sole basis for medical, safety-critical, legal, or regulatory decisions.</p>
-      <p class="meta">No warranty is provided for completeness, accuracy, or fitness for a particular purpose.</p>
-    </section>
-  </main>
-
-  <script src="script.js"></script>
+  <p>Redirecting to <a href="/t2-lab/">/t2-lab/</a>...</p>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
