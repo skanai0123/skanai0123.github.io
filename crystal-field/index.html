@@ -600,7 +600,7 @@
         </div>
         <div class="box">
           <div id="transitionPanel" class="mix-panel">
-            <div class="muted">Select a level in the diagram to see incoming elements from the previous stage.</div>
+            <div class="muted">Select a level in the diagram to see its dominant parentage and branching across stages.</div>
           </div>
         </div>
       </div>
@@ -1553,12 +1553,13 @@
     function buildStateCouplingMatrix(fromStage, toStage, deltaH) {
       const fromVecs = fromStage.stateVectors || [];
       const toVecs = toStage.stateVectors || [];
-      if (!fromVecs.length || !toVecs.length || !deltaH) return [];
-      const dv = toVecs.map((v) => mulMatVec(deltaH, v));
+      if (!fromVecs.length || !toVecs.length) return [];
       const mat = Array.from({ length: fromVecs.length }, () => new Array(toVecs.length).fill(0));
       for (let i = 0; i < fromVecs.length; i += 1) {
         for (let j = 0; j < toVecs.length; j += 1) {
-          mat[i][j] = Math.abs(dotVec(fromVecs[i], dv[j]));
+          // Track stage-to-stage continuity by state overlap rather than perturbation strength.
+          const overlap = dotVec(fromVecs[i], toVecs[j]);
+          mat[i][j] = overlap * overlap;
         }
       }
       return mat;
@@ -1567,7 +1568,7 @@
     function renderSelectedTransitionPanel() {
       const shortStage = (s) => (s === "Crystal Field" ? "CF" : s);
       if (!currentTransitionData || !orbitalView.stageTag || orbitalView.stageLevelIndex === null) {
-        transitionPanelEl.innerHTML = `<div class="muted">Select a level in the diagram to see incoming elements from the previous stage.</div>`;
+        transitionPanelEl.innerHTML = `<div class="muted">Select a level in the diagram to see its dominant parentage and branching across stages.</div>`;
         return;
       }
       const html = [];
@@ -1612,7 +1613,7 @@
             }
           }
           if (sectionRows.length) {
-            html.push(`<div class="mix-title">Incoming: ${shortStage(inTr.fromLabel)} \u2192 ${shortStage(inTr.toLabel)}#${toIdx + 1}</div>`);
+            html.push(`<div class="mix-title">Parentage: ${shortStage(inTr.toLabel)}#${toIdx + 1} from ${shortStage(inTr.fromLabel)}</div>`);
             html.push(...sectionRows);
             hasIncomingSection = true;
             hasAnySection = true;
@@ -1657,7 +1658,7 @@
           }
           if (sectionRows.length) {
             if (hasIncomingSection) html.push(`<div class="mix-sep"></div>`);
-            html.push(`<div class="mix-title">Outgoing: ${shortStage(outTr.fromLabel)}#${fromIdx + 1} \u2192 ${shortStage(outTr.toLabel)}</div>`);
+            html.push(`<div class="mix-title">Branching: ${shortStage(outTr.fromLabel)}#${fromIdx + 1} into ${shortStage(outTr.toLabel)}</div>`);
             html.push(...sectionRows);
             hasAnySection = true;
           }
@@ -1665,7 +1666,7 @@
       }
 
       if (!hasAnySection) {
-        transitionPanelEl.innerHTML = `<div class="muted">No incoming/outgoing elements for this stage.</div>`;
+        transitionPanelEl.innerHTML = `<div class="muted">No parentage or branching information is available for this stage.</div>`;
         return;
       }
       transitionPanelEl.innerHTML = html.join("");
