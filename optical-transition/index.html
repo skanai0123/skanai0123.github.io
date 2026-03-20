@@ -1229,6 +1229,23 @@
                 <option value="accurate" selected>Accurate</option>
               </select>
             </div>
+            <div class="form-block">
+              <div class="rate-inline-row">
+                <div>
+                  <label for="rateUpdateMode" style="margin-bottom:0;">Update Mode</label>
+                  <select id="rateUpdateMode" aria-label="Rate panel update mode">
+                    <option value="auto" selected>Auto</option>
+                    <option value="manual">Manual</option>
+                  </select>
+                </div>
+                <button id="applyRateUpdateBtn" type="button" class="state-btn" disabled>Update</button>
+              </div>
+              <div class="rate-inline-row">
+                <button id="saveConditionBtn" type="button" class="state-btn">Save Condition</button>
+                <button id="loadConditionBtn" type="button" class="state-btn">Load Condition</button>
+                <input id="loadConditionInput" type="file" accept=".json,application/json" hidden>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -1476,6 +1493,13 @@
                 <input id="laserWidth" type="number" min="0.0001" step="0.001" value="0.050">
               </div>
               <div>
+                <label for="absorptionLineshapeMode">Absorption Lineshape</label>
+                <select id="absorptionLineshapeMode">
+                  <option value="gaussian" selected>Gaussian</option>
+                  <option value="vibronic_fc">Vibronic FC</option>
+                </select>
+              </div>
+              <div>
                 <label for="pumpRate">Pump Rate (1/ns)</label>
                 <input id="pumpRate" type="number" min="0" step="0.01" value="1.00">
               </div>
@@ -1486,6 +1510,18 @@
                   <option value="sigma_plus" selected>sigma+</option>
                   <option value="sigma_minus">sigma-</option>
                 </select>
+              </div>
+              <div>
+                <label for="absorptionPhononEnergy">Absorption Phonon Energy (eV)</label>
+                <input id="absorptionPhononEnergy" type="number" min="0" step="0.001" value="0.055">
+              </div>
+              <div>
+                <label for="absorptionHuangRhys">Absorption Huang-Rhys S</label>
+                <input id="absorptionHuangRhys" type="number" min="0" step="0.05" value="3.0">
+              </div>
+              <div>
+                <label for="absorptionPhononCount">Absorption n max</label>
+                <input id="absorptionPhononCount" type="number" min="0" step="1" value="10">
               </div>
             </div>
           </div>
@@ -1503,6 +1539,10 @@
               <div>
                 <label for="initialTemperature">Initial Temperature (K)</label>
                 <input id="initialTemperature" type="number" min="0" step="1" value="5">
+              </div>
+              <div>
+                <label for="vibronicTemperature">Vibronic Temperature (K)</label>
+                <input id="vibronicTemperature" type="number" min="0" step="1" value="5">
               </div>
             </div>
           </div>
@@ -1558,10 +1598,29 @@
                     <label for="plSpectrumWidth">PL Width (eV)</label>
                     <input id="plSpectrumWidth" type="number" min="0.0001" step="0.001" value="0.4">
                   </div>
-                <div>
+                  <div>
+                    <label for="emissionLineshapeMode">Emission Lineshape</label>
+                    <select id="emissionLineshapeMode">
+                      <option value="gaussian" selected>Gaussian</option>
+                      <option value="vibronic_fc">Vibronic FC</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label for="emissionPhononEnergy">Emission Phonon Energy (eV)</label>
+                    <input id="emissionPhononEnergy" type="number" min="0" step="0.001" value="0.055">
+                  </div>
+                  <div>
+                    <label for="emissionHuangRhys">Emission Huang-Rhys S</label>
+                    <input id="emissionHuangRhys" type="number" min="0" step="0.05" value="3.0">
+                  </div>
+                  <div>
+                    <label for="emissionPhononCount">Emission n max</label>
+                    <input id="emissionPhononCount" type="number" min="0" step="1" value="10">
+                  </div>
+                  <div>
                     <label for="plDocpError">PL Error (% of total peak)</label>
                     <input id="plDocpError" type="number" min="0" step="0.01" value="0.01">
-                </div>
+                  </div>
                 </div>
                 <canvas id="rateSpectrumCanvas" class="rate-spectrum-canvas" width="940" height="460" role="img" aria-label="Polarization-resolved photoluminescence spectrum"></canvas>
                 <div class="transition-label">DOCP(λ)</div>
@@ -1618,6 +1677,11 @@
     const workspaceRatePaneEl = document.getElementById("workspaceRatePane");
     const workspaceRateHostEl = document.getElementById("workspaceRateHost");
     const ratePanelEl = document.getElementById("ratePanel");
+    const rateUpdateModeEl = document.getElementById("rateUpdateMode");
+    const applyRateUpdateBtnEl = document.getElementById("applyRateUpdateBtn");
+    const saveConditionBtnEl = document.getElementById("saveConditionBtn");
+    const loadConditionBtnEl = document.getElementById("loadConditionBtn");
+    const loadConditionInputEl = document.getElementById("loadConditionInput");
     const orbitalPreviewEl = document.getElementById("orbitalPreview");
     const orbitalCtx = orbitalPreviewEl.getContext("2d");
     const orbitalCoeffEl = document.getElementById("orbitalCoeff");
@@ -1653,10 +1717,15 @@
     const downloadMatrixCsvEl = document.getElementById("downloadMatrixCsv");
     const laserEnergyEl = document.getElementById("laserEnergy");
     const laserWidthEl = document.getElementById("laserWidth");
+    const absorptionLineshapeModeEl = document.getElementById("absorptionLineshapeMode");
+    const absorptionPhononEnergyEl = document.getElementById("absorptionPhononEnergy");
+    const absorptionHuangRhysEl = document.getElementById("absorptionHuangRhys");
+    const absorptionPhononCountEl = document.getElementById("absorptionPhononCount");
     const pumpRateEl = document.getElementById("pumpRate");
     const radiativeLifetimeEl = document.getElementById("radiativeLifetime");
     const relaxationRateEl = document.getElementById("relaxationRate");
     const initialTemperatureEl = document.getElementById("initialTemperature");
+    const vibronicTemperatureEl = document.getElementById("vibronicTemperature");
     const excitationPolarizationEl = document.getElementById("excitationPolarization");
     const selectedLaserEnergyEl = document.getElementById("selectedLaserEnergy");
     const useSelectedLaserEnergyBtnEl = document.getElementById("useSelectedLaserEnergyBtn");
@@ -1675,6 +1744,10 @@
     const downloadPleMapCsvEl = document.getElementById("downloadPleMapCsv");
     const downloadDocpMapCsvEl = document.getElementById("downloadDocpMapCsv");
     const plSpectrumWidthEl = document.getElementById("plSpectrumWidth");
+    const emissionLineshapeModeEl = document.getElementById("emissionLineshapeMode");
+    const emissionPhononEnergyEl = document.getElementById("emissionPhononEnergy");
+    const emissionHuangRhysEl = document.getElementById("emissionHuangRhys");
+    const emissionPhononCountEl = document.getElementById("emissionPhononCount");
     const plDocpErrorEl = document.getElementById("plDocpError");
     const rateSpectrumCanvasEl = document.getElementById("rateSpectrumCanvas");
     const rateSpectrumCtx = rateSpectrumCanvasEl.getContext("2d");
@@ -1685,6 +1758,8 @@
     const rateDocpMapCanvasEl = document.getElementById("rateDocpMapCanvas");
     const rateDocpMapCtx = rateDocpMapCanvasEl.getContext("2d");
     const delta2WrapEls = Array.from(document.querySelectorAll(".delta2-wrap"));
+    const conditionSerializableEls = Array.from(document.querySelectorAll("input[id], select[id], textarea[id]"))
+      .filter((el) => el.id !== "loadConditionInput");
 
     function setWorkspacePane(mode) {
       const showStates = mode !== "rate";
@@ -1727,6 +1802,8 @@
     let latestPleMapData = null;
     let selectedPleMapPoint = null;
     let pleMapsDirty = true;
+    let ratePanelRenderPending = false;
+    let pendingRatePanelRenderOptions = { refreshPleMaps: false };
     const GENERIC_CF_BASE_CACHE = new Map();
     const orbitalView = {
       name: null,
@@ -3082,6 +3159,305 @@
       return Math.exp(-0.5 * t * t);
     }
 
+    function franckCondonWeights(S, nMax) {
+      const s = Math.max(0, Number(S) || 0);
+      const maxN = Math.max(0, Math.floor(Number(nMax) || 0));
+      const weights = [];
+      let weight = Math.exp(-s);
+      let sum = 0;
+      for (let n = 0; n <= maxN; n += 1) {
+        if (n === 0) {
+          weight = Math.exp(-s);
+        } else {
+          weight *= s / n;
+        }
+        weights.push(weight);
+        sum += weight;
+      }
+      const norm = sum > 1e-18 ? sum : 1;
+      return weights.map((value, n) => ({ n, weight: value / norm }));
+    }
+
+    function generalizedLaguerre(order, alpha, x) {
+      const n = Math.max(0, Math.floor(Number(order) || 0));
+      const a = Math.max(0, Number(alpha) || 0);
+      const valueX = Math.max(0, Number(x) || 0);
+      if (n === 0) return 1;
+      if (n === 1) return 1 + a - valueX;
+      let lnm2 = 1;
+      let lnm1 = 1 + a - valueX;
+      for (let k = 2; k <= n; k += 1) {
+        const ln = (((2 * k - 1 + a - valueX) * lnm1) - ((k - 1 + a) * lnm2)) / k;
+        lnm2 = lnm1;
+        lnm1 = ln;
+      }
+      return lnm1;
+    }
+
+    function logFactorial(n) {
+      const maxN = Math.max(0, Math.floor(Number(n) || 0));
+      let sum = 0;
+      for (let k = 2; k <= maxN; k += 1) sum += Math.log(k);
+      return sum;
+    }
+
+    function franckCondonTransitionWeight(m, n, S) {
+      const mInt = Math.max(0, Math.floor(Number(m) || 0));
+      const nInt = Math.max(0, Math.floor(Number(n) || 0));
+      const s = Math.max(0, Number(S) || 0);
+      if (s <= 1e-16) return mInt === nInt ? 1 : 0;
+      const minMn = Math.min(mInt, nInt);
+      const maxMn = Math.max(mInt, nInt);
+      const delta = maxMn - minMn;
+      const laguerre = generalizedLaguerre(minMn, delta, s);
+      const logPrefactor = -s + delta * Math.log(s) + logFactorial(minMn) - logFactorial(maxMn);
+      return Math.exp(Math.max(-700, logPrefactor)) * laguerre * laguerre;
+    }
+
+    function normalizeVibronicMode(mode) {
+      return mode === "vibronic_fc" ? "vibronic_fc" : "gaussian";
+    }
+
+    function thermalVibrationalWeights(phononEnergy, temperature, nMax) {
+      const maxN = Math.max(0, Math.floor(Number(nMax) || 0));
+      const hw = Math.max(0, Number(phononEnergy) || 0);
+      const temp = Math.max(0, Number(temperature) || 0);
+      if (!(hw > 0) || !(temp > 1e-12)) return [{ m: 0, weight: 1 }];
+      const beta = 1 / (K_B_EV_K * temp);
+      const values = [];
+      let sum = 0;
+      for (let m = 0; m <= maxN; m += 1) {
+        const weight = Math.exp(-Math.min(700, m * hw * beta));
+        values.push({ m, weight });
+        sum += weight;
+      }
+      const norm = sum > 1e-18 ? sum : 1;
+      return values.map(({ m, weight }) => ({ m, weight: weight / norm }));
+    }
+
+    function buildVibronicSidebandComponents(options = {}) {
+      const mode = normalizeVibronicMode(options.mode);
+      if (mode !== "vibronic_fc") return [{ shift: 0, weight: 1, n: 0 }];
+      const phononEnergy = Math.max(0, Number(options.phononEnergy) || 0);
+      if (!(phononEnergy > 0)) return [{ shift: 0, weight: 1, n: 0 }];
+      const sign = options.kind === "absorption" ? 1 : -1;
+      const useReorganizationShift = !!options.includeReorganizationShift;
+      const defaultLambda = Math.max(0, Number(options.huangRhys) || 0) * phononEnergy;
+      const lambda = useReorganizationShift
+        ? Math.max(0, Number(options.reorganizationEnergy ?? defaultLambda) || 0)
+        : 0;
+      const maxN = Math.max(0, Math.floor(Number(options.nMax) || 0));
+      const s = Math.max(0, Number(options.huangRhys) || 0);
+      const thermalWeights = thermalVibrationalWeights(phononEnergy, options.temperature, options.nMax);
+      const components = [];
+      let totalWeight = 0;
+      for (const thermal of thermalWeights) {
+        for (let n = 0; n <= maxN; n += 1) {
+          const fcWeight = franckCondonTransitionWeight(thermal.m, n, s);
+          const weight = thermal.weight * fcWeight;
+          if (!(weight > 0)) continue;
+          components.push({
+            m: thermal.m,
+            n,
+            weight,
+            shift: sign * (lambda + (n - thermal.m) * phononEnergy)
+          });
+          totalWeight += weight;
+        }
+      }
+      const norm = totalWeight > 1e-18 ? totalWeight : 1;
+      return components.map((component) => ({
+        ...component,
+        weight: component.weight / norm
+      }));
+    }
+
+    function getTransitionChannelKeys(transitions, options = {}) {
+      if (Array.isArray(options.channelKeys) && options.channelKeys.length) return options.channelKeys.slice();
+      const reserved = new Set(["energy", "from", "to", "initial", "final", "initialIndex", "finalIndex", "label", "meta", "metadata"]);
+      const keys = new Set();
+      for (const transition of transitions || []) {
+        for (const [key, value] of Object.entries(transition || {})) {
+          if (!reserved.has(key) && Number.isFinite(value)) keys.add(key);
+        }
+      }
+      return [...keys];
+    }
+
+    function buildLineshapeGridFromTransitions(transitions, options = {}) {
+      if (!Array.isArray(transitions) || !transitions.length) return null;
+      const width = Math.max(1e-4, Number(options.width) || 0.03);
+      const components = options.components || buildVibronicSidebandComponents(options);
+      let minE = Number.POSITIVE_INFINITY;
+      let maxE = Number.NEGATIVE_INFINITY;
+      for (const transition of transitions) {
+        const energy = Number(transition?.energy);
+        if (!(energy > 0)) continue;
+        const hasWeight = getTransitionChannelKeys([transition], options).some((key) => (transition[key] || 0) > 0);
+        if (!hasWeight) continue;
+        for (const component of components) {
+          const shiftedEnergy = energy + component.shift;
+          if (!(shiftedEnergy > 0)) continue;
+          minE = Math.min(minE, shiftedEnergy);
+          maxE = Math.max(maxE, shiftedEnergy);
+        }
+      }
+      if (!Number.isFinite(minE) || !Number.isFinite(maxE)) return null;
+      const padding = Math.max(width * 3, 0.01);
+      return {
+        minEnergy: Math.max(1e-6, minE - padding),
+        maxEnergy: maxE + padding,
+        width,
+        components: components.map((component) => ({ ...component }))
+      };
+    }
+
+    function applyVibronicLineshapeToTransitions(transitions, sampleEnergies, options = {}) {
+      if (!Array.isArray(transitions) || !Array.isArray(sampleEnergies) || !sampleEnergies.length) return null;
+      const width = Math.max(1e-4, Number(options.width) || 0.03);
+      const channelKeys = getTransitionChannelKeys(transitions, options);
+      if (!channelKeys.length) return null;
+      const components = options.components || buildVibronicSidebandComponents(options);
+      const series = Object.fromEntries(channelKeys.map((key) => [key, new Array(sampleEnergies.length).fill(0)]));
+      for (let i = 0; i < sampleEnergies.length; i += 1) {
+        const sampleEnergy = Number(sampleEnergies[i]);
+        if (!(sampleEnergy > 0)) continue;
+        for (const transition of transitions) {
+          const lineEnergy = Number(transition?.energy);
+          if (!(lineEnergy > 0)) continue;
+          for (const component of components) {
+            const center = lineEnergy + component.shift;
+            if (!(center > 0)) continue;
+            const profile = gaussianProfile(sampleEnergy - center, width) * component.weight;
+            if (!(profile > 0)) continue;
+            for (const key of channelKeys) {
+              const amplitude = Number(transition[key]) || 0;
+              if (amplitude !== 0) series[key][i] += amplitude * profile;
+            }
+          }
+        }
+      }
+      return {
+        energies: sampleEnergies.slice(),
+        channelKeys,
+        series,
+        width,
+        components: components.map((component) => ({ ...component }))
+      };
+    }
+
+    function buildGenericEmissionLineshape(transitions, options = {}) {
+      if (!Array.isArray(transitions) || !transitions.length) return null;
+      const gridBounds = buildLineshapeGridFromTransitions(transitions, {
+        ...options,
+        kind: "emission"
+      });
+      const grid = options.grid || null;
+      const energies = grid?.energies?.slice() || [];
+      const wavelengths = grid?.wavelengths?.slice() || [];
+      if (!gridBounds) return null;
+      if (!energies.length || !wavelengths.length) {
+        const lambdaMin = HC_EV_NM / gridBounds.maxEnergy;
+        const lambdaMax = Math.min(HC_EV_NM / gridBounds.minEnergy, PL_MAX_WAVELENGTH_NM);
+        if (!(lambdaMax > lambdaMin)) return null;
+        const points = Math.max(2, Math.floor(Number(options.points) || 320));
+        for (let i = 0; i < points; i += 1) {
+          const lambdaNm = lambdaMin + (lambdaMax - lambdaMin) * (i / Math.max(1, points - 1));
+          wavelengths.push(lambdaNm);
+          energies.push(HC_EV_NM / lambdaNm);
+        }
+      }
+      const sampled = applyVibronicLineshapeToTransitions(transitions, energies, {
+        ...options,
+        kind: "emission",
+        width: gridBounds.width,
+        components: gridBounds.components
+      });
+      if (!sampled) return null;
+      const out = {
+        energies,
+        wavelengths,
+        width: gridBounds.width
+      };
+      for (const key of sampled.channelKeys) {
+        out[key] = energies.map((energy, idx) => {
+          const lambdaNm = wavelengths[idx];
+          const jacobian = HC_EV_NM / (lambdaNm * lambdaNm);
+          return (sampled.series[key][idx] || 0) * jacobian;
+        });
+      }
+      return out;
+    }
+
+    function buildGenericAbsorptionLineshape(transitions, options = {}) {
+      if (!Array.isArray(transitions) || !transitions.length) return null;
+      const gridBounds = buildLineshapeGridFromTransitions(transitions, {
+        ...options,
+        kind: "absorption"
+      });
+      const inputEnergies = Array.isArray(options.energies) ? options.energies.filter((value) => Number.isFinite(value)) : null;
+      const energies = inputEnergies ? inputEnergies.slice() : [];
+      const wavelengths = Array.isArray(options.wavelengths) ? options.wavelengths.slice() : [];
+      if (!gridBounds) return null;
+      if (!energies.length) {
+        const points = Math.max(2, Math.floor(Number(options.points) || 320));
+        for (let i = 0; i < points; i += 1) {
+          energies.push(gridBounds.minEnergy + (gridBounds.maxEnergy - gridBounds.minEnergy) * (i / Math.max(1, points - 1)));
+        }
+      }
+      if (!wavelengths.length && energies.length) {
+        for (const energy of energies) wavelengths.push(energy > 0 ? HC_EV_NM / energy : Infinity);
+      }
+      const sampled = applyVibronicLineshapeToTransitions(transitions, energies, {
+        ...options,
+        kind: "absorption",
+        width: gridBounds.width,
+        components: gridBounds.components
+      });
+      if (!sampled) return null;
+      return {
+        energies,
+        wavelengths,
+        width: gridBounds.width,
+        minEnergy: gridBounds.minEnergy,
+        maxEnergy: gridBounds.maxEnergy,
+        components: gridBounds.components,
+        ...sampled.series
+      };
+    }
+
+    function getEmissionLineshapeOptions(overrides = {}) {
+      const options = {
+        mode: normalizeVibronicMode(overrides.mode ?? emissionLineshapeModeEl?.value),
+        width: Number(overrides.width ?? plSpectrumWidthEl?.value),
+        phononEnergy: Number(overrides.phononEnergy ?? emissionPhononEnergyEl?.value),
+        huangRhys: Number(overrides.huangRhys ?? emissionHuangRhysEl?.value),
+        nMax: Number(overrides.nMax ?? emissionPhononCountEl?.value),
+        temperature: Number(overrides.temperature ?? vibronicTemperatureEl?.value),
+        includeReorganizationShift: !!(overrides.includeReorganizationShift ?? false),
+        reorganizationEnergy: overrides.reorganizationEnergy,
+        kind: "emission"
+      };
+      options.components = buildVibronicSidebandComponents(options);
+      return options;
+    }
+
+    function getAbsorptionLineshapeOptions(overrides = {}) {
+      const options = {
+        mode: normalizeVibronicMode(overrides.mode ?? absorptionLineshapeModeEl?.value),
+        width: Number(overrides.width ?? laserWidthEl?.value),
+        phononEnergy: Number(overrides.phononEnergy ?? absorptionPhononEnergyEl?.value),
+        huangRhys: Number(overrides.huangRhys ?? absorptionHuangRhysEl?.value),
+        nMax: Number(overrides.nMax ?? absorptionPhononCountEl?.value),
+        temperature: Number(overrides.temperature ?? vibronicTemperatureEl?.value),
+        includeReorganizationShift: !!(overrides.includeReorganizationShift ?? false),
+        reorganizationEnergy: overrides.reorganizationEnergy,
+        kind: "absorption"
+      };
+      options.components = buildVibronicSidebandComponents(options);
+      return options;
+    }
+
     function solveLinearSystem(Ain, bin) {
       const n = Ain.length;
       const A = Ain.map((row) => [...row]);
@@ -3174,6 +3550,53 @@
       return item.avg || 0;
     }
 
+    function buildAbsorptionTransitions(matrixData) {
+      if (!matrixData?.matrix) return [];
+      const transitions = [];
+      for (let i = 0; i < matrixData.matrix.length; i += 1) {
+        const row = matrixData.matrix[i] || [];
+        for (let j = 0; j < row.length; j += 1) {
+          const item = row[j];
+          if (!item) continue;
+          const energy = item.final.energy - item.initial.energy;
+          if (!(energy > 0)) continue;
+          transitions.push({
+            energy,
+            avg: item.avg || 0,
+            pi: item.pi || 0,
+            sigmaPlus: item.sigmaPlus || 0,
+            sigmaMinus: item.sigmaMinus || 0,
+            initialIndex: i,
+            finalIndex: j
+          });
+        }
+      }
+      return transitions;
+    }
+
+    function buildEmissionTransitionsFromPopulations(data, populations) {
+      if (!data || !Array.isArray(data.radiativePairs) || !Array.isArray(populations)) return [];
+      const transitions = [];
+      for (const pair of data.radiativePairs) {
+        const pop = populations[pair.from] || 0;
+        if (!(pop > 0)) continue;
+        const fromState = data.states?.[pair.from];
+        const toState = data.states?.[pair.to];
+        if (!fromState || !toState) continue;
+        const energy = fromState.energy - toState.energy;
+        if (!(energy > 0)) continue;
+        transitions.push({
+          energy,
+          avg: (pair.rate || 0) * pop,
+          sigmaPlus: (pair.sigmaPlusRate || 0) * pop,
+          sigmaMinus: (pair.sigmaMinusRate || 0) * pop,
+          from: pair.from,
+          to: pair.to
+        });
+      }
+      return transitions;
+    }
+
     function buildRateEquationData(options = {}) {
       if (!initialPanelData || !finalPanelData) return null;
       const initialLevels = stageStateLevels.B || [];
@@ -3192,6 +3615,7 @@
 
       const matrixData = buildTransitionMatrixData();
       if (!matrixData || !matrixData.matrix) return null;
+      const absorptionLineshape = getAbsorptionLineshapeOptions({ width: laserWidth });
 
       const states = [
         ...initialLevels.map((level, idx) => ({
@@ -3233,7 +3657,21 @@
             if (deltaE < -1e-10) excludedNegativeDeltaE += 1;
             continue;
           }
-          const pump = pumpRate * getExcitationStrength(item) * gaussianProfile(deltaE - laserEnergy, laserWidth);
+          const sampledPump = applyVibronicLineshapeToTransitions([{
+            energy: deltaE,
+            avg: item.avg || 0,
+            pi: item.pi || 0,
+            sigmaPlus: item.sigmaPlus || 0,
+            sigmaMinus: item.sigmaMinus || 0
+          }], [laserEnergy], absorptionLineshape);
+          const excitationProfile = (() => {
+            if (!sampledPump) return gaussianProfile(deltaE - laserEnergy, laserWidth);
+            const mode = excitationPolarizationEl.value;
+            if (mode === "sigma_plus") return sampledPump.series.sigmaPlus?.[0] || 0;
+            if (mode === "sigma_minus") return sampledPump.series.sigmaMinus?.[0] || 0;
+            return sampledPump.series.avg?.[0] || 0;
+          })();
+          const pump = pumpRate * excitationProfile;
           addRate(initialOffset + i, finalOffset + j, pump);
           totalPump += pump;
           const emission = radiativeRate * item.avg;
@@ -3605,105 +4043,44 @@
 
     function buildPlEmissionGrid(data, options = {}) {
       if (!data || !Array.isArray(data.radiativePairs)) return null;
-      const width = Math.max(1e-4, Number(options.width) || Number(plSpectrumWidthEl.value) || 0.03);
-      let minE = Number.POSITIVE_INFINITY;
-      let maxE = Number.NEGATIVE_INFINITY;
-      for (const pair of data.radiativePairs) {
-        const fromState = data.states?.[pair.from];
-        const toState = data.states?.[pair.to];
-        if (!fromState || !toState) continue;
-        const energy = fromState.energy - toState.energy;
-        const hasWeight = (pair.sigmaPlusRate || 0) > 0 || (pair.sigmaMinusRate || 0) > 0 || (pair.rate || 0) > 0;
-        if (!(energy > 0) || !hasWeight) continue;
-        minE = Math.min(minE, energy);
-        maxE = Math.max(maxE, energy);
-      }
-      if (!Number.isFinite(minE) || !Number.isFinite(maxE)) return null;
-      const padding = Math.max(width * 3, 0.01);
-      const e0 = Math.max(1e-6, minE - padding);
-      const e1 = maxE + padding;
-      const lambdaMin = HC_EV_NM / e1;
-      const lambdaMax = Math.min(HC_EV_NM / e0, PL_MAX_WAVELENGTH_NM);
-      if (!(lambdaMax > lambdaMin)) return null;
-      const points = 320;
-      const energies = [];
-      const wavelengths = [];
-      for (let i = 0; i < points; i += 1) {
-        const lambdaNm = lambdaMin + (lambdaMax - lambdaMin) * (i / (points - 1));
-        wavelengths.push(lambdaNm);
-        energies.push(HC_EV_NM / lambdaNm);
-      }
-      return { energies, wavelengths, width };
+      const dummyPopulations = new Array(data.states?.length || 0).fill(1);
+      const transitions = buildEmissionTransitionsFromPopulations(data, dummyPopulations);
+      const spectrum = buildGenericEmissionLineshape(transitions, {
+        ...getEmissionLineshapeOptions(options),
+        normalize: false,
+        points: Number(options.points) || 320
+      });
+      if (!spectrum) return null;
+      return {
+        energies: spectrum.energies.slice(),
+        wavelengths: spectrum.wavelengths.slice(),
+        width: spectrum.width
+      };
     }
 
     function buildPlSpectrumFromPopulations(data, populations, options = {}) {
       if (!data) return null;
-      const width = Math.max(1e-4, Number(options.width) || Number(plSpectrumWidthEl.value) || 0.03);
       const normalize = options.normalize !== false;
-      const grid = options.grid || null;
-      const lines = [];
-      let minE = Number.POSITIVE_INFINITY;
-      let maxE = Number.NEGATIVE_INFINITY;
-      for (const pair of data.radiativePairs) {
-        const pop = populations ? (populations[pair.from] || 0) : 0;
-        if (!(pop > 0)) continue;
-        const fromState = data.states[pair.from];
-        const toState = data.states[pair.to];
-        const energy = fromState.energy - toState.energy;
-        if (!(energy > 0)) continue;
-        const sigmaPlus = (pair.sigmaPlusRate || 0) * pop;
-        const sigmaMinus = (pair.sigmaMinusRate || 0) * pop;
-        if (!(sigmaPlus > 0 || sigmaMinus > 0)) continue;
-        lines.push({ energy, sigmaPlus, sigmaMinus });
-        minE = Math.min(minE, energy);
-        maxE = Math.max(maxE, energy);
-      }
-      if (!lines.length && !grid) return null;
-      const energies = grid ? grid.energies.slice() : [];
-      const wavelengths = grid ? grid.wavelengths.slice() : [];
-      const sigmaPlus = [];
-      const sigmaMinus = [];
-      if (!grid) {
-        const padding = Math.max(width * 3, 0.01);
-        const e0 = Math.max(1e-6, minE - padding);
-        const e1 = maxE + padding;
-        const lambdaMin = HC_EV_NM / e1;
-        const lambdaMax = Math.min(HC_EV_NM / e0, PL_MAX_WAVELENGTH_NM);
-        if (!(lambdaMax > lambdaMin)) return null;
-        const points = 320;
-        for (let i = 0; i < points; i += 1) {
-          const lambdaNm = lambdaMin + (lambdaMax - lambdaMin) * (i / (points - 1));
-          wavelengths.push(lambdaNm);
-          energies.push(HC_EV_NM / lambdaNm);
-        }
-      }
-      for (let i = 0; i < wavelengths.length; i += 1) {
-        const lambdaNm = wavelengths[i];
-        const e = energies[i];
-        let spE = 0;
-        let smE = 0;
-        for (const line of lines) {
-          const g = gaussianProfile(e - line.energy, width);
-          spE += line.sigmaPlus * g;
-          smE += line.sigmaMinus * g;
-        }
-        const jacobian = HC_EV_NM / (lambdaNm * lambdaNm);
-        sigmaPlus.push(spE * jacobian);
-        sigmaMinus.push(smE * jacobian);
-      }
-      const totalArea = integrateSeriesSum(wavelengths, [sigmaPlus, sigmaMinus]);
+      const transitions = buildEmissionTransitionsFromPopulations(data, populations || []);
+      const spectrum = buildGenericEmissionLineshape(transitions, {
+        ...getEmissionLineshapeOptions(options),
+        grid: options.grid || null,
+        points: Number(options.points) || 320
+      });
+      if (!spectrum) return null;
+      const totalArea = integrateSeriesSum(spectrum.wavelengths, [spectrum.sigmaPlus || [], spectrum.sigmaMinus || []]);
       const norm = normalize && totalArea > 1e-18 ? totalArea : 1;
       return {
-        energies,
-        wavelengths,
-        sigmaPlus: sigmaPlus.map((v) => v / norm),
-        sigmaMinus: sigmaMinus.map((v) => v / norm)
+        energies: spectrum.energies.slice(),
+        wavelengths: spectrum.wavelengths.slice(),
+        sigmaPlus: (spectrum.sigmaPlus || []).map((v) => v / norm),
+        sigmaMinus: (spectrum.sigmaMinus || []).map((v) => v / norm)
       };
     }
 
     function buildPlSpectrumData(data, integrated) {
       if (!data || !integrated || !integrated.finalPopulations) return null;
-      const grid = buildPlEmissionGrid(data, { width: Number(plSpectrumWidthEl.value) || 0.03 });
+      const grid = buildPlEmissionGrid(data, getEmissionLineshapeOptions());
       if (!grid) return null;
       return buildPlSpectrumFromPopulations(data, integrated.finalPopulations, {
         normalize: true,
@@ -3874,7 +4251,7 @@
         laserEnergyEl.value = (HC_EV_NM / excitationWavelength).toFixed(6);
         laserEnergyEl.dataset.userEdited = "1";
       }
-      safeRenderRateEquationPanel();
+      safeRenderRateEquationPanel({ refreshPleMaps: false });
     }
 
     function getCanvasPointerPosition(event, canvas) {
@@ -3895,7 +4272,7 @@
       if (!(wavelength > 0)) return;
       laserEnergyEl.value = (HC_EV_NM / wavelength).toFixed(6);
       laserEnergyEl.dataset.userEdited = "1";
-      safeRenderRateEquationPanel();
+      safeRenderRateEquationPanel({ refreshPleMaps: false });
     }
 
     function handlePlSpectrumClick(event) {
@@ -3938,18 +4315,13 @@
         });
         return;
       }
-      const initialLevelsForMap = baseData.matrixData.initialLevels || [];
-      const finalLevelsForMap = baseData.matrixData.finalLevels || [];
-      const initialGround = initialLevelsForMap[0] || null;
-      const finalGround = finalLevelsForMap[0] || null;
-      const finalTop = finalLevelsForMap[finalLevelsForMap.length - 1] || null;
-      const minExcE = initialGround && finalGround ? (finalGround.energy - initialGround.energy) : NaN;
-      const maxExcEBase = initialGround && finalTop ? (finalTop.energy - initialGround.energy) : NaN;
-      const laserWidth = Math.max(0, Number(laserWidthEl.value) || 0);
-      const plWidth = Math.max(0, Number(plSpectrumWidthEl.value) || 0);
-      const maxExcE = Number.isFinite(maxExcEBase)
-        ? maxExcEBase + 3 * laserWidth + 2 * plWidth
-        : NaN;
+      const absorptionTransitions = buildAbsorptionTransitions(baseData.matrixData);
+      const absorptionGrid = buildGenericAbsorptionLineshape(absorptionTransitions, {
+        ...getAbsorptionLineshapeOptions(),
+        points: 2
+      });
+      const minExcE = absorptionGrid?.minEnergy;
+      const maxExcE = absorptionGrid?.maxEnergy;
       if (!(minExcE > 1e-9) || !(maxExcE > minExcE)) {
         latestPleMapData = null;
         pleMapsDirty = false;
@@ -3970,7 +4342,7 @@
       const excitationWavelengths = Array.from({ length: pointsExc }, (_, i) => (
         minExcWl + (maxExcWl - minExcWl) * (i / Math.max(1, pointsExc - 1))
       ));
-      const emissionGrid = buildPlEmissionGrid(baseData, { width: Number(plSpectrumWidthEl.value) || 0.03 });
+      const emissionGrid = buildPlEmissionGrid(baseData, getEmissionLineshapeOptions());
       if (!emissionGrid) {
         latestPleMapData = null;
         pleMapsDirty = false;
@@ -4075,19 +4447,145 @@
       });
     }
 
-    function safeRenderRateEquationPanel() {
+    function redrawStoredPleMaps() {
+      if (!latestPleMapData) return;
+      drawHeatMap(ratePleMapCtx, ratePleMapCanvasEl, {
+        excitationWavelengths: latestPleMapData.excitationWavelengths,
+        emissionWavelengths: latestPleMapData.emissionWavelengths,
+        values: latestPleMapData.pleValues,
+        minValue: 1e-8,
+        maxValue: 1,
+        diverging: false,
+        logScale: true
+      }, {
+        emptyText: "",
+        title: "PL Excitation-Emission Map",
+        selectedPoint: selectedPleMapPoint
+      });
+      drawHeatMap(rateDocpMapCtx, rateDocpMapCanvasEl, {
+        excitationWavelengths: latestPleMapData.excitationWavelengths,
+        emissionWavelengths: latestPleMapData.emissionWavelengths,
+        values: latestPleMapData.docpValues,
+        minValue: -1,
+        maxValue: 1,
+        diverging: true
+      }, {
+        emptyText: "",
+        title: "DOCP Excitation-Emission Map",
+        selectedPoint: selectedPleMapPoint
+      });
+    }
+
+    function updateRateRenderControls() {
+      if (!applyRateUpdateBtnEl || !rateUpdateModeEl) return;
+      const manual = rateUpdateModeEl.value === "manual";
+      applyRateUpdateBtnEl.disabled = !manual || !ratePanelRenderPending;
+      applyRateUpdateBtnEl.textContent = ratePanelRenderPending ? "Update*" : "Update";
+    }
+
+    function collectConditionState() {
+      const values = {};
+      for (const el of conditionSerializableEls) {
+        if (!el || !el.id) continue;
+        if (el.type === "checkbox" || el.type === "radio") values[el.id] = !!el.checked;
+        else values[el.id] = el.value;
+      }
+      return values;
+    }
+
+    function applyConditionState(state = {}) {
+      const elementById = Object.fromEntries(conditionSerializableEls.map((el) => [el.id, el]));
+      const setValue = (el, value) => {
+        if (!el || value === undefined || value === null) return;
+        if (el.type === "checkbox" || el.type === "radio") el.checked = !!value;
+        else el.value = String(value);
+      };
+      setValue(nInitialEl, state.nInitial);
+      setValue(lInitialEl, state.lInitial);
+      setValue(nFinalEl, state.nFinal);
+      setValue(lFinalEl, state.lFinal);
+      enforceAllowedQuantumPair(nInitialEl, lInitialEl);
+      enforceAllowedQuantumPair(nFinalEl, lFinalEl);
+      for (const [id, value] of Object.entries(state)) {
+        if (id === "nInitial" || id === "lInitial" || id === "nFinal" || id === "lFinal") continue;
+        setValue(elementById[id], value);
+      }
+      syncDelta2Visibility();
+      orbitalView.projection = viewModeEl.value === "isometric" ? "isometric" : "perspective";
+      finalOrbitalView.projection = finalViewModeEl.value === "isometric" ? "isometric" : "perspective";
+      laserEnergyEl.dataset.initialized = "1";
+      laserEnergyEl.dataset.userEdited = "1";
+      updateRateRenderControls();
+      calculate(true, "condition_load");
+      renderTransitionSummary();
+      renderTransitionMatrix();
+      safeRenderRateEquationPanel({ force: true });
+    }
+
+    function saveConditionState() {
+      try {
+        const payload = JSON.stringify({
+          savedAt: new Date().toISOString(),
+          state: collectConditionState()
+        }, null, 2);
+        const geometry = String(geometryEl.value || "condition").replace(/[^a-z0-9_-]/gi, "-");
+        const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+        downloadCsvFile(`optical-transition-condition-${geometry}-${stamp}.json`, payload);
+        if (rateOverlapNoteEl) rateOverlapNoteEl.textContent = "Condition saved to file.";
+      } catch (error) {
+        if (rateOverlapNoteEl) rateOverlapNoteEl.textContent = `Condition save failed: ${error?.message || error}`;
+      }
+    }
+
+    function loadConditionStateFromText(raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== "object" || !parsed.state) {
+          if (rateOverlapNoteEl) rateOverlapNoteEl.textContent = "Condition file is invalid.";
+          return;
+        }
+        applyConditionState(parsed.state);
+        if (rateOverlapNoteEl) rateOverlapNoteEl.textContent = "Condition loaded.";
+      } catch (error) {
+        if (rateOverlapNoteEl) rateOverlapNoteEl.textContent = `Condition load failed: ${error?.message || error}`;
+      }
+    }
+
+    function loadConditionState() {
+      if (!loadConditionInputEl) return;
+      loadConditionInputEl.value = "";
+      loadConditionInputEl.click();
+    }
+
+    function safeRenderRateEquationPanel(options = {}) {
+      const refreshPleMaps = options.refreshPleMaps !== false;
+      if (rateUpdateModeEl?.value === "manual" && !options.force) {
+        ratePanelRenderPending = true;
+        pendingRatePanelRenderOptions = {
+          refreshPleMaps: pendingRatePanelRenderOptions.refreshPleMaps || refreshPleMaps
+        };
+        updateRateRenderControls();
+        return;
+      }
+      const mergedOptions = options.force
+        ? { ...pendingRatePanelRenderOptions, ...options, refreshPleMaps: pendingRatePanelRenderOptions.refreshPleMaps || refreshPleMaps }
+        : { ...options, refreshPleMaps };
       try {
         if (rateOverlapNoteEl && String(rateOverlapNoteEl.dataset.renderError || "") === "1") {
           rateOverlapNoteEl.dataset.renderError = "0";
           rateOverlapNoteEl.textContent = "";
         }
-        renderRateEquationPanel();
+        renderRateEquationPanel(mergedOptions);
+        ratePanelRenderPending = false;
+        pendingRatePanelRenderOptions = { refreshPleMaps: false };
+        updateRateRenderControls();
       } catch (error) {
         console.error("Rate-equation panel rendering failed:", error);
         if (rateOverlapNoteEl) {
           rateOverlapNoteEl.dataset.renderError = "1";
           rateOverlapNoteEl.textContent = `Rate-equation render error: ${error?.message || error}`;
         }
+        updateRateRenderControls();
       }
     }
 
@@ -4399,7 +4897,8 @@
       downloadCsvFile("docp-excitation-emission-map.csv", csv);
     }
 
-    function renderRateEquationPanel() {
+    function renderRateEquationPanel(options = {}) {
+      const refreshPleMaps = options.refreshPleMaps !== false;
       const selectedDeltaE = getCurrentOrDefaultTransitionDeltaEAbs();
       selectedLaserEnergyEl.textContent = Number.isFinite(selectedDeltaE)
         ? `Current ΔE: ${selectedDeltaE.toFixed(6)} eV`
@@ -4413,7 +4912,7 @@
       if (!data) {
         rateOverlapNoteEl.textContent = "";
         renderRateTimeSeries(null);
-        renderPleMaps(null);
+        if (refreshPleMaps) renderPleMaps(null);
         return;
       }
 
@@ -4430,7 +4929,7 @@
           : null);
       if (!displayed) {
         renderRateTimeSeries(null);
-        renderPleMaps(null);
+        if (refreshPleMaps) renderPleMaps(null);
         return;
       }
 
@@ -4438,8 +4937,12 @@
         ? `${data.excludedNegativeDeltaE} B→B pairs have ΔE < 0 and are excluded from pump / radiative channels in the rate equation.`
         : "";
       renderRateTimeSeries(data, integrated);
-      pleMapsDirty = true;
-      renderPleMaps(data);
+      if (refreshPleMaps) {
+        pleMapsDirty = true;
+        renderPleMaps(data);
+      } else {
+        redrawStoredPleMaps();
+      }
     }
 
     function buildGenericCrystalFieldBaseMatrix(geometry) {
@@ -5873,6 +6376,7 @@
       const runtime = getPanelRuntime(panel);
       const w = runtime.previewEl.width;
       const h = runtime.previewEl.height;
+      const view = runtime.orbitalView;
       const axes = [
         { a: [-85, 0, 0], b: [85, 0, 0], name: "x" },
         { a: [0, -85, 0], b: [0, 85, 0], name: "y" },
@@ -5881,8 +6385,8 @@
       runtime.ctx.strokeStyle = "#a5b5cd";
       runtime.ctx.lineWidth = 1.2;
       for (const axis of axes) {
-        const a = projectPoint(rotateXYZ(axis.a[0], axis.a[1], axis.a[2], ax, ay), w, h, roll, orbitalView.zoom, orbitalView.projection);
-        const b = projectPoint(rotateXYZ(axis.b[0], axis.b[1], axis.b[2], ax, ay), w, h, roll, orbitalView.zoom, orbitalView.projection);
+        const a = projectPoint(rotateXYZ(axis.a[0], axis.a[1], axis.a[2], ax, ay), w, h, roll, view.zoom, view.projection);
+        const b = projectPoint(rotateXYZ(axis.b[0], axis.b[1], axis.b[2], ax, ay), w, h, roll, view.zoom, view.projection);
         runtime.ctx.beginPath();
         runtime.ctx.moveTo(a.x, a.y);
         runtime.ctx.lineTo(b.x, b.y);
@@ -5907,7 +6411,7 @@
       return v;
     }
 
-    function renderOrbitalSurface(ctx, w, h, name, ax, ay, withAxes = true, withLegend = true, coeffByOrbital = null, roll = 0, monoColor = null) {
+    function renderOrbitalSurface(ctx, w, h, name, ax, ay, withAxes = true, withLegend = true, coeffByOrbital = null, roll = 0, monoColor = null, viewOptions = orbitalView) {
       const tSteps = 40;
       const pSteps = 80;
       const vertices = [];
@@ -5925,8 +6429,8 @@
         ctx.strokeStyle = "#a5b5cd";
         ctx.lineWidth = 1.2;
         for (const axis of axes) {
-          const a = projectPoint(rotateXYZ(axis.a[0], axis.a[1], axis.a[2], ax, ay), w, h, roll, orbitalView.zoom, orbitalView.projection);
-          const b = projectPoint(rotateXYZ(axis.b[0], axis.b[1], axis.b[2], ax, ay), w, h, roll, orbitalView.zoom, orbitalView.projection);
+          const a = projectPoint(rotateXYZ(axis.a[0], axis.a[1], axis.a[2], ax, ay), w, h, roll, viewOptions.zoom, viewOptions.projection);
+          const b = projectPoint(rotateXYZ(axis.b[0], axis.b[1], axis.b[2], ax, ay), w, h, roll, viewOptions.zoom, viewOptions.projection);
           ctx.beginPath();
           ctx.moveTo(a.x, a.y);
           ctx.lineTo(b.x, b.y);
@@ -5959,7 +6463,7 @@
           const ny = item.ny;
           const nz = item.nz;
           const rot = rotateXYZ(radius * nx, radius * ny, radius * nz, ax, ay);
-          const pr = projectPoint(rot, w, h, roll, orbitalView.zoom, orbitalView.projection);
+          const pr = projectPoint(rot, w, h, roll, viewOptions.zoom, viewOptions.projection);
           vertices.push({ ...pr, rx: rot.x, ry: rot.y, rz: rot.z, sign: value >= 0 ? 1 : -1 });
       }
 
@@ -6316,14 +6820,14 @@
       const isFreeLike = runtime.orbitalView.stageTag === "FREE" || /free ion/i.test(String(runtime.orbitalView.label || ""));
       if (isFreeLike && (name === "mixed" || !name)) {
         // Free-ion manifold is rendered as an isotropic sphere for every nl.
-        renderOrbitalSurface(runtime.ctx, runtime.previewEl.width, runtime.previewEl.height, "s", runtime.orbitalView.ax, runtime.orbitalView.ay, true, true, null, runtime.orbitalView.roll, { r: 130, g: 86, b: 190 });
+        renderOrbitalSurface(runtime.ctx, runtime.previewEl.width, runtime.previewEl.height, "s", runtime.orbitalView.ax, runtime.orbitalView.ay, true, true, null, runtime.orbitalView.roll, { r: 130, g: 86, b: 190 }, runtime.orbitalView);
         return;
       }
       if (isMixedName) {
         const spec = mixSpec || (name.startsWith("mix(") ? name.slice(4, -1) : "");
         renderMixedDensity3D(panel, spec);
       } else {
-        renderOrbitalSurface(runtime.ctx, runtime.previewEl.width, runtime.previewEl.height, name, runtime.orbitalView.ax, runtime.orbitalView.ay, true, true, null, runtime.orbitalView.roll);
+        renderOrbitalSurface(runtime.ctx, runtime.previewEl.width, runtime.previewEl.height, name, runtime.orbitalView.ax, runtime.orbitalView.ay, true, true, null, runtime.orbitalView.roll, null, runtime.orbitalView);
       }
     }
 
@@ -7137,19 +7641,40 @@
       renderTransitionSummary();
       renderTransitionMatrix();
     });
-    [laserEnergyEl, laserWidthEl, pumpRateEl, radiativeLifetimeEl, relaxationRateEl, initialTemperatureEl, excitationPolarizationEl, timeMaxEl, timeStepsEl, plSpectrumWidthEl, plDocpErrorEl].forEach((el) => {
+    [laserEnergyEl, laserWidthEl, absorptionLineshapeModeEl, absorptionPhononEnergyEl, absorptionHuangRhysEl, absorptionPhononCountEl, pumpRateEl, radiativeLifetimeEl, relaxationRateEl, initialTemperatureEl, vibronicTemperatureEl, excitationPolarizationEl, timeMaxEl, timeStepsEl, plSpectrumWidthEl, emissionLineshapeModeEl, emissionPhononEnergyEl, emissionHuangRhysEl, emissionPhononCountEl, plDocpErrorEl].forEach((el) => {
       el.addEventListener("input", () => {
         if (el === laserEnergyEl) laserEnergyEl.dataset.userEdited = "1";
-        safeRenderRateEquationPanel();
+        safeRenderRateEquationPanel({ refreshPleMaps: el !== laserEnergyEl });
       });
     });
-    excitationPolarizationEl.addEventListener("change", () => safeRenderRateEquationPanel());
+    [excitationPolarizationEl, absorptionLineshapeModeEl, emissionLineshapeModeEl].forEach((el) => {
+      el.addEventListener("change", () => safeRenderRateEquationPanel({ refreshPleMaps: el !== excitationPolarizationEl }));
+    });
+    rateUpdateModeEl.addEventListener("change", () => {
+      updateRateRenderControls();
+      if (rateUpdateModeEl.value === "auto" && ratePanelRenderPending) {
+        safeRenderRateEquationPanel({ force: true });
+      }
+    });
+    applyRateUpdateBtnEl.addEventListener("click", () => safeRenderRateEquationPanel({ force: true }));
+    saveConditionBtnEl.addEventListener("click", () => saveConditionState());
+    loadConditionBtnEl.addEventListener("click", () => loadConditionState());
+    loadConditionInputEl.addEventListener("change", () => {
+      const file = loadConditionInputEl.files && loadConditionInputEl.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => loadConditionStateFromText(String(reader.result || ""));
+      reader.onerror = () => {
+        if (rateOverlapNoteEl) rateOverlapNoteEl.textContent = `Condition load failed: ${reader.error?.message || "file read error"}`;
+      };
+      reader.readAsText(file);
+    });
     function syncLaserEnergyToCurrentTransition() {
       const selectedDeltaE = getSelectedTransitionDeltaEAbs();
       if (!Number.isFinite(selectedDeltaE)) return;
       laserEnergyEl.value = selectedDeltaE.toFixed(6);
       laserEnergyEl.dataset.initialized = "1";
-      safeRenderRateEquationPanel();
+      safeRenderRateEquationPanel({ refreshPleMaps: false });
     }
     useSelectedLaserEnergyBtnEl.addEventListener("click", () => {
       syncLaserEnergyToCurrentTransition();
@@ -7455,6 +7980,7 @@
     syncDelta2Visibility();
     clearOrbitalPreview("initial");
     clearOrbitalPreview("final");
+    updateRateRenderControls();
     calculate(false, "init");
   </script>
 </body>
