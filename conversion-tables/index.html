@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Conversion</title>
+  <meta name="description" content="Converters and quick references.">
+  <link rel="icon" href="../shared/icons/utility.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../shared/back-to-hub.css">
+  <script defer src="../shared/back-to-hub.js"></script>
+  <style>
+    :root { --bg:#eef4f8; --bg2:#d9e9ee; --panel:rgba(255,255,255,.93); --line:rgba(21,76,88,.16); --text:#15303a; --muted:#5d7880; --accent:#007a78; --accent2:#005f86; --shadow:0 24px 56px rgba(21,48,58,.12); --mono:Consolas,"Courier New",monospace; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100dvh; font-family:"Segoe UI","Hiragino Sans","Yu Gothic UI",sans-serif; color:var(--text); background:radial-gradient(circle at top left, rgba(0,122,120,.16), transparent 28%), linear-gradient(180deg,var(--bg),var(--bg2)); padding:24px; }
+    .shell { width:min(1180px,100%); margin:0 auto; padding-top:52px; }
+    .hero,.panel { border:1px solid var(--line); border-radius:24px; background:var(--panel); box-shadow:var(--shadow); }
+    .hero { padding:32px; margin-bottom:20px; }
+    .panel { padding:24px; margin-top:20px; }
+    .eyebrow { display:inline-block; padding:7px 12px; border-radius:999px; background:rgba(0,122,120,.1); color:var(--accent); font-size:12px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; }
+    h1,h2,h3 { margin:0; letter-spacing:-.02em; }
+    h1 { margin-top:12px; font-size:clamp(34px,6vw,54px); line-height:1.05; }
+    .links { display:flex; flex-wrap:wrap; gap:10px; margin-top:18px; }
+    .jump-link { display:inline-flex; align-items:center; justify-content:center; padding:11px 15px; border:1px solid rgba(0,122,120,.22); border-radius:999px; background:rgba(255,255,255,.72); color:var(--accent); text-decoration:none; font-size:14px; font-weight:700; }
+    .grid { display:grid; gap:20px; }
+    .two { grid-template-columns:minmax(0,1.1fr) minmax(320px,.9fr); align-items:start; }
+    .cards { display:grid; gap:14px; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); }
+    .card,.formula-card { padding:16px; border:1px solid var(--line); border-radius:18px; background:rgba(255,255,255,.74); }
+    .field { display:grid; gap:8px; }
+    .field label { color:var(--muted); font-size:13px; font-weight:700; }
+    .field input,.field select { width:100%; padding:12px 14px; border:1px solid rgba(21,76,88,.2); border-radius:14px; background:rgba(255,255,255,.94); color:var(--text); font:inherit; }
+    .converter-grid,.mini-grid { display:grid; gap:14px; grid-template-columns:repeat(2,minmax(0,1fr)); }
+    .converter-grid { grid-template-columns:repeat(4,minmax(0,1fr)); align-items:end; }
+    .result-box { padding:18px; border-radius:18px; background:linear-gradient(135deg, rgba(0,95,134,.92), rgba(0,122,120,.92)); color:#f7ffff; }
+    .result-label { font-size:12px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; opacity:.84; }
+    .result-value { margin-top:8px; font-size:clamp(24px,5vw,34px); font-weight:800; line-height:1.15; word-break:break-word; }
+    .formula { margin-top:10px; font-family:var(--mono); font-size:13px; line-height:1.6; color:rgba(247,255,255,.86); }
+    .formula-card code { display:inline-block; margin-top:8px; padding:.18em .42em; border-radius:8px; background:rgba(21,48,58,.08); color:var(--text); font-family:var(--mono); font-size:13px; }
+    @media (max-width:920px){ body{padding:16px;} .shell{padding-top:64px;} .hero,.panel{padding:20px;border-radius:20px;} .two,.converter-grid,.mini-grid{grid-template-columns:1fr;} }
+  </style>
+</head>
+<body data-page-version="0.1.3" data-page-updated="2026-03-25">
+  <main class="shell">
+    <section class="hero">
+      <div class="eyebrow">Converters</div>
+      <h1>Conversion</h1>
+      <div class="links">
+        <a class="jump-link" href="../physics-constants/">Physics Constants</a>
+        <a class="jump-link" href="../">Hub</a>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="grid two">
+        <div class="grid">
+          <div class="converter-grid">
+            <div class="field"><label for="categorySelect">Category</label><select id="categorySelect"></select></div>
+            <div class="field"><label for="inputValue">Value</label><input id="inputValue" type="number" step="any" value="1"></div>
+            <div class="field"><label for="fromUnitSelect">From</label><select id="fromUnitSelect"></select></div>
+            <div class="field"><label for="toUnitSelect">To</label><select id="toUnitSelect"></select></div>
+          </div>
+        </div>
+        <div class="result-box">
+          <div class="result-label">Converted Value</div>
+          <div id="resultValue" class="result-value">1 m = 100 cm</div>
+          <div id="formulaText" class="formula">base = input × factor</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="grid two">
+        <div class="mini-grid">
+          <div class="card">
+            <div class="field"><label for="photonInputType">Input</label><select id="photonInputType"><option value="nm">Wavelength (nm)</option><option value="wavenumber">Wavenumber (cm^-1)</option><option value="eV">Energy (eV)</option><option value="J">Energy (J)</option></select></div>
+            <div class="field" style="margin-top:14px;"><label for="photonInputValue">Value</label><input id="photonInputValue" type="number" step="any" value="100"></div>
+          </div>
+          <div class="formula-card">
+            <h3>Formula</h3>
+            <p>E = hc / λ</p>
+            <code>E[eV] ≈ 1239.841984 / λ[nm]</code>
+          </div>
+        </div>
+        <div class="result-box">
+          <div class="result-label">Photon Values</div>
+          <div id="photonPrimaryResult" class="result-value">100 nm</div>
+          <div id="photonSecondaryResult" class="formula">100000 cm^-1 / 12.4 eV / 1.98644586e-18 J</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="grid two">
+        <div class="grid">
+          <div class="converter-grid">
+            <div class="field"><label for="timeScaleMode">Input</label><select id="timeScaleMode"><option value="delta">Thermal Stability Δ</option><option value="tau">τ (s)</option></select></div>
+            <div class="field"><label for="timeScaleInput">Value</label><input id="timeScaleInput" type="number" step="any" value="21"></div>
+            <div class="field"><label for="timeScaleTau0">τ0</label><input id="timeScaleTau0" type="number" step="any" value="1"></div>
+            <div class="field"><label for="timeScaleTau0Unit">τ0 Unit</label><select id="timeScaleTau0Unit"><option value="1e-9">ns</option><option value="1e-6">μs</option><option value="1e-3">ms</option><option value="1">s</option></select></div>
+          </div>
+        </div>
+        <div class="result-box">
+          <div class="result-label">Time Scale</div>
+          <div id="timeScalePrimaryResult" class="result-value">Δ = 21</div>
+          <div id="timeScaleSecondaryResult" class="formula">τ = τ0 exp(Δ)</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="grid two">
+        <div class="grid">
+          <div class="converter-grid" style="grid-template-columns:repeat(3,minmax(0,1fr));">
+            <div class="field"><label for="rfInputType">Input</label><select id="rfInputType"><option value="dBm">dBm</option><option value="W">W</option><option value="Vrms">V_rms</option><option value="T">T</option></select></div>
+            <div class="field"><label for="rfInputValue">Value</label><input id="rfInputValue" type="number" step="any" value="0"></div>
+            <div class="field"><label for="rfDistanceInput">Distance (μm)</label><input id="rfDistanceInput" type="number" step="any" value="10"></div>
+          </div>
+        </div>
+        <div class="result-box">
+          <div class="result-label">RF Values</div>
+          <div id="rfPrimaryResult" class="result-value">0 dBm / 1.00000E-3 W</div>
+          <div id="rfSecondaryResult" class="formula">2.23607E-1 V_rms / 2.80993E-4 T</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="cards">
+        <div class="card"><h3>Digits</h3><p>Black 0 / Brown 1 / Red 2 / Orange 3 / Yellow 4 / Green 5 / Blue 6 / Violet 7 / Gray 8 / White 9</p></div>
+        <div class="card"><h3>Tolerance</h3><p>Brown ±1% / Red ±2% / Gold ±5% / Silver ±10% / None ±20%</p></div>
+        <div class="card"><h3>4-Band</h3><p>Bands 1-2 are digits, band 3 is multiplier, band 4 is tolerance.</p></div>
+      </div>
+    </section>
+  </main>
+  <script>
+    (function () {
+      const categories = {
+        length: { label: "Length", type: "linear", units: { m: { label: "m", factor: 1 }, km: { label: "km", factor: 1000 }, cm: { label: "cm", factor: 1e-2 }, mm: { label: "mm", factor: 1e-3 }, um: { label: "μm", factor: 1e-6 }, nm: { label: "nm", factor: 1e-9 }, angstrom: { label: "Å", factor: 1e-10 }, inch: { label: "in", factor: 0.0254 }, ft: { label: "ft", factor: 0.3048 }, yd: { label: "yd", factor: 0.9144 }, mile: { label: "mi", factor: 1609.344 } }, defaultFrom: "m", defaultTo: "cm" },
+        mass: { label: "Mass", type: "linear", units: { kg: { label: "kg", factor: 1 }, g: { label: "g", factor: 1e-3 }, mg: { label: "mg", factor: 1e-6 }, ug: { label: "μg", factor: 1e-9 }, u: { label: "u", factor: 1.66053906892e-27 }, oz: { label: "oz", factor: 0.028349523125 }, lb: { label: "lb", factor: 0.45359237 }, stone: { label: "st", factor: 6.35029318 } }, defaultFrom: "kg", defaultTo: "g" },
+        energy: { label: "Energy", type: "linear", units: { J: { label: "J", factor: 1 }, kJ: { label: "kJ", factor: 1e3 }, eV: { label: "eV", factor: 1.602176634e-19 }, meV: { label: "meV", factor: 1.602176634e-22 }, keV: { label: "keV", factor: 1.602176634e-16 }, MeV: { label: "MeV", factor: 1.602176634e-13 }, cal: { label: "cal", factor: 4.184 }, kcal: { label: "kcal", factor: 4184 }, Wh: { label: "Wh", factor: 3600 } }, defaultFrom: "eV", defaultTo: "J" },
+        pressure: { label: "Pressure", type: "linear", units: { Pa: { label: "Pa", factor: 1 }, kPa: { label: "kPa", factor: 1e3 }, MPa: { label: "MPa", factor: 1e6 }, bar: { label: "bar", factor: 1e5 }, atm: { label: "atm", factor: 101325 }, Torr: { label: "Torr", factor: 133.32236842105263 }, psi: { label: "psi", factor: 6894.757293168 }, ksi: { label: "ksi", factor: 6894757.293168 } }, defaultFrom: "atm", defaultTo: "Pa" },
+        magneticFluxDensity: { label: "Flux Density B", type: "linear", units: { T: { label: "T", factor: 1 }, mT: { label: "mT", factor: 1e-3 }, uT: { label: "μT", factor: 1e-6 }, G: { label: "G", factor: 1e-4 } }, defaultFrom: "T", defaultTo: "G" },
+        magneticFieldStrength: { label: "Field Strength H", type: "linear", units: { Apm: { label: "A/m", factor: 1 }, kApm: { label: "kA/m", factor: 1e3 }, Oe: { label: "Oe", factor: 1000 / (4 * Math.PI) } }, defaultFrom: "Oe", defaultTo: "Apm" },
+        time: { label: "Time", type: "linear", units: { s: { label: "s", factor: 1 }, ms: { label: "ms", factor: 1e-3 }, us: { label: "μs", factor: 1e-6 }, ns: { label: "ns", factor: 1e-9 }, min: { label: "min", factor: 60 }, h: { label: "h", factor: 3600 } }, defaultFrom: "s", defaultTo: "ms" },
+        temperature: { label: "Temperature", type: "temperature", units: { K: { label: "K" }, C: { label: "°C" }, F: { label: "°F" } }, defaultFrom: "C", defaultTo: "K" }
+      };
+      const categorySelect = document.getElementById("categorySelect");
+      const inputValue = document.getElementById("inputValue");
+      const fromUnitSelect = document.getElementById("fromUnitSelect");
+      const toUnitSelect = document.getElementById("toUnitSelect");
+      const resultValue = document.getElementById("resultValue");
+      const formulaText = document.getElementById("formulaText");
+      const photonInputType = document.getElementById("photonInputType");
+      const photonInputValue = document.getElementById("photonInputValue");
+      const photonPrimaryResult = document.getElementById("photonPrimaryResult");
+      const photonSecondaryResult = document.getElementById("photonSecondaryResult");
+      const timeScaleMode = document.getElementById("timeScaleMode");
+      const timeScaleInput = document.getElementById("timeScaleInput");
+      const timeScaleTau0 = document.getElementById("timeScaleTau0");
+      const timeScaleTau0Unit = document.getElementById("timeScaleTau0Unit");
+      const timeScalePrimaryResult = document.getElementById("timeScalePrimaryResult");
+      const timeScaleSecondaryResult = document.getElementById("timeScaleSecondaryResult");
+      const rfInputType = document.getElementById("rfInputType");
+      const rfInputValue = document.getElementById("rfInputValue");
+      const rfDistanceInput = document.getElementById("rfDistanceInput");
+      const rfPrimaryResult = document.getElementById("rfPrimaryResult");
+      const rfSecondaryResult = document.getElementById("rfSecondaryResult");
+      function fmt(v){ if(!Number.isFinite(v)) return "Check input"; if(v===0) return "0"; const a=Math.abs(v); if(a>=1e5||a<1e-4) return v.toExponential(8).replace("e+","e"); return v.toLocaleString("en-US",{maximumFractionDigits:12}); }
+      function compact(v){ if(!Number.isFinite(v)) return "-"; if(v===0) return "0"; const a=Math.abs(v); if(a>=1e-3&&a<1e4) return v.toLocaleString("en-US",{maximumFractionDigits:9}); return v.toExponential(5).replace("e+","E+").replace("e-","E-"); }
+      function toBase(cat,unit,val){ if(categories[cat].type==="temperature"){ if(unit==="K") return val; if(unit==="C") return val+273.15; return (val-32)/1.8+273.15; } return val*categories[cat].units[unit].factor; }
+      function fromBase(cat,unit,val){ if(categories[cat].type==="temperature"){ if(unit==="K") return val; if(unit==="C") return val-273.15; return (val-273.15)*1.8+32; } return val/categories[cat].units[unit].factor; }
+      function formula(cat,from,to){ if(categories[cat].type==="temperature"){ if(from==="C"&&to==="K") return "K = °C + 273.15"; if(from==="K"&&to==="C") return "°C = K - 273.15"; if(from==="F"&&to==="C") return "°C = (°F - 32) / 1.8"; if(from==="C"&&to==="F") return "°F = °C × 1.8 + 32"; if(from==="F"&&to==="K") return "K = (°F - 32) / 1.8 + 273.15"; if(from==="K"&&to==="F") return "°F = (K - 273.15) × 1.8 + 32"; return "Same unit"; } return "base = input × " + fmt(categories[cat].units[from].factor) + " / output = base ÷ " + fmt(categories[cat].units[to].factor); }
+      function fillCats(){ Object.entries(categories).forEach(function(entry){ const option=document.createElement("option"); option.value=entry[0]; option.textContent=entry[1].label; categorySelect.appendChild(option); }); }
+      function fillUnits(cat){ const c=categories[cat]; fromUnitSelect.innerHTML=""; toUnitSelect.innerHTML=""; Object.entries(c.units).forEach(function(entry){ const a=document.createElement("option"); const b=document.createElement("option"); a.value=entry[0]; b.value=entry[0]; a.textContent=entry[1].label; b.textContent=entry[1].label; fromUnitSelect.appendChild(a); toUnitSelect.appendChild(b); }); fromUnitSelect.value=c.defaultFrom; toUnitSelect.value=c.defaultTo; }
+      function update(){ const cat=categorySelect.value, value=Number(inputValue.value), from=fromUnitSelect.value, to=toUnitSelect.value; if(!Number.isFinite(value)){ resultValue.textContent="Check input"; formulaText.textContent=""; return; } const converted=fromBase(cat,to,toBase(cat,from,value)); resultValue.textContent=fmt(value)+" "+categories[cat].units[from].label+" = "+fmt(converted)+" "+categories[cat].units[to].label; formulaText.textContent=formula(cat,from,to); }
+      function buildPhoton(){ const h=6.62607015e-34, c=299792458, e=1.602176634e-19; const kind=photonInputType.value, raw=Number(photonInputValue.value); if(!Number.isFinite(raw)||raw<=0){ photonPrimaryResult.textContent="Enter a positive value"; photonSecondaryResult.textContent=""; return; } let lambdaNm; if(kind==="nm") lambdaNm=raw; else if(kind==="wavenumber") lambdaNm=1e7/raw; else if(kind==="eV") lambdaNm=1239.841984/raw; else lambdaNm=(h*c/raw)*1e9; const wn=1e7/lambdaNm, ev=1239.841984/lambdaNm, joule=ev*e; photonPrimaryResult.textContent=compact(lambdaNm)+" nm"; photonSecondaryResult.textContent=compact(wn)+" cm^-1 / "+compact(ev)+" eV / "+compact(joule)+" J"; }
+      function buildTime(){ const mode=timeScaleMode.value, input=Number(timeScaleInput.value), tau0=Number(timeScaleTau0.value)*Number(timeScaleTau0Unit.value); if(!Number.isFinite(input)||!Number.isFinite(tau0)||tau0<=0){ timeScalePrimaryResult.textContent="Check input"; timeScaleSecondaryResult.textContent=""; return; } const m=60,h=3600,d=86400,mo=30*d,y=365*d; let delta, seconds; if(mode==="delta"){ delta=input; seconds=tau0*Math.exp(delta); } else { seconds=input; if(seconds<=0){ timeScalePrimaryResult.textContent="Enter a positive value"; timeScaleSecondaryResult.textContent=""; return; } delta=Math.log(seconds/tau0); } timeScalePrimaryResult.textContent="Δ = "+compact(delta)+" / τ = "+compact(seconds)+" s"; timeScaleSecondaryResult.textContent=compact(seconds/m)+" min / "+compact(seconds/h)+" h / "+compact(seconds/d)+" d / "+compact(seconds/mo)+" month / "+compact(seconds/y)+" y / τ = τ0 exp(Δ)"; }
+      function buildRf(){ const inputType=rfInputType.value, inputValueNum=Number(rfInputValue.value), distanceUm=Number(rfDistanceInput.value); if(!Number.isFinite(inputValueNum)||!Number.isFinite(distanceUm)||distanceUm<=0){ rfPrimaryResult.textContent="Check input"; rfSecondaryResult.textContent=""; return; } const R=50, mu0=1.25663706127e-6, r=distanceUm*1e-6; let P; if(inputType==="dBm") P=Math.pow(10,(inputValueNum-30)/10); else if(inputType==="W") P=inputValueNum; else if(inputType==="Vrms") P=(inputValueNum*inputValueNum)/R; else { const I=inputValueNum*(2*Math.PI*r)/mu0; const V=I*R; P=(V*V)/R; } if(!Number.isFinite(P)||P<0){ rfPrimaryResult.textContent="Check input"; rfSecondaryResult.textContent=""; return; } const dbm=P>0?10*Math.log10(P)+30:-Infinity, V=Math.sqrt(P*R), I=V/R, B=mu0*I/(2*Math.PI*r); rfPrimaryResult.textContent=compact(dbm)+" dBm / "+compact(P)+" W"; rfSecondaryResult.textContent=compact(V)+" V_rms / "+compact(B)+" T"; }
+      categorySelect.addEventListener("change", function(){ fillUnits(categorySelect.value); update(); });
+      inputValue.addEventListener("input", update);
+      fromUnitSelect.addEventListener("change", update);
+      toUnitSelect.addEventListener("change", update);
+      photonInputType.addEventListener("change", buildPhoton);
+      photonInputValue.addEventListener("input", buildPhoton);
+      timeScaleMode.addEventListener("change", function(){ timeScaleInput.value=timeScaleMode.value==="delta"?"21":"1e-9"; buildTime(); });
+      timeScaleInput.addEventListener("input", buildTime);
+      timeScaleTau0.addEventListener("input", buildTime);
+      timeScaleTau0Unit.addEventListener("change", buildTime);
+      rfInputType.addEventListener("change", function(){ rfInputValue.value=rfInputType.value==="dBm"?"0":"1"; buildRf(); });
+      rfInputValue.addEventListener("input", buildRf);
+      rfDistanceInput.addEventListener("input", buildRf);
+      fillCats(); categorySelect.value="length"; fillUnits("length"); update(); buildPhoton(); buildTime(); buildRf();
+    }());
+  </script>
+</body>
+</html>

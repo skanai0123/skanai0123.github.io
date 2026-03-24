@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Physics Reference | Hub</title>
+  <meta name="description" content="Hub page for physics constants and conversions.">
+  <link rel="icon" href="../shared/icons/utility.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../shared/back-to-hub.css">
+  <script defer src="../shared/back-to-hub.js"></script>
+  <style>
+    :root { --bg:#edf4fb; --bg2:#dce8f4; --panel:rgba(255,255,255,.92); --line:rgba(33,71,111,.16); --text:#17263f; --muted:#5d7392; --accent:#006e90; --accent2:#00a896; --shadow:0 24px 56px rgba(23,38,63,.12); }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100dvh; font-family:"Segoe UI","Hiragino Sans","Yu Gothic UI",sans-serif; color:var(--text); background:radial-gradient(circle at top left, rgba(0,168,150,.18), transparent 28%), radial-gradient(circle at top right, rgba(0,110,144,.16), transparent 24%), linear-gradient(180deg,var(--bg),var(--bg2)); padding:24px; }
+    .shell { width:min(1080px,100%); margin:0 auto; padding-top:52px; }
+    .hero,.card { border:1px solid var(--line); border-radius:24px; background:var(--panel); box-shadow:var(--shadow); }
+    .hero { padding:32px; margin-bottom:20px; }
+    .eyebrow,.tag { display:inline-block; padding:7px 12px; border-radius:999px; font-size:12px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; }
+    .eyebrow { background:rgba(0,110,144,.1); color:var(--accent); }
+    .tag { background:rgba(0,168,150,.1); color:var(--accent2); }
+    h1,h2 { margin:0; letter-spacing:-.02em; }
+    h1 { margin-top:12px; font-size:clamp(34px,6vw,56px); line-height:1.05; }
+    .grid { display:grid; gap:20px; grid-template-columns:repeat(2,minmax(0,1fr)); }
+    .card { display:block; padding:24px; text-decoration:none; color:inherit; transition:transform .14s ease, border-color .14s ease; }
+    .card:hover { transform:translateY(-2px); border-color:rgba(0,110,144,.34); }
+    .card h2 { margin-top:14px; font-size:28px; }
+    .list { margin-top:16px; font-size:14px; }
+    @media (max-width:800px){ body{padding:16px;} .shell{padding-top:64px;} .hero,.card{padding:20px;border-radius:20px;} .grid{grid-template-columns:1fr;} }
+  </style>
+</head>
+<body data-page-version="0.1.3" data-page-updated="2026-03-25">
+  <main class="shell">
+    <section class="hero">
+      <div class="eyebrow">Physics</div>
+      <h1>Physics</h1>
+    </section>
+    <div class="grid">
+      <a class="card" href="../physics-constants/">
+        <span class="tag">Physics</span>
+        <h2>Physics Constants</h2>
+      </a>
+      <a class="card" href="../conversion-tables/">
+        <span class="tag">Conversion</span>
+        <h2>Conversion</h2>
+      </a>
+    </div>
+  </main>
+</body>
+</html>

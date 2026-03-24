@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Physics Constants</title>
+  <meta name="description" content="Physics constants and dielectric memo.">
+  <link rel="icon" href="../shared/icons/general.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../shared/back-to-hub.css">
+  <script defer src="../shared/back-to-hub.js"></script>
+  <script defer src="../shared/mathjax-loader.js"></script>
+  <style>
+    :root { --bg:#eef4fb; --bg2:#dde9f6; --panel:rgba(255,255,255,.93); --line:rgba(31,67,105,.16); --text:#16253d; --muted:#617896; --accent:#1c6aa3; --shadow:0 24px 56px rgba(22,37,61,.12); --mono:Consolas,"Courier New",monospace; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100dvh; font-family:"Segoe UI","Hiragino Sans","Yu Gothic UI",sans-serif; color:var(--text); background:radial-gradient(circle at top left, rgba(28,106,163,.16), transparent 28%), linear-gradient(180deg,var(--bg),var(--bg2)); padding:24px; }
+    .shell { width:min(1180px,100%); margin:0 auto; padding-top:52px; }
+    .hero,.panel { border:1px solid var(--line); border-radius:24px; background:var(--panel); box-shadow:var(--shadow); }
+    .hero { padding:32px; margin-bottom:20px; }
+    .panel { padding:24px; margin-top:20px; }
+    .eyebrow { display:inline-block; padding:7px 12px; border-radius:999px; background:rgba(28,106,163,.1); color:var(--accent); font-size:12px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; }
+    h1,h2,h3 { margin:0; letter-spacing:-.02em; }
+    h1 { margin-top:12px; font-size:clamp(34px,6vw,54px); line-height:1.05; }
+    .lead,.note,p { color:var(--muted); line-height:1.75; }
+    .lead { margin-top:14px; max-width:68ch; }
+    .links { display:flex; flex-wrap:wrap; gap:10px; margin-top:18px; }
+    .jump-link { display:inline-flex; align-items:center; justify-content:center; padding:11px 15px; border:1px solid rgba(28,106,163,.22); border-radius:999px; background:rgba(255,255,255,.72); color:var(--accent); text-decoration:none; font-size:14px; font-weight:700; }
+    .table-wrap { overflow-x:auto; border:1px solid var(--line); border-radius:18px; background:rgba(255,255,255,.82); }
+    table { width:100%; border-collapse:collapse; min-width:860px; }
+    th, td { padding:12px 14px; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; }
+    th { background:rgba(241,247,252,.98); color:var(--muted); font-size:12px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; }
+    tbody tr:last-child td { border-bottom:0; }
+    .section-row td { background:rgba(28,106,163,.06); color:var(--text); font-weight:700; }
+    .symbol { white-space: nowrap; }
+    .source-list { display:grid; gap:8px; }
+    .source-list a { color:var(--accent); text-underline-offset:.15em; }
+    @media (max-width:920px){ body{padding:16px;} .shell{padding-top:64px;} .hero,.panel{padding:20px;border-radius:20px;} }
+  </style>
+</head>
+<body data-page-version="0.1.3" data-page-updated="2026-03-25">
+  <main class="shell">
+    <section class="hero">
+      <div class="eyebrow">Physics</div>
+      <h1>Physics Constants</h1>
+      <p class="lead">Constants and material notes.</p>
+      <div class="links">
+        <a class="jump-link" href="../conversion-tables/">Conversion</a>
+        <a class="jump-link" href="../">Hub</a>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Core Constants</h2>
+      <div class="table-wrap" style="margin-top:16px;">
+        <table>
+          <thead>
+            <tr><th>Name</th><th>Symbol</th><th>Value</th><th>Unit</th></tr>
+          </thead>
+          <tbody>
+            <tr class="section-row"><td colspan="4">Universal and Electromagnetic Constants</td></tr>
+            <tr><td>Speed of light in vacuum</td><td class="symbol">\( c \)</td><td class="value">\( 2.99792458 \times 10^{8} \)</td><td>\( \mathrm{m \cdot s^{-1}} \)</td></tr>
+            <tr><td>Vacuum permeability</td><td class="symbol">\( \mu_0 = 4 \pi \times 10^{-7} \)</td><td class="value">\( 1.2566370614 \times 10^{-6} \)</td><td>\( \mathrm{N \cdot A^{-2}} \)</td></tr>
+            <tr><td>Vacuum permittivity</td><td class="symbol">\( \varepsilon_0 = 1 / \mu_0 c^2 \)</td><td class="value">\( 8.854187817\ldots \times 10^{-12} \)</td><td>\( \mathrm{F \cdot m^{-1}} \)</td></tr>
+            <tr><td>Gravitational constant</td><td class="symbol">\( G \)</td><td class="value">\( 6.67428(67) \times 10^{-11} \)</td><td>\( \mathrm{N \cdot m^2 \cdot kg^{-2}} \)</td></tr>
+            <tr><td>Planck constant</td><td class="symbol">\( h \)</td><td class="value">\( 6.62606896(33) \times 10^{-34} \)</td><td>\( \mathrm{J \cdot s} \)</td></tr>
+            <tr><td>Reduced Planck constant</td><td class="symbol">\( \hbar = h / 2 \pi \)</td><td class="value">\( 1.054571628(53) \times 10^{-34} \)</td><td>\( \mathrm{J \cdot s} \)</td></tr>
+            <tr><td>Elementary charge</td><td class="symbol">\( e \)</td><td class="value">\( 1.602176487(40) \times 10^{-19} \)</td><td>\( \mathrm{C} \)</td></tr>
+            <tr><td>Flux quantum</td><td class="symbol">\( h / 2e \)</td><td class="value">\( 2.067833667(52) \times 10^{-15} \)</td><td>\( \mathrm{Wb} \)</td></tr>
+            <tr><td>Josephson constant</td><td class="symbol">\( K_{\mathrm{J}} = 2e / h \)</td><td class="value">\( 4.83597891(12) \times 10^{14} \)</td><td>\( \mathrm{Hz \cdot V^{-1}} \)</td></tr>
+            <tr><td>von Klitzing constant</td><td class="symbol">\( R_{\mathrm{K}} = h / e^2 \)</td><td class="value">\( 2.5812807557(18) \times 10^{4} \)</td><td>\( \Omega \)</td></tr>
+            <tr><td>Bohr magneton</td><td class="symbol">\( \mu_{\mathrm{B}} = e \hbar / 2 m_e \)</td><td class="value">\( 9.27400915(23) \times 10^{-24} \)</td><td>\( \mathrm{J \cdot T^{-1}} \)</td></tr>
+            <tr><td>Nuclear magneton</td><td class="symbol">\( \mu_{\mathrm{N}} = e \hbar / 2 m_p \)</td><td class="value">\( 5.05078324(13) \times 10^{-27} \)</td><td>\( \mathrm{J \cdot T^{-1}} \)</td></tr>
+
+            <tr class="section-row"><td colspan="4">Particle and Atomic Constants</td></tr>
+            <tr><td>Electron mass</td><td class="symbol">\( m_e \)</td><td class="value">\( 9.10938215(45) \times 10^{-31} \)</td><td>\( \mathrm{kg} \)</td></tr>
+            <tr><td>Proton mass</td><td class="symbol">\( m_p \)</td><td class="value">\( 1.672621637(83) \times 10^{-27} \)</td><td>\( \mathrm{kg} \)</td></tr>
+            <tr><td>Neutron mass</td><td class="symbol">\( m_n \)</td><td class="value">\( 1.674927211(84) \times 10^{-27} \)</td><td>\( \mathrm{kg} \)</td></tr>
+            <tr><td>Muon mass</td><td class="symbol">\( m_\mu \)</td><td class="value">\( 1.88353130(11) \times 10^{-28} \)</td><td>\( \mathrm{kg} \)</td></tr>
+            <tr><td>Electron magnetic moment</td><td class="symbol">\( \mu_e \)</td><td class="value">\( -9.28476377(23) \times 10^{-24} \)</td><td>\( \mathrm{J \cdot T^{-1}} \)</td></tr>
+            <tr><td>Free-electron g-factor</td><td class="symbol">\( 2 \mu_e / \mu_{\mathrm{B}} \)</td><td class="value">\( -2.0023193043622(15) \)</td><td>\( 1 \)</td></tr>
+            <tr><td>Proton magnetic moment</td><td class="symbol">\( \mu_p \)</td><td class="value">\( 1.410606662(37) \times 10^{-26} \)</td><td>\( \mathrm{J \cdot T^{-1}} \)</td></tr>
+            <tr><td>Proton g-factor</td><td class="symbol">\( 2 \mu_p / \mu_{\mathrm{N}} \)</td><td class="value">\( 5.585694713(46) \)</td><td>\( 1 \)</td></tr>
+            <tr><td>Neutron magnetic moment</td><td class="symbol">\( \mu_n \)</td><td class="value">\( -9.6623641(23) \times 10^{-27} \)</td><td>\( \mathrm{J \cdot T^{-1}} \)</td></tr>
+            <tr><td>Muon magnetic moment</td><td class="symbol">\( \mu_\mu \)</td><td class="value">\( -4.49044786(16) \times 10^{-26} \)</td><td>\( \mathrm{J \cdot T^{-1}} \)</td></tr>
+            <tr><td>Electron Compton wavelength</td><td class="symbol">\( \lambda_c = h / m_e c \)</td><td class="value">\( 2.4263102175(33) \times 10^{-12} \)</td><td>\( \mathrm{m} \)</td></tr>
+            <tr><td>Proton Compton wavelength</td><td class="symbol">\( \lambda_{cp} = h / m_p c \)</td><td class="value">\( 1.3214098446(19) \times 10^{-15} \)</td><td>\( \mathrm{m} \)</td></tr>
+            <tr><td>Fine-structure constant</td><td class="symbol">\( \alpha = e^2 / 4 \pi \varepsilon_0 \hbar c \)</td><td class="value">\( 7.2973525376(50) \times 10^{-3} \)</td><td>\( 1 \)</td></tr>
+            <tr><td>Inverse fine-structure constant</td><td class="symbol">\( 1 / \alpha \)</td><td class="value">\( 1.37035999679(94) \times 10^{2} \)</td><td>\( 1 \)</td></tr>
+            <tr><td>Bohr radius</td><td class="symbol">\( a_0 = 4 \pi \varepsilon_0 \hbar^2 / m_e e^2 \)</td><td class="value">\( 5.2917720859(36) \times 10^{-11} \)</td><td>\( \mathrm{m} \)</td></tr>
+            <tr><td>Rydberg constant</td><td class="symbol">\( R_\infty = e^2 / 16 \pi \varepsilon_0 a_0 h c \)</td><td class="value">\( 1.0973731568527(73) \times 10^{7} \)</td><td>\( \mathrm{m^{-1}} \)</td></tr>
+            <tr><td>Electron charge-to-mass ratio</td><td class="symbol">\( -e / m_e \)</td><td class="value">\( -1.758820150(44) \times 10^{11} \)</td><td>\( \mathrm{C \cdot kg^{-1}} \)</td></tr>
+            <tr><td>Classical electron radius</td><td class="symbol">\( r_e = e^2 / 4 \pi \varepsilon_0 m_e c^2 \)</td><td class="value">\( 2.8179402894(58) \times 10^{-15} \)</td><td>\( \mathrm{m} \)</td></tr>
+
+            <tr class="section-row"><td colspan="4">Physicochemical Constants</td></tr>
+            <tr><td>Atomic mass constant</td><td class="symbol">\( m_u \)</td><td class="value">\( 1.660538782(83) \times 10^{-27} \)</td><td>\( \mathrm{kg} \)</td></tr>
+            <tr><td>Avogadro constant</td><td class="symbol">\( N_A, L \)</td><td class="value">\( 6.02214179(30) \times 10^{23} \)</td><td>\( \mathrm{mol^{-1}} \)</td></tr>
+            <tr><td>Boltzmann constant</td><td class="symbol">\( k_{\mathrm{B}} \)</td><td class="value">\( 1.3806504(24) \times 10^{-23} \)</td><td>\( \mathrm{J \cdot K^{-1}} \)</td></tr>
+            <tr><td>Faraday constant</td><td class="symbol">\( F = N_A e \)</td><td class="value">\( 9.64853399(24) \times 10^{4} \)</td><td>\( \mathrm{C \cdot mol^{-1}} \)</td></tr>
+            <tr><td>Molar gas constant</td><td class="symbol">\( R = N_A k \)</td><td class="value">\( 8.314472(15) \)</td><td>\( \mathrm{J \cdot mol^{-1} \cdot K^{-1}} \)</td></tr>
+            <tr><td>Molar volume of ideal gas (0°C, 1 atm)</td><td class="symbol">\( V_m \)</td><td class="value">\( 2.2413996(39) \times 10^{-2} \)</td><td>\( \mathrm{m^3 \cdot mol^{-1}} \)</td></tr>
+            <tr><td>Stefan-Boltzmann constant</td><td class="symbol">\( \sigma = \pi^2 k^4 / 60 \hbar^3 c^2 \)</td><td class="value">\( 5.670400(40) \times 10^{-8} \)</td><td>\( \mathrm{W \cdot m^{-2} \cdot K^{-4}} \)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Sources</h2>
+      <div class="source-list" style="margin-top:16px;">
+        <a href="https://www.physics.nist.gov/cuu/Constants/index.html" target="_blank" rel="noopener noreferrer">NIST Fundamental Physical Constants</a>
+        <a href="https://pml.nist.gov/cuu/pdf/wall_2022.pdf" target="_blank" rel="noopener noreferrer">CODATA Recommended Values of the Fundamental Physical Constants: 2022</a>
+        <a href="https://www.physics.nist.gov/cuu/pdf/wallet_2022.pdf" target="_blank" rel="noopener noreferrer">2022 CODATA Recommended Values of the Fundamental Constants of Physics and Chemistry</a>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
