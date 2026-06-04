@@ -1,0 +1,1754 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spin Pair Bell State Generation</title>
+  <meta name="description" content="Fast pure-state spin-pair Bell-state generation simulator.">
+  <link rel="icon" href="../shared/icons/quantum information.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../shared/back-to-hub.css">
+  <script defer src="../shared/back-to-hub.js"></script>
+  <style>
+    :root {
+      --bg: #eef5f8;
+      --panel: rgba(255, 255, 255, 0.94);
+      --line: rgba(34, 75, 91, 0.18);
+      --text: #12262f;
+      --muted: #5a7380;
+      --accent: #087c91;
+      --accent2: #9d355c;
+      --good: #0d8d6f;
+      --shadow: 0 24px 58px rgba(18, 38, 47, 0.12);
+      --mono: Consolas, "Courier New", monospace;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100dvh;
+      font-family: "Segoe UI", "Hiragino Sans", "Yu Gothic UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(8, 124, 145, 0.15), transparent 34%),
+        radial-gradient(circle at top right, rgba(157, 53, 92, 0.10), transparent 28%),
+        linear-gradient(180deg, var(--bg), #dfeaec);
+      padding: 24px;
+    }
+
+    .shell {
+      width: min(1360px, 100%);
+      margin: 0 auto;
+      padding-top: 52px;
+    }
+
+    .hero,
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+
+    .hero {
+      padding: 28px;
+      margin-bottom: 18px;
+    }
+
+    .eyebrow {
+      display: inline-block;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(8, 124, 145, 0.10);
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    h1, h2, h3 {
+      margin: 0;
+      letter-spacing: 0;
+    }
+
+    h1 {
+      margin-top: 12px;
+      font-size: clamp(32px, 6vw, 54px);
+      line-height: 1.04;
+    }
+
+    h2 { font-size: 21px; }
+    h3 { font-size: 15px; color: var(--muted); }
+
+    .lead,
+    .meta,
+    .status {
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    .lead {
+      max-width: 76ch;
+      margin: 12px 0 0;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(300px, 390px) minmax(0, 1fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .panel {
+      padding: 20px;
+      display: grid;
+      gap: 16px;
+    }
+
+    .controls {
+      position: sticky;
+      top: 20px;
+    }
+
+    .group {
+      display: grid;
+      gap: 10px;
+      padding-top: 14px;
+      border-top: 1px solid var(--line);
+    }
+
+    .group:first-of-type {
+      padding-top: 0;
+      border-top: 0;
+    }
+
+    .field-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .vector-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .vector-fieldset {
+      display: grid;
+      gap: 8px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.56);
+    }
+
+    .vector-title {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+    }
+
+    label {
+      display: grid;
+      gap: 5px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    input {
+      width: 100%;
+      min-height: 36px;
+      padding: 7px 9px;
+      border: 1px solid rgba(34, 75, 91, 0.26);
+      border-radius: 6px;
+      background: #fff;
+      color: var(--text);
+      font: 13px var(--mono);
+    }
+
+    button {
+      min-height: 40px;
+      border: 1px solid rgba(8, 124, 145, 0.32);
+      border-radius: 6px;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    button.secondary {
+      background: #fff;
+      color: var(--accent);
+    }
+
+    button:disabled {
+      cursor: wait;
+      opacity: 0.66;
+    }
+
+    .button-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .results {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .metric {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.7);
+      padding: 12px;
+      min-height: 76px;
+    }
+
+    .metric span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .metric strong {
+      display: block;
+      margin-top: 6px;
+      font: 700 20px var(--mono);
+      color: var(--text);
+      overflow-wrap: anywhere;
+    }
+
+    .plot-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 14px;
+    }
+
+    .state-visual-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 14px;
+      align-items: start;
+    }
+
+    .plot-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      background: rgba(255, 255, 255, 0.72);
+    }
+
+    .level-card {
+      min-height: 520px;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      background: #fff;
+      border: 1px solid rgba(34, 75, 91, 0.12);
+      border-radius: 6px;
+    }
+
+    #levelPlot,
+    #populationPlot,
+    #metricPlot {
+      height: 260px;
+    }
+
+    #levelPlot {
+      height: 462px;
+    }
+
+    #rhoPlot {
+      aspect-ratio: 1 / 1;
+      height: auto;
+      max-height: 460px;
+      margin-inline: auto;
+    }
+
+    .rho-controls {
+      display: grid;
+      grid-template-columns: auto auto minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+      margin-top: 10px;
+    }
+
+    .view-toggle {
+      display: inline-grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 4px;
+      width: min(260px, 100%);
+      margin-bottom: 10px;
+      padding: 4px;
+      border: 1px solid rgba(34, 75, 91, 0.18);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.68);
+    }
+
+    .view-toggle button {
+      min-height: 32px;
+      border-color: transparent;
+      background: transparent;
+      color: var(--muted);
+    }
+
+    .view-toggle button.active {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    input[type="range"] {
+      padding: 0;
+      min-height: 28px;
+    }
+
+    pre {
+      margin: 0;
+      max-height: 340px;
+      overflow: auto;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #f8fbfc;
+      color: #243a43;
+      font: 12px/1.55 var(--mono);
+      white-space: pre-wrap;
+    }
+
+    @media (max-width: 980px) {
+      body { padding: 16px; }
+      .shell { padding-top: 68px; }
+      .layout { grid-template-columns: 1fr; }
+      .controls { position: static; }
+      .results { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .state-visual-grid { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 620px) {
+      .field-grid,
+      .vector-grid,
+      .button-row,
+      .results,
+      .rho-controls {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body data-page-version="0.1.0" data-page-updated="2026-06-04">
+  <main class="shell">
+    <section class="hero">
+      <span class="eyebrow">Unitary and Lindblad simulator</span>
+      <h1>Spin Pair Bell State Generation</h1>
+      <p class="lead">Browser implementation of a spin-pair Bell-state pulse sequence. The default mode uses fast pure-state unitary evolution; optional T1/T2 inputs switch the plotted trajectory to a Lindblad density-matrix evolution with amplitude damping and pure dephasing.</p>
+    </section>
+
+    <div class="layout">
+      <section class="panel controls" aria-labelledby="input-title">
+        <h2 id="input-title">Inputs</h2>
+        <div class="group">
+          <h3>Geometry</h3>
+          <div class="vector-grid">
+            <div class="vector-fieldset">
+              <div class="vector-title">pos2 (nm)</div>
+              <label>x<input id="pos2x" type="number" step="any" value="10"></label>
+              <label>y<input id="pos2y" type="number" step="any" value="0"></label>
+              <label>z<input id="pos2z" type="number" step="any" value="0"></label>
+            </div>
+            <div class="vector-fieldset">
+              <div class="vector-title">Bhat</div>
+              <label>x<input id="bhatx" type="number" step="any" value="0"></label>
+              <label>y<input id="bhaty" type="number" step="any" value="0"></label>
+              <label>z<input id="bhatz" type="number" step="any" value="1"></label>
+            </div>
+          </div>
+        </div>
+
+        <div class="group">
+          <h3>Fields and drive</h3>
+          <div class="vector-grid">
+            <div class="vector-fieldset">
+              <div class="vector-title">Static fields</div>
+              <label>g<input id="g" type="number" step="any" value="2.0"></label>
+              <label>B0 (mT)<input id="b0" type="number" step="any" value="300"></label>
+              <label>dB (mT)<input id="db" type="number" step="any" value="10"></label>
+            </div>
+            <div class="vector-fieldset">
+              <div class="vector-title">RF drive (MHz)</div>
+              <label>Omega1<input id="omega1" type="number" step="any" value="0.010"></label>
+              <label>Omega2 split divisor<input id="omega2divisor" type="number" min="1" step="any" value="10"></label>
+            </div>
+          </div>
+        </div>
+
+        <div class="group">
+          <h3>Lindblad relaxation</h3>
+          <div class="field-grid">
+            <label>T1 (us)<input id="t1relax" type="number" min="0" step="any" placeholder="off"></label>
+            <label>T2 (us)<input id="t2relax" type="number" min="0" step="any" placeholder="off"></label>
+          </div>
+        </div>
+
+        <div class="button-row">
+          <button id="runBtn" type="button">Run simulation</button>
+          <button id="downloadBtn" class="secondary" type="button" disabled>Download CSV</button>
+        </div>
+        <p id="status" class="status">Ready.</p>
+      </section>
+
+      <section class="panel" aria-labelledby="output-title">
+        <h2 id="output-title">Output</h2>
+        <div class="results">
+          <div class="metric"><span>Bell fidelity</span><strong id="bellF">-</strong></div>
+          <div class="metric"><span>Concurrence</span><strong id="conc">-</strong></div>
+          <div class="metric"><span>Total time</span><strong id="totalTime">-</strong></div>
+          <div class="metric"><span>Conditional split</span><strong id="condSplit">-</strong></div>
+        </div>
+
+        <div class="plot-grid">
+          <div class="state-visual-grid">
+            <div class="plot-card level-card">
+              <h3>Energy level diagram</h3>
+              <canvas id="levelPlot" width="760" height="580"></canvas>
+            </div>
+            <div class="plot-card">
+              <h3>Abs density matrix</h3>
+              <div class="view-toggle" aria-label="Density matrix view">
+                <button id="rhoHeatmapBtn" class="active" type="button">Heatmap</button>
+                <button id="rhoBarBtn" type="button">3D bars</button>
+              </div>
+              <canvas id="rhoPlot" width="760" height="760"></canvas>
+              <div class="rho-controls">
+                <button id="playBtn" class="secondary" type="button" disabled>Play</button>
+                <button id="gifBtn" class="secondary" type="button" disabled>GIF</button>
+                <input id="rhoSlider" type="range" min="0" max="0" value="0" disabled>
+                <span id="rhoLabel" class="meta">t = -</span>
+              </div>
+            </div>
+          </div>
+          <div class="plot-card">
+            <h3>Population dynamics</h3>
+            <canvas id="populationPlot" width="960" height="360"></canvas>
+          </div>
+          <div class="plot-card">
+            <h3>Bell-state quality</h3>
+            <canvas id="metricPlot" width="960" height="360"></canvas>
+          </div>
+        </div>
+
+        <pre id="diagnostics">Run the simulation to see diagnostics.</pre>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    "use strict";
+
+    const C = (re, im = 0) => ({ re, im });
+    const cadd = (a, b) => C(a.re + b.re, a.im + b.im);
+    const csub = (a, b) => C(a.re - b.re, a.im - b.im);
+    const cmul = (a, b) => C(a.re * b.re - a.im * b.im, a.re * b.im + a.im * b.re);
+    const cscale = (a, s) => C(a.re * s, a.im * s);
+    const cconj = (a) => C(a.re, -a.im);
+    const cabs2 = (a) => a.re * a.re + a.im * a.im;
+    const cabs = (a) => Math.hypot(a.re, a.im);
+    const cexpI = (theta) => C(Math.cos(theta), Math.sin(theta));
+
+    const ids = [
+      "pos2x", "pos2y", "pos2z", "bhatx", "bhaty", "bhatz", "g", "b0", "db",
+      "omega1", "omega2divisor", "t1relax", "t2relax"
+    ];
+    const el = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]));
+    const runBtn = document.getElementById("runBtn");
+    const downloadBtn = document.getElementById("downloadBtn");
+    const statusEl = document.getElementById("status");
+    const diagnosticsEl = document.getElementById("diagnostics");
+    const rhoSlider = document.getElementById("rhoSlider");
+    const rhoLabel = document.getElementById("rhoLabel");
+    const playBtn = document.getElementById("playBtn");
+    const gifBtn = document.getElementById("gifBtn");
+    const rhoHeatmapBtn = document.getElementById("rhoHeatmapBtn");
+    const rhoBarBtn = document.getElementById("rhoBarBtn");
+    let lastResult = null;
+    let playTimer = 0;
+    let rhoViewMode = "heatmap";
+
+    const labels = ["|00>", "|01>", "|10>", "|11>"];
+    const metricColors = ["#087c91", "#9d355c", "#0d8d6f", "#7555a6"];
+    const popColors = ["#087c91", "#d05c33", "#0d8d6f", "#7a4fb3"];
+
+    function zeroMat() {
+      return Array.from({ length: 4 }, () => Array.from({ length: 4 }, () => C(0, 0)));
+    }
+
+    function eye2() {
+      return [[C(1), C(0)], [C(0), C(1)]];
+    }
+
+    function kron2(A, B) {
+      const M = zeroMat();
+      for (let ai = 0; ai < 2; ai++) {
+        for (let aj = 0; aj < 2; aj++) {
+          for (let bi = 0; bi < 2; bi++) {
+            for (let bj = 0; bj < 2; bj++) {
+              M[ai * 2 + bi][aj * 2 + bj] = cmul(A[ai][aj], B[bi][bj]);
+            }
+          }
+        }
+      }
+      return M;
+    }
+
+    function madd(A, B) {
+      const M = zeroMat();
+      for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) M[i][j] = cadd(A[i][j], B[i][j]);
+      return M;
+    }
+
+    function mscale(A, s) {
+      const M = zeroMat();
+      for (let i = 0; i < A.length; i++) {
+        M[i] = [];
+        for (let j = 0; j < A[i].length; j++) {
+          M[i][j] = typeof s === "number" ? cscale(A[i][j], s) : cmul(A[i][j], s);
+        }
+      }
+      return M;
+    }
+
+    function mmul(A, B) {
+      const M = zeroMat();
+      for (let i = 0; i < 4; i++) {
+        for (let j = 0; j < 4; j++) {
+          let z = C(0, 0);
+          for (let k = 0; k < 4; k++) z = cadd(z, cmul(A[i][k], B[k][j]));
+          M[i][j] = z;
+        }
+      }
+      return M;
+    }
+
+    function mv(H, psi) {
+      return H.map((row) => row.reduce((sum, hij, j) => cadd(sum, cmul(hij, psi[j])), C(0, 0)));
+    }
+
+    function vadd(a, b) {
+      return a.map((z, i) => cadd(z, b[i]));
+    }
+
+    function vscale(a, s) {
+      return a.map((z) => cscale(z, s));
+    }
+
+    function normalize(psi) {
+      const n = Math.sqrt(psi.reduce((s, z) => s + cabs2(z), 0));
+      return psi.map((z) => cscale(z, 1 / n));
+    }
+
+    function eigSymReal(H) {
+      const n = H.length;
+      const A = H.map((row) => row.map((z) => z.re));
+      const V = Array.from({ length: n }, (_, i) => Array.from({ length: n }, (_, j) => (i === j ? 1 : 0)));
+      for (let iter = 0; iter < 160; iter++) {
+        let p = 0;
+        let q = 1;
+        let max = 0;
+        for (let i = 0; i < n; i++) {
+          for (let j = i + 1; j < n; j++) {
+            const v = Math.abs(A[i][j]);
+            if (v > max) {
+              max = v;
+              p = i;
+              q = j;
+            }
+          }
+        }
+        if (max < 1e-7) break;
+        const tau = (A[q][q] - A[p][p]) / (2 * A[p][q]);
+        const t = Math.sign(tau || 1) / (Math.abs(tau) + Math.sqrt(1 + tau * tau));
+        const c = 1 / Math.sqrt(1 + t * t);
+        const s = t * c;
+        const app = A[p][p];
+        const aqq = A[q][q];
+        const apq = A[p][q];
+        A[p][p] = app - t * apq;
+        A[q][q] = aqq + t * apq;
+        A[p][q] = 0;
+        A[q][p] = 0;
+        for (let k = 0; k < n; k++) {
+          if (k === p || k === q) continue;
+          const akp = A[k][p];
+          const akq = A[k][q];
+          A[k][p] = c * akp - s * akq;
+          A[p][k] = A[k][p];
+          A[k][q] = s * akp + c * akq;
+          A[q][k] = A[k][q];
+        }
+        for (let k = 0; k < n; k++) {
+          const vkp = V[k][p];
+          const vkq = V[k][q];
+          V[k][p] = c * vkp - s * vkq;
+          V[k][q] = s * vkp + c * vkq;
+        }
+      }
+      return { values: Array.from({ length: n }, (_, i) => A[i][i]), vectors: V };
+    }
+
+    function evolve(H, psi0, tMax, n) {
+      const dt = n > 1 ? tMax / (n - 1) : 0;
+      const eig = eigSymReal(H);
+      const c0 = eig.values.map((_, k) => {
+        let z = C(0, 0);
+        for (let i = 0; i < 4; i++) z = cadd(z, cscale(psi0[i], eig.vectors[i][k]));
+        return z;
+      });
+      const states = [];
+      for (let it = 0; it < n; it++) {
+        const t = it * dt;
+        const psi = [C(0), C(0), C(0), C(0)];
+        for (let k = 0; k < 4; k++) {
+          const phase = cexpI(-2 * Math.PI * eig.values[k] * t);
+          const amp = cmul(c0[k], phase);
+          for (let i = 0; i < 4; i++) psi[i] = cadd(psi[i], cscale(amp, eig.vectors[i][k]));
+        }
+        states.push(normalize(psi));
+      }
+      return { states, dt };
+    }
+
+    function dot(a, b) {
+      return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+    }
+
+    function norm3(v) {
+      return Math.hypot(v[0], v[1], v[2]);
+    }
+
+    function cross(a, b) {
+      return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+    }
+
+    function unit(v) {
+      const n = norm3(v);
+      if (!Number.isFinite(n) || n <= 0) throw new Error("Vector norm must be nonzero.");
+      return v.map((x) => x / n);
+    }
+
+    function makeSpinFrame(Bhat) {
+      const ez = unit(Bhat);
+      let trial = [1, 0, 0];
+      if (Math.abs(dot(trial, ez)) > 0.9) trial = [0, 1, 0];
+      const ex = unit(trial.map((x, i) => x - dot(trial, ez) * ez[i]));
+      const ey = unit(cross(ez, ex));
+      return { ex, ey, ez };
+    }
+
+    function spinOps() {
+      const sx = [[C(0), C(0.5)], [C(0.5), C(0)]];
+      const sy = [[C(0), C(0, -0.5)], [C(0, 0.5), C(0)]];
+      const sz = [[C(0.5), C(0)], [C(0), C(-0.5)]];
+      const I = eye2();
+      const S1 = [kron2(sx, I), kron2(sy, I), kron2(sz, I)];
+      const S2 = [kron2(I, sx), kron2(I, sy), kron2(I, sz)];
+      return { S1, S2, S1x: S1[0], S1z: S1[2], S2x: S2[0], S2z: S2[2] };
+    }
+
+    function dipolarH(r, rhat, g, ops) {
+      const mu0 = 4 * Math.PI * 1e-7;
+      const muB = 9.2740100783e-24;
+      const h = 6.62607015e-34;
+      let SdotS = zeroMat();
+      let S1dotr = zeroMat();
+      let S2dotr = zeroMat();
+      for (let k = 0; k < 3; k++) {
+        SdotS = madd(SdotS, mmul(ops.S1[k], ops.S2[k]));
+        S1dotr = madd(S1dotr, mscale(ops.S1[k], rhat[k]));
+        S2dotr = madd(S2dotr, mscale(ops.S2[k], rhat[k]));
+      }
+      const pref = mu0 / (4 * Math.PI) * Math.pow(g * muB, 2) / (h * Math.pow(r, 3));
+      return mscale(madd(SdotS, mscale(mmul(S1dotr, S2dotr), -3)), pref);
+    }
+
+    function highFieldRwa(H) {
+      const mtot = [1, 0, 0, -1];
+      const M = zeroMat();
+      for (let i = 0; i < 4; i++) {
+        for (let j = 0; j < 4; j++) {
+          if (Math.abs(mtot[i] - mtot[j]) < 1e-12) M[i][j] = H[i][j];
+        }
+      }
+      for (let i = 0; i < 4; i++) {
+        for (let j = i + 1; j < 4; j++) {
+          const avg = cscale(cadd(M[i][j], cconj(M[j][i])), 0.5);
+          M[i][j] = avg;
+          M[j][i] = cconj(avg);
+        }
+      }
+      return M;
+    }
+
+    function populations(states) {
+      return states.map((psi) => psi.map(cabs2));
+    }
+
+    function metrics(states) {
+      return states.map((psi) => {
+        const [a, b, c, d] = psi;
+        const adbc = csub(cmul(a, d), cmul(b, c));
+        const concurrence = 2 * cabs(adbc);
+        const negativity = concurrence / 2;
+        const logNegativity = Math.log2(1 + 2 * negativity);
+        const axd = cmul(a, cconj(d));
+        const bellFidelity = 0.5 * (cabs2(a) + cabs2(d)) + cabs(axd);
+        const phi = -Math.atan2(axd.im, axd.re);
+        return { concurrence, negativity, logNegativity, bellFidelity, phi };
+      });
+    }
+
+    function rhoFromPsi(psi) {
+      return psi.map((zi) => psi.map((zj) => cmul(zi, cconj(zj))));
+    }
+
+    function rhoPopulations(rhos) {
+      return rhos.map((rho) => [0, 1, 2, 3].map((i) => Math.max(0, rho[i][i].re)));
+    }
+
+    function bellFidelityRho(rho) {
+      return 0.5 * (rho[0][0].re + rho[3][3].re) + cabs(rho[0][3]);
+    }
+
+    function densityMetrics(rhos) {
+      return rhos.map((rho) => {
+        const c1 = cabs(rho[0][3]) - Math.sqrt(Math.max(0, rho[1][1].re * rho[2][2].re));
+        const c2 = cabs(rho[1][2]) - Math.sqrt(Math.max(0, rho[0][0].re * rho[3][3].re));
+        const concurrence = Math.max(0, 2 * Math.max(c1, c2));
+        const negativity = Math.max(0, -minEigenHermitian(partialTransposeSecond(rho)));
+        const logNegativity = Math.log2(1 + 2 * negativity);
+        const bellFidelity = bellFidelityRho(rho);
+        const phi = -Math.atan2(rho[0][3].im, rho[0][3].re);
+        return { concurrence, negativity, logNegativity, bellFidelity, phi };
+      });
+    }
+
+    function partialTransposeSecond(rho) {
+      const out = zeroMat();
+      for (let a = 0; a < 2; a++) {
+        for (let b = 0; b < 2; b++) {
+          for (let c = 0; c < 2; c++) {
+            for (let d = 0; d < 2; d++) {
+              out[a * 2 + d][c * 2 + b] = rho[a * 2 + b][c * 2 + d];
+            }
+          }
+        }
+      }
+      return out;
+    }
+
+    function minEigenHermitian(H) {
+      const R = H.map((row) => row.map((z) => z.re));
+      const I = H.map((row) => row.map((z) => z.im));
+      const A = Array.from({ length: 8 }, () => Array(8).fill(0));
+      for (let i = 0; i < 4; i++) {
+        for (let j = 0; j < 4; j++) {
+          A[i][j] = R[i][j];
+          A[i][j + 4] = -I[i][j];
+          A[i + 4][j] = I[i][j];
+          A[i + 4][j + 4] = R[i][j];
+        }
+      }
+      return Math.min(...eigSymReal(A.map((row) => row.map((x) => C(x, 0)))).values);
+    }
+
+    function matSub(A, B) {
+      const M = zeroMat();
+      for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) M[i][j] = csub(A[i][j], B[i][j]);
+      return M;
+    }
+
+    function mdag(A) {
+      const M = zeroMat();
+      for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) M[i][j] = cconj(A[j][i]);
+      return M;
+    }
+
+    function evolveRho(H, rho0, tMax, n, jumps) {
+      const dt = n > 1 ? tMax / (n - 1) : 0;
+      const rhos = [rho0];
+      for (let i = 1; i < n; i++) rhos.push(applyRelaxation(unitaryRhoStep(H, rhos[i - 1], dt), dt, jumps.T1, jumps.T2));
+      return { rhos, dt };
+    }
+
+    function unitaryRhoStep(H, rho, dt) {
+      const eig = eigSymReal(H);
+      const U = zeroMat();
+      for (let a = 0; a < 4; a++) {
+        for (let b = 0; b < 4; b++) {
+          let z = C(0, 0);
+          for (let k = 0; k < 4; k++) {
+            z = cadd(z, cscale(cexpI(-2 * Math.PI * eig.values[k] * dt), eig.vectors[a][k] * eig.vectors[b][k]));
+          }
+          U[a][b] = z;
+        }
+      }
+      return mmul(mmul(U, rho), mdag(U));
+    }
+
+    function applyKraus(rho, kraus) {
+      return kraus.reduce((acc, K) => madd(acc, mmul(mmul(K, rho), mdag(K))), zeroMat());
+    }
+
+    function applyAmplitudeDamping(rho, qubit, prob) {
+      if (!(prob > 0)) return rho;
+      const p = Math.min(1, Math.max(0, prob));
+      const E0 = [[C(1), C(0)], [C(0), C(Math.sqrt(1 - p))]];
+      const E1 = [[C(0), C(Math.sqrt(p))], [C(0), C(0)]];
+      const I = eye2();
+      const kraus = qubit === 0 ? [kron2(E0, I), kron2(E1, I)] : [kron2(I, E0), kron2(I, E1)];
+      return applyKraus(rho, kraus);
+    }
+
+    function applyPureDephasing(rho, qubit, factor) {
+      if (!(factor >= 0) || factor >= 1) return rho;
+      const out = rho.map((row) => row.map((z) => C(z.re, z.im)));
+      for (let i = 0; i < 4; i++) {
+        for (let j = 0; j < 4; j++) {
+          const bi = qubit === 0 ? (i >> 1) & 1 : i & 1;
+          const bj = qubit === 0 ? (j >> 1) & 1 : j & 1;
+          if (bi !== bj) out[i][j] = cscale(out[i][j], factor);
+        }
+      }
+      return out;
+    }
+
+    function applyRelaxation(rho, dt, T1, T2) {
+      let out = rho;
+      if (T1 > 0 && Number.isFinite(T1)) {
+        const p = 1 - Math.exp(-dt / T1);
+        out = applyAmplitudeDamping(out, 0, p);
+        out = applyAmplitudeDamping(out, 1, p);
+      }
+      if (T2 > 0 && Number.isFinite(T2)) {
+        const invTphi = Math.max(0, 1 / T2 - (T1 > 0 && Number.isFinite(T1) ? 1 / (2 * T1) : 0));
+        if (invTphi > 0) {
+          const f = Math.exp(-dt * invTphi);
+          out = applyPureDephasing(out, 0, f);
+          out = applyPureDephasing(out, 1, f);
+        }
+      }
+      const tr = out.reduce((s, row, i) => s + row[i].re, 0);
+      return tr ? mscale(out, 1 / tr) : out;
+    }
+
+    function makeRelaxation(T1, T2) {
+      return { T1, T2 };
+    }
+
+    function readInputs() {
+      const val = (id) => Number(el[id].value);
+      const omega1 = val("omega1") * 1e6;
+      const t1Relax = val("t1relax") > 0 ? val("t1relax") * 1e-6 : Infinity;
+      const t2Relax = val("t2relax") > 0 ? val("t2relax") * 1e-6 : Infinity;
+      return {
+        pos2: [val("pos2x") * 1e-9, val("pos2y") * 1e-9, val("pos2z") * 1e-9],
+        Bhat: [val("bhatx"), val("bhaty"), val("bhatz")],
+        g: val("g"),
+        B0: val("b0") * 1e-3,
+        dB: val("db") * 1e-3,
+        Omega1: omega1,
+        Omega2Divisor: Math.max(1, Math.abs(val("omega2divisor")) || 10),
+        T1: t1Relax,
+        T2: t2Relax,
+        nT1: 2000,
+        nT2: 5000,
+        t1Max: Math.max(2e-6, 0.55 / Math.max(Math.abs(omega1), 1)),
+        t2Max: 40e-6
+      };
+    }
+
+    function buildHamiltonian(delta1, delta2, omega, ops, Hdd) {
+      return madd(madd(madd(mscale(ops.S1z, delta1), mscale(ops.S2z, delta2)), Hdd), mscale(madd(ops.S1x, ops.S2x), omega));
+    }
+
+    function computeStaticSetup(p) {
+      const mu0 = 4 * Math.PI * 1e-7;
+      const muB = 9.2740100783e-24;
+      const h = 6.62607015e-34;
+      const gamma = p.g * muB / h;
+      const B1Abs = p.B0;
+      const B2Abs = p.B0 + p.dB;
+      const f1Abs = gamma * B1Abs;
+      const f2Abs = gamma * B2Abs;
+      const deltaF = f2Abs - f1Abs;
+      const r = norm3(p.pos2);
+      if (!Number.isFinite(r) || r <= 0) throw new Error("Spin-pair distance must be nonzero.");
+
+      const { ex, ey, ez } = makeSpinFrame(p.Bhat);
+      const rhatLab = p.pos2.map((x) => x / r);
+      const rhatSpin = [dot(rhatLab, ex), dot(rhatLab, ey), dot(rhatLab, ez)];
+      const theta = Math.acos(Math.max(-1, Math.min(1, dot(rhatLab, ez))));
+      const ops = spinOps();
+      const HddFull = dipolarH(r, unit(rhatSpin), p.g, ops);
+      const HddEff = highFieldRwa(HddFull);
+      const D = mu0 / (4 * Math.PI) * Math.pow(p.g * muB, 2) / (h * Math.pow(r, 3));
+      const diag = [0, 1, 2, 3].map((i) => HddEff[i][i].re);
+
+      const shift0010 = diag[2] - diag[0];
+      const shift0111 = diag[3] - diag[1];
+      const shift0001 = diag[1] - diag[0];
+      const shift1011 = diag[3] - diag[2];
+      const condSplit = Math.abs(shift1011 - shift0001);
+      const delta1p1 = shift0010;
+      const delta2p1 = delta1p1 + deltaF;
+      const delta2p2 = shift1011;
+      const delta1p2 = delta2p2 - deltaF;
+      const omega2 = condSplit > 0 ? condSplit / p.Omega2Divisor : 0.05e6;
+
+      const fRfP1 = f1Abs - shift0010;
+      const fRfP2 = f2Abs - shift1011;
+      const bRf1 = 2 * p.Omega1 / gamma;
+      const bRf2 = 2 * omega2 / gamma;
+      const largest = Math.max(Math.abs(D), Math.abs(condSplit), Math.abs(p.Omega1), Math.abs(omega2));
+      const levelE = [
+        -0.5 * f1Abs - 0.5 * f2Abs + diag[0],
+        -0.5 * f1Abs + 0.5 * f2Abs + diag[1],
+        0.5 * f1Abs - 0.5 * f2Abs + diag[2],
+        0.5 * f1Abs + 0.5 * f2Abs + diag[3]
+      ];
+      const transitions = {
+        q1WhenQ2Zero: Math.abs(levelE[0] - levelE[2]),
+        q1WhenQ2One: Math.abs(levelE[1] - levelE[3]),
+        q2WhenQ1Zero: Math.abs(levelE[0] - levelE[1]),
+        q2WhenQ1One: Math.abs(levelE[2] - levelE[3])
+      };
+
+      return {
+        p, ops, HddEff, theta, r, gamma, f1Abs, f2Abs, deltaF, D, condSplit,
+        omega2, fRfP1, fRfP2, bRf1, bRf2, largest,
+        shifts: { shift0010, shift0111, shift0001, shift1011, delta1p1, delta2p1, delta1p2, delta2p2 },
+        levelE, transitions
+      };
+    }
+
+    function simulate() {
+      const p = readInputs();
+      const setup = computeStaticSetup(p);
+      const { ops, HddEff, theta, r, gamma, f1Abs, f2Abs, deltaF, D, condSplit, omega2, fRfP1, fRfP2, bRf1, bRf2, largest, shifts, levelE, transitions } = setup;
+      const { delta1p1, delta2p1, delta1p2, delta2p2 } = shifts;
+
+      const H1 = buildHamiltonian(delta1p1, delta2p1, p.Omega1, ops, HddEff);
+      const psi0 = [C(1), C(0), C(0), C(0)];
+      const ev1 = evolve(H1, psi0, p.t1Max, p.nT1);
+      const p1All = populations(ev1.states);
+      let idx1 = 0;
+      let best1 = Infinity;
+      for (let i = 0; i < p1All.length; i++) {
+        const leak = p1All[i][1] + p1All[i][3];
+        const earlyTieBreak = 1e-7 * i / Math.max(1, p1All.length - 1);
+        const score = Math.abs(p1All[i][0] - p1All[i][2]) + 10 * leak + earlyTieBreak;
+        if (score < best1) {
+          best1 = score;
+          idx1 = i;
+        }
+      }
+      const t1 = idx1 * ev1.dt;
+      const psi1 = ev1.states[idx1];
+
+      const H2 = buildHamiltonian(delta1p2, delta2p2, omega2, ops, HddEff);
+      const t2PiEst = 1 / (2 * omega2);
+      const t2MaxUse = Math.max(p.t2Max, 1.5 * t2PiEst);
+      const ev2 = evolve(H2, psi1, t2MaxUse, p.nT2);
+      const p2All = populations(ev2.states);
+      const m2All = metrics(ev2.states);
+      let idx2 = 0;
+      let best2 = -Infinity;
+      for (let i = 0; i < p2All.length; i++) {
+        const leak = p2All[i][1] + p2All[i][2];
+        const score = m2All[i].bellFidelity - 0.2 * leak;
+        if (score > best2) {
+          best2 = score;
+          idx2 = i;
+        }
+      }
+      const t2 = idx2 * ev2.dt;
+
+      const states = ev1.states.slice(0, idx1 + 1).concat(ev2.states.slice(1, idx2 + 1));
+      const times = ev1.states.slice(0, idx1 + 1).map((_, i) => i * ev1.dt)
+        .concat(ev2.states.slice(1, idx2 + 1).map((_, i) => t1 + (i + 1) * ev2.dt));
+      let rhos = null;
+      let pops = populations(states);
+      let mets = metrics(states);
+      let finalState = states[states.length - 1];
+      let finalPops = pops[pops.length - 1];
+      let finalMetrics = mets[mets.length - 1];
+      const lindbladEnabled = Number.isFinite(p.T1) || Number.isFinite(p.T2);
+      if (lindbladEnabled) {
+        const relaxation = makeRelaxation(p.T1, p.T2);
+        const rho0 = rhoFromPsi(psi0);
+        const rhoEv1 = evolveRho(H1, rho0, t1, idx1 + 1, relaxation);
+        const rho1 = rhoEv1.rhos[rhoEv1.rhos.length - 1];
+        const rhoEv2 = evolveRho(H2, rho1, t2, idx2 + 1, relaxation);
+        rhos = rhoEv1.rhos.concat(rhoEv2.rhos.slice(1));
+        pops = rhoPopulations(rhos);
+        mets = densityMetrics(rhos);
+        finalState = null;
+        finalPops = pops[pops.length - 1];
+        finalMetrics = mets[mets.length - 1];
+      }
+
+      return {
+        params: p, times, states, rhos, lindbladEnabled, pops, mets, finalState, finalPops, finalMetrics,
+        t1, t2, theta, r, gamma, f1Abs, f2Abs, deltaF, D, condSplit,
+        omega2, fRfP1, fRfP2, bRf1, bRf2, shifts,
+        levelE, transitions,
+        scaleRatio: Math.min(Math.abs(f1Abs), Math.abs(f2Abs)) / largest
+      };
+    }
+
+    function fmt(x, unit = "", digits = 6) {
+      if (!Number.isFinite(x)) return "-";
+      return `${x.toFixed(digits)}${unit}`;
+    }
+
+    function drawLevelDiagram(canvas, result) {
+      const ctx = canvas.getContext("2d");
+      const w = canvas.width;
+      const h = canvas.height;
+      const energies = result.levelE;
+      const relCenter = energies.reduce((s, e) => s + e, 0) / energies.length;
+      const eMin = Math.min(...energies);
+      const eMax = Math.max(...energies);
+      const yFromEnergy = (e) => {
+        const top = 76;
+        const bottom = h - 118;
+        return bottom - (e - eMin) / (eMax - eMin || 1) * (bottom - top);
+      };
+      const nodes = [
+        { x: w * 0.50, y: yFromEnergy(energies[0]), label: labels[0], color: popColors[0] },
+        { x: w * 0.25, y: yFromEnergy(energies[1]), label: labels[1], color: popColors[1] },
+        { x: w * 0.75, y: yFromEnergy(energies[2]), label: labels[2], color: popColors[2] },
+        { x: w * 0.50, y: yFromEnergy(energies[3]), label: labels[3], color: popColors[3] }
+      ];
+
+      ctx.clearRect(0, 0, w, h);
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(0, 0, w, h);
+
+      function edge(i0, i1, color, title, active, offset = 0) {
+        const a = nodes[i0];
+        const b = nodes[i1];
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const len = Math.hypot(dx, dy) || 1;
+        const nx = -dy / len * offset;
+        const ny = dx / len * offset;
+        const x0 = a.x + nx;
+        const y0 = a.y + ny;
+        const x1 = b.x + nx;
+        const y1 = b.y + ny;
+
+        ctx.strokeStyle = color;
+        ctx.lineWidth = active ? 5 : 2;
+        ctx.globalAlpha = active ? 0.92 : 0.22;
+        ctx.beginPath();
+        ctx.moveTo(x0, y0);
+        ctx.lineTo(x1, y1);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+
+        const mx = (x0 + x1) / 2;
+        const my = (y0 + y1) / 2;
+        const ux = dx / len;
+        const uy = dy / len;
+        const head = active ? 14 : 8;
+        ctx.fillStyle = color;
+        ctx.globalAlpha = active ? 0.92 : 0.28;
+        ctx.beginPath();
+        ctx.moveTo(mx + ux * head, my + uy * head);
+        ctx.lineTo(mx - uy * head * 0.7, my + ux * head * 0.7);
+        ctx.lineTo(mx + uy * head * 0.7, my - ux * head * 0.7);
+        ctx.closePath();
+        ctx.fill();
+        ctx.globalAlpha = 1;
+
+        if (!active) return;
+        ctx.font = "800 30px Consolas, monospace";
+        ctx.textAlign = "center";
+        ctx.fillStyle = color;
+        const labelX = mx + nx * 0.9;
+        const labelY = my + ny * 0.9 + 7;
+        ctx.fillText(title, labelX, labelY);
+      }
+
+      edge(0, 1, "#d05c33", "", false, -14);
+      edge(1, 3, "#7a4fb3", "", false, -14);
+      edge(0, 2, "#087c91", "P1", true, 24);
+      edge(2, 3, "#9d355c", "P2", true, 24);
+
+      ctx.fillStyle = "#41545c";
+      ctx.font = "12px Consolas, monospace";
+      nodes.forEach((node, i) => {
+        const barW = 238;
+        const barH = 64;
+        const x0 = node.x - barW / 2;
+        const y0 = node.y - barH / 2;
+        ctx.fillStyle = "#fff";
+        ctx.strokeStyle = node.color;
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.moveTo(x0, node.y);
+        ctx.lineTo(x0 + barW, node.y);
+        ctx.stroke();
+        ctx.fillStyle = "rgba(255,255,255,0.88)";
+        ctx.strokeStyle = "rgba(34,75,91,0.14)";
+        ctx.lineWidth = 1;
+        ctx.fillRect(x0, y0, barW, barH);
+        ctx.strokeRect(x0, y0, barW, barH);
+        ctx.strokeStyle = node.color;
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.moveTo(x0 + 10, node.y);
+        ctx.lineTo(x0 + barW - 10, node.y);
+        ctx.stroke();
+        ctx.fillStyle = "#243a43";
+        ctx.font = "800 32px Consolas, monospace";
+        ctx.textAlign = "center";
+        ctx.fillText(node.label, node.x, node.y - 10);
+        ctx.fillStyle = "#5a7380";
+        ctx.font = "18px Consolas, monospace";
+        ctx.fillText(`${((energies[i] - relCenter) / 1e9).toFixed(6)} GHz`, node.x, node.y + 23);
+      });
+
+      ctx.fillStyle = "#41545c";
+      ctx.font = "22px Consolas, monospace";
+      ctx.textAlign = "left";
+      ctx.fillText(`P1 ${(result.fRfP1 / 1e9).toFixed(9)} GHz`, 22, h - 56);
+      ctx.fillText(`P2 ${(result.fRfP2 / 1e9).toFixed(9)} GHz`, 22, h - 28);
+      ctx.fillText(`split ${(result.condSplit / 1e6).toFixed(6)} MHz`, w * 0.55, h - 28);
+    }
+
+    function drawPlot(canvas, xs, series, colors, names, yMin, yMax, markerX) {
+      const ctx = canvas.getContext("2d");
+      const w = canvas.width;
+      const h = canvas.height;
+      const pad = { l: 58, r: 16, t: 18, b: 38 };
+      ctx.clearRect(0, 0, w, h);
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(0, 0, w, h);
+      const xMin = xs[0] || 0;
+      const xMax = xs[xs.length - 1] || 1;
+      const sx = (x) => pad.l + (x - xMin) / (xMax - xMin || 1) * (w - pad.l - pad.r);
+      const sy = (y) => h - pad.b - (y - yMin) / (yMax - yMin || 1) * (h - pad.t - pad.b);
+      ctx.strokeStyle = "#d9e4e8";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let i = 0; i <= 5; i++) {
+        const y = pad.t + i * (h - pad.t - pad.b) / 5;
+        ctx.moveTo(pad.l, y);
+        ctx.lineTo(w - pad.r, y);
+      }
+      ctx.stroke();
+      ctx.strokeStyle = "#243a43";
+      ctx.beginPath();
+      ctx.moveTo(pad.l, pad.t);
+      ctx.lineTo(pad.l, h - pad.b);
+      ctx.lineTo(w - pad.r, h - pad.b);
+      ctx.stroke();
+
+      series.forEach((ys, s) => {
+        ctx.strokeStyle = colors[s];
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ys.forEach((y, i) => {
+          const px = sx(xs[i]);
+          const py = sy(y);
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        });
+        ctx.stroke();
+      });
+
+      if (markerX != null) {
+        ctx.strokeStyle = "#7c8e97";
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+        ctx.moveTo(sx(markerX), pad.t);
+        ctx.lineTo(sx(markerX), h - pad.b);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      ctx.fillStyle = "#41545c";
+      ctx.font = "12px Consolas, monospace";
+      ctx.fillText("time (us)", w - 90, h - 12);
+      ctx.fillText(yMax.toFixed(1), 10, pad.t + 4);
+      ctx.fillText(yMin.toFixed(1), 10, h - pad.b + 4);
+      let lx = pad.l + 8;
+      names.forEach((name, i) => {
+        ctx.fillStyle = colors[i];
+        ctx.fillRect(lx, 10, 10, 10);
+        ctx.fillStyle = "#243a43";
+        ctx.fillText(name, lx + 14, 19);
+        lx += 92;
+      });
+    }
+
+    function drawRho(result, idx) {
+      const canvas = document.getElementById("rhoPlot");
+      const ctx = canvas.getContext("2d");
+      const w = canvas.width;
+      const h = canvas.height;
+      ctx.clearRect(0, 0, w, h);
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(0, 0, w, h);
+      if (!result) return;
+      const rhoSource = result.rhos ? result.rhos[idx] : rhoFromPsi(result.states[idx]);
+      if (rhoViewMode === "bars") {
+        drawRhoBars(ctx, w, h, rhoSource);
+        rhoLabel.textContent = `t = ${(result.times[idx] * 1e6).toFixed(3)} us`;
+        return;
+      }
+      drawRhoHeatmap(ctx, w, h, rhoSource);
+      rhoLabel.textContent = `t = ${(result.times[idx] * 1e6).toFixed(3)} us`;
+    }
+
+    function drawRhoHeatmap(ctx, w, h, rhoSource) {
+      const leftLabel = 54;
+      const rightPad = 16;
+      const topPad = 22;
+      const bottomLabel = 58;
+      const size = Math.min(w - leftLabel - rightPad, h - topPad - bottomLabel);
+      const xBase = leftLabel + Math.max(0, (w - leftLabel - rightPad - size) / 2);
+      const yBase = topPad + Math.max(0, (h - topPad - bottomLabel - size) / 2);
+      const cell = size / 4;
+      for (let i = 0; i < 4; i++) {
+        for (let j = 0; j < 4; j++) {
+          const rho = rhoSource[i][j];
+          const v = Math.min(1, cabs(rho));
+          ctx.fillStyle = rhoColor(v);
+          ctx.fillRect(xBase + j * cell, yBase + i * cell, cell - 2, cell - 2);
+          ctx.font = "700 22px Consolas, monospace";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "alphabetic";
+          drawReadableText(ctx, cabs(rho).toFixed(3), xBase + j * cell + cell / 2, yBase + i * cell + cell / 2 + 8, rhoTextColor(v));
+        }
+      }
+      ctx.fillStyle = "#41545c";
+      ctx.font = "18px Consolas, monospace";
+      ctx.textAlign = "center";
+      for (let j = 0; j < 4; j++) ctx.fillText(labels[j].replace(/[|>]/g, ""), xBase + j * cell + cell / 2, yBase + size + 24);
+      ctx.textAlign = "right";
+      for (let i = 0; i < 4; i++) ctx.fillText(labels[i].replace(/[|>]/g, ""), xBase - 12, yBase + i * cell + cell / 2 + 4);
+      ctx.textAlign = "left";
+      ctx.font = "16px Consolas, monospace";
+      ctx.fillText("|rho_ij|, color scale 0 to 1", xBase, h - 18);
+    }
+
+    function drawRhoBars(ctx, w, h, rhoSource) {
+      const vals = rhoSource.map((row) => row.map((z) => Math.min(1, cabs(z))));
+      const s = Math.min(w, h);
+      const origin = { x: s * 0.13, y: h * 0.72 };
+      const u = { x: s * 0.105, y: s * 0.052 };
+      const v = { x: s * 0.095, y: -s * 0.066 };
+      const zScale = s * 0.42;
+      const labelFont = Math.max(11, Math.min(15, s * 0.026));
+      const valueFont = Math.max(10, Math.min(13, s * 0.024));
+      function iso(i, j) {
+        return {
+          x: origin.x + j * u.x + i * v.x,
+          y: origin.y + j * u.y + i * v.y
+        };
+      }
+
+      function add(a, b, bs = 1) {
+        return { x: a.x + b.x * bs, y: a.y + b.y * bs };
+      }
+
+      function up(p, z) {
+        return { x: p.x, y: p.y - z };
+      }
+
+      const order = [];
+      for (let i = 0; i < 4; i++) {
+        for (let j = 0; j < 4; j++) order.push([i, j]);
+      }
+      order.sort((a, b) => {
+        const ca = add(add(iso(a[0], a[1]), u, 0.47), v, 0.47);
+        const cb = add(add(iso(b[0], b[1]), u, 0.47), v, 0.47);
+        return (ca.y - cb.y) || (ca.x - cb.x);
+      });
+
+      function face(points, fill, stroke = "rgba(34,75,91,0.18)") {
+        ctx.fillStyle = fill;
+        ctx.strokeStyle = stroke;
+        ctx.beginPath();
+        points.forEach((p, idx) => {
+          if (idx === 0) ctx.moveTo(p.x, p.y);
+          else ctx.lineTo(p.x, p.y);
+        });
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      }
+
+      ctx.save();
+      ctx.lineJoin = "round";
+      ctx.lineCap = "round";
+
+      const floorA = iso(0, 0);
+      const floorB = iso(0, 4);
+      const floorC = iso(4, 4);
+      const floorD = iso(4, 0);
+      face([floorA, floorB, floorC, floorD], "rgba(255,255,255,0.48)", "rgba(34,75,91,0.18)");
+
+      ctx.strokeStyle = "rgba(34,75,91,0.16)";
+      ctx.lineWidth = 1;
+      for (let i = 0; i <= 4; i++) {
+        const a = iso(i, 0);
+        const b = iso(i, 4);
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.stroke();
+      }
+      for (let j = 0; j <= 4; j++) {
+        const a = iso(0, j);
+        const b = iso(4, j);
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.stroke();
+      }
+
+      ctx.strokeStyle = "rgba(34,75,91,0.30)";
+      ctx.beginPath();
+      ctx.moveTo(floorA.x, floorA.y);
+      ctx.lineTo(floorA.x, floorA.y - zScale);
+      ctx.moveTo(floorD.x, floorD.y);
+      ctx.lineTo(floorD.x, floorD.y - zScale);
+      ctx.lineTo(floorC.x, floorC.y - zScale);
+      ctx.lineTo(floorB.x, floorB.y - zScale);
+      ctx.stroke();
+
+      order.forEach(([i, j]) => {
+        const val = vals[i][j];
+        const z = val * zScale;
+        const p = add(add(iso(i, j), u, 0.10), v, 0.10);
+        const nv = val;
+        const A = p;
+        const B = add(A, u, 0.74);
+        const D = add(A, v, 0.74);
+        const Cc = add(B, v, 0.74);
+        const At = up(A, z);
+        const Bt = up(B, z);
+        const Ct = up(Cc, z);
+        const Dt = up(D, z);
+        const top = rhoColor(nv, 1.10);
+        const frontGrad = ctx.createLinearGradient(0, A.y, 0, At.y);
+        frontGrad.addColorStop(0, rhoColor(nv, 0.72));
+        frontGrad.addColorStop(1, top);
+        const sideGrad = ctx.createLinearGradient(0, B.y, 0, Bt.y);
+        sideGrad.addColorStop(0, rhoColor(nv, 0.55));
+        sideGrad.addColorStop(1, rhoColor(nv, 0.88));
+        face([A, B, Bt, At], frontGrad, "rgba(34,75,91,0.26)");
+        face([B, Cc, Ct, Bt], sideGrad, "rgba(34,75,91,0.24)");
+        face([At, Bt, Ct, Dt], top, "rgba(34,75,91,0.30)");
+        if (val >= 0.09) {
+          ctx.font = `${valueFont}px Consolas, monospace`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "bottom";
+          drawReadableText(ctx, val.toFixed(3), (At.x + Ct.x) / 2, Math.min(At.y, Ct.y) - s * 0.012, rhoTextColor(nv, 1.10));
+        }
+      });
+
+      ctx.fillStyle = "#41545c";
+      ctx.font = `${labelFont}px Consolas, monospace`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      for (let j = 0; j < 4; j++) {
+        const p = add(iso(0, j), u, 0.50);
+        ctx.fillText(labels[j].replace(/[|>]/g, ""), p.x - s * 0.025, p.y + s * 0.044);
+      }
+      ctx.textAlign = "right";
+      for (let i = 0; i < 4; i++) {
+        const p = add(iso(i, 0), v, 0.50);
+        ctx.fillText(labels[i].replace(/[|>]/g, ""), p.x - s * 0.020, p.y + s * 0.004);
+      }
+      ctx.textAlign = "left";
+      ctx.textBaseline = "alphabetic";
+      ctx.font = `${Math.max(10, Math.min(13, s * 0.023))}px Consolas, monospace`;
+      ctx.fillText("|rho_ij| 3D bars, height and color scale 0 to 1", s * 0.054, h - s * 0.050);
+      ctx.restore();
+    }
+
+    function rhoRgb(v, light = 1) {
+      const x = Math.max(0, Math.min(1, v));
+      const stops = [
+        [0.00, 0, 48, 210],
+        [0.25, 0, 190, 255],
+        [0.50, 30, 205, 70],
+        [0.75, 245, 220, 35],
+        [1.00, 235, 38, 38]
+      ];
+      let a = stops[0];
+      let bStop = stops[stops.length - 1];
+      for (let i = 0; i < stops.length - 1; i++) {
+        if (x >= stops[i][0] && x <= stops[i + 1][0]) {
+          a = stops[i];
+          bStop = stops[i + 1];
+          break;
+        }
+      }
+      const t = (x - a[0]) / (bStop[0] - a[0] || 1);
+      const r = Math.round((a[1] + (bStop[1] - a[1]) * t) * light);
+      const g = Math.round((a[2] + (bStop[2] - a[2]) * t) * light);
+      const b = Math.round((a[3] + (bStop[3] - a[3]) * t) * light);
+      return [Math.min(255, r), Math.min(255, g), Math.min(255, b)];
+    }
+
+    function rhoColor(v, light = 1) {
+      const [r, g, b] = rhoRgb(v, light);
+      return `rgb(${r}, ${g}, ${b})`;
+    }
+
+    function rhoTextColor(v, light = 1) {
+      const [r, g, b] = rhoRgb(v, light);
+      const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+      return luminance < 132 ? "#fff" : "#12262f";
+    }
+
+    function drawReadableText(ctx, text, x, y, fill) {
+      ctx.save();
+      ctx.lineJoin = "round";
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = fill === "#fff" ? "rgba(18,38,47,0.68)" : "rgba(255,255,255,0.88)";
+      ctx.fillStyle = fill;
+      ctx.strokeText(text, x, y);
+      ctx.fillText(text, x, y);
+      ctx.restore();
+    }
+
+    function render(result) {
+      document.getElementById("bellF").textContent = result.finalMetrics.bellFidelity.toFixed(6);
+      document.getElementById("conc").textContent = result.finalMetrics.concurrence.toFixed(6);
+      document.getElementById("totalTime").textContent = fmt((result.t1 + result.t2) * 1e6, " us", 3);
+      document.getElementById("condSplit").textContent = fmt(result.condSplit / 1e6, " MHz", 6);
+      const xs = result.times.map((t) => t * 1e6);
+      drawLevelDiagram(document.getElementById("levelPlot"), result);
+      drawPlot(
+        document.getElementById("populationPlot"),
+        xs,
+        [0, 1, 2, 3].map((i) => result.pops.map((p) => p[i])),
+        popColors,
+        ["P00", "P01", "P10", "P11"],
+        -0.03,
+        1.03,
+        result.t1 * 1e6
+      );
+      drawPlot(
+        document.getElementById("metricPlot"),
+        xs,
+        [
+          result.mets.map((m) => m.negativity),
+          result.mets.map((m) => m.bellFidelity)
+        ],
+        [metricColors[1], metricColors[3]],
+        ["Negativity", "Bell F"],
+        -0.03,
+        1.03,
+        result.t1 * 1e6
+      );
+      rhoSlider.max = String(result.states.length - 1);
+      rhoSlider.value = String(result.states.length - 1);
+      rhoSlider.disabled = false;
+      playBtn.disabled = false;
+      gifBtn.disabled = false;
+      downloadBtn.disabled = false;
+      drawRho(result, result.states.length - 1);
+      const p = result.params;
+      const s = result.shifts;
+      diagnosticsEl.textContent = [
+        "Geometry",
+        `r = ${fmt(result.r * 1e9, " nm", 6)}`,
+        `angle(rhat, Bhat) = ${fmt(result.theta * 180 / Math.PI, " deg", 6)}`,
+        "",
+        "Static fields",
+        `B0 = ${fmt(p.B0 * 1e3, " mT", 6)}`,
+        `B1_abs = ${fmt(p.B0 * 1e3, " mT", 6)}`,
+        `B2_abs = ${fmt((p.B0 + p.dB) * 1e3, " mT", 6)}`,
+        `f1_abs = ${fmt(result.f1Abs / 1e9, " GHz", 6)}`,
+        `f2_abs = ${fmt(result.f2Abs / 1e9, " GHz", 6)}`,
+        `delta_f = ${fmt(result.deltaF / 1e6, " MHz", 6)}`,
+        "",
+        "Dipolar and RF parameters",
+        `D/h = ${fmt(result.D / 1e6, " MHz", 6)}`,
+        `secular angular factor = ${fmt(1 - 3 * Math.cos(result.theta) ** 2, "", 6)}`,
+        `conditional splitting = ${fmt(result.condSplit / 1e6, " MHz", 6)}`,
+        `Omega1 = ${fmt(p.Omega1 / 1e6, " MHz", 6)}`,
+        `Omega2 split divisor = ${fmt(p.Omega2Divisor, "", 3)}`,
+        `Omega2 = ${fmt(result.omega2 / 1e6, " MHz", 6)}`,
+        `B_RF_1 = ${fmt(result.bRf1 * 1e6, " uT", 6)}`,
+        `B_RF_2 = ${fmt(result.bRf2 * 1e6, " uT", 6)}`,
+        `f_RF_p1 = ${fmt(result.fRfP1 / 1e9, " GHz", 9)}`,
+        `f_RF_p2 = ${fmt(result.fRfP2 / 1e9, " GHz", 9)}`,
+        "",
+        "Automatic detunings",
+        `shift_00_10 = ${fmt(s.shift0010 / 1e6, " MHz", 6)}`,
+        `shift_01_11 = ${fmt(s.shift0111 / 1e6, " MHz", 6)}`,
+        `shift_00_01 = ${fmt(s.shift0001 / 1e6, " MHz", 6)}`,
+        `shift_10_11 = ${fmt(s.shift1011 / 1e6, " MHz", 6)}`,
+        `Delta1_p1 = ${fmt(s.delta1p1 / 1e6, " MHz", 6)}`,
+        `Delta2_p1 = ${fmt(s.delta2p1 / 1e6, " MHz", 6)}`,
+        `Delta1_p2 = ${fmt(s.delta1p2 / 1e6, " MHz", 6)}`,
+        `Delta2_p2 = ${fmt(s.delta2p2 / 1e6, " MHz", 6)}`,
+        "",
+        "Selected points",
+        `t1 = ${fmt(result.t1 * 1e6, " us", 6)}`,
+        `t2 = ${fmt(result.t2 * 1e6, " us", 6)}`,
+        `phase phi = ${fmt(result.finalMetrics.phi, " rad", 8)}`,
+        `high-field/RWA ratio = ${result.scaleRatio.toExponential(3)}`,
+        "",
+        "Evolution mode",
+        result.lindbladEnabled ? "Lindblad density matrix" : "Pure-state unitary",
+        `T1 = ${Number.isFinite(p.T1) ? fmt(p.T1 * 1e6, " us", 3) : "off"}`,
+        `T2 = ${Number.isFinite(p.T2) ? fmt(p.T2 * 1e6, " us", 3) : "off"}`,
+        "",
+        "Automatic scan settings",
+        `nT1 = ${p.nT1}`,
+        `nT2 = ${p.nT2}`,
+        `t1 max = ${fmt(p.t1Max * 1e6, " us", 3)}`,
+        `t2 base max = ${fmt(p.t2Max * 1e6, " us", 3)}`,
+        "",
+        "Final populations",
+        ...labels.map((label, i) => `${label}: ${result.finalPops[i].toFixed(8)}`)
+      ].join("\n");
+    }
+
+    function updateLevelPreview() {
+      try {
+        const p = readInputs();
+        const setup = computeStaticSetup(p);
+        drawLevelDiagram(document.getElementById("levelPlot"), setup);
+        document.getElementById("condSplit").textContent = fmt(setup.condSplit / 1e6, " MHz", 6);
+        if (lastResult) {
+          statusEl.textContent = "Inputs changed. Diagram preview updated; run simulation to update trajectories.";
+        }
+      } catch (_err) {
+        // Inputs can be temporarily incomplete while typing.
+      }
+    }
+
+    function csv(result) {
+      const rows = [["time_s", "time_us", "P00", "P01", "P10", "P11", "concurrence", "negativity", "log_negativity", "bell_fidelity"]];
+      result.times.forEach((t, i) => {
+        const p = result.pops[i];
+        const m = result.mets[i];
+        rows.push([t, t * 1e6, p[0], p[1], p[2], p[3], m.concurrence, m.negativity, m.logNegativity, m.bellFidelity]);
+      });
+      return rows.map((row) => row.join(",")).join("\n");
+    }
+
+    function makeRhoGif(result) {
+      const nFrames = Math.min(120, result.times.length);
+      const frameIdx = Array.from({ length: nFrames }, (_, i) => Math.round(i * (result.times.length - 1) / Math.max(1, nFrames - 1)));
+      const canvas = document.createElement("canvas");
+      canvas.width = 520;
+      canvas.height = 520;
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      const frames = frameIdx.map((idx) => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        const rhoSource = result.rhos ? result.rhos[idx] : rhoFromPsi(result.states[idx]);
+        if (rhoViewMode === "bars") drawRhoBars(ctx, canvas.width, canvas.height, rhoSource);
+        else drawRhoHeatmap(ctx, canvas.width, canvas.height, rhoSource);
+        ctx.fillStyle = "#12262f";
+        ctx.font = "18px Consolas, monospace";
+        ctx.textAlign = "left";
+        ctx.fillText(`t = ${(result.times[idx] * 1e6).toFixed(3)} us`, 18, 28);
+        const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+        const indexed = new Uint8Array(canvas.width * canvas.height);
+        for (let p = 0, q = 0; p < data.length; p += 4, q++) {
+          indexed[q] = ((data[p] >> 5) << 5) | ((data[p + 1] >> 5) << 2) | (data[p + 2] >> 6);
+        }
+        return indexed;
+      });
+      return encodeGif(canvas.width, canvas.height, frames, 6);
+    }
+
+    function encodeGif(width, height, frames, delayCs) {
+      const bytes = [];
+      const push = (...vals) => vals.forEach((v) => bytes.push(v & 255));
+      const text = (s) => [...s].forEach((ch) => push(ch.charCodeAt(0)));
+      const word = (v) => push(v, v >> 8);
+      text("GIF89a");
+      word(width); word(height);
+      push(0xf7, 0, 0);
+      for (let i = 0; i < 256; i++) {
+        const r = Math.round(((i >> 5) & 7) * 255 / 7);
+        const g = Math.round(((i >> 2) & 7) * 255 / 7);
+        const b = Math.round((i & 3) * 255 / 3);
+        push(r, g, b);
+      }
+      push(0x21, 0xff, 0x0b); text("NETSCAPE2.0"); push(3, 1); word(0); push(0);
+      frames.forEach((indexed) => {
+        push(0x21, 0xf9, 4, 0x04); word(delayCs); push(0, 0);
+        push(0x2c); word(0); word(0); word(width); word(height); push(0);
+        push(8);
+        const lzw = gifLzwEncode(indexed, 8);
+        for (let i = 0; i < lzw.length; i += 255) {
+          const chunk = lzw.slice(i, i + 255);
+          push(chunk.length, ...chunk);
+        }
+        push(0);
+      });
+      push(0x3b);
+      return new Blob([new Uint8Array(bytes)], { type: "image/gif" });
+    }
+
+    function gifLzwEncode(indices, minCodeSize) {
+      const clear = 1 << minCodeSize;
+      const end = clear + 1;
+      const out = [];
+      let codeSize = minCodeSize + 1;
+      let nextCode = end + 1;
+      let bitBuf = 0;
+      let bitLen = 0;
+      let literalCount = 0;
+      let hasPreviousLiteral = false;
+
+      const emit = (code) => {
+        bitBuf |= code << bitLen;
+        bitLen += codeSize;
+        while (bitLen >= 8) {
+          out.push(bitBuf & 255);
+          bitBuf >>= 8;
+          bitLen -= 8;
+        }
+      };
+
+      const reset = () => {
+        codeSize = minCodeSize + 1;
+        nextCode = end + 1;
+        literalCount = 0;
+        hasPreviousLiteral = false;
+      };
+
+      reset();
+      emit(clear);
+      for (let i = 0; i < indices.length; i++) {
+        if (literalCount >= 240) {
+          emit(clear);
+          reset();
+        }
+        emit(indices[i]);
+        if (hasPreviousLiteral) {
+          nextCode++;
+          if (nextCode === (1 << codeSize) && codeSize < 12) codeSize++;
+        } else {
+          hasPreviousLiteral = true;
+        }
+        literalCount++;
+      }
+      emit(end);
+      if (bitLen > 0) out.push(bitBuf & 255);
+      return out;
+    }
+
+    runBtn.addEventListener("click", () => {
+      runBtn.disabled = true;
+      statusEl.textContent = "Running...";
+      window.setTimeout(() => {
+        try {
+          lastResult = simulate();
+          render(lastResult);
+          statusEl.textContent = `Done. ${lastResult.states.length} trajectory points.`;
+        } catch (err) {
+          console.error(err);
+          statusEl.textContent = `Error: ${err.message}`;
+        } finally {
+          runBtn.disabled = false;
+        }
+      }, 20);
+    });
+
+    downloadBtn.addEventListener("click", () => {
+      if (!lastResult) return;
+      const blob = new Blob([csv(lastResult)], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "spin_pair_bell_time_trace_fast.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    gifBtn.addEventListener("click", () => {
+      if (!lastResult) return;
+      const previous = gifBtn.textContent;
+      gifBtn.disabled = true;
+      gifBtn.textContent = "Making...";
+      window.setTimeout(() => {
+        try {
+          const blob = makeRhoGif(lastResult);
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `spin_pair_bell_rho_${rhoViewMode}.gif`;
+          a.click();
+          URL.revokeObjectURL(url);
+        } finally {
+          gifBtn.textContent = previous;
+          gifBtn.disabled = false;
+        }
+      }, 20);
+    });
+
+    rhoSlider.addEventListener("input", () => {
+      if (lastResult) drawRho(lastResult, Number(rhoSlider.value));
+    });
+
+    function setRhoViewMode(mode) {
+      rhoViewMode = mode;
+      rhoHeatmapBtn.classList.toggle("active", mode === "heatmap");
+      rhoBarBtn.classList.toggle("active", mode === "bars");
+      if (lastResult) drawRho(lastResult, Number(rhoSlider.value));
+    }
+
+    rhoHeatmapBtn.addEventListener("click", () => setRhoViewMode("heatmap"));
+    rhoBarBtn.addEventListener("click", () => setRhoViewMode("bars"));
+
+    ids.forEach((id) => {
+      const input = document.getElementById(id);
+      if (input) input.addEventListener("input", updateLevelPreview);
+    });
+
+    playBtn.addEventListener("click", () => {
+      if (!lastResult) return;
+      if (playTimer) {
+        window.clearInterval(playTimer);
+        playTimer = 0;
+        playBtn.textContent = "Play";
+        return;
+      }
+      playBtn.textContent = "Pause";
+      playTimer = window.setInterval(() => {
+        let idx = Number(rhoSlider.value) + Math.max(1, Math.round(lastResult.states.length / 180));
+        if (idx >= lastResult.states.length) idx = 0;
+        rhoSlider.value = String(idx);
+        drawRho(lastResult, idx);
+      }, 60);
+    });
+
+    window.addEventListener("load", () => runBtn.click());
+  </script>
+</body>
+</html>
