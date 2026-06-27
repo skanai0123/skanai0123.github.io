@@ -340,7 +340,7 @@
   <script>
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
     let audioContext = null;
-    let source = null;
+    let processor = null;
     let gainNode = null;
     let analyser = null;
     let waveform = null;
@@ -355,6 +355,14 @@
     let fadeMode = "instant";
     let audioUnlocked = false;
     let lastToggleMs = 0;
+    let pinkB0 = 0;
+    let pinkB1 = 0;
+    let pinkB2 = 0;
+    let pinkB3 = 0;
+    let pinkB4 = 0;
+    let pinkB5 = 0;
+    let pinkB6 = 0;
+    let brownLast = 0;
 
     const deck = document.getElementById("deck");
     const statusEl = document.getElementById("status");
@@ -401,74 +409,8 @@
       audioUnlocked = true;
     }
 
-    function createNoiseBuffer(type) {
-      const seconds = 3;
-      const length = Math.floor(audioContext.sampleRate * seconds);
-      const buffer = audioContext.createBuffer(1, length, audioContext.sampleRate);
-      const data = buffer.getChannelData(0);
-
-      if (type === "pink") {
-        let b0 = 0;
-        let b1 = 0;
-        let b2 = 0;
-        let b3 = 0;
-        let b4 = 0;
-        let b5 = 0;
-        let b6 = 0;
-        for (let i = 0; i < length; i += 1) {
-          const white = Math.random() * 2 - 1;
-          b0 = 0.99886 * b0 + white * 0.0555179;
-          b1 = 0.99332 * b1 + white * 0.0750759;
-          b2 = 0.96900 * b2 + white * 0.1538520;
-          b3 = 0.86650 * b3 + white * 0.3104856;
-          b4 = 0.55000 * b4 + white * 0.5329522;
-          b5 = -0.7616 * b5 - white * 0.0168980;
-          data[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.11;
-          b6 = white * 0.115926;
-        }
-        normalizeBuffer(data);
-        return buffer;
-      }
-
-      if (type === "brown") {
-        let last = 0;
-        for (let i = 0; i < length; i += 1) {
-          const white = Math.random() * 2 - 1;
-          last = (last + 0.02 * white) / 1.02;
-          data[i] = last * 3.5;
-        }
-        normalizeBuffer(data);
-        return buffer;
-      }
-
-      for (let i = 0; i < length; i += 1) {
-        data[i] = Math.random() * 2 - 1;
-      }
-      normalizeBuffer(data);
-      return buffer;
-    }
-
-    function normalizeBuffer(data) {
-      let sumSquares = 0;
-      let peak = 0;
-      for (let i = 0; i < data.length; i += 1) {
-        const sample = data[i];
-        sumSquares += sample * sample;
-        peak = Math.max(peak, Math.abs(sample));
-      }
-      const rms = Math.sqrt(sumSquares / data.length) || 1;
-      const targetRms = 0.22;
-      const peakLimitedGain = peak > 0 ? 0.92 / peak : 1;
-      const gain = Math.min(targetRms / rms, peakLimitedGain);
-      for (let i = 0; i < data.length; i += 1) {
-        data[i] *= gain;
-      }
-    }
-
     function connectSource() {
-      source = audioContext.createBufferSource();
-      source.buffer = createNoiseBuffer(noiseType);
-      source.loop = true;
+      processor = audioContext.createScriptProcessor(2048, 0, 1);
       gainNode = audioContext.createGain();
       gainNode.gain.value = getEffectiveGain();
       analyser = audioContext.createAnalyser();
@@ -476,14 +418,34 @@
       analyser.smoothingTimeConstant = 0.82;
       waveform = new Uint8Array(analyser.fftSize);
       spectrum = new Uint8Array(analyser.frequencyBinCount);
-      source.connect(gainNode);
+      processor.onaudioprocess = (event) => {
+        const output = event.outputBuffer.getChannelData(0);
+        fillNoise(output);
+      };
+      processor.connect(gainNode);
       gainNode.connect(analyser);
       analyser.connect(audioContext.destination);
-      source.onended = () => {
-        playing = false;
-        source = null;
-        updateUi();
-      };
+    }
+
+    function fillNoise(output) {
+      for (let i = 0; i < output.length; i += 1) {
+        const white = Math.random() * 2 - 1;
+        if (noiseType === "pink") {
+          pinkB0 = 0.99886 * pinkB0 + white * 0.0555179;
+          pinkB1 = 0.99332 * pinkB1 + white * 0.0750759;
+          pinkB2 = 0.96900 * pinkB2 + white * 0.1538520;
+          pinkB3 = 0.86650 * pinkB3 + white * 0.3104856;
+          pinkB4 = 0.55000 * pinkB4 + white * 0.5329522;
+          pinkB5 = -0.7616 * pinkB5 - white * 0.0168980;
+          output[i] = (pinkB0 + pinkB1 + pinkB2 + pinkB3 + pinkB4 + pinkB5 + pinkB6 + white * 0.5362) * 0.18;
+          pinkB6 = white * 0.115926;
+        } else if (noiseType === "brown") {
+          brownLast = (brownLast + 0.02 * white) / 1.02;
+          output[i] = brownLast * 2.4;
+        } else {
+          output[i] = white * 0.22;
+        }
+      }
     }
 
     function start() {
@@ -491,19 +453,19 @@
       if (playing) return;
       connectSource();
       playing = true;
-      source.start(0);
       startTimerIfNeeded();
       updateUi();
       draw();
     }
 
     function stop() {
-      if (!playing || !source) return;
-      const oldSource = source;
+      if (!playing || !processor) return;
       playing = false;
-      source = null;
-      oldSource.onended = null;
-      oldSource.stop();
+      processor.disconnect();
+      processor.onaudioprocess = null;
+      processor = null;
+      if (gainNode) gainNode.disconnect();
+      if (analyser) analyser.disconnect();
       clearTimer();
       updateUi();
       draw();
