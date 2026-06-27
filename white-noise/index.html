@@ -186,6 +186,7 @@
       padding: 0 16px;
       cursor: pointer;
       font-weight: 800;
+      touch-action: manipulation;
     }
 
     .btn {
@@ -352,6 +353,7 @@
     let playing = false;
     let noiseType = "white";
     let fadeMode = "instant";
+    let audioUnlocked = false;
 
     const deck = document.getElementById("deck");
     const statusEl = document.getElementById("status");
@@ -375,10 +377,25 @@
       if (!audioContext) {
         audioContext = new AudioContextClass();
       }
+      unlockAudioOutput();
       if (audioContext.state === "suspended") {
-        return audioContext.resume();
+        return audioContext.resume().then(() => {
+          unlockAudioOutput();
+        });
       }
       return Promise.resolve();
+    }
+
+    function unlockAudioOutput() {
+      if (!audioContext || audioUnlocked) return;
+      const silent = audioContext.createBufferSource();
+      const silentGain = audioContext.createGain();
+      silent.buffer = audioContext.createBuffer(1, 1, audioContext.sampleRate);
+      silentGain.gain.value = 0;
+      silent.connect(silentGain);
+      silentGain.connect(audioContext.destination);
+      silent.start(0);
+      audioUnlocked = true;
     }
 
     function createNoiseBuffer(type) {
@@ -709,9 +726,20 @@
       frame();
     }
 
-    toggle.addEventListener("click", () => {
+    function handleToggle() {
       if (playing) stop();
       else start();
+    }
+
+    toggle.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      handleToggle();
+    });
+
+    toggle.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      handleToggle();
     });
 
     gainSlider.addEventListener("input", updateUi);
