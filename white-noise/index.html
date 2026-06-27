@@ -354,6 +354,7 @@
     let noiseType = "white";
     let fadeMode = "instant";
     let audioUnlocked = false;
+    let lastToggleMs = 0;
 
     const deck = document.getElementById("deck");
     const statusEl = document.getElementById("status");
@@ -379,11 +380,13 @@
       }
       unlockAudioOutput();
       if (audioContext.state === "suspended") {
-        return audioContext.resume().then(() => {
+        audioContext.resume().then(() => {
           unlockAudioOutput();
+          updateUi();
+        }).catch(() => {
+          statusEl.textContent = "tap Start again";
         });
       }
-      return Promise.resolve();
     }
 
     function unlockAudioOutput() {
@@ -483,12 +486,12 @@
       };
     }
 
-    async function start() {
-      await ensureAudio();
+    function start() {
+      ensureAudio();
       if (playing) return;
       connectSource();
       playing = true;
-      source.start();
+      source.start(0);
       startTimerIfNeeded();
       updateUi();
       draw();
@@ -506,14 +509,14 @@
       draw();
     }
 
-    async function restartIfPlaying() {
+    function restartIfPlaying() {
       if (!playing) {
         updateUi();
         draw();
         return;
       }
       stop();
-      await start();
+      start();
     }
 
     function updateUi() {
@@ -727,11 +730,19 @@
     }
 
     function handleToggle() {
+      const now = Date.now();
+      if (now - lastToggleMs < 350) return;
+      lastToggleMs = now;
       if (playing) stop();
       else start();
     }
 
     toggle.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      handleToggle();
+    });
+
+    toggle.addEventListener("click", (event) => {
       event.preventDefault();
       handleToggle();
     });
