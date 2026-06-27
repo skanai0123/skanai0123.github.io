@@ -1,0 +1,752 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>White Noise</title>
+  <meta name="description" content="Browser noise generator with white, pink, and brown noise.">
+  <link rel="icon" href="../shared/icons/utility.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../shared/back-to-hub.css">
+  <script defer src="../shared/back-to-hub.js"></script>
+  <style>
+    :root {
+      --bg: #f3f6f2;
+      --paper: #fffdf8;
+      --ink: #19211c;
+      --muted: #65706a;
+      --line: rgba(25, 33, 28, 0.16);
+      --accent: #0f7b63;
+      --accent-2: #b63d57;
+      --active: #f1a72c;
+      --shadow: 0 18px 48px rgba(25, 33, 28, 0.12);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100dvh;
+      font-family: "Segoe UI", "Hiragino Sans", "Yu Gothic UI", sans-serif;
+      color: var(--ink);
+      background:
+        linear-gradient(90deg, rgba(15, 123, 99, 0.06) 1px, transparent 1px),
+        linear-gradient(180deg, rgba(182, 61, 87, 0.05) 1px, transparent 1px),
+        linear-gradient(145deg, var(--bg), #e7edf0 52%, #f8f2e8);
+      background-size: 24px 24px, 24px 24px, auto;
+      padding: 24px;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    .shell {
+      width: min(880px, 100%);
+      margin: 0 auto;
+      padding-top: 52px;
+    }
+
+    .hero {
+      margin-bottom: 18px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(36px, 7vw, 72px);
+      line-height: 0.96;
+      letter-spacing: 0;
+    }
+
+    .lead {
+      max-width: 68ch;
+      margin: 14px 0 0;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    .deck {
+      display: grid;
+      gap: 16px;
+      min-width: 0;
+      padding: 20px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 253, 248, 0.9);
+      box-shadow: var(--shadow);
+    }
+
+    .deck-header,
+    .field {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .deck h2,
+    .readout strong {
+      margin: 0;
+      font-size: 18px;
+      letter-spacing: 0;
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .status::before {
+      content: "";
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: #aab3ad;
+    }
+
+    .deck.playing .status::before {
+      background: var(--active);
+      box-shadow: 0 0 0 5px rgba(241, 167, 44, 0.18);
+    }
+
+    .meters {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
+    .meter {
+      display: grid;
+      gap: 7px;
+    }
+
+    .meter-label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .visualizer {
+      width: 100%;
+      height: 156px;
+      border: 1px solid rgba(25, 33, 28, 0.2);
+      border-radius: 6px;
+      background: #101815;
+      display: block;
+    }
+
+    .controls {
+      display: grid;
+      gap: 14px;
+    }
+
+    label {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    input[type="range"] {
+      width: min(340px, 60%);
+      accent-color: var(--accent);
+    }
+
+    input[type="number"] {
+      width: 92px;
+      min-height: 38px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 0 10px;
+      color: var(--ink);
+      background: rgba(255, 255, 255, 0.72);
+      font-weight: 800;
+    }
+
+    .buttons,
+    .noise-type,
+    .timer-presets,
+    .fade-mode {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .btn,
+    .type-btn,
+    .preset-btn,
+    .fade-btn {
+      min-height: 42px;
+      border: 1px solid rgba(25, 33, 28, 0.18);
+      border-radius: 8px;
+      padding: 0 16px;
+      cursor: pointer;
+      font-weight: 800;
+    }
+
+    .btn {
+      color: var(--paper);
+      background: var(--accent);
+    }
+
+    .btn.secondary,
+    .type-btn,
+    .preset-btn,
+    .fade-btn {
+      color: var(--ink);
+      background: transparent;
+    }
+
+    .btn.warn {
+      background: var(--accent-2);
+    }
+
+    .type-btn[aria-pressed="true"],
+    .fade-btn[aria-pressed="true"] {
+      color: var(--paper);
+      background: var(--accent);
+    }
+
+    .timer-panel {
+      display: grid;
+      gap: 12px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.46);
+    }
+
+    .readout {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .metric {
+      min-width: 0;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.58);
+    }
+
+    .metric span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      margin-bottom: 5px;
+    }
+
+    .note {
+      margin: 16px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    @media (max-width: 720px) {
+      body { padding: 14px; }
+      .shell { padding-top: 58px; }
+      .readout {
+        grid-template-columns: 1fr;
+      }
+      .field {
+        display: grid;
+        gap: 8px;
+      }
+      input[type="range"] {
+        width: 100%;
+      }
+      input[type="number"] {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="hero" aria-labelledby="pageTitle">
+      <h1 id="pageTitle">White Noise</h1>
+      <p class="lead">A small browser noise generator for masking, sleep sound, and audio checks. Choose white, pink, or brown noise; playback starts only after a button press because browsers protect audio output.</p>
+    </section>
+
+    <article class="deck" id="deck">
+      <div class="deck-header">
+        <h2>Noise Generator</h2>
+        <span class="status" id="status">stopped</span>
+      </div>
+
+      <div class="noise-type" role="group" aria-label="Noise type">
+        <button class="type-btn" type="button" data-noise="white" aria-pressed="true">White</button>
+        <button class="type-btn" type="button" data-noise="pink" aria-pressed="false">Pink</button>
+        <button class="type-btn" type="button" data-noise="brown" aria-pressed="false">Brown</button>
+      </div>
+
+      <div class="meters">
+        <div class="meter">
+          <span class="meter-label">Waveform</span>
+          <canvas class="visualizer" id="scope" width="900" height="220" aria-label="Noise waveform"></canvas>
+        </div>
+        <div class="meter">
+          <span class="meter-label">FFT spectrum</span>
+          <canvas class="visualizer" id="spectrum" width="900" height="220" aria-label="Noise FFT spectrum"></canvas>
+        </div>
+      </div>
+
+      <div class="controls">
+        <div class="field">
+          <label for="gain">Volume</label>
+          <input id="gain" type="range" min="0" max="1" step="0.01" value="0.42">
+        </div>
+        <div class="buttons">
+          <button class="btn" id="toggle" type="button">Start</button>
+        </div>
+        <div class="timer-panel" aria-label="Timer controls">
+          <div class="field">
+            <label for="timerMinutes">Timer minutes</label>
+            <input id="timerMinutes" type="number" min="0" max="720" step="1" value="0" inputmode="numeric">
+          </div>
+          <div class="timer-presets" role="group" aria-label="Timer presets">
+            <button class="preset-btn" type="button" data-minutes="15">15 min</button>
+            <button class="preset-btn" type="button" data-minutes="30">30 min</button>
+            <button class="preset-btn" type="button" data-minutes="60">60 min</button>
+            <button class="preset-btn" type="button" data-minutes="0">Off</button>
+          </div>
+          <div class="fade-mode" role="group" aria-label="Timer fade mode">
+            <button class="fade-btn" type="button" data-fade="instant" aria-pressed="true">Instant stop</button>
+            <button class="fade-btn" type="button" data-fade="gradual" aria-pressed="false">Gradual fade</button>
+            <button class="fade-btn" type="button" data-fade="last-minute" aria-pressed="false">Last 1 min fade</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="readout">
+        <div class="metric"><span>Volume</span><strong id="gainRead">42%</strong></div>
+        <div class="metric"><span>Type</span><strong id="typeRead">white</strong></div>
+        <div class="metric"><span>Timer</span><strong id="timerRead">off</strong></div>
+        <div class="metric"><span>Fade</span><strong id="fadeRead">instant</strong></div>
+      </div>
+    </article>
+
+    <p class="note">Keep volume low when using headphones. Brown noise is generated locally as low-frequency-weighted random noise; pink noise uses a lightweight browser filter approximation.</p>
+  </main>
+
+  <script>
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    let audioContext = null;
+    let source = null;
+    let gainNode = null;
+    let analyser = null;
+    let waveform = null;
+    let spectrum = null;
+    let animationId = 0;
+    let timerIntervalId = 0;
+    let timerEndMs = 0;
+    let timerStartMs = 0;
+    let timerDurationMs = 0;
+    let playing = false;
+    let noiseType = "white";
+    let fadeMode = "instant";
+
+    const deck = document.getElementById("deck");
+    const statusEl = document.getElementById("status");
+    const canvas = document.getElementById("scope");
+    const spectrumCanvas = document.getElementById("spectrum");
+    const gainSlider = document.getElementById("gain");
+    const gainRead = document.getElementById("gainRead");
+    const typeRead = document.getElementById("typeRead");
+    const timerMinutes = document.getElementById("timerMinutes");
+    const timerRead = document.getElementById("timerRead");
+    const fadeRead = document.getElementById("fadeRead");
+    const toggle = document.getElementById("toggle");
+    const typeButtons = Array.from(document.querySelectorAll(".type-btn"));
+    const presetButtons = Array.from(document.querySelectorAll(".preset-btn"));
+    const fadeButtons = Array.from(document.querySelectorAll(".fade-btn"));
+
+    function ensureAudio() {
+      if (!AudioContextClass) {
+        throw new Error("Web Audio API is not available in this browser.");
+      }
+      if (!audioContext) {
+        audioContext = new AudioContextClass();
+      }
+      if (audioContext.state === "suspended") {
+        return audioContext.resume();
+      }
+      return Promise.resolve();
+    }
+
+    function createNoiseBuffer(type) {
+      const seconds = 3;
+      const length = Math.floor(audioContext.sampleRate * seconds);
+      const buffer = audioContext.createBuffer(1, length, audioContext.sampleRate);
+      const data = buffer.getChannelData(0);
+
+      if (type === "pink") {
+        let b0 = 0;
+        let b1 = 0;
+        let b2 = 0;
+        let b3 = 0;
+        let b4 = 0;
+        let b5 = 0;
+        let b6 = 0;
+        for (let i = 0; i < length; i += 1) {
+          const white = Math.random() * 2 - 1;
+          b0 = 0.99886 * b0 + white * 0.0555179;
+          b1 = 0.99332 * b1 + white * 0.0750759;
+          b2 = 0.96900 * b2 + white * 0.1538520;
+          b3 = 0.86650 * b3 + white * 0.3104856;
+          b4 = 0.55000 * b4 + white * 0.5329522;
+          b5 = -0.7616 * b5 - white * 0.0168980;
+          data[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.11;
+          b6 = white * 0.115926;
+        }
+        normalizeBuffer(data);
+        return buffer;
+      }
+
+      if (type === "brown") {
+        let last = 0;
+        for (let i = 0; i < length; i += 1) {
+          const white = Math.random() * 2 - 1;
+          last = (last + 0.02 * white) / 1.02;
+          data[i] = last * 3.5;
+        }
+        normalizeBuffer(data);
+        return buffer;
+      }
+
+      for (let i = 0; i < length; i += 1) {
+        data[i] = Math.random() * 2 - 1;
+      }
+      normalizeBuffer(data);
+      return buffer;
+    }
+
+    function normalizeBuffer(data) {
+      let sumSquares = 0;
+      let peak = 0;
+      for (let i = 0; i < data.length; i += 1) {
+        const sample = data[i];
+        sumSquares += sample * sample;
+        peak = Math.max(peak, Math.abs(sample));
+      }
+      const rms = Math.sqrt(sumSquares / data.length) || 1;
+      const targetRms = 0.22;
+      const peakLimitedGain = peak > 0 ? 0.92 / peak : 1;
+      const gain = Math.min(targetRms / rms, peakLimitedGain);
+      for (let i = 0; i < data.length; i += 1) {
+        data[i] *= gain;
+      }
+    }
+
+    function connectSource() {
+      source = audioContext.createBufferSource();
+      source.buffer = createNoiseBuffer(noiseType);
+      source.loop = true;
+      gainNode = audioContext.createGain();
+      gainNode.gain.value = getEffectiveGain();
+      analyser = audioContext.createAnalyser();
+      analyser.fftSize = 2048;
+      analyser.smoothingTimeConstant = 0.82;
+      waveform = new Uint8Array(analyser.fftSize);
+      spectrum = new Uint8Array(analyser.frequencyBinCount);
+      source.connect(gainNode);
+      gainNode.connect(analyser);
+      analyser.connect(audioContext.destination);
+      source.onended = () => {
+        playing = false;
+        source = null;
+        updateUi();
+      };
+    }
+
+    async function start() {
+      await ensureAudio();
+      if (playing) return;
+      connectSource();
+      playing = true;
+      source.start();
+      startTimerIfNeeded();
+      updateUi();
+      draw();
+    }
+
+    function stop() {
+      if (!playing || !source) return;
+      const oldSource = source;
+      playing = false;
+      source = null;
+      oldSource.onended = null;
+      oldSource.stop();
+      clearTimer();
+      updateUi();
+      draw();
+    }
+
+    async function restartIfPlaying() {
+      if (!playing) {
+        updateUi();
+        draw();
+        return;
+      }
+      stop();
+      await start();
+    }
+
+    function updateUi() {
+      const gain = Number(gainSlider.value);
+      if (gainNode) gainNode.gain.value = getEffectiveGain();
+      gainRead.textContent = `${Math.round(gain * 100)}%`;
+      typeRead.textContent = noiseType;
+      fadeRead.textContent = fadeMode === "last-minute" ? "last 1 min" : fadeMode;
+      statusEl.textContent = playing ? "playing" : "stopped";
+      toggle.textContent = playing ? "Stop" : "Start";
+      toggle.classList.toggle("warn", playing);
+      deck.classList.toggle("playing", playing);
+      updateTimerReadout();
+      typeButtons.forEach((button) => {
+        button.setAttribute("aria-pressed", String(button.dataset.noise === noiseType));
+      });
+      fadeButtons.forEach((button) => {
+        button.setAttribute("aria-pressed", String(button.dataset.fade === fadeMode));
+      });
+    }
+
+    function getTimerMinutes() {
+      const value = Math.max(0, Math.min(720, Number(timerMinutes.value) || 0));
+      timerMinutes.value = String(value);
+      return value;
+    }
+
+    function startTimerIfNeeded() {
+      clearTimer();
+      const minutes = getTimerMinutes();
+      if (minutes <= 0) {
+        updateTimerReadout();
+        return;
+      }
+      timerEndMs = Date.now() + minutes * 60 * 1000;
+      timerStartMs = Date.now();
+      timerDurationMs = minutes * 60 * 1000;
+      timerIntervalId = window.setInterval(() => {
+        if (Date.now() >= timerEndMs) {
+          stop();
+          return;
+        }
+        applyTimerGain();
+        updateTimerReadout();
+      }, 250);
+      applyTimerGain();
+      updateTimerReadout();
+    }
+
+    function clearTimer() {
+      if (timerIntervalId) {
+        window.clearInterval(timerIntervalId);
+        timerIntervalId = 0;
+      }
+      timerEndMs = 0;
+      timerStartMs = 0;
+      timerDurationMs = 0;
+    }
+
+    function updateTimerReadout() {
+      const minutes = Math.max(0, Number(timerMinutes.value) || 0);
+      if (!playing || minutes <= 0 || !timerEndMs) {
+        timerRead.textContent = minutes > 0 ? `${minutes} min set` : "off";
+        return;
+      }
+      const remainingSec = Math.max(0, Math.ceil((timerEndMs - Date.now()) / 1000));
+      const mm = Math.floor(remainingSec / 60);
+      const ss = remainingSec % 60;
+      timerRead.textContent = `${mm}:${String(ss).padStart(2, "0")}`;
+    }
+
+    function getTimerFadeFactor() {
+      if (!playing || !timerEndMs || !timerDurationMs || fadeMode === "instant") return 1;
+      const now = Date.now();
+      if (fadeMode === "gradual") {
+        const elapsed = Math.max(0, now - timerStartMs);
+        return Math.max(0, 1 - elapsed / timerDurationMs);
+      }
+      if (fadeMode === "last-minute") {
+        const remaining = Math.max(0, timerEndMs - now);
+        return remaining >= 60000 ? 1 : Math.max(0, remaining / 60000);
+      }
+      return 1;
+    }
+
+    function getEffectiveGain() {
+      return Number(gainSlider.value) * getTimerFadeFactor();
+    }
+
+    function applyTimerGain() {
+      if (gainNode) gainNode.gain.value = getEffectiveGain();
+    }
+
+    function drawScope() {
+      const ctx = canvas.getContext("2d");
+      const width = canvas.width;
+      const height = canvas.height;
+      ctx.clearRect(0, 0, width, height);
+      ctx.fillStyle = "#101815";
+      ctx.fillRect(0, 0, width, height);
+      ctx.strokeStyle = "rgba(255, 253, 248, 0.16)";
+      ctx.beginPath();
+      ctx.moveTo(0, height / 2);
+      ctx.lineTo(width, height / 2);
+      ctx.stroke();
+
+      if (!playing || !analyser) {
+        ctx.fillStyle = "rgba(255, 253, 248, 0.48)";
+        ctx.font = "600 18px Segoe UI, sans-serif";
+        ctx.fillText("stopped", 24, 42);
+        return;
+      }
+
+      analyser.getByteTimeDomainData(waveform);
+      ctx.strokeStyle = noiseType === "brown" ? "#f0b35a" : noiseType === "pink" ? "#ff8aa0" : "#52d3ba";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      const step = width / (waveform.length - 1);
+      for (let i = 0; i < waveform.length; i += 1) {
+        const x = i * step;
+        const y = (waveform[i] / 255) * height;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+
+    function drawSpectrum() {
+      const ctx = spectrumCanvas.getContext("2d");
+      const width = spectrumCanvas.width;
+      const height = spectrumCanvas.height;
+      const padLeft = 48;
+      const padRight = 16;
+      const padTop = 18;
+      const padBottom = 32;
+      const plotWidth = width - padLeft - padRight;
+      const plotHeight = height - padTop - padBottom;
+      const minFreq = 20;
+      const maxFreq = audioContext ? audioContext.sampleRate / 2 : 24000;
+      const nyquist = maxFreq;
+      const color = noiseType === "brown" ? "#f0b35a" : noiseType === "pink" ? "#ff8aa0" : "#52d3ba";
+
+      ctx.clearRect(0, 0, width, height);
+      ctx.fillStyle = "#101815";
+      ctx.fillRect(0, 0, width, height);
+      ctx.strokeStyle = "rgba(255, 253, 248, 0.13)";
+      ctx.lineWidth = 1;
+      for (let i = 0; i <= 4; i += 1) {
+        const y = padTop + (plotHeight * i) / 4;
+        ctx.beginPath();
+        ctx.moveTo(padLeft, y);
+        ctx.lineTo(width - padRight, y);
+        ctx.stroke();
+      }
+
+      const ticks = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000].filter((f) => f <= maxFreq);
+      ctx.fillStyle = "rgba(255, 253, 248, 0.62)";
+      ctx.font = "600 12px Segoe UI, sans-serif";
+      ticks.forEach((freq) => {
+        const x = padLeft + (Math.log10(freq / minFreq) / Math.log10(maxFreq / minFreq)) * plotWidth;
+        ctx.strokeStyle = "rgba(255, 253, 248, 0.10)";
+        ctx.beginPath();
+        ctx.moveTo(x, padTop);
+        ctx.lineTo(x, height - padBottom);
+        ctx.stroke();
+        const label = freq >= 1000 ? `${freq / 1000}k` : String(freq);
+        ctx.fillText(label, x - 10, height - 10);
+      });
+
+      ctx.fillText("-20 dB", 8, padTop + 4);
+      ctx.fillText("-80 dB", 8, height - padBottom);
+
+      if (!playing || !analyser) {
+        ctx.fillStyle = "rgba(255, 253, 248, 0.48)";
+        ctx.font = "600 18px Segoe UI, sans-serif";
+        ctx.fillText("stopped", padLeft + 10, padTop + 28);
+        return;
+      }
+
+      analyser.getByteFrequencyData(spectrum);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      let started = false;
+      for (let i = 1; i < spectrum.length; i += 1) {
+        const freq = (i / spectrum.length) * nyquist;
+        if (freq < minFreq) continue;
+        const x = padLeft + (Math.log10(freq / minFreq) / Math.log10(maxFreq / minFreq)) * plotWidth;
+        const dbNorm = spectrum[i] / 255;
+        const y = padTop + (1 - dbNorm) * plotHeight;
+        if (!started) {
+          ctx.moveTo(x, y);
+          started = true;
+        } else {
+          ctx.lineTo(x, y);
+        }
+      }
+      ctx.stroke();
+    }
+
+    function draw() {
+      cancelAnimationFrame(animationId);
+      function frame() {
+        drawScope();
+        drawSpectrum();
+        if (playing) {
+          animationId = requestAnimationFrame(frame);
+        }
+      }
+      frame();
+    }
+
+    toggle.addEventListener("click", () => {
+      if (playing) stop();
+      else start();
+    });
+
+    gainSlider.addEventListener("input", updateUi);
+    timerMinutes.addEventListener("input", () => {
+      getTimerMinutes();
+      if (playing) startTimerIfNeeded();
+      else updateUi();
+    });
+
+    typeButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        noiseType = button.dataset.noise;
+        restartIfPlaying();
+      });
+    });
+
+    presetButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        timerMinutes.value = button.dataset.minutes;
+        if (playing) startTimerIfNeeded();
+        updateUi();
+      });
+    });
+
+    fadeButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        fadeMode = button.dataset.fade;
+        applyTimerGain();
+        updateUi();
+      });
+    });
+
+    updateUi();
+    drawScope();
+    drawSpectrum();
+  </script>
+</body>
+</html>
