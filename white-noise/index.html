@@ -359,6 +359,7 @@
     let suppressClickUntilMs = 0;
     let starting = false;
     let startRequestId = 0;
+    let iosMediaUnlock = null;
     let pinkB0 = 0;
     let pinkB1 = 0;
     let pinkB2 = 0;
@@ -406,6 +407,7 @@
       if (!AudioContextClass) {
         throw new Error("Web Audio API is not available in this browser.");
       }
+      prepareIOSAudioOutput();
       if (!audioContext) {
         audioContext = new AudioContextClass();
       }
@@ -416,6 +418,31 @@
         });
       }
       unlockAudioOutput();
+    }
+
+    function prepareIOSAudioOutput() {
+      if (!isProbablyIOS()) return;
+      if (navigator.audioSession && "type" in navigator.audioSession) {
+        try {
+          navigator.audioSession.type = "playback";
+        } catch (error) {
+          // Older Safari builds expose no writable audio session type.
+        }
+      }
+      if (!iosMediaUnlock) {
+        iosMediaUnlock = document.createElement("audio");
+        iosMediaUnlock.setAttribute("x-webkit-airplay", "deny");
+        iosMediaUnlock.setAttribute("playsinline", "");
+        iosMediaUnlock.preload = "auto";
+        iosMediaUnlock.loop = true;
+        iosMediaUnlock.src = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA==";
+      }
+      const playPromise = iosMediaUnlock.play();
+      if (playPromise && typeof playPromise.catch === "function") {
+        playPromise.catch(() => {
+          statusEl.textContent = "tap Start again";
+        });
+      }
     }
 
     function unlockAudioOutput() {
