@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>White Noise</title>
+  <title>Baby Sleep Sounds</title>
   <meta name="description" content="Browser noise generator with brown, rain, pink, and white noise.">
   <link rel="icon" href="../shared/icons/utility.svg" type="image/svg+xml">
   <link rel="stylesheet" href="../shared/back-to-hub.css">
   <script defer src="../shared/back-to-hub.js"></script>
   <style>
     :root {
-      --bg: #f3f6f2;
+      --bg: #eef5f2;
       --paper: #fffdf8;
       --ink: #19211c;
       --muted: #65706a;
@@ -19,6 +19,10 @@
       --accent-2: #b63d57;
       --active: #f1a72c;
       --shadow: 0 18px 48px rgba(25, 33, 28, 0.12);
+      --brown: #b47a43;
+      --rain: #62a6cf;
+      --pink: #e86f93;
+      --white: #f8f6ec;
     }
 
     * { box-sizing: border-box; }
@@ -30,8 +34,8 @@
       color: var(--ink);
       background:
         linear-gradient(90deg, rgba(15, 123, 99, 0.06) 1px, transparent 1px),
-        linear-gradient(180deg, rgba(182, 61, 87, 0.05) 1px, transparent 1px),
-        linear-gradient(145deg, var(--bg), #e7edf0 52%, #f8f2e8);
+        linear-gradient(180deg, rgba(98, 166, 207, 0.06) 1px, transparent 1px),
+        linear-gradient(145deg, var(--bg), #f4f0e7 54%, #eef2f6);
       background-size: 24px 24px, 24px 24px, auto;
       padding: 24px;
     }
@@ -44,39 +48,39 @@
     .shell {
       width: min(880px, 100%);
       margin: 0 auto;
-      padding-top: 52px;
+      padding-top: 28px;
     }
 
     .hero {
-      margin-bottom: 18px;
+      margin-bottom: 12px;
     }
 
     h1 {
       margin: 0;
-      font-size: clamp(36px, 7vw, 72px);
-      line-height: 0.96;
+      font-size: clamp(24px, 4vw, 40px);
+      line-height: 1.05;
       letter-spacing: 0;
     }
 
     .lead {
-      max-width: 68ch;
-      margin: 14px 0 0;
+      max-width: 74ch;
+      margin: 10px 0 0;
       color: var(--muted);
-      line-height: 1.7;
+      font-size: 13px;
+      line-height: 1.6;
     }
 
     .deck {
       display: grid;
-      gap: 16px;
+      gap: 12px;
       min-width: 0;
-      padding: 20px;
+      padding: 14px;
       border: 1px solid var(--line);
       border-radius: 8px;
       background: rgba(255, 253, 248, 0.9);
       box-shadow: var(--shadow);
     }
 
-    .deck-header,
     .field {
       display: flex;
       align-items: center;
@@ -84,10 +88,9 @@
       gap: 12px;
     }
 
-    .deck h2,
     .readout strong {
       margin: 0;
-      font-size: 18px;
+      font-size: 16px;
       letter-spacing: 0;
     }
 
@@ -98,6 +101,12 @@
       color: var(--muted);
       font-size: 13px;
       font-weight: 700;
+    }
+
+    .status-row {
+      display: flex;
+      justify-content: flex-end;
+      min-height: 18px;
     }
 
     .status::before {
@@ -137,7 +146,7 @@
 
     .visualizer {
       width: 100%;
-      height: 156px;
+      height: 132px;
       border: 1px solid rgba(25, 33, 28, 0.2);
       border-radius: 6px;
       background: #101815;
@@ -146,7 +155,7 @@
 
     .controls {
       display: grid;
-      gap: 14px;
+      gap: 10px;
     }
 
     label {
@@ -161,7 +170,7 @@
     }
 
     input[type="number"] {
-      width: 92px;
+      width: 86px;
       min-height: 38px;
       border: 1px solid var(--line);
       border-radius: 8px;
@@ -188,7 +197,7 @@
     .noise-type {
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 12px;
+      gap: 8px;
     }
 
     .btn,
@@ -205,10 +214,12 @@
     }
 
     .type-btn {
-      min-height: 92px;
-      padding: 12px;
-      font-size: clamp(18px, 3vw, 28px);
-      line-height: 1.05;
+      min-height: 74px;
+      padding: 8px;
+      display: grid;
+      place-items: center;
+      background: rgba(255, 255, 255, 0.56);
+      overflow: hidden;
     }
 
     .btn {
@@ -234,33 +245,82 @@
       background: var(--accent);
     }
 
-    @media (max-width: 720px) {
-      .noise-type {
-        grid-template-columns: 1fr;
-      }
-      .type-btn {
-        min-height: 76px;
-      }
+    .type-btn[aria-pressed="true"] {
+      box-shadow: inset 0 0 0 3px rgba(255, 253, 248, 0.72);
+    }
+
+    .sound-symbol {
+      width: min(84px, 72%);
+      height: 44px;
+      position: relative;
+      display: block;
+    }
+
+    .sound-symbol::before,
+    .sound-symbol::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+    }
+
+    .brown-symbol::before {
+      background:
+        linear-gradient(180deg, transparent 0 5px, var(--brown) 5px 10px, transparent 10px 17px, #d0a16b 17px 23px, transparent 23px 31px, #8b5b34 31px 37px, transparent 37px);
+      border-radius: 12px;
+    }
+
+    .rain-symbol::before {
+      background:
+        radial-gradient(ellipse at 22% 28%, var(--rain) 0 5px, transparent 6px),
+        radial-gradient(ellipse at 50% 62%, #88c4df 0 5px, transparent 6px),
+        radial-gradient(ellipse at 75% 34%, #3f86ad 0 5px, transparent 6px);
+    }
+
+    .pink-symbol::before {
+      background:
+        linear-gradient(90deg, transparent 0 7%, var(--pink) 7% 13%, transparent 13% 24%, #ff9db6 24% 33%, transparent 33% 46%, #d44f79 46% 55%, transparent 55% 70%, #ff9db6 70% 78%, transparent 78%);
+      border-radius: 20px;
+    }
+
+    .white-symbol {
+      border-radius: 16px;
+      background: #18211e;
+    }
+
+    .white-symbol::before {
+      background:
+        radial-gradient(circle at 18% 24%, var(--white) 0 2px, transparent 3px),
+        radial-gradient(circle at 42% 70%, var(--white) 0 2px, transparent 3px),
+        radial-gradient(circle at 63% 38%, var(--white) 0 2px, transparent 3px),
+        radial-gradient(circle at 82% 62%, var(--white) 0 2px, transparent 3px),
+        radial-gradient(circle at 34% 43%, #dce5df 0 1px, transparent 2px),
+        radial-gradient(circle at 72% 20%, #dce5df 0 1px, transparent 2px);
     }
 
     .timer-panel {
       display: grid;
-      gap: 12px;
-      padding: 14px;
+      gap: 10px;
+      padding: 12px;
       border: 1px solid var(--line);
       border-radius: 8px;
       background: rgba(255, 255, 255, 0.46);
     }
 
-    .readout {
+    .timer-actions {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 10px;
+      gap: 8px;
+    }
+
+    .readout {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
     }
 
     .metric {
       min-width: 0;
-      padding: 12px;
+      padding: 9px;
       border: 1px solid var(--line);
       border-radius: 8px;
       background: rgba(255, 255, 255, 0.58);
@@ -274,18 +334,38 @@
       margin-bottom: 5px;
     }
 
-    .note {
-      margin: 16px 0 0;
-      color: var(--muted);
-      font-size: 13px;
-      line-height: 1.7;
+    .analysis-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+
+    .visually-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
     }
 
     @media (max-width: 720px) {
       body { padding: 14px; }
-      .shell { padding-top: 58px; }
-      .readout {
-        grid-template-columns: 1fr;
+      .shell { padding-top: 34px; }
+      .type-btn {
+        min-height: 58px;
+      }
+      .sound-symbol {
+        width: 46px;
+        height: 32px;
+      }
+      .readout,
+      .timer-actions {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
       }
       .field {
         display: grid;
@@ -303,25 +383,66 @@
 <body>
   <main class="shell">
     <section class="hero" aria-labelledby="pageTitle">
-      <h1 id="pageTitle">White Noise</h1>
-      <p class="lead">A small browser noise generator for masking, sleep sound, and audio checks. Choose brown, rain, pink, or white noise; playback starts only after a button press because browsers protect audio output.</p>
+      <h1 id="pageTitle">Baby Sleep Sounds</h1>
+      <p class="lead">家庭で使うための個人用ツールです。長時間・大音量での使用は避け、端末を赤ちゃんの耳元に置かないでください。体調や睡眠に不安がある場合は医療者に相談してください。</p>
     </section>
 
     <article class="deck" id="deck">
-      <div class="deck-header">
-        <h2>Noise Generator</h2>
+      <div class="status-row">
         <span class="status" id="status">stopped</span>
       </div>
 
       <div class="noise-type" role="group" aria-label="Noise playback">
-        <button class="type-btn" type="button" data-noise="brown" aria-pressed="false">Brown</button>
-        <button class="type-btn" type="button" data-noise="rain" aria-pressed="false">Rain</button>
-        <button class="type-btn" type="button" data-noise="pink" aria-pressed="false">Pink</button>
-        <button class="type-btn" type="button" data-noise="white" aria-pressed="false">White</button>
+        <button class="type-btn" type="button" data-noise="brown" aria-pressed="false" aria-label="Brown noise" title="Brown">
+          <span class="sound-symbol brown-symbol" aria-hidden="true"></span>
+          <span class="visually-hidden">Brown</span>
+        </button>
+        <button class="type-btn" type="button" data-noise="rain" aria-pressed="false" aria-label="Soft rain" title="Rain">
+          <span class="sound-symbol rain-symbol" aria-hidden="true"></span>
+          <span class="visually-hidden">Rain</span>
+        </button>
+        <button class="type-btn" type="button" data-noise="pink" aria-pressed="false" aria-label="Pink noise" title="Pink">
+          <span class="sound-symbol pink-symbol" aria-hidden="true"></span>
+          <span class="visually-hidden">Pink</span>
+        </button>
+        <button class="type-btn" type="button" data-noise="white" aria-pressed="false" aria-label="White noise" title="White">
+          <span class="sound-symbol white-symbol" aria-hidden="true"></span>
+          <span class="visually-hidden">White</span>
+        </button>
+      </div>
+
+      <div class="controls">
+        <div class="timer-panel" aria-label="Timer controls">
+          <div class="field">
+            <label for="timerMinutes">Timer</label>
+            <input id="timerMinutes" type="number" min="0" max="720" step="1" value="10" inputmode="numeric">
+          </div>
+          <div class="timer-actions" role="group" aria-label="Timer actions">
+            <button class="preset-btn" id="addTen" type="button">Add 10 min</button>
+            <button class="fade-btn" id="fadeToggle" type="button" aria-pressed="true">Fade</button>
+            <button class="preset-btn" type="button" data-minutes="0">Off</button>
+          </div>
+        </div>
+        <div class="field">
+          <label for="gain">Volume</label>
+          <input id="gain" type="range" min="0" max="1" step="0.01" value="0.42">
+        </div>
+      </div>
+
+      <div class="readout">
+        <div class="metric"><span>Volume</span><strong id="gainRead">42%</strong></div>
+        <div class="metric"><span>Type</span><strong id="typeRead">brown</strong></div>
+        <div class="metric"><span>Timer</span><strong id="timerRead">10 min set</strong></div>
+        <div class="metric"><span>Fade</span><strong id="fadeRead">on</strong></div>
+      </div>
+
+      <div class="analysis-controls">
+        <button class="btn secondary" id="waveformToggle" type="button" aria-pressed="false">Waveform Off</button>
+        <button class="btn secondary" id="spectrumToggle" type="button" aria-pressed="false">Spectrum Off</button>
       </div>
 
       <div class="meters">
-        <div class="meter">
+        <div class="meter" id="waveformMeter" hidden>
           <span class="meter-label">Waveform</span>
           <canvas class="visualizer" id="scope" width="900" height="220" aria-label="Noise waveform"></canvas>
         </div>
@@ -330,44 +451,7 @@
           <canvas class="visualizer" id="spectrum" width="900" height="220" aria-label="Noise FFT spectrum"></canvas>
         </div>
       </div>
-
-      <div class="controls">
-        <div class="field">
-          <label for="gain">Volume</label>
-          <input id="gain" type="range" min="0" max="1" step="0.01" value="0.42">
-        </div>
-        <div class="buttons">
-          <button class="btn secondary" id="spectrumToggle" type="button" aria-pressed="false">Spectrum Off</button>
-        </div>
-        <div class="timer-panel" aria-label="Timer controls">
-          <div class="field">
-            <label for="timerMinutes">Timer minutes</label>
-            <input id="timerMinutes" type="number" min="0" max="720" step="1" value="10" inputmode="numeric">
-          </div>
-          <div class="timer-presets" role="group" aria-label="Timer presets">
-            <button class="preset-btn" type="button" data-minutes="10">10 min</button>
-            <button class="preset-btn" type="button" data-minutes="15">15 min</button>
-            <button class="preset-btn" type="button" data-minutes="30">30 min</button>
-            <button class="preset-btn" type="button" data-minutes="60">60 min</button>
-            <button class="preset-btn" type="button" data-minutes="0">Off</button>
-          </div>
-          <div class="fade-mode" role="group" aria-label="Timer fade mode">
-            <button class="fade-btn" type="button" data-fade="instant" aria-pressed="true">Instant stop</button>
-            <button class="fade-btn" type="button" data-fade="gradual" aria-pressed="false">Gradual fade</button>
-            <button class="fade-btn" type="button" data-fade="last-minute" aria-pressed="false">Last 1 min fade</button>
-          </div>
-        </div>
-      </div>
-
-      <div class="readout">
-        <div class="metric"><span>Volume</span><strong id="gainRead">42%</strong></div>
-        <div class="metric"><span>Type</span><strong id="typeRead">brown</strong></div>
-        <div class="metric"><span>Timer</span><strong id="timerRead">10 min set</strong></div>
-        <div class="metric"><span>Fade</span><strong id="fadeRead">instant</strong></div>
-      </div>
     </article>
-
-    <p class="note">Keep volume low when using headphones. Brown noise is generated locally as low-frequency-weighted random noise; rain is synthesized from soft filtered noise with tiny randomized drops.</p>
   </main>
 
   <script>
@@ -386,13 +470,14 @@
     let timerDurationMs = 0;
     let playing = false;
     let noiseType = "brown";
-    let fadeMode = "instant";
+    let fadeMode = "last-minute";
     let audioUnlocked = false;
     let lastToggleMs = 0;
     let suppressClickUntilMs = 0;
     let starting = false;
     let startRequestId = 0;
     let iosMediaUnlock = null;
+    let waveformEnabled = false;
     let spectrumEnabled = false;
     let pinkB0 = 0;
     let pinkB1 = 0;
@@ -407,6 +492,7 @@
 
     const deck = document.getElementById("deck");
     const statusEl = document.getElementById("status");
+    const waveformMeter = document.getElementById("waveformMeter");
     const canvas = document.getElementById("scope");
     const spectrumMeter = document.getElementById("spectrumMeter");
     const spectrumCanvas = document.getElementById("spectrum");
@@ -416,10 +502,12 @@
     const timerMinutes = document.getElementById("timerMinutes");
     const timerRead = document.getElementById("timerRead");
     const fadeRead = document.getElementById("fadeRead");
+    const waveformToggle = document.getElementById("waveformToggle");
     const spectrumToggle = document.getElementById("spectrumToggle");
+    const addTen = document.getElementById("addTen");
+    const fadeToggle = document.getElementById("fadeToggle");
     const typeButtons = Array.from(document.querySelectorAll(".type-btn"));
     const presetButtons = Array.from(document.querySelectorAll(".preset-btn"));
-    const fadeButtons = Array.from(document.querySelectorAll(".fade-btn"));
 
     function isProbablyIOS() {
       return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
@@ -728,8 +816,11 @@
       if (gainNode) gainNode.gain.value = getEffectiveGain();
       gainRead.textContent = `${Math.round(gain * 100)}%`;
       typeRead.textContent = noiseType;
-      fadeRead.textContent = fadeMode === "last-minute" ? "last 1 min" : fadeMode;
+      fadeRead.textContent = fadeMode === "last-minute" ? "on" : "off";
       statusEl.textContent = starting ? "starting" : playing ? "playing" : "stopped";
+      waveformToggle.textContent = waveformEnabled ? "Waveform On" : "Waveform Off";
+      waveformToggle.setAttribute("aria-pressed", String(waveformEnabled));
+      waveformMeter.hidden = !waveformEnabled;
       spectrumToggle.textContent = spectrumEnabled ? "Spectrum On" : "Spectrum Off";
       spectrumToggle.setAttribute("aria-pressed", String(spectrumEnabled));
       spectrumMeter.hidden = !spectrumEnabled;
@@ -738,9 +829,7 @@
       typeButtons.forEach((button) => {
         button.setAttribute("aria-pressed", String(playing && button.dataset.noise === noiseType));
       });
-      fadeButtons.forEach((button) => {
-        button.setAttribute("aria-pressed", String(button.dataset.fade === fadeMode));
-      });
+      fadeToggle.setAttribute("aria-pressed", String(fadeMode === "last-minute"));
     }
 
     function getTimerMinutes() {
@@ -796,10 +885,6 @@
     function getTimerFadeFactor() {
       if (!playing || !timerEndMs || !timerDurationMs || fadeMode === "instant") return 1;
       const now = Date.now();
-      if (fadeMode === "gradual") {
-        const elapsed = Math.max(0, now - timerStartMs);
-        return Math.max(0, 1 - elapsed / timerDurationMs);
-      }
       if (fadeMode === "last-minute") {
         const remaining = Math.max(0, timerEndMs - now);
         return remaining >= 60000 ? 1 : Math.max(0, remaining / 60000);
@@ -925,7 +1010,7 @@
     function draw() {
       cancelAnimationFrame(animationId);
       function frame() {
-        drawScope();
+        if (waveformEnabled) drawScope();
         if (spectrumEnabled) drawSpectrum();
         if (playing) {
           animationId = requestAnimationFrame(frame);
@@ -980,6 +1065,12 @@
       if (spectrumEnabled) drawSpectrum();
     });
 
+    bindActivation(waveformToggle, () => {
+      waveformEnabled = !waveformEnabled;
+      updateUi();
+      if (waveformEnabled) drawScope();
+    });
+
     typeButtons.forEach((button) => {
       bindActivation(button, () => {
         switchNoise(button.dataset.noise);
@@ -993,6 +1084,20 @@
       else updateUi();
     });
 
+    addTen.addEventListener("click", () => {
+      const nextMinutes = Math.min(720, getTimerMinutes() + 10);
+      timerMinutes.value = String(nextMinutes);
+      if (playing && timerEndMs) {
+        timerEndMs += 10 * 60 * 1000;
+        timerDurationMs += 10 * 60 * 1000;
+        applyTimerGain();
+        updateTimerReadout();
+        return;
+      }
+      if (playing) startTimerIfNeeded();
+      updateUi();
+    });
+
     presetButtons.forEach((button) => {
       button.addEventListener("click", () => {
         timerMinutes.value = button.dataset.minutes;
@@ -1001,16 +1106,13 @@
       });
     });
 
-    fadeButtons.forEach((button) => {
-      button.addEventListener("click", () => {
-        fadeMode = button.dataset.fade;
-        applyTimerGain();
-        updateUi();
-      });
+    bindActivation(fadeToggle, () => {
+      fadeMode = fadeMode === "last-minute" ? "instant" : "last-minute";
+      applyTimerGain();
+      updateUi();
     });
 
     updateUi();
-    drawScope();
   </script>
 </body>
 </html>
