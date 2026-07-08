@@ -88,34 +88,6 @@
       gap: 12px;
     }
 
-    .status {
-      display: inline-flex;
-      align-items: center;
-      gap: 7px;
-      color: var(--muted);
-      font-size: 13px;
-      font-weight: 700;
-    }
-
-    .status-row {
-      display: flex;
-      justify-content: flex-end;
-      min-height: 18px;
-    }
-
-    .status::before {
-      content: "";
-      width: 9px;
-      height: 9px;
-      border-radius: 50%;
-      background: #aab3ad;
-    }
-
-    .deck.playing .status::before {
-      background: var(--active);
-      box-shadow: 0 0 0 5px rgba(241, 167, 44, 0.18);
-    }
-
     .meters {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -353,10 +325,6 @@
     </section>
 
     <article class="deck" id="deck">
-      <div class="status-row">
-        <span class="status" id="status">stopped</span>
-      </div>
-
       <div class="noise-type" role="group" aria-label="Noise playback">
         <button class="type-btn" type="button" data-noise="brown" aria-pressed="false" aria-label="Brown noise" title="Brown">
           <img class="sound-icon" src="./brown-noise.png" alt="" aria-hidden="true">
@@ -450,7 +418,6 @@
     let rainDrop = 0;
 
     const deck = document.getElementById("deck");
-    const statusEl = document.getElementById("status");
     const waveformMeter = document.getElementById("waveformMeter");
     const canvas = document.getElementById("scope");
     const spectrumMeter = document.getElementById("spectrumMeter");
@@ -494,9 +461,7 @@
       }
       unlockAudioOutput();
       if (audioContext.state === "suspended") {
-        audioContext.resume().then(updateUi).catch(() => {
-          statusEl.textContent = "tap Start again";
-        });
+        audioContext.resume().then(updateUi).catch(() => {});
       }
       unlockAudioOutput();
     }
@@ -520,9 +485,7 @@
       }
       const playPromise = iosMediaUnlock.play();
       if (playPromise && typeof playPromise.catch === "function") {
-        playPromise.catch(() => {
-          statusEl.textContent = "tap Start again";
-        });
+        playPromise.catch(() => {});
       }
     }
 
@@ -689,16 +652,13 @@
       startRequestId = requestId;
       starting = true;
       let startFailed = false;
-      statusEl.textContent = "starting";
       try {
         if (isProbablyIOS()) {
           ensureAudioFromGesture();
           if (requestId !== startRequestId || playing) return;
           connectSourceSync();
           if (audioContext.state === "suspended") {
-            audioContext.resume().then(updateUi).catch(() => {
-              statusEl.textContent = "tap Start again";
-            });
+            audioContext.resume().then(updateUi).catch(() => {});
           }
           playing = true;
           startTimerIfNeeded();
@@ -726,7 +686,6 @@
         draw();
       } catch (error) {
         startFailed = true;
-        statusEl.textContent = "tap Start again";
         disconnectSource();
       } finally {
         starting = false;
@@ -769,7 +728,6 @@
 
     function updateUi() {
       if (gainNode) gainNode.gain.value = getEffectiveGain();
-      statusEl.textContent = starting ? "starting" : playing ? "playing" : "stopped";
       swellToggle.setAttribute("aria-pressed", String(swellEnabled));
       analysisToggle.textContent = analysisEnabled ? "Analysis On" : "Analysis Off";
       analysisToggle.setAttribute("aria-pressed", String(analysisEnabled));
