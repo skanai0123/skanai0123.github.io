@@ -1079,15 +1079,18 @@
     });
 
     addTen.addEventListener("click", () => {
-      const nextMinutes = Math.min(720, getTimerMinutes() + 10);
-      timerMinutes.value = String(nextMinutes);
       if (playing && timerEndMs) {
-        timerEndMs += 10 * 60 * 1000;
-        timerDurationMs += 10 * 60 * 1000;
+        const remainingMs = Math.max(0, timerEndMs - Date.now());
+        const nextRemainingMs = Math.min(720 * 60 * 1000, remainingMs + 10 * 60 * 1000);
+        timerEndMs = Date.now() + nextRemainingMs;
+        timerDurationMs = Math.max(timerDurationMs, nextRemainingMs);
+        timerMinutes.value = String(Math.ceil(nextRemainingMs / 60000));
         applyTimerGain();
         updateTimerReadout();
         return;
       }
+      const nextMinutes = Math.min(720, getTimerMinutes() + 10);
+      timerMinutes.value = String(nextMinutes);
       if (playing) startTimerIfNeeded();
       updateUi();
     });
