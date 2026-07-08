@@ -386,6 +386,9 @@
           <label for="gain">Volume</label>
           <input id="gain" type="range" min="0" max="1" step="0.01" value="0.42">
         </div>
+        <div class="buttons">
+          <button class="btn secondary" id="swellToggle" type="button" aria-pressed="false">Swell Off</button>
+        </div>
       </div>
 
       <div class="analysis-controls">
@@ -431,6 +434,8 @@
     let iosMediaUnlock = null;
     let waveformEnabled = false;
     let spectrumEnabled = false;
+    let swellEnabled = false;
+    let swellStartMs = 0;
     let pinkB0 = 0;
     let pinkB1 = 0;
     let pinkB2 = 0;
@@ -453,6 +458,7 @@
     const timerLive = document.getElementById("timerLive");
     const waveformToggle = document.getElementById("waveformToggle");
     const spectrumToggle = document.getElementById("spectrumToggle");
+    const swellToggle = document.getElementById("swellToggle");
     const addTen = document.getElementById("addTen");
     const fadeToggle = document.getElementById("fadeToggle");
     const typeButtons = Array.from(document.querySelectorAll(".type-btn"));
@@ -763,6 +769,8 @@
     function updateUi() {
       if (gainNode) gainNode.gain.value = getEffectiveGain();
       statusEl.textContent = starting ? "starting" : playing ? "playing" : "stopped";
+      swellToggle.textContent = swellEnabled ? "Swell On" : "Swell Off";
+      swellToggle.setAttribute("aria-pressed", String(swellEnabled));
       waveformToggle.textContent = waveformEnabled ? "Waveform On" : "Waveform Off";
       waveformToggle.setAttribute("aria-pressed", String(waveformEnabled));
       waveformMeter.hidden = !waveformEnabled;
@@ -847,7 +855,14 @@
     }
 
     function getEffectiveGain() {
-      return Number(gainSlider.value) * getTimerFadeFactor();
+      return Number(gainSlider.value) * getTimerFadeFactor() * getSwellFactor();
+    }
+
+    function getSwellFactor() {
+      if (!swellEnabled || !playing) return 1;
+      const elapsed = Date.now() - swellStartMs;
+      const cycle = (elapsed % 18000) / 18000;
+      return 0.84 + 0.16 * Math.sin(cycle * Math.PI * 2 - Math.PI / 2);
     }
 
     function applyTimerGain() {
@@ -964,6 +979,7 @@
     function draw() {
       cancelAnimationFrame(animationId);
       function frame() {
+        if (swellEnabled) applyTimerGain();
         if (waveformEnabled) drawScope();
         if (spectrumEnabled) drawSpectrum();
         if (playing) {
@@ -1023,6 +1039,13 @@
       waveformEnabled = !waveformEnabled;
       updateUi();
       if (waveformEnabled) drawScope();
+    });
+
+    bindActivation(swellToggle, () => {
+      swellEnabled = !swellEnabled;
+      swellStartMs = Date.now();
+      applyTimerGain();
+      updateUi();
     });
 
     typeButtons.forEach((button) => {
