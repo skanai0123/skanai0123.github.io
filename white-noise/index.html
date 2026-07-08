@@ -170,7 +170,7 @@
     }
 
     input[type="number"] {
-      width: 86px;
+      width: 100%;
       min-height: 38px;
       border: 1px solid var(--line);
       border-radius: 8px;
@@ -178,6 +178,20 @@
       color: var(--ink);
       background: rgba(255, 255, 255, 0.72);
       font-weight: 800;
+    }
+
+    .timer-panel .field {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 6px;
+      align-items: stretch;
+    }
+
+    .timer-panel input[type="number"] {
+      min-height: 48px;
+      padding: 0 14px;
+      font-size: 22px;
+      text-align: center;
     }
 
     .noise-type,
