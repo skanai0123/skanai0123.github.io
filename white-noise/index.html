@@ -456,7 +456,7 @@
     const addTen = document.getElementById("addTen");
     const fadeToggle = document.getElementById("fadeToggle");
     const typeButtons = Array.from(document.querySelectorAll(".type-btn"));
-    const presetButtons = Array.from(document.querySelectorAll(".preset-btn"));
+    const presetButtons = Array.from(document.querySelectorAll(".preset-btn[data-minutes]"));
 
     function isProbablyIOS() {
       return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
@@ -1038,7 +1038,7 @@
       else updateUi();
     });
 
-    addTen.addEventListener("click", () => {
+    bindActivation(addTen, () => {
       if (playing && timerEndMs) {
         const remainingMs = Math.max(0, timerEndMs - Date.now());
         const nextRemainingMs = Math.min(720 * 60 * 1000, remainingMs + 10 * 60 * 1000);
