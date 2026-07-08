@@ -124,6 +124,10 @@
       gap: 7px;
     }
 
+    .meter[hidden] {
+      display: none;
+    }
+
     .meter-label {
       color: var(--muted);
       font-size: 12px;
@@ -293,7 +297,7 @@
           <span class="meter-label">Waveform</span>
           <canvas class="visualizer" id="scope" width="900" height="220" aria-label="Noise waveform"></canvas>
         </div>
-        <div class="meter">
+        <div class="meter" id="spectrumMeter" hidden>
           <span class="meter-label">FFT spectrum</span>
           <canvas class="visualizer" id="spectrum" width="900" height="220" aria-label="Noise FFT spectrum"></canvas>
         </div>
@@ -306,6 +310,7 @@
         </div>
         <div class="buttons">
           <button class="btn" id="toggle" type="button">Start</button>
+          <button class="btn secondary" id="spectrumToggle" type="button" aria-pressed="false">Spectrum Off</button>
         </div>
         <div class="timer-panel" aria-label="Timer controls">
           <div class="field">
@@ -360,6 +365,7 @@
     let starting = false;
     let startRequestId = 0;
     let iosMediaUnlock = null;
+    let spectrumEnabled = false;
     let pinkB0 = 0;
     let pinkB1 = 0;
     let pinkB2 = 0;
@@ -372,6 +378,7 @@
     const deck = document.getElementById("deck");
     const statusEl = document.getElementById("status");
     const canvas = document.getElementById("scope");
+    const spectrumMeter = document.getElementById("spectrumMeter");
     const spectrumCanvas = document.getElementById("spectrum");
     const gainSlider = document.getElementById("gain");
     const gainRead = document.getElementById("gainRead");
@@ -380,6 +387,7 @@
     const timerRead = document.getElementById("timerRead");
     const fadeRead = document.getElementById("fadeRead");
     const toggle = document.getElementById("toggle");
+    const spectrumToggle = document.getElementById("spectrumToggle");
     const typeButtons = Array.from(document.querySelectorAll(".type-btn"));
     const presetButtons = Array.from(document.querySelectorAll(".preset-btn"));
     const fadeButtons = Array.from(document.querySelectorAll(".fade-btn"));
@@ -679,6 +687,9 @@
       statusEl.textContent = starting ? "starting" : playing ? "playing" : "stopped";
       toggle.textContent = playing || starting ? "Stop" : "Start";
       toggle.classList.toggle("warn", playing);
+      spectrumToggle.textContent = spectrumEnabled ? "Spectrum On" : "Spectrum Off";
+      spectrumToggle.setAttribute("aria-pressed", String(spectrumEnabled));
+      spectrumMeter.hidden = !spectrumEnabled;
       deck.classList.toggle("playing", playing);
       updateTimerReadout();
       typeButtons.forEach((button) => {
@@ -872,7 +883,7 @@
       cancelAnimationFrame(animationId);
       function frame() {
         drawScope();
-        drawSpectrum();
+        if (spectrumEnabled) drawSpectrum();
         if (playing) {
           animationId = requestAnimationFrame(frame);
         }
@@ -904,6 +915,12 @@
       if (event.key !== "Enter" && event.key !== " ") return;
       event.preventDefault();
       handleToggle();
+    });
+
+    spectrumToggle.addEventListener("click", () => {
+      spectrumEnabled = !spectrumEnabled;
+      updateUi();
+      if (spectrumEnabled) drawSpectrum();
     });
 
     gainSlider.addEventListener("input", updateUi);
@@ -941,7 +958,6 @@
 
     updateUi();
     drawScope();
-    drawSpectrum();
   </script>
 </body>
 </html>
