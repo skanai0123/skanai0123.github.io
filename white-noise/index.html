@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>White Noise</title>
-  <meta name="description" content="Browser noise generator with white, pink, and brown noise.">
+  <meta name="description" content="Browser noise generator with brown, rain, pink, and white noise.">
   <link rel="icon" href="../shared/icons/utility.svg" type="image/svg+xml">
   <link rel="stylesheet" href="../shared/back-to-hub.css">
   <script defer src="../shared/back-to-hub.js"></script>
@@ -187,7 +187,7 @@
 
     .noise-type {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 12px;
     }
 
@@ -304,7 +304,7 @@
   <main class="shell">
     <section class="hero" aria-labelledby="pageTitle">
       <h1 id="pageTitle">White Noise</h1>
-      <p class="lead">A small browser noise generator for masking, sleep sound, and audio checks. Choose white, pink, or brown noise; playback starts only after a button press because browsers protect audio output.</p>
+      <p class="lead">A small browser noise generator for masking, sleep sound, and audio checks. Choose brown, rain, pink, or white noise; playback starts only after a button press because browsers protect audio output.</p>
     </section>
 
     <article class="deck" id="deck">
@@ -315,6 +315,7 @@
 
       <div class="noise-type" role="group" aria-label="Noise playback">
         <button class="type-btn" type="button" data-noise="brown" aria-pressed="false">Brown</button>
+        <button class="type-btn" type="button" data-noise="rain" aria-pressed="false">Rain</button>
         <button class="type-btn" type="button" data-noise="pink" aria-pressed="false">Pink</button>
         <button class="type-btn" type="button" data-noise="white" aria-pressed="false">White</button>
       </div>
@@ -366,7 +367,7 @@
       </div>
     </article>
 
-    <p class="note">Keep volume low when using headphones. Brown noise is generated locally as low-frequency-weighted random noise; pink noise uses a lightweight browser filter approximation.</p>
+    <p class="note">Keep volume low when using headphones. Brown noise is generated locally as low-frequency-weighted random noise; rain is synthesized from soft filtered noise with tiny randomized drops.</p>
   </main>
 
   <script>
@@ -401,6 +402,8 @@
     let pinkB5 = 0;
     let pinkB6 = 0;
     let brownLast = 0;
+    let rainLow = 0;
+    let rainDrop = 0;
 
     const deck = document.getElementById("deck");
     const statusEl = document.getElementById("status");
@@ -507,6 +510,8 @@
               this.pinkB5 = 0;
               this.pinkB6 = 0;
               this.brownLast = 0;
+              this.rainLow = 0;
+              this.rainDrop = 0;
               this.port.onmessage = (event) => {
                 if (event.data && event.data.noiseType) {
                   this.noiseType = event.data.noiseType;
@@ -527,6 +532,13 @@
                   this.pinkB5 = -0.7616 * this.pinkB5 - white * 0.0168980;
                   output[i] = (this.pinkB0 + this.pinkB1 + this.pinkB2 + this.pinkB3 + this.pinkB4 + this.pinkB5 + this.pinkB6 + white * 0.5362) * 0.18;
                   this.pinkB6 = white * 0.115926;
+                } else if (this.noiseType === "rain") {
+                  this.rainLow = 0.985 * this.rainLow + 0.015 * white;
+                  if (this.rainDrop < 0.0004 && Math.random() < 180 / sampleRate) {
+                    this.rainDrop = 0.12 + Math.random() * 0.18;
+                  }
+                  this.rainDrop *= 0.965 + Math.random() * 0.01;
+                  output[i] = (white - this.rainLow) * 0.055 + this.rainLow * 0.32 + (Math.random() * 2 - 1) * this.rainDrop;
                 } else if (this.noiseType === "brown") {
                   this.brownLast = (this.brownLast + 0.02 * white) / 1.02;
                   output[i] = this.brownLast * 2.4;
@@ -611,6 +623,13 @@
           pinkB5 = -0.7616 * pinkB5 - white * 0.0168980;
           output[i] = (pinkB0 + pinkB1 + pinkB2 + pinkB3 + pinkB4 + pinkB5 + pinkB6 + white * 0.5362) * 0.18;
           pinkB6 = white * 0.115926;
+        } else if (noiseType === "rain") {
+          rainLow = 0.985 * rainLow + 0.015 * white;
+          if (rainDrop < 0.0004 && Math.random() < 180 / audioContext.sampleRate) {
+            rainDrop = 0.12 + Math.random() * 0.18;
+          }
+          rainDrop *= 0.965 + Math.random() * 0.01;
+          output[i] = (white - rainLow) * 0.055 + rainLow * 0.32 + (Math.random() * 2 - 1) * rainDrop;
         } else if (noiseType === "brown") {
           brownLast = (brownLast + 0.02 * white) / 1.02;
           output[i] = brownLast * 2.4;
@@ -817,7 +836,7 @@
       }
 
       analyser.getByteTimeDomainData(waveform);
-      ctx.strokeStyle = noiseType === "brown" ? "#f0b35a" : noiseType === "pink" ? "#ff8aa0" : "#52d3ba";
+      ctx.strokeStyle = noiseType === "brown" ? "#f0b35a" : noiseType === "rain" ? "#62a6cf" : noiseType === "pink" ? "#ff8aa0" : "#52d3ba";
       ctx.lineWidth = 2;
       ctx.beginPath();
       const step = width / (waveform.length - 1);
@@ -843,7 +862,7 @@
       const minFreq = 20;
       const maxFreq = audioContext ? audioContext.sampleRate / 2 : 24000;
       const nyquist = maxFreq;
-      const color = noiseType === "brown" ? "#f0b35a" : noiseType === "pink" ? "#ff8aa0" : "#52d3ba";
+      const color = noiseType === "brown" ? "#f0b35a" : noiseType === "rain" ? "#62a6cf" : noiseType === "pink" ? "#ff8aa0" : "#52d3ba";
 
       ctx.clearRect(0, 0, width, height);
       ctx.fillStyle = "#101815";
