@@ -171,13 +171,24 @@
       font-weight: 800;
     }
 
-    .buttons,
     .noise-type,
     .timer-presets,
     .fade-mode {
       display: flex;
       flex-wrap: wrap;
       gap: 10px;
+    }
+
+    .buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .noise-type {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
     }
 
     .btn,
@@ -191,6 +202,13 @@
       cursor: pointer;
       font-weight: 800;
       touch-action: manipulation;
+    }
+
+    .type-btn {
+      min-height: 92px;
+      padding: 12px;
+      font-size: clamp(18px, 3vw, 28px);
+      line-height: 1.05;
     }
 
     .btn {
@@ -214,6 +232,15 @@
     .fade-btn[aria-pressed="true"] {
       color: var(--paper);
       background: var(--accent);
+    }
+
+    @media (max-width: 720px) {
+      .noise-type {
+        grid-template-columns: 1fr;
+      }
+      .type-btn {
+        min-height: 76px;
+      }
     }
 
     .timer-panel {
@@ -286,8 +313,8 @@
         <span class="status" id="status">stopped</span>
       </div>
 
-      <div class="noise-type" role="group" aria-label="Noise type">
-        <button class="type-btn" type="button" data-noise="white" aria-pressed="true">White</button>
+      <div class="noise-type" role="group" aria-label="Noise playback">
+        <button class="type-btn" type="button" data-noise="white" aria-pressed="false">White</button>
         <button class="type-btn" type="button" data-noise="pink" aria-pressed="false">Pink</button>
         <button class="type-btn" type="button" data-noise="brown" aria-pressed="false">Brown</button>
       </div>
@@ -309,7 +336,6 @@
           <input id="gain" type="range" min="0" max="1" step="0.01" value="0.42">
         </div>
         <div class="buttons">
-          <button class="btn" id="toggle" type="button">Start</button>
           <button class="btn secondary" id="spectrumToggle" type="button" aria-pressed="false">Spectrum Off</button>
         </div>
         <div class="timer-panel" aria-label="Timer controls">
@@ -386,7 +412,6 @@
     const timerMinutes = document.getElementById("timerMinutes");
     const timerRead = document.getElementById("timerRead");
     const fadeRead = document.getElementById("fadeRead");
-    const toggle = document.getElementById("toggle");
     const spectrumToggle = document.getElementById("spectrumToggle");
     const typeButtons = Array.from(document.querySelectorAll(".type-btn"));
     const presetButtons = Array.from(document.querySelectorAll(".preset-btn"));
@@ -685,15 +710,13 @@
       typeRead.textContent = noiseType;
       fadeRead.textContent = fadeMode === "last-minute" ? "last 1 min" : fadeMode;
       statusEl.textContent = starting ? "starting" : playing ? "playing" : "stopped";
-      toggle.textContent = playing || starting ? "Stop" : "Start";
-      toggle.classList.toggle("warn", playing);
       spectrumToggle.textContent = spectrumEnabled ? "Spectrum On" : "Spectrum Off";
       spectrumToggle.setAttribute("aria-pressed", String(spectrumEnabled));
       spectrumMeter.hidden = !spectrumEnabled;
       deck.classList.toggle("playing", playing);
       updateTimerReadout();
       typeButtons.forEach((button) => {
-        button.setAttribute("aria-pressed", String(button.dataset.noise === noiseType));
+        button.setAttribute("aria-pressed", String(playing && button.dataset.noise === noiseType));
       });
       fadeButtons.forEach((button) => {
         button.setAttribute("aria-pressed", String(button.dataset.fade === fadeMode));
@@ -891,36 +914,56 @@
       frame();
     }
 
-    function handleToggle() {
+    function switchNoise(nextNoise) {
       const now = Date.now();
       if (now - lastToggleMs < 350) return;
       lastToggleMs = now;
-      if (playing) stop();
-      else start();
+      if (playing && nextNoise === noiseType) {
+        stop();
+        return;
+      }
+      noiseType = nextNoise;
+      if (processor && processor.port) {
+        processor.port.postMessage({ noiseType });
+      }
+      if (playing) {
+        updateUi();
+        draw();
+        return;
+      }
+      start();
     }
 
-    toggle.addEventListener("touchend", (event) => {
-      event.preventDefault();
-      suppressClickUntilMs = Date.now() + 900;
-      handleToggle();
-    }, { passive: false });
+    function bindActivation(button, handler) {
+      button.addEventListener("touchend", (event) => {
+        event.preventDefault();
+        suppressClickUntilMs = Date.now() + 900;
+        handler();
+      }, { passive: false });
 
-    toggle.addEventListener("click", (event) => {
-      event.preventDefault();
-      if (Date.now() < suppressClickUntilMs) return;
-      handleToggle();
-    });
+      button.addEventListener("click", (event) => {
+        event.preventDefault();
+        if (Date.now() < suppressClickUntilMs) return;
+        handler();
+      });
 
-    toggle.addEventListener("keydown", (event) => {
-      if (event.key !== "Enter" && event.key !== " ") return;
-      event.preventDefault();
-      handleToggle();
-    });
+      button.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        handler();
+      });
+    }
 
-    spectrumToggle.addEventListener("click", () => {
+    bindActivation(spectrumToggle, () => {
       spectrumEnabled = !spectrumEnabled;
       updateUi();
       if (spectrumEnabled) drawSpectrum();
+    });
+
+    typeButtons.forEach((button) => {
+      bindActivation(button, () => {
+        switchNoise(button.dataset.noise);
+      });
     });
 
     gainSlider.addEventListener("input", updateUi);
@@ -928,16 +971,6 @@
       getTimerMinutes();
       if (playing) startTimerIfNeeded();
       else updateUi();
-    });
-
-    typeButtons.forEach((button) => {
-      button.addEventListener("click", () => {
-        noiseType = button.dataset.noise;
-        if (processor && processor.port) {
-          processor.port.postMessage({ noiseType });
-        }
-        restartIfPlaying();
-      });
     });
 
     presetButtons.forEach((button) => {
