@@ -391,8 +391,7 @@
       </div>
 
       <div class="analysis-controls">
-        <button class="btn secondary" id="waveformToggle" type="button" aria-pressed="false">Waveform Off</button>
-        <button class="btn secondary" id="spectrumToggle" type="button" aria-pressed="false">Spectrum Off</button>
+        <button class="btn secondary" id="analysisToggle" type="button" aria-pressed="false">Analysis Off</button>
       </div>
 
       <div class="meters">
@@ -431,8 +430,7 @@
     let starting = false;
     let startRequestId = 0;
     let iosMediaUnlock = null;
-    let waveformEnabled = false;
-    let spectrumEnabled = false;
+    let analysisMode = "off";
     let swellEnabled = false;
     let swellStartMs = 0;
     let pinkB0 = 0;
@@ -455,8 +453,7 @@
     const gainSlider = document.getElementById("gain");
     const timerMinutes = document.getElementById("timerMinutes");
     const timerLive = document.getElementById("timerLive");
-    const waveformToggle = document.getElementById("waveformToggle");
-    const spectrumToggle = document.getElementById("spectrumToggle");
+    const analysisToggle = document.getElementById("analysisToggle");
     const swellToggle = document.getElementById("swellToggle");
     const addTen = document.getElementById("addTen");
     const fadeToggle = document.getElementById("fadeToggle");
@@ -769,12 +766,10 @@
       if (gainNode) gainNode.gain.value = getEffectiveGain();
       statusEl.textContent = starting ? "starting" : playing ? "playing" : "stopped";
       swellToggle.setAttribute("aria-pressed", String(swellEnabled));
-      waveformToggle.textContent = waveformEnabled ? "Waveform On" : "Waveform Off";
-      waveformToggle.setAttribute("aria-pressed", String(waveformEnabled));
-      waveformMeter.hidden = !waveformEnabled;
-      spectrumToggle.textContent = spectrumEnabled ? "Spectrum On" : "Spectrum Off";
-      spectrumToggle.setAttribute("aria-pressed", String(spectrumEnabled));
-      spectrumMeter.hidden = !spectrumEnabled;
+      analysisToggle.textContent = analysisMode === "off" ? "Analysis Off" : analysisMode === "waveform" ? "Waveform" : "Spectrum";
+      analysisToggle.setAttribute("aria-pressed", String(analysisMode !== "off"));
+      waveformMeter.hidden = analysisMode !== "waveform";
+      spectrumMeter.hidden = analysisMode !== "spectrum";
       deck.classList.toggle("playing", playing);
       updateTimerReadout();
       typeButtons.forEach((button) => {
@@ -978,8 +973,8 @@
       cancelAnimationFrame(animationId);
       function frame() {
         if (swellEnabled) applyTimerGain();
-        if (waveformEnabled) drawScope();
-        if (spectrumEnabled) drawSpectrum();
+        if (analysisMode === "waveform") drawScope();
+        if (analysisMode === "spectrum") drawSpectrum();
         if (playing) {
           animationId = requestAnimationFrame(frame);
         }
@@ -1027,16 +1022,11 @@
       });
     }
 
-    bindActivation(spectrumToggle, () => {
-      spectrumEnabled = !spectrumEnabled;
+    bindActivation(analysisToggle, () => {
+      analysisMode = analysisMode === "off" ? "waveform" : analysisMode === "waveform" ? "spectrum" : "off";
       updateUi();
-      if (spectrumEnabled) drawSpectrum();
-    });
-
-    bindActivation(waveformToggle, () => {
-      waveformEnabled = !waveformEnabled;
-      updateUi();
-      if (waveformEnabled) drawScope();
+      if (analysisMode === "waveform") drawScope();
+      if (analysisMode === "spectrum") drawSpectrum();
     });
 
     bindActivation(swellToggle, () => {
