@@ -341,6 +341,7 @@
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
     let audioContext = null;
     let processor = null;
+    let workletModuleReady = null;
     let gainNode = null;
     let analyser = null;
     let waveform = null;
@@ -355,6 +356,9 @@
     let fadeMode = "instant";
     let audioUnlocked = false;
     let lastToggleMs = 0;
+    let suppressClickUntilMs = 0;
+    let starting = false;
+    let startRequestId = 0;
     let pinkB0 = 0;
     let pinkB1 = 0;
     let pinkB2 = 0;
@@ -379,7 +383,7 @@
     const presetButtons = Array.from(document.querySelectorAll(".preset-btn"));
     const fadeButtons = Array.from(document.querySelectorAll(".fade-btn"));
 
-    function ensureAudio() {
+    async function ensureAudio() {
       if (!AudioContextClass) {
         throw new Error("Web Audio API is not available in this browser.");
       }
@@ -388,13 +392,10 @@
       }
       unlockAudioOutput();
       if (audioContext.state === "suspended") {
-        audioContext.resume().then(() => {
-          unlockAudioOutput();
-          updateUi();
-        }).catch(() => {
-          statusEl.textContent = "tap Start again";
-        });
+        await audioContext.resume();
       }
+      unlockAudioOutput();
+      updateUi();
     }
 
     function unlockAudioOutput() {
@@ -409,8 +410,74 @@
       audioUnlocked = true;
     }
 
-    function connectSource() {
+    async function loadNoiseWorklet() {
+      if (!audioContext.audioWorklet) return false;
+      if (!workletModuleReady) {
+        const workletCode = `
+          class NoiseGeneratorProcessor extends AudioWorkletProcessor {
+            constructor() {
+              super();
+              this.noiseType = "white";
+              this.pinkB0 = 0;
+              this.pinkB1 = 0;
+              this.pinkB2 = 0;
+              this.pinkB3 = 0;
+              this.pinkB4 = 0;
+              this.pinkB5 = 0;
+              this.pinkB6 = 0;
+              this.brownLast = 0;
+              this.port.onmessage = (event) => {
+                if (event.data && event.data.noiseType) {
+                  this.noiseType = event.data.noiseType;
+                }
+              };
+            }
+
+            process(inputs, outputs) {
+              const output = outputs[0][0];
+              for (let i = 0; i < output.length; i += 1) {
+                const white = Math.random() * 2 - 1;
+                if (this.noiseType === "pink") {
+                  this.pinkB0 = 0.99886 * this.pinkB0 + white * 0.0555179;
+                  this.pinkB1 = 0.99332 * this.pinkB1 + white * 0.0750759;
+                  this.pinkB2 = 0.96900 * this.pinkB2 + white * 0.1538520;
+                  this.pinkB3 = 0.86650 * this.pinkB3 + white * 0.3104856;
+                  this.pinkB4 = 0.55000 * this.pinkB4 + white * 0.5329522;
+                  this.pinkB5 = -0.7616 * this.pinkB5 - white * 0.0168980;
+                  output[i] = (this.pinkB0 + this.pinkB1 + this.pinkB2 + this.pinkB3 + this.pinkB4 + this.pinkB5 + this.pinkB6 + white * 0.5362) * 0.18;
+                  this.pinkB6 = white * 0.115926;
+                } else if (this.noiseType === "brown") {
+                  this.brownLast = (this.brownLast + 0.02 * white) / 1.02;
+                  output[i] = this.brownLast * 2.4;
+                } else {
+                  output[i] = white * 0.22;
+                }
+              }
+              return true;
+            }
+          }
+
+          registerProcessor("noise-generator", NoiseGeneratorProcessor);
+        `;
+        const workletUrl = URL.createObjectURL(new Blob([workletCode], { type: "application/javascript" }));
+        workletModuleReady = audioContext.audioWorklet.addModule(workletUrl).finally(() => {
+          URL.revokeObjectURL(workletUrl);
+        });
+      }
+      await workletModuleReady;
+      return true;
+    }
+
+    function connectScriptProcessorSource() {
       processor = audioContext.createScriptProcessor(2048, 0, 1);
+      processor.onaudioprocess = (event) => {
+        const output = event.outputBuffer.getChannelData(0);
+        fillNoise(output);
+      };
+      processor.connect(gainNode);
+    }
+
+    async function connectSource() {
       gainNode = audioContext.createGain();
       gainNode.gain.value = getEffectiveGain();
       analyser = audioContext.createAnalyser();
@@ -418,11 +485,22 @@
       analyser.smoothingTimeConstant = 0.82;
       waveform = new Uint8Array(analyser.fftSize);
       spectrum = new Uint8Array(analyser.frequencyBinCount);
-      processor.onaudioprocess = (event) => {
-        const output = event.outputBuffer.getChannelData(0);
-        fillNoise(output);
-      };
-      processor.connect(gainNode);
+
+      try {
+        if (await loadNoiseWorklet()) {
+          processor = new AudioWorkletNode(audioContext, "noise-generator", {
+            numberOfInputs: 0,
+            numberOfOutputs: 1,
+            outputChannelCount: [1]
+          });
+          processor.port.postMessage({ noiseType });
+          processor.connect(gainNode);
+        } else {
+          connectScriptProcessorSource();
+        }
+      } catch (error) {
+        connectScriptProcessorSource();
+      }
       gainNode.connect(analyser);
       analyser.connect(audioContext.destination);
     }
@@ -448,24 +526,60 @@
       }
     }
 
-    function start() {
-      ensureAudio();
-      if (playing) return;
-      connectSource();
-      playing = true;
-      startTimerIfNeeded();
-      updateUi();
-      draw();
+    async function start() {
+      if (playing || starting) return;
+      const requestId = startRequestId + 1;
+      startRequestId = requestId;
+      starting = true;
+      let startFailed = false;
+      statusEl.textContent = "starting";
+      try {
+        await ensureAudio();
+        if (requestId !== startRequestId || playing) return;
+        await connectSource();
+        if (requestId !== startRequestId) {
+          disconnectSource();
+          return;
+        }
+        if (audioContext.state === "suspended") {
+          await audioContext.resume();
+        }
+        if (requestId !== startRequestId) {
+          disconnectSource();
+          return;
+        }
+        playing = true;
+        startTimerIfNeeded();
+        updateUi();
+        draw();
+      } catch (error) {
+        startFailed = true;
+        statusEl.textContent = "tap Start again";
+        disconnectSource();
+      } finally {
+        starting = false;
+        if (playing || !startFailed) updateUi();
+      }
+    }
+
+    function disconnectSource() {
+      playing = false;
+      if (processor) {
+        processor.disconnect();
+        if (processor.onaudioprocess) processor.onaudioprocess = null;
+        processor = null;
+      }
+      if (gainNode) gainNode.disconnect();
+      if (analyser) analyser.disconnect();
+      gainNode = null;
+      analyser = null;
     }
 
     function stop() {
-      if (!playing || !processor) return;
-      playing = false;
-      processor.disconnect();
-      processor.onaudioprocess = null;
-      processor = null;
-      if (gainNode) gainNode.disconnect();
-      if (analyser) analyser.disconnect();
+      if (!playing && !starting) return;
+      startRequestId += 1;
+      starting = false;
+      disconnectSource();
       clearTimer();
       updateUi();
       draw();
@@ -487,8 +601,8 @@
       gainRead.textContent = `${Math.round(gain * 100)}%`;
       typeRead.textContent = noiseType;
       fadeRead.textContent = fadeMode === "last-minute" ? "last 1 min" : fadeMode;
-      statusEl.textContent = playing ? "playing" : "stopped";
-      toggle.textContent = playing ? "Stop" : "Start";
+      statusEl.textContent = starting ? "starting" : playing ? "playing" : "stopped";
+      toggle.textContent = playing || starting ? "Stop" : "Start";
       toggle.classList.toggle("warn", playing);
       deck.classList.toggle("playing", playing);
       updateTimerReadout();
@@ -701,11 +815,13 @@
 
     toggle.addEventListener("pointerdown", (event) => {
       event.preventDefault();
+      suppressClickUntilMs = Date.now() + 900;
       handleToggle();
     });
 
     toggle.addEventListener("click", (event) => {
       event.preventDefault();
+      if (Date.now() < suppressClickUntilMs) return;
       handleToggle();
     });
 
@@ -725,6 +841,9 @@
     typeButtons.forEach((button) => {
       button.addEventListener("click", () => {
         noiseType = button.dataset.noise;
+        if (processor && processor.port) {
+          processor.port.postMessage({ noiseType });
+        }
         restartIfPlaying();
       });
     });
