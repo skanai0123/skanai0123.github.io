@@ -188,6 +188,19 @@
       text-align: center;
     }
 
+    .timer-live {
+      min-height: 42px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.64);
+      font-size: 24px;
+      font-weight: 900;
+      color: var(--ink);
+      font-variant-numeric: tabular-nums;
+    }
+
     .noise-type,
     .timer-presets,
     .fade-mode {
@@ -402,6 +415,7 @@
             <label for="timerMinutes">Timer</label>
             <input id="timerMinutes" type="number" min="0" max="720" step="1" value="10" inputmode="numeric">
           </div>
+          <div class="timer-live" id="timerLive" aria-live="polite">10:00</div>
           <div class="timer-actions" role="group" aria-label="Timer actions">
             <button class="preset-btn" id="addTen" type="button">Add 10 min</button>
             <button class="fade-btn" id="fadeToggle" type="button" aria-pressed="true">Fade</button>
@@ -476,6 +490,7 @@
     const spectrumCanvas = document.getElementById("spectrum");
     const gainSlider = document.getElementById("gain");
     const timerMinutes = document.getElementById("timerMinutes");
+    const timerLive = document.getElementById("timerLive");
     const waveformToggle = document.getElementById("waveformToggle");
     const spectrumToggle = document.getElementById("spectrumToggle");
     const addTen = document.getElementById("addTen");
@@ -808,6 +823,17 @@
       return value;
     }
 
+    function formatDuration(seconds) {
+      const safeSeconds = Math.max(0, Math.round(seconds));
+      const hours = Math.floor(safeSeconds / 3600);
+      const minutes = Math.floor((safeSeconds % 3600) / 60);
+      const secs = safeSeconds % 60;
+      if (hours > 0) {
+        return `${hours}:${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+      }
+      return `${minutes}:${String(secs).padStart(2, "0")}`;
+    }
+
     function startTimerIfNeeded() {
       clearTimer();
       const minutes = getTimerMinutes();
@@ -842,9 +868,12 @@
 
     function updateTimerReadout() {
       const minutes = Math.max(0, Number(timerMinutes.value) || 0);
-      if (!playing || minutes <= 0 || !timerEndMs) return;
+      if (!playing || minutes <= 0 || !timerEndMs) {
+        timerLive.textContent = minutes > 0 ? formatDuration(minutes * 60) : "Off";
+        return;
+      }
       const remainingSec = Math.max(0, Math.ceil((timerEndMs - Date.now()) / 1000));
-      timerMinutes.value = String(Math.ceil(remainingSec / 60));
+      timerLive.textContent = formatDuration(remainingSec);
     }
 
     function getTimerFadeFactor() {
