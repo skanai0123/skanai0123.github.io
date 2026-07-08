@@ -314,9 +314,9 @@
       </div>
 
       <div class="noise-type" role="group" aria-label="Noise playback">
-        <button class="type-btn" type="button" data-noise="white" aria-pressed="false">White</button>
-        <button class="type-btn" type="button" data-noise="pink" aria-pressed="false">Pink</button>
         <button class="type-btn" type="button" data-noise="brown" aria-pressed="false">Brown</button>
+        <button class="type-btn" type="button" data-noise="pink" aria-pressed="false">Pink</button>
+        <button class="type-btn" type="button" data-noise="white" aria-pressed="false">White</button>
       </div>
 
       <div class="meters">
@@ -341,9 +341,10 @@
         <div class="timer-panel" aria-label="Timer controls">
           <div class="field">
             <label for="timerMinutes">Timer minutes</label>
-            <input id="timerMinutes" type="number" min="0" max="720" step="1" value="0" inputmode="numeric">
+            <input id="timerMinutes" type="number" min="0" max="720" step="1" value="10" inputmode="numeric">
           </div>
           <div class="timer-presets" role="group" aria-label="Timer presets">
+            <button class="preset-btn" type="button" data-minutes="10">10 min</button>
             <button class="preset-btn" type="button" data-minutes="15">15 min</button>
             <button class="preset-btn" type="button" data-minutes="30">30 min</button>
             <button class="preset-btn" type="button" data-minutes="60">60 min</button>
@@ -359,8 +360,8 @@
 
       <div class="readout">
         <div class="metric"><span>Volume</span><strong id="gainRead">42%</strong></div>
-        <div class="metric"><span>Type</span><strong id="typeRead">white</strong></div>
-        <div class="metric"><span>Timer</span><strong id="timerRead">off</strong></div>
+        <div class="metric"><span>Type</span><strong id="typeRead">brown</strong></div>
+        <div class="metric"><span>Timer</span><strong id="timerRead">10 min set</strong></div>
         <div class="metric"><span>Fade</span><strong id="fadeRead">instant</strong></div>
       </div>
     </article>
@@ -383,7 +384,7 @@
     let timerStartMs = 0;
     let timerDurationMs = 0;
     let playing = false;
-    let noiseType = "white";
+    let noiseType = "brown";
     let fadeMode = "instant";
     let audioUnlocked = false;
     let lastToggleMs = 0;
@@ -497,7 +498,7 @@
           class NoiseGeneratorProcessor extends AudioWorkletProcessor {
             constructor() {
               super();
-              this.noiseType = "white";
+              this.noiseType = "brown";
               this.pinkB0 = 0;
               this.pinkB1 = 0;
               this.pinkB2 = 0;
