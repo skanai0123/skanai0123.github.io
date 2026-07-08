@@ -118,7 +118,7 @@
 
     .meters {
       display: grid;
-      grid-template-columns: 1fr;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 12px;
     }
 
@@ -330,6 +330,9 @@
         display: grid;
         gap: 8px;
       }
+      .meters {
+        grid-template-columns: 1fr;
+      }
       input[type="range"] {
         width: 100%;
       }
@@ -430,7 +433,7 @@
     let starting = false;
     let startRequestId = 0;
     let iosMediaUnlock = null;
-    let analysisMode = "off";
+    let analysisEnabled = false;
     let swellEnabled = false;
     let swellStartMs = 0;
     let pinkB0 = 0;
@@ -766,10 +769,10 @@
       if (gainNode) gainNode.gain.value = getEffectiveGain();
       statusEl.textContent = starting ? "starting" : playing ? "playing" : "stopped";
       swellToggle.setAttribute("aria-pressed", String(swellEnabled));
-      analysisToggle.textContent = analysisMode === "off" ? "Analysis Off" : analysisMode === "waveform" ? "Waveform" : "Spectrum";
-      analysisToggle.setAttribute("aria-pressed", String(analysisMode !== "off"));
-      waveformMeter.hidden = analysisMode !== "waveform";
-      spectrumMeter.hidden = analysisMode !== "spectrum";
+      analysisToggle.textContent = analysisEnabled ? "Analysis On" : "Analysis Off";
+      analysisToggle.setAttribute("aria-pressed", String(analysisEnabled));
+      waveformMeter.hidden = !analysisEnabled;
+      spectrumMeter.hidden = !analysisEnabled;
       deck.classList.toggle("playing", playing);
       updateTimerReadout();
       typeButtons.forEach((button) => {
@@ -973,8 +976,10 @@
       cancelAnimationFrame(animationId);
       function frame() {
         if (swellEnabled) applyTimerGain();
-        if (analysisMode === "waveform") drawScope();
-        if (analysisMode === "spectrum") drawSpectrum();
+        if (analysisEnabled) {
+          drawScope();
+          drawSpectrum();
+        }
         if (playing) {
           animationId = requestAnimationFrame(frame);
         }
@@ -1023,10 +1028,12 @@
     }
 
     bindActivation(analysisToggle, () => {
-      analysisMode = analysisMode === "off" ? "waveform" : analysisMode === "waveform" ? "spectrum" : "off";
+      analysisEnabled = !analysisEnabled;
       updateUi();
-      if (analysisMode === "waveform") drawScope();
-      if (analysisMode === "spectrum") drawSpectrum();
+      if (analysisEnabled) {
+        drawScope();
+        drawSpectrum();
+      }
     });
 
     bindActivation(swellToggle, () => {
