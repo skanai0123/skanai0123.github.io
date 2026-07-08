@@ -383,6 +383,10 @@
     const presetButtons = Array.from(document.querySelectorAll(".preset-btn"));
     const fadeButtons = Array.from(document.querySelectorAll(".fade-btn"));
 
+    function isProbablyIOS() {
+      return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    }
+
     async function ensureAudio() {
       if (!AudioContextClass) {
         throw new Error("Web Audio API is not available in this browser.");
@@ -396,6 +400,22 @@
       }
       unlockAudioOutput();
       updateUi();
+    }
+
+    function ensureAudioFromGesture() {
+      if (!AudioContextClass) {
+        throw new Error("Web Audio API is not available in this browser.");
+      }
+      if (!audioContext) {
+        audioContext = new AudioContextClass();
+      }
+      unlockAudioOutput();
+      if (audioContext.state === "suspended") {
+        audioContext.resume().then(updateUi).catch(() => {
+          statusEl.textContent = "tap Start again";
+        });
+      }
+      unlockAudioOutput();
     }
 
     function unlockAudioOutput() {
@@ -477,7 +497,7 @@
       processor.connect(gainNode);
     }
 
-    async function connectSource() {
+    function setupGraphNodes() {
       gainNode = audioContext.createGain();
       gainNode.gain.value = getEffectiveGain();
       analyser = audioContext.createAnalyser();
@@ -485,9 +505,23 @@
       analyser.smoothingTimeConstant = 0.82;
       waveform = new Uint8Array(analyser.fftSize);
       spectrum = new Uint8Array(analyser.frequencyBinCount);
+    }
 
+    function finishGraphConnection() {
+      gainNode.connect(analyser);
+      analyser.connect(audioContext.destination);
+    }
+
+    function connectSourceSync() {
+      setupGraphNodes();
+      connectScriptProcessorSource();
+      finishGraphConnection();
+    }
+
+    async function connectSource() {
+      setupGraphNodes();
       try {
-        if (await loadNoiseWorklet()) {
+        if (!isProbablyIOS() && await loadNoiseWorklet()) {
           processor = new AudioWorkletNode(audioContext, "noise-generator", {
             numberOfInputs: 0,
             numberOfOutputs: 1,
@@ -501,8 +535,7 @@
       } catch (error) {
         connectScriptProcessorSource();
       }
-      gainNode.connect(analyser);
-      analyser.connect(audioContext.destination);
+      finishGraphConnection();
     }
 
     function fillNoise(output) {
@@ -534,6 +567,21 @@
       let startFailed = false;
       statusEl.textContent = "starting";
       try {
+        if (isProbablyIOS()) {
+          ensureAudioFromGesture();
+          if (requestId !== startRequestId || playing) return;
+          connectSourceSync();
+          if (audioContext.state === "suspended") {
+            audioContext.resume().then(updateUi).catch(() => {
+              statusEl.textContent = "tap Start again";
+            });
+          }
+          playing = true;
+          startTimerIfNeeded();
+          updateUi();
+          draw();
+          return;
+        }
         await ensureAudio();
         if (requestId !== startRequestId || playing) return;
         await connectSource();
@@ -813,11 +861,11 @@
       else start();
     }
 
-    toggle.addEventListener("pointerdown", (event) => {
+    toggle.addEventListener("touchend", (event) => {
       event.preventDefault();
       suppressClickUntilMs = Date.now() + 900;
       handleToggle();
-    });
+    }, { passive: false });
 
     toggle.addEventListener("click", (event) => {
       event.preventDefault();
