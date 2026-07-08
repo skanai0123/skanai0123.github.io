@@ -88,12 +88,6 @@
       gap: 12px;
     }
 
-    .readout strong {
-      margin: 0;
-      font-size: 16px;
-      letter-spacing: 0;
-    }
-
     .status {
       display: inline-flex;
       align-items: center;
@@ -326,28 +320,6 @@
       gap: 8px;
     }
 
-    .readout {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 8px;
-    }
-
-    .metric {
-      min-width: 0;
-      padding: 9px;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: rgba(255, 255, 255, 0.58);
-    }
-
-    .metric span {
-      display: block;
-      color: var(--muted);
-      font-size: 12px;
-      font-weight: 800;
-      margin-bottom: 5px;
-    }
-
     .analysis-controls {
       display: flex;
       flex-wrap: wrap;
@@ -377,7 +349,6 @@
         width: 46px;
         height: 32px;
       }
-      .readout,
       .timer-actions {
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
@@ -443,13 +414,6 @@
         </div>
       </div>
 
-      <div class="readout">
-        <div class="metric"><span>Volume</span><strong id="gainRead">42%</strong></div>
-        <div class="metric"><span>Type</span><strong id="typeRead">brown</strong></div>
-        <div class="metric"><span>Timer</span><strong id="timerRead">10 min set</strong></div>
-        <div class="metric"><span>Fade</span><strong id="fadeRead">on</strong></div>
-      </div>
-
       <div class="analysis-controls">
         <button class="btn secondary" id="waveformToggle" type="button" aria-pressed="false">Waveform Off</button>
         <button class="btn secondary" id="spectrumToggle" type="button" aria-pressed="false">Spectrum Off</button>
@@ -511,11 +475,7 @@
     const spectrumMeter = document.getElementById("spectrumMeter");
     const spectrumCanvas = document.getElementById("spectrum");
     const gainSlider = document.getElementById("gain");
-    const gainRead = document.getElementById("gainRead");
-    const typeRead = document.getElementById("typeRead");
     const timerMinutes = document.getElementById("timerMinutes");
-    const timerRead = document.getElementById("timerRead");
-    const fadeRead = document.getElementById("fadeRead");
     const waveformToggle = document.getElementById("waveformToggle");
     const spectrumToggle = document.getElementById("spectrumToggle");
     const addTen = document.getElementById("addTen");
@@ -826,11 +786,7 @@
     }
 
     function updateUi() {
-      const gain = Number(gainSlider.value);
       if (gainNode) gainNode.gain.value = getEffectiveGain();
-      gainRead.textContent = `${Math.round(gain * 100)}%`;
-      typeRead.textContent = noiseType;
-      fadeRead.textContent = fadeMode === "last-minute" ? "on" : "off";
       statusEl.textContent = starting ? "starting" : playing ? "playing" : "stopped";
       waveformToggle.textContent = waveformEnabled ? "Waveform On" : "Waveform Off";
       waveformToggle.setAttribute("aria-pressed", String(waveformEnabled));
@@ -886,14 +842,9 @@
 
     function updateTimerReadout() {
       const minutes = Math.max(0, Number(timerMinutes.value) || 0);
-      if (!playing || minutes <= 0 || !timerEndMs) {
-        timerRead.textContent = minutes > 0 ? `${minutes} min set` : "off";
-        return;
-      }
+      if (!playing || minutes <= 0 || !timerEndMs) return;
       const remainingSec = Math.max(0, Math.ceil((timerEndMs - Date.now()) / 1000));
-      const mm = Math.floor(remainingSec / 60);
-      const ss = remainingSec % 60;
-      timerRead.textContent = `${mm}:${String(ss).padStart(2, "0")}`;
+      timerMinutes.value = String(Math.ceil(remainingSec / 60));
     }
 
     function getTimerFadeFactor() {
