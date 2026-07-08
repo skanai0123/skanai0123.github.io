@@ -235,7 +235,7 @@
     }
 
     .type-btn {
-      min-height: 74px;
+      min-height: 88px;
       padding: 8px;
       display: grid;
       place-items: center;
@@ -270,52 +270,13 @@
       box-shadow: inset 0 0 0 3px rgba(255, 253, 248, 0.72);
     }
 
-    .sound-symbol {
-      width: min(84px, 72%);
-      height: 44px;
-      position: relative;
+    .sound-icon {
+      width: 100%;
+      aspect-ratio: 1;
       display: block;
-    }
-
-    .sound-symbol::before,
-    .sound-symbol::after {
-      content: "";
-      position: absolute;
-      inset: 0;
-    }
-
-    .brown-symbol::before {
-      background:
-        linear-gradient(180deg, transparent 0 5px, var(--brown) 5px 10px, transparent 10px 17px, #d0a16b 17px 23px, transparent 23px 31px, #8b5b34 31px 37px, transparent 37px);
-      border-radius: 12px;
-    }
-
-    .rain-symbol::before {
-      background:
-        radial-gradient(ellipse at 22% 28%, var(--rain) 0 5px, transparent 6px),
-        radial-gradient(ellipse at 50% 62%, #88c4df 0 5px, transparent 6px),
-        radial-gradient(ellipse at 75% 34%, #3f86ad 0 5px, transparent 6px);
-    }
-
-    .pink-symbol::before {
-      background:
-        linear-gradient(90deg, transparent 0 7%, var(--pink) 7% 13%, transparent 13% 24%, #ff9db6 24% 33%, transparent 33% 46%, #d44f79 46% 55%, transparent 55% 70%, #ff9db6 70% 78%, transparent 78%);
-      border-radius: 20px;
-    }
-
-    .white-symbol {
       border-radius: 16px;
-      background: #18211e;
-    }
-
-    .white-symbol::before {
-      background:
-        radial-gradient(circle at 18% 24%, var(--white) 0 2px, transparent 3px),
-        radial-gradient(circle at 42% 70%, var(--white) 0 2px, transparent 3px),
-        radial-gradient(circle at 63% 38%, var(--white) 0 2px, transparent 3px),
-        radial-gradient(circle at 82% 62%, var(--white) 0 2px, transparent 3px),
-        radial-gradient(circle at 34% 43%, #dce5df 0 1px, transparent 2px),
-        radial-gradient(circle at 72% 20%, #dce5df 0 1px, transparent 2px);
+      object-fit: cover;
+      transform: scale(3.4);
     }
 
     .timer-panel {
@@ -356,11 +317,10 @@
       body { padding: 14px; }
       .shell { padding-top: 34px; }
       .type-btn {
-        min-height: 58px;
+        min-height: 78px;
       }
-      .sound-symbol {
-        width: 46px;
-        height: 32px;
+      .sound-icon {
+        width: 100%;
       }
       .timer-actions {
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -392,19 +352,19 @@
 
       <div class="noise-type" role="group" aria-label="Noise playback">
         <button class="type-btn" type="button" data-noise="brown" aria-pressed="false" aria-label="Brown noise" title="Brown">
-          <span class="sound-symbol brown-symbol" aria-hidden="true"></span>
+          <img class="sound-icon" src="./brown-noise.png" alt="" aria-hidden="true">
           <span class="visually-hidden">Brown</span>
         </button>
         <button class="type-btn" type="button" data-noise="rain" aria-pressed="false" aria-label="Soft rain" title="Rain">
-          <span class="sound-symbol rain-symbol" aria-hidden="true"></span>
+          <img class="sound-icon" src="./rain-noise.png" alt="" aria-hidden="true">
           <span class="visually-hidden">Rain</span>
         </button>
         <button class="type-btn" type="button" data-noise="pink" aria-pressed="false" aria-label="Pink noise" title="Pink">
-          <span class="sound-symbol pink-symbol" aria-hidden="true"></span>
+          <img class="sound-icon" src="./pink-noise.png" alt="" aria-hidden="true">
           <span class="visually-hidden">Pink</span>
         </button>
         <button class="type-btn" type="button" data-noise="white" aria-pressed="false" aria-label="White noise" title="White">
-          <span class="sound-symbol white-symbol" aria-hidden="true"></span>
+          <img class="sound-icon" src="./white-noise.png" alt="" aria-hidden="true">
           <span class="visually-hidden">White</span>
         </button>
       </div>
