@@ -294,7 +294,7 @@
 
     .timer-actions {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 8px;
     }
 
@@ -325,9 +325,6 @@
       }
       .sound-icon {
         width: 100%;
-      }
-      .timer-actions {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
       }
       .field {
         display: grid;
@@ -382,16 +379,14 @@
           <div class="timer-live" id="timerLive" aria-live="polite">10:00</div>
           <div class="timer-actions" role="group" aria-label="Timer actions">
             <button class="preset-btn" id="addTen" type="button">Add 10 min</button>
-            <button class="fade-btn" id="fadeToggle" type="button" aria-pressed="true">Fade</button>
             <button class="preset-btn" type="button" data-minutes="0">Off</button>
+            <button class="fade-btn" id="fadeToggle" type="button" aria-pressed="true">Fade</button>
+            <button class="fade-btn" id="swellToggle" type="button" aria-pressed="false">Swell</button>
           </div>
         </div>
         <div class="field">
           <label for="gain">Volume</label>
           <input id="gain" type="range" min="0" max="1" step="0.01" value="0.42">
-        </div>
-        <div class="buttons">
-          <button class="btn secondary" id="swellToggle" type="button" aria-pressed="false">Swell Off</button>
         </div>
       </div>
 
@@ -773,7 +768,6 @@
     function updateUi() {
       if (gainNode) gainNode.gain.value = getEffectiveGain();
       statusEl.textContent = starting ? "starting" : playing ? "playing" : "stopped";
-      swellToggle.textContent = swellEnabled ? "Swell On" : "Swell Off";
       swellToggle.setAttribute("aria-pressed", String(swellEnabled));
       waveformToggle.textContent = waveformEnabled ? "Waveform On" : "Waveform Off";
       waveformToggle.setAttribute("aria-pressed", String(waveformEnabled));
