@@ -447,7 +447,7 @@
         audioContext = new AudioContextClass();
       }
       unlockAudioOutput();
-      if (audioContext.state === "suspended") {
+      if (audioContext.state !== "running") {
         await audioContext.resume();
       }
       unlockAudioOutput();
@@ -463,7 +463,7 @@
         audioContext = new AudioContextClass();
       }
       unlockAudioOutput();
-      if (audioContext.state === "suspended") {
+      if (audioContext.state !== "running") {
         audioContext.resume().then(updateUi).catch(() => {});
       }
       unlockAudioOutput();
@@ -582,7 +582,7 @@
 
     function setupGraphNodes() {
       gainNode = audioContext.createGain();
-      gainNode.gain.value = getEffectiveGain();
+      gainNode.gain.value = Number(gainSlider.value);
       analyser = audioContext.createAnalyser();
       analyser.fftSize = 2048;
       analyser.smoothingTimeConstant = 0.82;
@@ -660,7 +660,7 @@
           ensureAudioFromGesture();
           if (requestId !== startRequestId || playing) return;
           connectSourceSync();
-          if (audioContext.state === "suspended") {
+          if (audioContext.state !== "running") {
             audioContext.resume().then(updateUi).catch(() => {});
           }
           playing = true;
@@ -676,7 +676,7 @@
           disconnectSource();
           return;
         }
-        if (audioContext.state === "suspended") {
+        if (audioContext.state !== "running") {
           await audioContext.resume();
         }
         if (requestId !== startRequestId) {
@@ -713,8 +713,8 @@
       if (!playing && !starting) return;
       startRequestId += 1;
       starting = false;
-      disconnectSource();
       clearTimer();
+      disconnectSource();
       updateUi();
       draw();
     }
