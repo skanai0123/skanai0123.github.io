@@ -149,6 +149,13 @@
       gap: 10px;
     }
 
+    .utility-actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
     input[type="number"] {
       width: 100%;
       min-height: 38px;
@@ -364,8 +371,8 @@
           <div class="timer-actions" role="group" aria-label="Timer actions">
             <button class="preset-btn" id="addTen" type="button">Add 10 min</button>
             <button class="preset-btn" type="button" data-minutes="0">Off</button>
-            <button class="fade-btn" id="fadeToggle" type="button" aria-pressed="true">Fade</button>
-            <button class="fade-btn" id="swellToggle" type="button" aria-pressed="false">Swell</button>
+            <button class="fade-btn" id="fadeToggle" type="button" aria-pressed="true" title="Fade during the final minute">Fade 1 min</button>
+            <button class="fade-btn" id="fullFadeToggle" type="button" aria-pressed="false" aria-label="Full fade: gradually lower volume across the entire timer" title="Gradually lowers volume from full to silent across the entire timer">Full Fade</button>
           </div>
         </div>
         <div class="volume-row">
@@ -373,7 +380,10 @@
             <label for="gain">Volume</label>
             <input id="gain" type="range" min="0" max="0.6" step="0.01" value="0.42">
           </div>
-          <button class="btn secondary" id="analysisToggle" type="button" aria-pressed="false">Analysis Off</button>
+          <div class="utility-actions">
+            <button class="btn secondary" id="analysisToggle" type="button" aria-pressed="false">Analysis Off</button>
+            <button class="btn secondary" id="reloadPage" type="button" aria-label="Reload page and reset all sounds" title="Stop audio and reload this page">Reload</button>
+          </div>
         </div>
       </div>
 
@@ -414,8 +424,6 @@
     let startRequestId = 0;
     let iosMediaUnlock = null;
     let analysisEnabled = false;
-    let swellEnabled = false;
-    let swellStartMs = 0;
     let pinkB0 = 0;
     let pinkB1 = 0;
     let pinkB2 = 0;
@@ -436,7 +444,8 @@
     const timerMinutes = document.getElementById("timerMinutes");
     const timerLive = document.getElementById("timerLive");
     const analysisToggle = document.getElementById("analysisToggle");
-    const swellToggle = document.getElementById("swellToggle");
+    const fullFadeToggle = document.getElementById("fullFadeToggle");
+    const reloadPage = document.getElementById("reloadPage");
     const addTen = document.getElementById("addTen");
     const fadeToggle = document.getElementById("fadeToggle");
     const typeButtons = Array.from(document.querySelectorAll(".type-btn"));
@@ -738,7 +747,6 @@
 
     function updateUi() {
       if (gainNode) gainNode.gain.value = getEffectiveGain();
-      swellToggle.setAttribute("aria-pressed", String(swellEnabled));
       analysisToggle.textContent = analysisEnabled ? "Analysis On" : "Analysis Off";
       analysisToggle.setAttribute("aria-pressed", String(analysisEnabled));
       waveformMeter.hidden = !analysisEnabled;
@@ -749,6 +757,7 @@
         button.setAttribute("aria-pressed", String(playing && button.dataset.noise === noiseType));
       });
       fadeToggle.setAttribute("aria-pressed", String(fadeMode === "last-minute"));
+      fullFadeToggle.setAttribute("aria-pressed", String(fadeMode === "full-duration"));
     }
 
     function getTimerMinutes() {
@@ -817,18 +826,15 @@
         const remaining = Math.max(0, timerEndMs - now);
         return remaining >= 60000 ? 1 : Math.max(0, remaining / 60000);
       }
+      if (fadeMode === "full-duration") {
+        const remaining = Math.max(0, timerEndMs - now);
+        return Math.max(0, Math.min(1, remaining / timerDurationMs));
+      }
       return 1;
     }
 
     function getEffectiveGain() {
-      return Number(gainSlider.value) * getTimerFadeFactor() * getSwellFactor();
-    }
-
-    function getSwellFactor() {
-      if (!swellEnabled || !playing) return 1;
-      const elapsed = Date.now() - swellStartMs;
-      const cycle = (elapsed % 18000) / 18000;
-      return 0.84 + 0.16 * Math.sin(cycle * Math.PI * 2 - Math.PI / 2);
+      return Number(gainSlider.value) * getTimerFadeFactor();
     }
 
     function applyTimerGain() {
@@ -945,7 +951,6 @@
     function draw() {
       cancelAnimationFrame(animationId);
       function frame() {
-        if (swellEnabled) applyTimerGain();
         if (analysisEnabled) {
           drawScope();
           drawSpectrum();
@@ -1006,11 +1011,15 @@
       }
     });
 
-    bindActivation(swellToggle, () => {
-      swellEnabled = !swellEnabled;
-      swellStartMs = Date.now();
+    bindActivation(fullFadeToggle, () => {
+      fadeMode = fadeMode === "full-duration" ? "instant" : "full-duration";
       applyTimerGain();
       updateUi();
+    });
+
+    bindActivation(reloadPage, () => {
+      stop();
+      window.location.reload();
     });
 
     typeButtons.forEach((button) => {
