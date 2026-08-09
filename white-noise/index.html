@@ -390,11 +390,11 @@
       <div class="meters">
         <div class="meter" id="waveformMeter" hidden>
           <span class="meter-label">Waveform</span>
-          <canvas class="visualizer" id="scope" width="900" height="220" aria-label="Noise waveform"></canvas>
+          <canvas class="visualizer" id="scope" width="640" height="160" aria-label="Noise waveform"></canvas>
         </div>
         <div class="meter" id="spectrumMeter" hidden>
           <span class="meter-label">FFT spectrum</span>
-          <canvas class="visualizer" id="spectrum" width="900" height="220" aria-label="Noise FFT spectrum"></canvas>
+          <canvas class="visualizer" id="spectrum" width="640" height="160" aria-label="Noise FFT spectrum"></canvas>
         </div>
       </div>
     </article>
@@ -410,6 +410,7 @@
     let waveform = null;
     let spectrum = null;
     let animationId = 0;
+    let lastAnalysisFrameMs = 0;
     let timerIntervalId = 0;
     let timerEndMs = 0;
     let timerStartMs = 0;
@@ -588,7 +589,7 @@
     }
 
     function connectScriptProcessorSource() {
-      processor = audioContext.createScriptProcessor(2048, 0, 1);
+      processor = audioContext.createScriptProcessor(4096, 0, 1);
       processor.onaudioprocess = (event) => {
         const output = event.outputBuffer.getChannelData(0);
         fillNoise(output);
@@ -599,16 +600,35 @@
     function setupGraphNodes() {
       gainNode = audioContext.createGain();
       gainNode.gain.value = Number(gainSlider.value);
+    }
+
+    function createAnalysisNode() {
+      if (analyser || !audioContext) return;
       analyser = audioContext.createAnalyser();
-      analyser.fftSize = 2048;
+      analyser.fftSize = 1024;
       analyser.smoothingTimeConstant = 0.82;
       waveform = new Uint8Array(analyser.fftSize);
       spectrum = new Uint8Array(analyser.frequencyBinCount);
     }
 
+    function releaseAnalysisNode() {
+      if (analyser) analyser.disconnect();
+      analyser = null;
+      waveform = null;
+      spectrum = null;
+    }
+
     function finishGraphConnection() {
-      gainNode.connect(analyser);
-      analyser.connect(audioContext.destination);
+      if (!gainNode || !audioContext) return;
+      gainNode.disconnect();
+      releaseAnalysisNode();
+      if (analysisEnabled) {
+        createAnalysisNode();
+        gainNode.connect(analyser);
+        analyser.connect(audioContext.destination);
+        return;
+      }
+      gainNode.connect(audioContext.destination);
     }
 
     function connectSourceSync() {
@@ -720,9 +740,8 @@
         processor = null;
       }
       if (gainNode) gainNode.disconnect();
-      if (analyser) analyser.disconnect();
+      releaseAnalysisNode();
       gainNode = null;
-      analyser = null;
     }
 
     function stop() {
@@ -794,7 +813,7 @@
         }
         applyTimerGain();
         updateTimerReadout();
-      }, 250);
+      }, 500);
       applyTimerGain();
       updateTimerReadout();
     }
@@ -950,16 +969,20 @@
 
     function draw() {
       cancelAnimationFrame(animationId);
-      function frame() {
-        if (analysisEnabled) {
+      animationId = 0;
+      lastAnalysisFrameMs = 0;
+      function frame(timestamp) {
+        if (!analysisEnabled || document.hidden) return;
+        if (!lastAnalysisFrameMs || timestamp - lastAnalysisFrameMs >= 50) {
           drawScope();
           drawSpectrum();
+          lastAnalysisFrameMs = timestamp;
         }
-        if (playing) {
+        if (playing && analysisEnabled) {
           animationId = requestAnimationFrame(frame);
         }
       }
-      frame();
+      frame(performance.now());
     }
 
     function switchNoise(nextNoise) {
@@ -1004,11 +1027,9 @@
 
     bindActivation(analysisToggle, () => {
       analysisEnabled = !analysisEnabled;
+      finishGraphConnection();
       updateUi();
-      if (analysisEnabled) {
-        drawScope();
-        drawSpectrum();
-      }
+      draw();
     });
 
     bindActivation(fullFadeToggle, () => {
@@ -1064,6 +1085,15 @@
       fadeMode = fadeMode === "last-minute" ? "instant" : "last-minute";
       applyTimerGain();
       updateUi();
+    });
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) {
+        cancelAnimationFrame(animationId);
+        animationId = 0;
+        return;
+      }
+      if (analysisEnabled) draw();
     });
 
     updateUi();
