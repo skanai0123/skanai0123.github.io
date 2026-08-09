@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Explore pure and mixed single-qubit states with an interactive Bloch sphere, density matrix, purity, entropy, and measurement probabilities.">
+  <meta name="theme-color" content="#07111f">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://skanai0123.github.io/bloch-sphere/">
+  <meta property="og:title" content="Bloch Sphere Lab — Pure & Mixed States">
+  <meta property="og:description" content="Move the Bloch vector and see a qubit's state, density matrix, purity, entropy, and measurement probabilities update together.">
+  <meta property="og:image" content="https://skanai0123.github.io/bloch-sphere/og.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Bloch Sphere Lab — Pure & Mixed States">
+  <meta name="twitter:description" content="Explore pure and mixed single-qubit states on an interactive Bloch sphere.">
+  <meta name="twitter:image" content="https://skanai0123.github.io/bloch-sphere/og.png">
+  <title>Bloch Sphere Lab — Pure & Mixed States</title>
+  <link rel="icon" href="../shared/icons/quantum information.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../shared/back-to-hub.css">
+  <link rel="stylesheet" href="./styles.css">
+  <script defer src="../shared/back-to-hub.js"></script>
+  <script defer src="./script.js"></script>
+</head>
+<body data-page-version="1.0.0" data-page-updated="2026-08-09" data-page-copyright="© 2026 skanai">
+  <main class="app-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow"><span class="eyebrow-dot"></span>QUANTUM STATE EXPLORER</p>
+        <h1>Bloch Sphere <span>Lab</span></h1>
+      </div>
+      <p class="intro">Observe a single-qubit state as a vector, density matrix, and set of measurement probabilities—all at once.</p>
+    </header>
+
+    <section class="workspace" aria-label="Bloch sphere simulator">
+      <aside class="panel control-panel">
+        <div class="panel-heading">
+          <span class="step">01</span>
+          <div>
+            <p class="kicker">STATE CONTROL</p>
+            <h2>Prepare a state</h2>
+          </div>
+        </div>
+
+        <div class="preset-grid" aria-label="State presets">
+          <button class="preset active" type="button" data-state="zero"><span>|0⟩</span><small>+Z</small></button>
+          <button class="preset" type="button" data-state="one"><span>|1⟩</span><small>−Z</small></button>
+          <button class="preset" type="button" data-state="plus"><span>|+⟩</span><small>+X</small></button>
+          <button class="preset" type="button" data-state="plus-i"><span>|+i⟩</span><small>+Y</small></button>
+          <button class="preset wide" type="button" data-state="mixed"><span>I / 2</span><small>MAXIMALLY MIXED</small></button>
+        </div>
+
+        <div class="control-group">
+          <div class="control-label">
+            <label for="theta">Polar angle <i>θ</i></label>
+            <output id="thetaValue" for="theta">0°</output>
+          </div>
+          <input id="theta" type="range" min="0" max="180" value="0" step="1">
+          <div class="scale"><span>0°</span><span>90°</span><span>180°</span></div>
+        </div>
+
+        <div class="control-group">
+          <div class="control-label">
+            <label for="phi">Azimuth <i>φ</i></label>
+            <output id="phiValue" for="phi">0°</output>
+          </div>
+          <input id="phi" type="range" min="0" max="359" value="0" step="1">
+          <div class="scale"><span>0°</span><span>180°</span><span>360°</span></div>
+        </div>
+
+        <div class="control-group purity-control">
+          <div class="control-label">
+            <label for="radius">Bloch vector length <i>|r|</i></label>
+            <output id="radiusValue" for="radius">1.00</output>
+          </div>
+          <input id="radius" type="range" min="0" max="1" value="1" step="0.01">
+          <div class="state-scale"><span>MAX. MIXED</span><span>MIXED</span><span>PURE</span></div>
+        </div>
+
+        <div class="quick-actions">
+          <button id="randomPure" type="button">Random pure state</button>
+          <button id="randomMixed" type="button">Random mixed state</button>
+        </div>
+      </aside>
+
+      <section class="sphere-stage" aria-labelledby="sphereTitle">
+        <div class="stage-header">
+          <div>
+            <p class="kicker">INTERACTIVE VIEW</p>
+            <h2 id="sphereTitle">The Bloch sphere</h2>
+          </div>
+          <div class="status-badge pure" id="stateBadge"><span></span>PURE STATE</div>
+        </div>
+
+        <div class="canvas-wrap">
+          <canvas id="blochCanvas" aria-label="Rotatable Bloch sphere showing the current quantum state"></canvas>
+          <div class="canvas-tip">DRAG TO ROTATE</div>
+          <div class="axis-legend" aria-hidden="true">
+            <span><i class="axis-x"></i>X</span>
+            <span><i class="axis-y"></i>Y</span>
+            <span><i class="axis-z"></i>Z</span>
+          </div>
+        </div>
+
+        <div class="state-ket" id="ketReadout" aria-live="polite">
+          <span>PURE STATE VECTOR</span>
+          <strong>|ψ⟩ = 1.000 |0⟩ + 0.000 |1⟩</strong>
+        </div>
+      </section>
+
+      <aside class="panel readout-panel">
+        <div class="panel-heading">
+          <span class="step">02</span>
+          <div>
+            <p class="kicker">LIVE READOUT</p>
+            <h2>Read the state</h2>
+          </div>
+        </div>
+
+        <section class="readout-block">
+          <div class="block-title"><span>Density matrix</span><code>ρ = ½(I + r·σ)</code></div>
+          <div class="matrix" id="densityMatrix" aria-label="Density matrix">
+            <span class="bracket left"></span>
+            <div><b>1.000</b><b>0.000</b><b>0.000</b><b>0.000</b></div>
+            <span class="bracket right"></span>
+          </div>
+        </section>
+
+        <section class="metric-grid">
+          <article class="metric-card accent">
+            <span>Purity</span>
+            <strong id="purityValue">1.000</strong>
+            <small>Tr(ρ²)</small>
+          </article>
+          <article class="metric-card">
+            <span>Entropy</span>
+            <strong id="entropyValue">0.000</strong>
+            <small>−Tr(ρ log₂ρ) [bit]</small>
+          </article>
+        </section>
+
+        <section class="readout-block vector-block">
+          <div class="block-title"><span>Bloch vector</span><code>r = (x, y, z)</code></div>
+          <div class="vector-values">
+            <div><span>x</span><b id="xValue">0.000</b></div>
+            <div><span>y</span><b id="yValue">0.000</b></div>
+            <div><span>z</span><b id="zValue">1.000</b></div>
+          </div>
+        </section>
+
+        <section class="readout-block measurement-block">
+          <div class="block-title"><span>Measure in the Z basis</span><code>Born rule</code></div>
+          <div class="probability-row">
+            <div class="probability-label"><span>|0⟩</span><b id="p0Value">100.0%</b></div>
+            <div class="probability-track"><i id="p0Bar"></i></div>
+          </div>
+          <div class="probability-row">
+            <div class="probability-label"><span>|1⟩</span><b id="p1Value">0.0%</b></div>
+            <div class="probability-track second"><i id="p1Bar"></i></div>
+          </div>
+        </section>
+      </aside>
+    </section>
+
+    <section class="lesson-grid" aria-label="Guide to pure and mixed states">
+      <article class="lesson pure-lesson">
+        <div class="lesson-number">A</div>
+        <div>
+          <p class="kicker">ON THE SURFACE</p>
+          <h2>Pure states</h2>
+          <p>For <strong>|r| = 1</strong>, the vector tip lies on the sphere. The computational basis states sit on the z-axis: <span>|0⟩ = +Z</span> and <span>|1⟩ = −Z</span>.</p>
+        </div>
+      </article>
+      <article class="lesson mixed-lesson">
+        <div class="lesson-number">B</div>
+        <div>
+          <p class="kicker">INSIDE THE SPHERE</p>
+          <h2>Mixed states</h2>
+          <p>For <strong>0 ≤ |r| &lt; 1</strong>, the tip lies inside the sphere. The center, <span>ρ = I/2</span>, is the maximally mixed state with no preferred direction.</p>
+        </div>
+      </article>
+      <article class="lesson equation-lesson">
+        <div class="lesson-number">C</div>
+        <div>
+          <p class="kicker">PURITY</p>
+          <h2>Vector length sets purity</h2>
+          <p class="equation">Tr(ρ²) = <span>(1 + |r|²) / 2</span></p>
+          <p>Shortening the vector lowers the purity continuously from <strong>1</strong> for pure states to <strong>1/2</strong> at the center.</p>
+        </div>
+      </article>
+      <article class="lesson entropy-lesson">
+        <div class="lesson-number">D</div>
+        <div>
+          <p class="kicker">VON NEUMANN ENTROPY</p>
+          <h2>Entropy measures mixedness</h2>
+          <p class="equation">S(ρ) = <span>−Tr(ρ log₂ρ)</span></p>
+          <p>Equivalently, <span>S = −Σᵢ λᵢ log₂λᵢ</span>, where <span>λ± = (1 ± |r|)/2</span>. It ranges from <strong>0 bit</strong> for a pure qubit to <strong>1 bit</strong> for <span>I/2</span>.</p>
+        </div>
+      </article>
+    </section>
+  </main>
+</body>
+</html>
