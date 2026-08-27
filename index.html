@@ -452,7 +452,7 @@
     }
   </style>
 </head>
-<body>
+<body data-page-version="0.0.1" data-page-updated="2026-08-28">
   <canvas id="heroFx" aria-hidden="true"></canvas>
     <nav class="bookmark-bar" aria-label="Bookmarks">
       <a href="https://skanai0123.github.io/">Hub</a>
@@ -465,6 +465,7 @@
       <a href="https://skanai0123.github.io/optical-transition/">Optical Transition</a>
       <a href="https://skanai0123.github.io/poincare-sphere/">Poincaré Sphere</a>
       <a href="https://skanai0123.github.io/pendulum-lab/">Pendulum</a>
+      <a href="https://skanai0123.github.io/oil-timer-lab/">Oil Timer</a>
       <a href="https://skanai0123.github.io/white-noise/">Baby Sleep Sounds</a>
       <a href="https://skanai0123.github.io/bit-rng-lab/">Bit RNG</a>
       <a href="https://skanai0123.github.io/qubo-ising-lab/">QUBO</a>
@@ -534,7 +535,7 @@
 
   <script>
     (function () {
-      let hubVersionText = '-';
+      let hubVersionText = document.body.dataset.pageVersion || '-';
       // Added parameters for black-hole gimmick:
       // cellSize, rRho, rhoThreshold, spawnCooldownFrames, maxBlackHoles,
       // spawnCellMinCount, spawnSampleMax, spawnMassBase, spawnMassPerRho,
@@ -1141,6 +1142,9 @@
         });
       }
 
+      if (document.body.dataset.pageUpdated) {
+        hudCopyrightEl.title = 'Updated: ' + document.body.dataset.pageUpdated;
+      }
       Promise.all([
         fetchJson('https://api.github.com/repos/skanai0123/skanai0123.github.io/tags?per_page=1')
           .then((tags) => Array.isArray(tags) && tags.length > 0 ? (tags[0].name || '') : '')
@@ -1162,9 +1166,9 @@
           }))
       ]).then(([versionText, commitMeta]) => {
         if (versionText || commitMeta.fallbackVersion) {
-          hubVersionText = versionText || commitMeta.fallbackVersion;
+          hubVersionText = document.body.dataset.pageVersion || versionText || commitMeta.fallbackVersion;
         }
-        if (commitMeta.updated) {
+        if (!document.body.dataset.pageUpdated && commitMeta.updated) {
           hudCopyrightEl.title = 'Updated: ' + commitMeta.updated;
         }
         updateUniverseHud(true);
