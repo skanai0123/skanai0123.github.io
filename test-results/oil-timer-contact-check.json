@@ -1,0 +1,105 @@
+{
+  "kind": "Static oil-side contact-angle diagnostic",
+  "solverSha256": "1ebfe1c9fac7e0fa9fb2d508436592a6093396884895ed45a5d018752eedc6bc",
+  "setup": "Initially semicircular radius-7 drop on a horizontal wall; equal densities; surface tension 100; viscosities 5/5; 1500 steps of 0.18.",
+  "measurement": "Wall trace uses PLIC geometry, ignoring fractions within 1e-10 of a pure phase only when measuring the contact length. The simulation is not rounded.",
+  "limitation": "Static illustrative wall model. Refinement is not established: errors need not decrease monotonically between these two grids. These are not measured oil properties.",
+  "samples": [
+    {
+      "angle": 60,
+      "h": 1,
+      "massError": -2.5646151868841116e-14,
+      "wall": 20.712769193297614,
+      "centerHeight": 5.214696165416995,
+      "peak": 0.02894978016293861,
+      "analyticFootprint": 19.393510980654735,
+      "analyticHeight": 5.5984243926064865,
+      "stats": {
+        "divergence": 1.295143022504979e-16,
+        "maxCfl": 0.00521096042932895,
+        "substeps": 1,
+        "boundError": 2.220446049250313e-16
+      }
+    },
+    {
+      "angle": 90,
+      "h": 1,
+      "massError": -2.4313884239290928e-14,
+      "wall": 13.917226602926046,
+      "centerHeight": 6.95172190179537,
+      "peak": 0.005876649744366915,
+      "analyticFootprint": 14.002817212590296,
+      "analyticHeight": 7.001408606295147,
+      "stats": {
+        "divergence": 3.093148396145604e-16,
+        "maxCfl": 0.0010577969539860446,
+        "substeps": 1,
+        "boundError": 2.220446049250313e-16
+      }
+    },
+    {
+      "angle": 140,
+      "h": 1,
+      "massError": -2.8754776337791554e-14,
+      "wall": 6,
+      "centerHeight": 9.279969736084935,
+      "peak": 0.015184480908543768,
+      "analyticFootprint": 6.583772671313325,
+      "analyticHeight": 9.044383374627897,
+      "stats": {
+        "divergence": 2.1446778933272318e-16,
+        "maxCfl": 0.002733206563537878,
+        "substeps": 1,
+        "boundError": 2.220446049250313e-16
+      }
+    },
+    {
+      "angle": 60,
+      "h": 0.6666666666666666,
+      "massError": -4.241051954068098e-14,
+      "wall": 20.665924725241407,
+      "centerHeight": 5.187119082241033,
+      "peak": 0.02584860724171616,
+      "analyticFootprint": 19.39176184775551,
+      "analyticHeight": 5.597919461431379,
+      "stats": {
+        "divergence": 1.3492170764621016e-16,
+        "maxCfl": 0.003489564474530315,
+        "substeps": 2,
+        "boundError": 2.220446049250313e-16
+      }
+    },
+    {
+      "angle": 90,
+      "h": 0.6666666666666666,
+      "massError": -4.007905118896815e-14,
+      "wall": 13.931054400486808,
+      "centerHeight": 6.961569630610667,
+      "peak": 0.006046024498674325,
+      "analyticFootprint": 14.00155427529685,
+      "analyticHeight": 7.0007771376484245,
+      "stats": {
+        "divergence": 4.383079403241723e-16,
+        "maxCfl": 0.0008162336469876055,
+        "substeps": 2,
+        "boundError": 2.220446049250313e-16
+      }
+    },
+    {
+      "angle": 140,
+      "h": 0.6666666666666666,
+      "massError": -4.7406523151494184e-14,
+      "wall": 5.4596539628743175,
+      "centerHeight": 9.317504946862128,
+      "peak": 0.015081531244740685,
+      "analyticFootprint": 6.58317886994379,
+      "analyticHeight": 9.043567646700678,
+      "stats": {
+        "divergence": 1.704365815147213e-16,
+        "maxCfl": 0.0020360096187227194,
+        "substeps": 2,
+        "boundError": 2.220446049250313e-16
+      }
+    }
+  ]
+}

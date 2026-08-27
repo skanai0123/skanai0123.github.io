@@ -136,6 +136,19 @@
       transform: translateY(-1px);
     }
 
+    .vessel-picker { margin-bottom: 14px; }
+    .vessel-options { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+    .vessel-options button { padding: 8px 4px; font-size: 0.8rem; }
+    .vessel-options button[aria-pressed="true"] {
+      background: #22526c;
+      border-color: var(--accent);
+      color: #fff;
+    }
+    .vessel-picker .mini { margin: 7px 0 0; font-size: 0.74rem; }
+    button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+    button:disabled { opacity: 0.6; cursor: wait; transform: none; }
+    .turn-help { margin: 8px 0 12px; font-size: 0.74rem; line-height: 1.5; }
+
     .speed {
       margin-top: 6px;
     }
@@ -151,6 +164,26 @@
       width: 100%;
       accent-color: var(--accent);
     }
+
+    .parameter-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .parameter-header label { margin: 0; }
+    .parameter-header input {
+      width: 82px;
+      min-width: 0;
+      padding: 5px 6px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #091a30;
+      color: var(--fg);
+      font: inherit;
+      font-size: 0.86rem;
+      text-align: right;
+    }
+    .parameter-header input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .parameter-header input[aria-invalid="true"] { border-color: #ffb58c; }
+    .parameter-help { margin: 0; min-height: 1.2em; color: var(--sub); font-size: 0.7rem; }
+    #runtimeText { display: block; color: #ffce9c; }
+    #runtimeText:empty { display: none; }
 
     .stat {
       margin-top: 14px;
@@ -188,6 +221,11 @@
       font-size: 0.84rem;
     }
 
+    @media (max-width: 1280px) {
+      /* Keep vessel controls clear of the shared fixed navigation panel. */
+      body { padding-top: 156px; }
+    }
+
     @media (max-width: 880px) {
       .app {
         grid-template-columns: 1fr;
@@ -207,11 +245,11 @@
     }
   </style>
 </head>
-<body data-page-version="0.2.0" data-page-updated="2026-03-17">
+<body data-page-version="0.4.2" data-page-updated="2026-08-28">
   <main class="app">
     <section class="card">
       <h1>Oil Timer</h1>
-      <p class="sub">2D Navier-Stokes grid solver with oil concentration per cell.</p>
+      <p class="sub">Two-phase flow with density-driven oil and water separation.</p>
       <div class="stage-wrap">
         <canvas id="timerCanvas" width="640" height="720" aria-label="Oil timer simulation"></canvas>
       </div>
@@ -223,54 +261,131 @@
 
     <aside class="card side">
       <h2>Controls</h2>
+      <div class="vessel-picker">
+        <label id="modelLabel">Flow model</label>
+        <div class="vessel-options" role="group" aria-labelledby="modelLabel">
+          <button type="button" id="modelImmiscible" aria-pressed="true">Immiscible (VOF)</button>
+          <button type="button" id="modelLegacy" aria-pressed="false">Legacy</button>
+        </div>
+        <p id="modelHint" class="mini">Sharp oil/water interface · 216×243 grid. Changing model resets the timer.</p>
+      </div>
+      <div class="vessel-picker">
+        <label id="vesselLabel">Vessel shape</label>
+        <div class="vessel-options" role="group" aria-labelledby="vesselLabel">
+          <button type="button" id="shapeRounded" aria-pressed="true">Rounded</button>
+          <button type="button" id="shapeStraight" aria-pressed="false">Straight</button>
+          <button type="button" id="shapeWide" aria-pressed="false">Wide</button>
+          <button type="button" id="shapeStairs" aria-pressed="false">Stairs</button>
+          <button type="button" id="shapeCapsule" aria-pressed="false">Capsule</button>
+          <button type="button" id="shapeTwin" aria-pressed="false">Twin neck</button>
+          <button type="button" id="shapePegboard" aria-pressed="false">Pegboard</button>
+          <button type="button" id="shapeWheel" aria-pressed="false">Paddle wheel</button>
+        </div>
+        <p class="mini">Changing shape resets the timer. Oil color changes on reload.</p>
+        <p id="vesselHint" class="mini" hidden>Three stair runs carry the oil between reservoirs. A single zigzag path represents the toy in 2D.</p>
+        <p id="wheelStatus" class="mini" hidden></p>
+      </div>
       <div class="controls">
         <button type="button" id="toggleBtn">Pause</button>
         <button type="button" id="flipBtn">Invert</button>
         <button type="button" id="resetBtn">Reset</button>
       </div>
+      <p class="mini turn-help">Invert turns the vessel and simulates the flow at 1×. Pause stops both; Reset returns it upright.</p>
       <div class="speed">
-        <label for="speedRange">Flow speed <span id="speedText">1.00x</span></label>
-        <input id="speedRange" type="range" min="0.25" max="2.5" step="0.05" value="1.00" />
+        <div class="parameter-header">
+          <label id="speedLabel" for="speedNumber">Flow speed (×)</label>
+          <input id="speedNumber" type="number" min="0.05" max="10" step="0.01" value="0.50" aria-describedby="speedHelp" />
+        </div>
+        <input id="speedRange" type="range" min="0.05" max="10" step="0.01" value="0.50" aria-labelledby="speedLabel" aria-describedby="speedHelp" />
+        <p id="speedHelp" class="parameter-help">0.05 – 10</p>
       </div>
       <div class="speed">
-        <label for="surfaceRange">Surface tension <span id="surfaceText">1.30</span></label>
-        <input id="surfaceRange" type="range" min="0" max="2.0" step="0.01" value="1.30" />
+        <div class="parameter-header">
+          <label id="surfaceLabel" for="surfaceNumber">Surface tension</label>
+          <input id="surfaceNumber" type="number" min="0" max="200" step="0.01" value="20.00" aria-describedby="surfaceHelp" />
+        </div>
+        <input id="surfaceRange" type="range" min="0" max="200" step="0.01" value="20.00" aria-labelledby="surfaceLabel" aria-describedby="surfaceHelp" />
+        <p id="surfaceHelp" class="parameter-help">0 – 200</p>
       </div>
       <div class="speed">
-        <label for="phaseRange">Phase separation <span id="phaseText">8.00</span></label>
-        <input id="phaseRange" type="range" min="0" max="20.0" step="0.01" value="8.00" />
+        <div class="parameter-header">
+          <label id="contactAngleLabel" for="contactAngleNumber">Oil contact angle (°)</label>
+          <input id="contactAngleNumber" type="number" min="15" max="165" step="1" value="140.00" aria-describedby="contactAngleHelp contactAngleHint" />
+        </div>
+        <input id="contactAngleRange" type="range" min="15" max="165" step="1" value="140" aria-labelledby="contactAngleLabel" aria-describedby="contactAngleHelp contactAngleHint" />
+        <p id="contactAngleHelp" class="parameter-help">15 – 165</p>
+        <p id="contactAngleHint" class="mini">Measured through oil: above 90° resists wetting the wall. VOF only; 140° is an assumed value.</p>
       </div>
       <div class="speed">
-        <label for="viscosityRange">Oil viscosity <span id="viscosityText">2.00</span></label>
-        <input id="viscosityRange" type="range" min="0" max="2.0" step="0.01" value="2.00" />
+        <div class="parameter-header">
+          <label id="phaseLabel" for="phaseNumber">Phase separation</label>
+          <input id="phaseNumber" type="number" min="0" max="100" step="0.01" value="16.00" aria-describedby="phaseHelp" />
+        </div>
+        <input id="phaseRange" type="range" min="0" max="100" step="0.01" value="16.00" aria-labelledby="phaseLabel" aria-describedby="phaseHelp" />
+        <p id="phaseHelp" class="parameter-help">0 – 100</p>
       </div>
       <div class="speed">
-        <label for="waterViscosityRange">Water viscosity <span id="waterViscosityText">0.40</span></label>
-        <input id="waterViscosityRange" type="range" min="0" max="2.0" step="0.01" value="0.40" />
+        <div class="parameter-header">
+          <label id="viscosityLabel" for="viscosityNumber">Oil viscosity</label>
+          <input id="viscosityNumber" type="number" min="0" max="50" step="0.01" value="2.00" aria-describedby="viscosityHelp" />
+        </div>
+        <input id="viscosityRange" type="range" min="0" max="50" step="0.01" value="2.00" aria-labelledby="viscosityLabel" aria-describedby="viscosityHelp" />
+        <p id="viscosityHelp" class="parameter-help">0 – 50</p>
       </div>
       <div class="speed">
-        <label for="oilDensityRange">Oil density <span id="oilDensityText">1.30</span></label>
-        <input id="oilDensityRange" type="range" min="0.5" max="3.0" step="0.01" value="1.30" />
+        <div class="parameter-header">
+          <label id="waterViscosityLabel" for="waterViscosityNumber">Water viscosity</label>
+          <input id="waterViscosityNumber" type="number" min="0" max="50" step="0.01" value="0.40" aria-describedby="waterViscosityHelp" />
+        </div>
+        <input id="waterViscosityRange" type="range" min="0" max="50" step="0.01" value="0.40" aria-labelledby="waterViscosityLabel" aria-describedby="waterViscosityHelp" />
+        <p id="waterViscosityHelp" class="parameter-help">0 – 50</p>
       </div>
       <div class="speed">
-        <label for="waterDensityRange">Water density <span id="waterDensityText">1.00</span></label>
-        <input id="waterDensityRange" type="range" min="0.5" max="3.0" step="0.01" value="1.00" />
+        <div class="parameter-header">
+          <label id="oilDensityLabel" for="oilDensityNumber">Oil density</label>
+          <input id="oilDensityNumber" type="number" min="0.05" max="10" step="0.01" value="1.10" aria-describedby="oilDensityHelp" />
+        </div>
+        <input id="oilDensityRange" type="range" min="0.05" max="10" step="0.01" value="1.10" aria-labelledby="oilDensityLabel" aria-describedby="oilDensityHelp" />
+        <p id="oilDensityHelp" class="parameter-help">0.05 – 10</p>
       </div>
       <div class="speed">
-        <label for="buoyancyRange">Buoyancy <span id="buoyancyText">0.00</span></label>
-        <input id="buoyancyRange" type="range" min="-0.5" max="0.5" step="0.01" value="0.00" />
+        <div class="parameter-header">
+          <label id="waterDensityLabel" for="waterDensityNumber">Water density</label>
+          <input id="waterDensityNumber" type="number" min="0.05" max="10" step="0.01" value="1.00" aria-describedby="waterDensityHelp" />
+        </div>
+        <input id="waterDensityRange" type="range" min="0.05" max="10" step="0.01" value="1.00" aria-labelledby="waterDensityLabel" aria-describedby="waterDensityHelp" />
+        <p id="waterDensityHelp" class="parameter-help">0.05 – 10</p>
+      </div>
+      <div class="speed">
+        <div class="parameter-header">
+          <label id="buoyancyLabel" for="buoyancyNumber">Buoyancy</label>
+          <input id="buoyancyNumber" type="number" min="-5" max="5" step="0.01" value="0.00" aria-describedby="buoyancyHelp" />
+        </div>
+        <input id="buoyancyRange" type="range" min="-5" max="5" step="0.01" value="0.00" aria-labelledby="buoyancyLabel" aria-describedby="buoyancyHelp" />
+        <p id="buoyancyHelp" class="parameter-help">-5 – 5</p>
       </div>
       <div class="stat">
         <strong id="etaText">ETA --</strong><br />
         <span id="flowText">Transfer rate -- %/s</span><br />
-        <span id="dropsText">Grid --</span>
+        <span id="dropsText">Grid --</span><br />
+        <span id="massErrorText">Mass error 0.0000%</span>
+        <span id="runtimeText" class="mini"></span>
       </div>
-      <p class="note">
-        Eulerian 2D NS projection method: advection, body force, viscosity, pressure solve, and concentration transport.
+      <p id="immiscibleNote" class="note">
+        Immiscible oil and water: geometric PLIC/VOF transports the occupied area and its boundary, rather than a mixing concentration. Intermediate cell values are area fractions, not dissolved oil. There is no empirical settling or phase-separation correction in this mode.
+        Staggered-grid flow uses a pressure-Poisson matrix solve, viscosity, gravity and surface tension. Density enters buoyancy through the Boussinesq approximation, best suited to small density contrasts; this is not a calibrated variable-density two-fluid solver. Coefficients and ETA use model units. Oil contact angle imposes approximate static wetting on the grid walls; dynamic contact angles and adhesion hysteresis are not modeled. Extreme forces and velocities are bounded. Numerical interface and wall errors remain; capillarity can retain oil.
+        Invert includes gravity and inertial forces during the turn. <a href="https://basilisk.fr/src/vof.h" target="_blank" rel="noopener noreferrer">Geometric VOF method</a>
+      </p>
+      <p id="legacyNote" class="note" hidden>
+        Illustrative 2D flow with a pressure-Poisson matrix solve and conservative oil transport, plus empirical density-driven settling. This is not a calibrated two-fluid Navier–Stokes solver.
+        Parameters and ETA use model units. Buoyancy −1 cancels gravity; lower values reverse it. Fluid velocity, relative settling speed and interface compression are bounded at extreme settings; high playback speeds depend on device performance.
+        Rotation uses gravity and inertial forces in the vessel frame; this remains an illustrative 2D model.
+        Oil is drawn with a sharp 50% concentration boundary; this display does not remove numerical mixing or change the oil mass.
       </p>
     </aside>
   </main>
 
+  <script src="vof.js?v=0.4.2"></script>
   <script>
     (() => {
       const canvas = document.getElementById("timerCanvas");
@@ -278,27 +393,31 @@
       const toggleBtn = document.getElementById("toggleBtn");
       const flipBtn = document.getElementById("flipBtn");
       const resetBtn = document.getElementById("resetBtn");
-      const speedRange = document.getElementById("speedRange");
-      const surfaceRange = document.getElementById("surfaceRange");
-      const phaseRange = document.getElementById("phaseRange");
-      const viscosityRange = document.getElementById("viscosityRange");
-      const waterViscosityRange = document.getElementById("waterViscosityRange");
-      const oilDensityRange = document.getElementById("oilDensityRange");
-      const waterDensityRange = document.getElementById("waterDensityRange");
-      const buoyancyRange = document.getElementById("buoyancyRange");
+      const modelButtons = {
+        immiscible: document.getElementById("modelImmiscible"),
+        legacy: document.getElementById("modelLegacy")
+      };
+      let flowModel = "immiscible";
+      let immiscible = null;
+      let immiscibleShape = null;
+      const shapeButtons = {
+        rounded: document.getElementById("shapeRounded"),
+        straight: document.getElementById("shapeStraight"),
+        wide: document.getElementById("shapeWide"),
+        stairs: document.getElementById("shapeStairs"),
+        capsule: document.getElementById("shapeCapsule"),
+        twin: document.getElementById("shapeTwin"),
+        pegboard: document.getElementById("shapePegboard"),
+        wheel: document.getElementById("shapeWheel")
+      };
+      let vesselShape = "rounded";
       const stateLabel = document.getElementById("stateLabel");
       const progressText = document.getElementById("progressText");
       const etaText = document.getElementById("etaText");
       const flowText = document.getElementById("flowText");
       const dropsText = document.getElementById("dropsText");
-      const speedText = document.getElementById("speedText");
-      const surfaceText = document.getElementById("surfaceText");
-      const phaseText = document.getElementById("phaseText");
-      const viscosityText = document.getElementById("viscosityText");
-      const waterViscosityText = document.getElementById("waterViscosityText");
-      const oilDensityText = document.getElementById("oilDensityText");
-      const waterDensityText = document.getElementById("waterDensityText");
-      const buoyancyText = document.getElementById("buoyancyText");
+      const massErrorText = document.getElementById("massErrorText");
+      const runtimeText = document.getElementById("runtimeText");
 
       const geom = {
         cx: canvas.width * 0.5,
@@ -307,36 +426,42 @@
         bottomY: 662,
         topRadius: 176,
         bottomRadius: 176,
-        neckRadius: 10
+        neckRadius: 12
       };
 
       let running = true;
-      let speed = 1.0;
-      let surfaceTension = 1.3;
-      let phaseSeparation = 8.0;
+      let speed = 0.5;
+      let surfaceTension = 20.0;
+      let contactAngle = 140;
+      let phaseSeparation = 16.0;
       let viscosity = 2.0; // oil-side viscosity
       let waterViscosity = 0.4;
-      let oilDensity = 1.3;
+      let oilDensity = 1.1;
       let waterDensity = 1.0;
       let buoyancy = 0.0;
       let lastTs = performance.now();
-      let lastTopFraction = 1;
+      let lastRemainingFraction = 1;
       let transferRateEma = 0;
+      let playbackLimited = false;
+      let initialOilMass = 0;
+      let timeAccumulator = 0;
+      const frameStep = 1 / 60;
+      const solverStep = 0.18;
+      const rotation = { active: false, angle: 0, startAngle: 0, elapsed: 0, duration: 1.8, omega: 0, alpha: 0, pauseAfter: false };
 
       const sim = {
-        nx: 96,
-        ny: 108,
+        // 1.5x finer along each axis; square cells remain aligned to the canvas.
+        nx: 144,
+        ny: 162,
         gravity: 4.0,
-        pressureIters: 56,
         viscIters: 12,
         concDissipation: 1.0,
         interfaceCompression: 0.18,
-        wallRestitution: 0.82,
         neckAntiClog: 0.65,
         concentrationDiffusion: 0.0,
         densityForceGain: 1.2,
-        noEmulsification: false,
-        phaseRelaxation: 0.18,
+        settlingMobility: 18.0,
+        settlingVelocityCap: 24.0,
         velocityCap: 4.0
       };
 
@@ -345,11 +470,18 @@
       let v = new Float32Array(nCells);
       let uTmp = new Float32Array(nCells);
       let vTmp = new Float32Array(nCells);
-      let p = new Float32Array(nCells);
-      let pNext = new Float32Array(nCells);
-      const div = new Float32Array(nCells);
-      let c = new Float32Array(nCells);
-      let cTmp = new Float32Array(nCells);
+      const p = new Float64Array(nCells);
+      const div = new Float64Array(nCells);
+      const pressureProduct = new Float64Array(nCells);
+      const pressureInverseDiagonal = new Float64Array(nCells);
+      let pressureFactor = new Float64Array(0);
+      let pressureSolution = new Float64Array(0);
+      let pressureBandwidth = 0;
+      const pressureStats = { iterations: 0, residual: 0 };
+      // Keep the conservative flux budgets in double precision so repeated
+      // transfers do not accumulate single-precision rounding losses.
+      let c = new Float64Array(nCells);
+      let cTmp = new Float64Array(nCells);
       let solveA = new Float32Array(nCells);
       let solveB = new Float32Array(nCells);
       const gradX = new Float32Array(nCells);
@@ -357,24 +489,88 @@
       const normX = new Float32Array(nCells);
       const normY = new Float32Array(nCells);
       const curvature = new Float32Array(nCells);
-      const dc = new Float32Array(nCells);
-      const outReq = new Float32Array(nCells);
-      const inReq = new Float32Array(nCells);
-      const outScale = new Float32Array(nCells);
-      const inScale = new Float32Array(nCells);
-      const xFaceProp = new Float32Array((sim.nx + 1) * sim.ny);
-      const yFaceProp = new Float32Array(sim.nx * (sim.ny + 1));
-      const dFacePropA = new Float32Array((sim.nx - 1) * (sim.ny - 1));
-      const dFacePropB = new Float32Array((sim.nx - 1) * (sim.ny - 1));
+      const phasePressure = new Float64Array(nCells);
+      const dc = new Float64Array(nCells);
+      const outReq = new Float64Array(nCells);
+      const inReq = new Float64Array(nCells);
+      const outScale = new Float64Array(nCells);
+      const inScale = new Float64Array(nCells);
+      const xFaceProp = new Float64Array((sim.nx + 1) * sim.ny);
+      const yFaceProp = new Float64Array(sim.nx * (sim.ny + 1));
+      const dFacePropA = new Float64Array((sim.nx - 1) * (sim.ny - 1));
+      const dFacePropB = new Float64Array((sim.nx - 1) * (sim.ny - 1));
+      const flowX = new Float64Array(xFaceProp.length);
+      const flowY = new Float64Array(yFaceProp.length);
+      const flowDiagonalA = new Float64Array(dFacePropA.length);
+      const flowDiagonalB = new Float64Array(dFacePropB.length);
+      const flowFields = [flowX, flowY, flowDiagonalA, flowDiagonalB];
+      let flowLinks = [];
       const advDelta = new Float32Array(nCells);
       const mask = new Uint8Array(nCells);
+      const settleDown = new Int32Array(nCells);
+      const settleUp = new Int32Array(nCells);
+      const settleRight = new Int32Array(nCells);
+      const settleLeft = new Int32Array(nCells);
+      const settlingFlux = new Float64Array(nCells);
+      const settlingHead = new Float64Array(nCells);
+      const forceX = new Float64Array(nCells);
+      const forceY = new Float64Array(nCells);
+      const referenceForceX = new Float64Array(sim.nx);
+      const referenceForceY = new Float64Array(sim.ny);
+      const columnFluidCount = new Int32Array(sim.nx);
+      const rowFluidCount = new Int32Array(sim.ny);
       const cellW = canvas.width / sim.nx;
       const cellH = canvas.height / sim.ny;
       let fluidCellCount = 1;
+      let fluidCells = new Int32Array(0);
+      let fluidNeighbors = new Int32Array(0);
+      // Internal glass is defined on the same grid as the fluid walls.
+      const barrierCells = new Uint8Array(nCells);
+      const stairs = { topFloor: 36, bottomFloor: 124, floorThickness: 2 };
+      const chambers = { topFloor: 42, bottomFloor: 118, floorThickness: 2 };
+      const twinChambers = { topFloor: (geom.topY + (geom.bottomY - geom.topY) / 3) / cellH,
+        bottomFloor: (geom.topY + 2 * (geom.bottomY - geom.topY) / 3) / cellH, floorThickness: 0 };
+      const wheel = new OilTimerVOF.PaddleWheel({ x: sim.nx / 2, y: sim.ny / 2 });
+      let legacyWheelPorts = [];
+      let wallRects = [];
+      let wallPath = new Path2D();
+      let wallOutlinePath = new Path2D();
+      let liquidCutoutPath = new Path2D();
+
+      function reservoirLayout() {
+        return vesselShape === "stairs" ? stairs : vesselShape === "twin" ? twinChambers
+          : ["pegboard", "wheel"].includes(vesselShape) ? chambers : null;
+      }
 
       function halfWidthAt(y) {
         const halfHeight = geom.bottomY - geom.neckY;
         const t = Math.max(0, Math.min(1, Math.abs(y - geom.neckY) / halfHeight));
+        if (vesselShape === "capsule") {
+          const radius = 124, d = Math.min(y - geom.topY, geom.bottomY - y);
+          return d < radius ? Math.sqrt(Math.max(0, radius * radius - (radius - d) ** 2)) : radius;
+        }
+        if (vesselShape === "twin") {
+          const s = (y - geom.topY) / (geom.bottomY - geom.topY);
+          const end = Math.min(1, Math.min(y - geom.topY, geom.bottomY - y) / 20);
+          return 12 * end + 110 * Math.pow(Math.abs(Math.sin(3 * Math.PI * s)), 0.7);
+        }
+        if (vesselShape === "wheel") {
+          const radius = 70, d = Math.min(y - geom.topY, geom.bottomY - y);
+          return 154 - (d < radius ? radius - Math.sqrt(Math.max(0, radius * radius - (radius - d) ** 2)) : 0);
+        }
+        if (["stairs", "pegboard"].includes(vesselShape)) {
+          const radius = 28;
+          const d = Math.min(y - geom.topY, geom.bottomY - y);
+          const corner = d < radius ? radius - Math.sqrt(Math.max(0, radius * radius - (radius - d) ** 2)) : 0;
+          return 136 + 24 * t * t - corner;
+        }
+        if (vesselShape === "rounded") {
+          // Round outer caps and tapered shoulders, like a blown-glass timer.
+          const s = Math.max(0, (Math.abs(y - geom.neckY) - 6) / (halfHeight - 6));
+          const cap = Math.max(0, 1 - s);
+          return geom.neckRadius * cap + 124 * (3 * Math.sqrt(3) / 2) * s * Math.sqrt(cap);
+        }
+        if (vesselShape === "straight") return geom.neckRadius + (152 - geom.neckRadius) * t;
         const radiusMax = y <= geom.neckY ? geom.topRadius : geom.bottomRadius;
         // Hourglass-like profile: narrow neck with stronger flare toward bulbs.
         const flare = Math.pow(t, 0.46);
@@ -382,42 +578,17 @@
         return geom.neckRadius + (radiusMax - geom.neckRadius) * flare * capSoftening;
       }
 
-      function pointSegmentDistanceSq(px, py, ax, ay, bx, by) {
-        const abx = bx - ax;
-        const aby = by - ay;
-        const apx = px - ax;
-        const apy = py - ay;
-        const ab2 = abx * abx + aby * aby;
-        if (ab2 <= 1e-12) {
-          const dx = px - ax;
-          const dy = py - ay;
-          return dx * dx + dy * dy;
-        }
-        const t = Math.max(0, Math.min(1, (apx * abx + apy * aby) / ab2));
-        const qx = ax + t * abx;
-        const qy = ay + t * aby;
-        const dx = px - qx;
-        const dy = py - qy;
-        return dx * dx + dy * dy;
-      }
-
-      function isInsideObstacle(x, y) {
-        const ax = geom.cx - geom.neckRadius * 0.75;
-        const ay = geom.neckY - 10;
-        const bx = geom.cx + geom.neckRadius * 0.75;
-        const by = geom.neckY + 10;
-        const obstacleRadius = 5.4; // approx. half of drawn stroke width + margin
-        return pointSegmentDistanceSq(x, y, ax, ay, bx, by) <= obstacleRadius * obstacleRadius;
-      }
-
       function isInsideContainer(x, y) {
         if (y < geom.topY || y > geom.bottomY) return false;
         const hw = halfWidthAt(y);
         if (Math.abs(x - geom.cx) > hw) return false;
-        return !isInsideObstacle(x, y);
+        // Fine-grid centers can land exactly on a coarse wall edge. Stabilize
+        // the half-open cell lookup against floating-point division roundoff.
+        return !barrierCells[idx(Math.floor(x / cellW + 1e-9), Math.floor(y / cellH + 1e-9))];
       }
 
       function neckReliefFactor(y) {
+        if (["stairs", "pegboard", "wheel", "twin"].includes(vesselShape)) return 1;
         const w = 30;
         const d = Math.abs(y - geom.neckY);
         if (d >= w) return 1;
@@ -425,22 +596,120 @@
         return 1 - sim.neckAntiClog * (1 - t);
       }
 
+      let glassOutline = [];
+      function buildInternalWalls() {
+        barrierCells.fill(0);
+        wallRects = [];
+        wallPath = new Path2D();
+        wallOutlinePath = new Path2D();
+        liquidCutoutPath = new Path2D();
+        if (!["stairs", "capsule", "pegboard", "wheel"].includes(vesselShape)) return;
+
+        const addWall = (x, y, width, height) => {
+          for (let j = y; j < y + height; j += 1) {
+            for (let i = x; i < x + width; i += 1) barrierCells[idx(i, j)] = 1;
+          }
+        };
+        const addDisk = (cx, cy, radius) => {
+          for (let j = Math.floor(cy - radius); j <= Math.ceil(cy + radius); j++) {
+            for (let i = Math.floor(cx - radius); i <= Math.ceil(cx + radius); i++) {
+              if (Math.hypot(i + 0.5 - cx, j + 0.5 - cy) <= radius) addWall(i, j, 1, 1);
+            }
+          }
+        };
+        const floors = vesselShape === "stairs" ? [[stairs.topFloor, 44, 4], [stairs.bottomFloor, 96, 4]]
+          : vesselShape === "capsule" ? [[80, 70, 4]]
+          : vesselShape === "wheel" ? [[chambers.topFloor, 55, 5], [chambers.bottomFloor, 84, 5]]
+          : [[chambers.topFloor, 70, 4], [chambers.bottomFloor, 70, 4]];
+        // A narrow outlet meters oil from each end reservoir. Both ends of
+        // every stair strip stay free so it can also drain when inverted.
+        for (const [row, opening, openingWidth] of floors) {
+          for (let i = 0; i < sim.nx; i += 1) {
+            if (i >= opening && i < opening + openingWidth) continue;
+            // Taper both faces toward the hole. A long, flat shelf can hold
+            // a capillary pool beside the outlet, especially after inversion.
+            const distance = i < opening ? opening - i : i - (opening + openingWidth - 1);
+            const slope = Math.ceil(distance / 12);
+            addWall(i, row - slope, 1, stairs.floorThickness + 2 * slope);
+          }
+        }
+        if (vesselShape === "stairs") for (const [left, row, direction] of [[42, 46, 1], [46, 73, -1], [42, 100, 1]]) {
+          for (let tread = 0; tread < 8; tread += 1) {
+            const x = left + (direction > 0 ? tread : 7 - tread) * 7;
+            addWall(x, row + tread * 2, 7, 2);
+          }
+          // Short lips direct a landing drop onto the first tread, in either
+          // orientation, without attaching the stairs to the outside wall.
+          addWall(direction > 0 ? left : left + 54, row - 4, 2, 6);
+          addWall(direction > 0 ? left + 54 : left, row + 14, 2, 6);
+        }
+        if (vesselShape === "pegboard") {
+          for (const [row, columns] of [[55, [52, 72, 92]], [72, [62, 82]], [90, [62, 82]], [107, [52, 72, 92]]]) {
+            for (const column of columns) addDisk(column, row, 3.2);
+          }
+        }
+        if (vesselShape === "wheel") addDisk(wheel.x, wheel.y, wheel.hubRadius);
+
+        // Merge the union of wall cells into nonoverlapping rectangles.
+        // Overlapping holes would cancel under the even-odd liquid clip.
+        let previousRuns = new Map();
+        for (let j = 0; j < sim.ny; j += 1) {
+          const currentRuns = new Map();
+          for (let i = 0; i < sim.nx;) {
+            if (!barrierCells[idx(i, j)]) { i += 1; continue; }
+            const start = i;
+            while (i < sim.nx && barrierCells[idx(i, j)]) i += 1;
+            const key = start + ":" + i;
+            let rect = previousRuns.get(key);
+            if (rect) rect.height += 1;
+            else { rect = { x: start, y: j, width: i - start, height: 1 }; wallRects.push(rect); }
+            currentRuns.set(key, rect);
+          }
+          previousRuns = currentRuns;
+        }
+        liquidCutoutPath.rect(0, 0, canvas.width, canvas.height);
+        for (const rect of wallRects) {
+          const args = [rect.x * cellW, rect.y * cellH, rect.width * cellW, rect.height * cellH];
+          wallPath.rect(...args);
+          liquidCutoutPath.rect(...args);
+        }
+        // Stroke only exposed edges, avoiding seams between merged rectangles.
+        const solid = (i, j) => i >= 0 && i < sim.nx && j >= 0 && j < sim.ny && barrierCells[idx(i, j)];
+        for (let j = 0; j < sim.ny; j += 1) {
+          for (let i = 0; i < sim.nx; i += 1) {
+            if (!solid(i, j)) continue;
+            for (const [di, dj, x1, y1, x2, y2] of [
+              [0, -1, i, j, i + 1, j], [0, 1, i, j + 1, i + 1, j + 1],
+              [-1, 0, i, j, i, j + 1], [1, 0, i + 1, j, i + 1, j + 1]
+            ]) {
+              if (solid(i + di, j + dj)) continue;
+              wallOutlinePath.moveTo(x1 * cellW, y1 * cellH);
+              wallOutlinePath.lineTo(x2 * cellW, y2 * cellH);
+            }
+          }
+        }
+      }
+
       function buildGlassPath() {
+        buildInternalWalls();
         const p = new Path2D();
-        const step = 3;
-        const startX = geom.cx + halfWidthAt(geom.topY);
-        p.moveTo(startX, geom.topY);
-        for (let y = geom.topY + step; y <= geom.bottomY; y += step) {
+        const ys = [geom.neckY, geom.bottomY];
+        for (let y = geom.topY; y < geom.bottomY; y += 1) ys.push(y);
+        const samples = [...new Set(ys)].sort((a, b) => a - b);
+        glassOutline = samples.flatMap(y => [[halfWidthAt(y), y - geom.neckY], [-halfWidthAt(y), y - geom.neckY]]);
+        p.moveTo(geom.cx + halfWidthAt(geom.topY), geom.topY);
+        for (const y of samples) {
           p.lineTo(geom.cx + halfWidthAt(y), y);
         }
-        for (let y = geom.bottomY; y >= geom.topY; y -= step) {
+        for (let k = samples.length - 1; k >= 0; k -= 1) {
+          const y = samples[k];
           p.lineTo(geom.cx - halfWidthAt(y), y);
         }
         p.closePath();
         return p;
       }
 
-      const glassPath = buildGlassPath();
+      let glassPath = buildGlassPath();
 
       function idx(i, j) {
         return i + j * sim.nx;
@@ -449,6 +718,13 @@
       function isFluidCell(i, j) {
         if (i < 0 || i >= sim.nx || j < 0 || j >= sim.ny) return false;
         return mask[idx(i, j)] === 1;
+      }
+
+      function isOpenDiagonal(i, j, di, dj) {
+        // Two fluid endpoints alone are not enough: a diagonal may cut across
+        // a wall or the solid insert in the neck.
+        return isFluidCell(i, j) && isFluidCell(i + di, j + dj)
+          && isFluidCell(i + di, j) && isFluidCell(i, j + dj);
       }
 
       function sample(field, x, y, fallback) {
@@ -477,39 +753,179 @@
 
       function buildMask() {
         let count = 0;
+        columnFluidCount.fill(0);
+        rowFluidCount.fill(0);
         for (let j = 0; j < sim.ny; j += 1) {
           for (let i = 0; i < sim.nx; i += 1) {
             const x = (i + 0.5) * cellW;
             const y = (j + 0.5) * cellH;
             const inside = isInsideContainer(x, y) ? 1 : 0;
             mask[idx(i, j)] = inside;
-            if (inside) count += 1;
+            if (inside) {
+              count += 1;
+              columnFluidCount[i] += 1;
+              rowFluidCount[j] += 1;
+            }
           }
         }
         fluidCellCount = Math.max(1, count);
+        // The walls never move relative to the grid. Cache each fluid cell's
+        // stencil once instead of checking the same walls in every iteration.
+        // Closed neighbors point back to the cell (zero normal gradient).
+        fluidCells = new Int32Array(count);
+        fluidNeighbors = new Int32Array(count * 8);
+        const offsets = [[-1, 0], [1, 0], [0, -1], [0, 1],
+          [-1, -1], [1, -1], [-1, 1], [1, 1]];
+        let q = 0;
+        for (let j = 0; j < sim.ny; j += 1) {
+          for (let i = 0; i < sim.nx; i += 1) {
+            const id = idx(i, j);
+            if (!mask[id]) continue;
+            fluidCells[q] = id;
+            for (let k = 0; k < offsets.length; k += 1) {
+              const [di, dj] = offsets[k];
+              const open = di && dj ? isOpenDiagonal(i, j, di, dj) : isFluidCell(i + di, j + dj);
+              fluidNeighbors[q * 8 + k] = open ? idx(i + di, j + dj) : id;
+            }
+            q += 1;
+          }
+        }
+        buildSettlingTargets(settleDown, 1);
+        buildSettlingTargets(settleUp, -1);
+        buildSettlingTargets(settleRight, 1, true);
+        buildSettlingTargets(settleLeft, -1, true);
+        buildFlowLinks();
+        const positions = [];
+        if (vesselShape === "wheel") for (const id of fluidCells) {
+          const x = id % sim.nx + 0.5, y = Math.floor(id / sim.nx) + 0.5;
+          positions.push({ field: u, f: id, x, y, horizontal: true }, { field: v, f: id, x, y, horizontal: false });
+        }
+        legacyWheelPorts = wheel.makePorts(positions, 1);
+      }
+
+      function buildFlowLinks() {
+        flowLinks = [];
+        pressureInverseDiagonal.fill(0);
+        for (const field of flowFields) field.fill(0);
+        for (const id of fluidCells) {
+          const i = id % sim.nx, j = Math.floor(id / sim.nx);
+          for (const [dx, dy, type, slot] of [
+            [1, 0, 0, i + 1 + j * (sim.nx + 1)],
+            [0, 1, 1, i + (j + 1) * sim.nx],
+            [1, 1, 2, i + j * (sim.nx - 1)],
+            [1, -1, 3, i + (j - 1) * (sim.nx - 1)]
+          ]) {
+            if (dx && dy ? !isOpenDiagonal(i, j, dx, dy) : !isFluidCell(i + dx, j + dy)) continue;
+            const other = idx(i + dx, j + dy);
+            const weight = type < 2 ? 2 / 3 : 1 / 6;
+            flowLinks.push({ a: id, b: other, dx, dy, weight, type, slot });
+            pressureInverseDiagonal[id] += weight;
+            pressureInverseDiagonal[other] += weight;
+          }
+        }
+        for (const id of fluidCells) pressureInverseDiagonal[id] = 1 / Math.max(1e-12, pressureInverseDiagonal[id]);
+        factorPressureMatrix();
+      }
+
+      function factorPressureMatrix() {
+        // The vessel grid does not move in vessel coordinates, so factor its
+        // pressure matrix only when the shape changes. Compact row ordering
+        // keeps the 2D graph band narrow; exact banded Cholesky is much cheaper
+        // per frame than hundreds of pressure iterations through stair gaps.
+        const rank = new Int32Array(nCells);
+        rank.fill(-1);
+        for (let q = 0; q < fluidCells.length; q++) rank[fluidCells[q]] = q;
+        pressureBandwidth = 0;
+        for (const { a, b } of flowLinks) pressureBandwidth = Math.max(pressureBandwidth, Math.abs(rank[a] - rank[b]));
+        const stride = pressureBandwidth + 1;
+        pressureFactor = new Float64Array(fluidCells.length * stride);
+        pressureSolution = new Float64Array(fluidCells.length);
+        for (let q = 0; q < fluidCells.length; q++) pressureFactor[q * stride] = 1 / pressureInverseDiagonal[fluidCells[q]];
+        for (const { a, b, weight } of flowLinks) {
+          const row = Math.max(rank[a], rank[b]);
+          pressureFactor[row * stride + Math.abs(rank[a] - rank[b])] = -weight;
+        }
+        // Fix the constant-pressure gauge at one cell. For a zero-sum source,
+        // this changes only the arbitrary pressure constant, not any flux.
+        pressureFactor[0] += 1;
+        for (let row = 0; row < fluidCells.length; row++) {
+          const base = row * stride, first = Math.max(0, row - pressureBandwidth);
+          for (let column = first; column <= row; column++) {
+            let value = pressureFactor[base + row - column];
+            const otherBase = column * stride;
+            for (let k = first; k < column; k++) value -= pressureFactor[base + row - k] * pressureFactor[otherBase + column - k];
+            if (row === column) {
+              if (!(value > 0)) throw new Error('The vessel pressure graph must be connected.');
+              pressureFactor[base] = Math.sqrt(value);
+            } else {
+              pressureFactor[base + row - column] = value / pressureFactor[otherBase];
+            }
+          }
+        }
+      }
+
+      function buildSettlingTargets(targets, direction, horizontal = false) {
+        targets.fill(-1);
+        const dx = horizontal ? direction : 0;
+        const dy = horizontal ? 0 : direction;
+        const sideX = horizontal ? 0 : 1;
+        const sideY = horizontal ? 1 : 0;
+        for (const id of fluidCells) {
+          const i = id % sim.nx;
+          const j = Math.floor(id / sim.nx);
+          if (isFluidCell(i + dx, j + dy)) {
+            targets[id] = idx(i + dx, j + dy);
+            continue;
+          }
+          // A sloped wall becomes tiny horizontal ledges on the grid. Route
+          // along connected wall cells to the nearest downward/upward opening,
+          // one neighbor at a time; never jump across a wall or a diagonal.
+          let leftOpen = true;
+          let rightOpen = true;
+          for (let d = 1; leftOpen || rightOpen; d += 1) {
+            leftOpen = leftOpen && isFluidCell(i - sideX * d, j - sideY * d);
+            rightOpen = rightOpen && isFluidCell(i + sideX * d, j + sideY * d);
+            if (leftOpen && isFluidCell(i - sideX * d + dx, j - sideY * d + dy)) {
+              targets[id] = idx(i - sideX, j - sideY);
+              break;
+            }
+            if (rightOpen && isFluidCell(i + sideX * d + dx, j + sideY * d + dy)) {
+              targets[id] = idx(i + sideX, j + sideY);
+              break;
+            }
+          }
+        }
       }
 
       function seedConcentration() {
         u.fill(0);
         v.fill(0);
         p.fill(0);
-        pNext.fill(0);
+        for (const field of flowFields) field.fill(0);
         c.fill(0);
-        for (let j = 0; j < sim.ny; j += 1) {
-          for (let i = 0; i < sim.nx; i += 1) {
-            const id = idx(i, j);
-            if (!mask[id]) continue;
-            const y = (j + 0.5) * cellH;
-            if (y < geom.neckY - 10) {
-              c[id] = 1.0;
-            }
-          }
+        const upperRows = reservoirLayout() ? Math.floor(reservoirLayout().topFloor) : Math.floor((geom.neckY - 10) / cellH - 0.5) + 1;
+        let upperCapacity = 0;
+        for (let id = 0; id < upperRows * sim.nx; id += 1) upperCapacity += mask[id];
+        // Leave water above the oil and spare capacity in the receiving bulb.
+        // A partial final row gives a horizontal initial oil surface.
+        let remaining = upperCapacity * 0.60;
+        for (let j = upperRows - 1; j >= 0 && remaining > 0; j -= 1) {
+          let rowCells = 0;
+          for (let i = 0; i < sim.nx; i += 1) rowCells += mask[idx(i, j)];
+          if (!rowCells) continue;
+          const fill = Math.min(1, remaining / rowCells);
+          for (let i = 0; i < sim.nx; i += 1) if (mask[idx(i, j)]) c[idx(i, j)] = fill;
+          remaining = Math.max(0, remaining - fill * rowCells);
         }
-        lastTopFraction = 1;
+        lastRemainingFraction = getRemainingFraction(getMassFractions().topFraction);
         transferRateEma = 0;
+        playbackLimited = false;
+        initialOilMass = computeOilMass();
+        timeAccumulator = 0;
       }
 
       function computeOilMass() {
+        if (flowModel === "immiscible" && immiscible) return immiscible.mass();
         let m = 0;
         for (let j = 0; j < sim.ny; j += 1) {
           for (let i = 0; i < sim.nx; i += 1) {
@@ -522,6 +938,11 @@
       }
 
       function fillInterfaceGeometry(srcC) {
+        const normalAt = (x, y, component, fallback) => {
+          if (!isFluidCell(x, y)) return component[fallback];
+          const neighbor = idx(x, y);
+          return normX[neighbor] ** 2 + normY[neighbor] ** 2 > 0.25 ? component[neighbor] : component[fallback];
+        };
         for (let j = 0; j < sim.ny; j += 1) {
           for (let i = 0; i < sim.nx; i += 1) {
             const id = idx(i, j);
@@ -540,11 +961,11 @@
             const cD = isFluidCell(i, j + 1) ? srcC[idx(i, j + 1)] : cc;
             const gx = 0.5 * (cR - cL);
             const gy = 0.5 * (cD - cU);
-            const gm = Math.hypot(gx, gy) + 1e-8;
+            const gm = Math.hypot(gx, gy);
             gradX[id] = gx;
             gradY[id] = gy;
-            normX[id] = gx / gm;
-            normY[id] = gy / gm;
+            normX[id] = gm > 1e-8 ? gx / gm : 0;
+            normY[id] = gm > 1e-8 ? gy / gm : 0;
           }
         }
 
@@ -555,10 +976,14 @@
               curvature[id] = 0;
               continue;
             }
-            const nxL = isFluidCell(i - 1, j) ? normX[idx(i - 1, j)] : normX[id];
-            const nxR = isFluidCell(i + 1, j) ? normX[idx(i + 1, j)] : normX[id];
-            const nyU = isFluidCell(i, j - 1) ? normY[idx(i, j - 1)] : normY[id];
-            const nyD = isFluidCell(i, j + 1) ? normY[idx(i, j + 1)] : normY[id];
+            // Unit normals are undefined in a uniform phase. Treating those
+            // zero vectors as real normals gave even a perfectly flat layer
+            // nonzero curvature and an artificial capillary force. Extend the
+            // interface normal into its immediate uniform neighbors instead.
+            const nxL = normalAt(i - 1, j, normX, id);
+            const nxR = normalAt(i + 1, j, normX, id);
+            const nyU = normalAt(i, j - 1, normY, id);
+            const nyD = normalAt(i, j + 1, normY, id);
             curvature[id] = -(0.5 * (nxR - nxL) + 0.5 * (nyD - nyU));
           }
         }
@@ -580,7 +1005,6 @@
       }
 
       function advectSignedFieldEight(field, source, velU, velV, dt, dissipation) {
-        const invSqrt2 = 1 / Math.sqrt(2);
         advDelta.fill(0);
 
         // x-links
@@ -589,7 +1013,7 @@
             if (!isFluidCell(i, j) || !isFluidCell(i + 1, j)) continue;
             const idL = idx(i, j);
             const idR = idx(i + 1, j);
-            const link = 0.5 * (velU[idL] + velU[idR]);
+            const link = (velU[idL] + velU[idR]) / 3;
             if (link >= 0) {
               const tr = link * source[idL] * dt;
               advDelta[idL] -= tr;
@@ -608,7 +1032,7 @@
             if (!isFluidCell(i, j) || !isFluidCell(i, j + 1)) continue;
             const idU = idx(i, j);
             const idD = idx(i, j + 1);
-            const link = 0.5 * (velV[idU] + velV[idD]);
+            const link = (velV[idU] + velV[idD]) / 3;
             if (link >= 0) {
               const tr = link * source[idU] * dt;
               advDelta[idU] -= tr;
@@ -624,12 +1048,12 @@
         // diag-links (\)
         for (let j = 0; j < sim.ny - 1; j += 1) {
           for (let i = 0; i < sim.nx - 1; i += 1) {
-            if (!isFluidCell(i, j) || !isFluidCell(i + 1, j + 1)) continue;
+            if (!isOpenDiagonal(i, j, 1, 1)) continue;
             const idA = idx(i, j);
             const idB = idx(i + 1, j + 1);
             const uFace = 0.5 * (velU[idA] + velU[idB]);
             const vFace = 0.5 * (velV[idA] + velV[idB]);
-            const link = (uFace + vFace) * invSqrt2;
+            const link = (uFace + vFace) / 6;
             if (link >= 0) {
               const tr = link * source[idA] * dt;
               advDelta[idA] -= tr;
@@ -645,12 +1069,12 @@
         // diag-links (/)
         for (let j = 1; j < sim.ny; j += 1) {
           for (let i = 0; i < sim.nx - 1; i += 1) {
-            if (!isFluidCell(i, j) || !isFluidCell(i + 1, j - 1)) continue;
+            if (!isOpenDiagonal(i, j, 1, -1)) continue;
             const idA = idx(i, j);
             const idB = idx(i + 1, j - 1);
             const uFace = 0.5 * (velU[idA] + velU[idB]);
             const vFace = 0.5 * (velV[idA] + velV[idB]);
-            const link = (uFace - vFace) * invSqrt2;
+            const link = (uFace - vFace) / 6;
             if (link >= 0) {
               const tr = link * source[idA] * dt;
               advDelta[idA] -= tr;
@@ -680,21 +1104,19 @@
         solveA.set(source);
         solveB.set(source);
         for (let k = 0; k < iters; k += 1) {
-          for (let j = 0; j < sim.ny; j += 1) {
-            for (let i = 0; i < sim.nx; i += 1) {
-              const id = idx(i, j);
-              if (!mask[id]) continue;
-              const l = isFluidCell(i - 1, j) ? solveA[idx(i - 1, j)] : solveA[id];
-              const r = isFluidCell(i + 1, j) ? solveA[idx(i + 1, j)] : solveA[id];
-              const uN = isFluidCell(i, j - 1) ? solveA[idx(i, j - 1)] : solveA[id];
-              const d = isFluidCell(i, j + 1) ? solveA[idx(i, j + 1)] : solveA[id];
-              const ul = isFluidCell(i - 1, j - 1) ? solveA[idx(i - 1, j - 1)] : solveA[id];
-              const ur = isFluidCell(i + 1, j - 1) ? solveA[idx(i + 1, j - 1)] : solveA[id];
-              const dl = isFluidCell(i - 1, j + 1) ? solveA[idx(i - 1, j + 1)] : solveA[id];
-              const dr = isFluidCell(i + 1, j + 1) ? solveA[idx(i + 1, j + 1)] : solveA[id];
-              const neigh = (l + r + uN + d) + 0.5 * (ul + ur + dl + dr);
-              solveB[id] = (source[id] + a * neigh) / (1 + 6 * a);
-            }
+          for (let q = 0; q < fluidCells.length; q += 1) {
+            const id = fluidCells[q];
+            const base = q * 8;
+            const l = solveA[fluidNeighbors[base]];
+            const r = solveA[fluidNeighbors[base + 1]];
+            const uN = solveA[fluidNeighbors[base + 2]];
+            const d = solveA[fluidNeighbors[base + 3]];
+            const ul = solveA[fluidNeighbors[base + 4]];
+            const ur = solveA[fluidNeighbors[base + 5]];
+            const dl = solveA[fluidNeighbors[base + 6]];
+            const dr = solveA[fluidNeighbors[base + 7]];
+            const neigh = (l + r + uN + d) + 0.5 * (ul + ur + dl + dr);
+            solveB[id] = (source[id] + a * neigh) / (1 + 6 * a);
           }
           const t = solveA;
           solveA = solveB;
@@ -703,328 +1125,253 @@
         field.set(solveA);
       }
 
-      function project() {
-        for (let j = 0; j < sim.ny; j += 1) {
-          for (let i = 0; i < sim.nx; i += 1) {
-            const id = idx(i, j);
-            if (!mask[id]) {
-              div[id] = 0;
-              p[id] = 0;
-              continue;
-            }
-            const l = isFluidCell(i - 1, j) ? u[idx(i - 1, j)] : 0;
-            const r = isFluidCell(i + 1, j) ? u[idx(i + 1, j)] : 0;
-            const uN = isFluidCell(i, j - 1) ? v[idx(i, j - 1)] : 0;
-            const d = isFluidCell(i, j + 1) ? v[idx(i, j + 1)] : 0;
-            div[id] = -0.5 * (r - l + d - uN);
-            p[id] = 0;
-          }
-        }
-
-        for (let k = 0; k < sim.pressureIters; k += 1) {
-          for (let j = 0; j < sim.ny; j += 1) {
-            for (let i = 0; i < sim.nx; i += 1) {
-              const id = idx(i, j);
-              if (!mask[id]) continue;
-              const l = isFluidCell(i - 1, j) ? p[idx(i - 1, j)] : p[id];
-              const r = isFluidCell(i + 1, j) ? p[idx(i + 1, j)] : p[id];
-              const uN = isFluidCell(i, j - 1) ? p[idx(i, j - 1)] : p[id];
-              const d = isFluidCell(i, j + 1) ? p[idx(i, j + 1)] : p[id];
-              pNext[id] = (div[id] + l + r + uN + d) * 0.25;
-            }
-          }
-          const t = p;
-          p = pNext;
-          pNext = t;
-        }
-
-        for (let j = 0; j < sim.ny; j += 1) {
-          for (let i = 0; i < sim.nx; i += 1) {
-            const id = idx(i, j);
-            if (!mask[id]) {
-              u[id] = 0;
-              v[id] = 0;
-              continue;
-            }
-            const l = isFluidCell(i - 1, j) ? p[idx(i - 1, j)] : p[id];
-            const r = isFluidCell(i + 1, j) ? p[idx(i + 1, j)] : p[id];
-            const uN = isFluidCell(i, j - 1) ? p[idx(i, j - 1)] : p[id];
-            const d = isFluidCell(i, j + 1) ? p[idx(i, j + 1)] : p[id];
-            u[id] -= 0.5 * (r - l);
-            v[id] -= 0.5 * (d - uN);
-          }
+      function pressureMultiply(source, target) {
+        for (let q = 0; q < fluidCells.length; q += 1) {
+          const id = fluidCells[q], base = q * 8;
+          const center = source[id];
+          const axial = source[fluidNeighbors[base]] + source[fluidNeighbors[base + 1]]
+            + source[fluidNeighbors[base + 2]] + source[fluidNeighbors[base + 3]];
+          const diagonal = source[fluidNeighbors[base + 4]] + source[fluidNeighbors[base + 5]]
+            + source[fluidNeighbors[base + 6]] + source[fluidNeighbors[base + 7]];
+          target[id] = (4 * center - axial) * 2 / 3 + (4 * center - diagonal) / 6;
         }
       }
 
-      function enforceNoFluxBoundary() {
-        for (let j = 0; j < sim.ny; j += 1) {
-          for (let i = 0; i < sim.nx; i += 1) {
-            const id = idx(i, j);
-            if (!mask[id]) continue;
-            if (!isFluidCell(i - 1, j) && u[id] < 0) u[id] = -u[id] * sim.wallRestitution;
-            if (!isFluidCell(i + 1, j) && u[id] > 0) u[id] = -u[id] * sim.wallRestitution;
-            if (!isFluidCell(i, j - 1) && v[id] < 0) v[id] = -v[id] * sim.wallRestitution;
-            if (!isFluidCell(i, j + 1) && v[id] > 0) v[id] = -v[id] * sim.wallRestitution;
-          }
+      function solvePressure() {
+        const stride = pressureBandwidth + 1, count = fluidCells.length;
+        for (let row = 0; row < count; row++) {
+          const base = row * stride;
+          let value = div[fluidCells[row]];
+          for (let d = 1; d <= Math.min(row, pressureBandwidth); d++) value -= pressureFactor[base + d] * pressureSolution[row - d];
+          pressureSolution[row] = value / pressureFactor[base];
+        }
+        for (let row = count - 1; row >= 0; row--) {
+          let value = pressureSolution[row];
+          for (let d = 1; d <= Math.min(count - 1 - row, pressureBandwidth); d++) value -= pressureFactor[(row + d) * stride + d] * pressureSolution[row + d];
+          pressureSolution[row] = value / pressureFactor[row * stride];
+          p[fluidCells[row]] = pressureSolution[row];
+        }
+      }
+
+      function project(dt = solverStep) {
+        // Use exactly the same open links and weights as oil transport.
+        // The old four-neighbor pressure solve could not remove divergence
+        // introduced by the eight-neighbor transport, especially at walls.
+        div.fill(0);
+        for (const { a, b, dx, dy, weight, type, slot } of flowLinks) {
+          // Balanced CSF: constant curvature is an exact pressure-potential
+          // difference on these same links, rather than a separately averaged
+          // cell force which can continually inject parasitic circulation.
+          const capillary = dt * surfaceTension * 7.5 * 0.5 * (curvature[a] + curvature[b]) * (phasePressure[b] - phasePressure[a]);
+          const flux = weight * (0.5 * (u[a] + u[b]) * dx + 0.5 * (v[a] + v[b]) * dy + capillary);
+          flowFields[type][slot] = flux;
+          div[a] -= flux;
+          div[b] += flux;
+        }
+        solvePressure();
+        pressureMultiply(p, pressureProduct);
+        let residualSquared = 0;
+        for (const id of fluidCells) {
+          const residual = div[id] - pressureProduct[id];
+          residualSquared += residual * residual;
+        }
+        pressureStats.iterations = 1;
+        pressureStats.residual = Math.sqrt(residualSquared / fluidCellCount);
+        let meanPressure = 0;
+        for (const id of fluidCells) meanPressure += p[id];
+        meanPressure /= fluidCellCount;
+        for (const id of fluidCells) p[id] -= meanPressure;
+        // Keep projected link fluxes for concentration transport instead of
+        // rebuilding unprojected face velocities from cell-center averages.
+        uTmp.fill(0);
+        vTmp.fill(0);
+        for (const { a, b, dx, dy, weight, type, slot } of flowLinks) {
+          const flux = flowFields[type][slot] - weight * (p[b] - p[a]);
+          flowFields[type][slot] = flux;
+          uTmp[a] += flux * dx * 0.5;
+          uTmp[b] += flux * dx * 0.5;
+          vTmp[a] += flux * dy * 0.5;
+          vTmp[b] += flux * dy * 0.5;
+        }
+        u.set(uTmp);
+        v.set(vTmp);
+        let maxSpeed = 0;
+        for (const id of fluidCells) maxSpeed = Math.max(maxSpeed, Math.hypot(u[id], v[id]));
+        if (maxSpeed > sim.velocityCap) {
+          // A single scale preserves the zero-divergence link field. Clipping
+          // individual cell velocities after projection would undo that work.
+          const scale = sim.velocityCap / maxSpeed;
+          for (const id of fluidCells) { u[id] *= scale; v[id] *= scale; }
+          for (const { type, slot } of flowLinks) flowFields[type][slot] *= scale;
         }
       }
 
       function advectConcentrationConservative(dt) {
+        if (!(dt > 0)) return;
+        // The pressure solve supplies a divergence-free volume flux. Advance
+        // ALL incoming/outgoing oil together: a full cell can accept exactly
+        // the volume leaving it in the same step. Limiting each incoming face
+        // against the old empty capacity breaks this finite-volume update.
+        outReq.fill(0);
+        for (const { a, b, type, slot } of flowLinks) {
+          const flux = flowFields[type][slot];
+          outReq[flux >= 0 ? a : b] += Math.abs(flux);
+        }
+        let maxRate = 0;
+        for (const id of fluidCells) maxRate = Math.max(maxRate, outReq[id]);
+        // Use the actual projected face flux AFTER forces, including diagonal
+        // faces, rather than only the previous frame's cell-center speed.
+        const steps = Math.max(1, Math.ceil(dt * maxRate / 0.45));
+        const subDt = dt / steps;
+        for (let sub = 0; sub < steps; sub++) {
+          cTmp.set(c);
+          dc.fill(0);
+          for (const { a, b, type, slot } of flowLinks) {
+            const flux = flowFields[type][slot];
+            const transfer = subDt * flux * cTmp[flux >= 0 ? a : b];
+            dc[a] -= transfer;
+            dc[b] += transfer;
+          }
+          // Upwind transport is bounded under this CFL for an incompressible
+          // link field. Only roundoff can lie outside [0,1].
+          for (const id of fluidCells) c[id] = Math.max(0, Math.min(1, cTmp[id] + dc[id]));
+          if (surfaceTension <= 0) continue;
+
+          // Interface compression is a separate, conservative correction to
+          // the transported state, not an extra incompressible velocity. Its
+          // limiter therefore uses the capacity AFTER the bulk update.
+          cTmp.set(c);
+          fillInterfaceGeometry(cTmp);
+          dc.fill(0);
+          outReq.fill(0);
+          inReq.fill(0);
+          const proposals = [xFaceProp, yFaceProp, dFacePropA, dFacePropB];
+          for (const { a, b, dx, dy, weight, type, slot } of flowLinks) {
+            const cFace = 0.5 * (cTmp[a] + cTmp[b]);
+            const phaseWindow = Math.max(0, 1 - 4 * (cFace - 0.5) ** 2);
+            const gain = sim.interfaceCompression * (1 + phaseSeparation * phaseWindow) * surfaceTension;
+            const strength = gain / (1 + gain);
+            const velocity = 0.5 * (Math.hypot(u[a], v[a]) + Math.hypot(u[b], v[b]));
+            const normal = 0.5 * ((normX[a] + normX[b]) * dx + (normY[a] + normY[b]) * dy);
+            const y = (Math.floor(a / sim.nx) + 0.5 + dy * 0.5) * cellH;
+            const flux = subDt * weight * strength * velocity * normal * cFace * (1 - cFace) * neckReliefFactor(y);
+            proposals[type][slot] = flux;
+            outReq[flux >= 0 ? a : b] += Math.abs(flux);
+            inReq[flux >= 0 ? b : a] += Math.abs(flux);
+          }
+          for (const id of fluidCells) {
+            outScale[id] = outReq[id] > 0 ? Math.min(1, cTmp[id] / outReq[id]) : 1;
+            inScale[id] = inReq[id] > 0 ? Math.min(1, (1 - cTmp[id]) / inReq[id]) : 1;
+          }
+          for (const { a, b, type, slot } of flowLinks) {
+            const flux = proposals[type][slot];
+            const from = flux >= 0 ? a : b, to = flux >= 0 ? b : a;
+            const transfer = Math.abs(flux) * Math.min(outScale[from], inScale[to]);
+            dc[from] -= transfer;
+            dc[to] += transfer;
+          }
+          for (const id of fluidCells) c[id] = Math.max(0, Math.min(1, cTmp[id] + dc[id]));
+        }
+      }
+
+      function settleConcentration(dt) {
+        const contrast = (oilDensity - waterDensity) / Math.max(1e-6, waterDensity);
+        const rawDrift = sim.settlingMobility * contrast * (1 + buoyancy) / (1 + viscosity * 0.5);
+        // Cap extreme model settings in units of velocity, not by truncating
+        // each frame's transfer to one cell (which made speed depend on dt).
+        const drift = Math.max(-sim.settlingVelocityCap, Math.min(sim.settlingVelocityCap, rawDrift));
+        const gravity = localGravity();
+        // Include relative settling in its own CFL. Previously the fluid's
+        // speed was used for CFL while this faster drift could exchange a
+        // whole cell every step, sustaining alternating grid-scale ripples.
+        // Each axis can send oil to THREE neighbors: downhill plus both
+        // lateral head-relaxation faces. A one-face CFL still permits their
+        // combined update to overcorrect and create alternating columns.
+        const courant = 3 * Math.abs(drift) * (Math.abs(gravity.x) + Math.abs(gravity.y)) * dt;
+        // Binary subdivision keeps dt and two dt/2 calls on the same steps.
+        const steps = 2 ** Math.max(0, Math.ceil(Math.log2(Math.max(1, courant / 0.45))));
+        for (let sub = 0; sub < steps; sub++) {
+          settleAlongAxis(dt / steps, drift * gravity.y, false);
+          settleAlongAxis(dt / steps, drift * gravity.x, true);
+        }
+      }
+
+      function settleAlongAxis(dt, drift, horizontal) {
+        if (Math.abs(drift) < 1e-12 || dt <= 0) return;
+        const targets = horizontal ? (drift > 0 ? settleRight : settleLeft) : (drift > 0 ? settleDown : settleUp);
+        const fraction = Math.min(1, Math.abs(drift) * dt);
         cTmp.set(c);
         dc.fill(0);
-        fillInterfaceGeometry(cTmp);
         outReq.fill(0);
         inReq.fill(0);
+        settlingFlux.fill(0);
         xFaceProp.fill(0);
-        yFaceProp.fill(0);
-        dFacePropA.fill(0);
-        dFacePropB.fill(0);
-
-        function xFaceIdx(iFace, j) {
-          return iFace + j * (sim.nx + 1);
-        }
-
-        function yFaceIdx(i, jFace) {
-          return i + jFace * sim.nx;
-        }
-
-        function dFaceIdx(i, j) {
-          return i + j * (sim.nx - 1);
-        }
-
-        // Propose fluxes on all faces (signed), then apply a symmetric budget limiter.
-        for (let j = 0; j < sim.ny; j += 1) {
-          for (let iFace = 1; iFace < sim.nx; iFace += 1) {
-            const iL = iFace - 1;
-            const iR = iFace;
-            if (!isFluidCell(iL, j) || !isFluidCell(iR, j)) continue;
-            const idL = idx(iL, j);
-            const idR = idx(iR, j);
-            const uFace = 0.5 * (u[idL] + u[idR]);
-            const cFace = 0.5 * (cTmp[idL] + cTmp[idR]);
-            const nxFace = 0.5 * (normX[idL] + normX[idR]);
-            const velFaceMag = 0.5 * (Math.hypot(u[idL], v[idL]) + Math.hypot(u[idR], v[idR]));
-            const phaseWindow = Math.max(0, 1 - 4 * Math.pow(cFace - 0.5, 2));
-            const phaseBoost = Math.min(1 + phaseSeparation * phaseWindow, 6.0);
-            const yFace = (j + 0.5) * cellH;
-            const relief = neckReliefFactor(yFace);
-            const uComp = sim.interfaceCompression * phaseBoost * surfaceTension * velFaceMag * nxFace * cFace * (1 - cFace);
-            const uTotal = uFace + uComp * relief;
-            const fId = xFaceIdx(iFace, j);
-            if (uTotal >= 0) {
-              const proposed = Math.max(0, uTotal * cTmp[idL] * dt);
-              xFaceProp[fId] = proposed;
-              outReq[idL] += proposed;
-              inReq[idR] += proposed;
-            } else {
-              const proposed = Math.max(0, (-uTotal) * cTmp[idR] * dt);
-              xFaceProp[fId] = -proposed;
-              outReq[idR] += proposed;
-              inReq[idL] += proposed;
-            }
+        // Gravity also levels the receiving pool. A vertical-only drift would
+        // stack oil columns like sand. The oil head drives bounded exchanges
+        // between adjacent columns, relaxing toward a horizontal free surface.
+        const direction = drift > 0 ? 1 : -1;
+        const majorCount = horizontal ? sim.nx : sim.ny;
+        const minorCount = horizontal ? sim.ny : sim.nx;
+        const axialStride = horizontal ? 1 : sim.nx;
+        const lateralStride = horizontal ? sim.nx : 1;
+        for (let major = direction > 0 ? 0 : majorCount - 1; major >= 0 && major < majorCount; major += direction) {
+          for (let minor = 0; minor < minorCount; minor += 1) {
+            const id = horizontal ? idx(major, minor) : idx(minor, major);
+            const above = id - direction * axialStride;
+            const upstreamOpen = major - direction >= 0 && major - direction < majorCount && mask[above];
+            settlingHead[id] = mask[id] ? cTmp[id] + (upstreamOpen ? settlingHead[above] : 0) : 0;
           }
         }
-
-        for (let jFace = 1; jFace < sim.ny; jFace += 1) {
-          for (let i = 0; i < sim.nx; i += 1) {
-            const jU = jFace - 1;
-            const jD = jFace;
-            if (!isFluidCell(i, jU) || !isFluidCell(i, jD)) continue;
-            const idU = idx(i, jU);
-            const idD = idx(i, jD);
-            const vFace = 0.5 * (v[idU] + v[idD]);
-            const cFace = 0.5 * (cTmp[idU] + cTmp[idD]);
-            const nyFace = 0.5 * (normY[idU] + normY[idD]);
-            const velFaceMag = 0.5 * (Math.hypot(u[idU], v[idU]) + Math.hypot(u[idD], v[idD]));
-            const phaseWindow = Math.max(0, 1 - 4 * Math.pow(cFace - 0.5, 2));
-            const phaseBoost = Math.min(1 + phaseSeparation * phaseWindow, 6.0);
-            const yFace = jFace * cellH;
-            const relief = neckReliefFactor(yFace);
-            const vComp = sim.interfaceCompression * phaseBoost * surfaceTension * velFaceMag * nyFace * cFace * (1 - cFace);
-            const vTotal = vFace + vComp * relief;
-            const fId = yFaceIdx(i, jFace);
-            if (vTotal >= 0) {
-              const proposed = Math.max(0, vTotal * cTmp[idU] * dt);
-              yFaceProp[fId] = proposed;
-              outReq[idU] += proposed;
-              inReq[idD] += proposed;
-            } else {
-              const proposed = Math.max(0, (-vTotal) * cTmp[idD] * dt);
-              yFaceProp[fId] = -proposed;
-              outReq[idD] += proposed;
-              inReq[idU] += proposed;
-            }
-          }
+        // Exchange oil and water along gravity. A grid ledge may route a
+        // transfer sideways, but only a pressure-head difference can drive
+        // that lateral part. Unconditional ledge routing moved even an
+        // already level layer along a curved wall, as if it were dry grains.
+        for (const id of fluidCells) {
+          const target = targets[id];
+          if (target < 0) continue;
+          const axialMove = horizontal ? id % sim.nx !== target % sim.nx : Math.floor(id / sim.nx) !== Math.floor(target / sim.nx);
+          const available = Math.min(cTmp[id], 1 - cTmp[target]);
+          const headBudget = Math.max(0, 0.5 * (settlingHead[id] - settlingHead[target]));
+          const proposed = fraction * (axialMove ? available : Math.min(available, headBudget));
+          settlingFlux[id] = proposed;
+          outReq[id] += proposed;
+          inReq[target] += proposed;
         }
-
-        // Diagonal faces: (\) between (i,j) and (i+1,j+1)
-        const invSqrt2 = 1 / Math.sqrt(2);
-        for (let j = 0; j < sim.ny - 1; j += 1) {
-          for (let i = 0; i < sim.nx - 1; i += 1) {
-            if (!isFluidCell(i, j) || !isFluidCell(i + 1, j + 1)) continue;
-            const idA = idx(i, j);
-            const idB = idx(i + 1, j + 1);
-            const uFace = 0.5 * (u[idA] + u[idB]);
-            const vFace = 0.5 * (v[idA] + v[idB]);
-            const link = (uFace + vFace) * invSqrt2;
-            const cFace = 0.5 * (cTmp[idA] + cTmp[idB]);
-            const nproj = 0.5 * ((normX[idA] + normY[idA]) + (normX[idB] + normY[idB])) * invSqrt2;
-            const velMag = 0.5 * (Math.hypot(u[idA], v[idA]) + Math.hypot(u[idB], v[idB]));
-            const phaseWindow = Math.max(0, 1 - 4 * Math.pow(cFace - 0.5, 2));
-            const phaseBoost = Math.min(1 + phaseSeparation * phaseWindow, 6.0);
-            const yFace = (j + 1) * cellH;
-            const relief = neckReliefFactor(yFace);
-            const comp = sim.interfaceCompression * phaseBoost * surfaceTension * velMag * nproj * cFace * (1 - cFace);
-            const total = link + comp * relief;
-            const fId = dFaceIdx(i, j);
-            if (total >= 0) {
-              const proposed = Math.max(0, total * cTmp[idA] * dt);
-              dFacePropA[fId] = proposed;
-              outReq[idA] += proposed;
-              inReq[idB] += proposed;
-            } else {
-              const proposed = Math.max(0, (-total) * cTmp[idB] * dt);
-              dFacePropA[fId] = -proposed;
-              outReq[idB] += proposed;
-              inReq[idA] += proposed;
-            }
-          }
+        for (const id of fluidCells) {
+          const right = id + lateralStride;
+          const atEdge = horizontal ? Math.floor(id / sim.nx) === sim.ny - 1 : id % sim.nx === sim.nx - 1;
+          if (atEdge || !mask[right]) continue;
+          const headDiff = settlingHead[id] - settlingHead[right];
+          const from = headDiff > 0 ? id : right;
+          const to = headDiff > 0 ? right : id;
+          // Head and phase capacity are independent bounds, not factors to
+          // multiply. Their product virtually pinned small residual films on
+          // shelves even while a pressure difference could still drain them.
+          const proposed = fraction * Math.min(0.5 * Math.abs(headDiff), cTmp[from], 1 - cTmp[to]);
+          xFaceProp[id] = headDiff > 0 ? proposed : -proposed;
+          outReq[from] += proposed;
+          inReq[to] += proposed;
         }
-
-        // Diagonal faces: (/) between (i,j) and (i+1,j-1)
-        for (let j = 1; j < sim.ny; j += 1) {
-          for (let i = 0; i < sim.nx - 1; i += 1) {
-            if (!isFluidCell(i, j) || !isFluidCell(i + 1, j - 1)) continue;
-            const idA = idx(i, j);
-            const idB = idx(i + 1, j - 1);
-            const uFace = 0.5 * (u[idA] + u[idB]);
-            const vFace = 0.5 * (v[idA] + v[idB]);
-            const link = (uFace - vFace) * invSqrt2;
-            const cFace = 0.5 * (cTmp[idA] + cTmp[idB]);
-            const nproj = 0.5 * ((normX[idA] - normY[idA]) + (normX[idB] - normY[idB])) * invSqrt2;
-            const velMag = 0.5 * (Math.hypot(u[idA], v[idA]) + Math.hypot(u[idB], v[idB]));
-            const phaseWindow = Math.max(0, 1 - 4 * Math.pow(cFace - 0.5, 2));
-            const phaseBoost = Math.min(1 + phaseSeparation * phaseWindow, 6.0);
-            const yFace = j * cellH;
-            const relief = neckReliefFactor(yFace);
-            const comp = sim.interfaceCompression * phaseBoost * surfaceTension * velMag * nproj * cFace * (1 - cFace);
-            const total = link + comp * relief;
-            const fId = dFaceIdx(i, j - 1);
-            if (total >= 0) {
-              const proposed = Math.max(0, total * cTmp[idA] * dt);
-              dFacePropB[fId] = proposed;
-              outReq[idA] += proposed;
-              inReq[idB] += proposed;
-            } else {
-              const proposed = Math.max(0, (-total) * cTmp[idB] * dt);
-              dFacePropB[fId] = -proposed;
-              outReq[idB] += proposed;
-              inReq[idA] += proposed;
-            }
-          }
+        for (const id of fluidCells) {
+          outScale[id] = outReq[id] > 0 ? Math.min(1, cTmp[id] / outReq[id]) : 1;
+          inScale[id] = inReq[id] > 0 ? Math.min(1, (1 - cTmp[id]) / inReq[id]) : 1;
         }
-
-        for (let j = 0; j < sim.ny; j += 1) {
-          for (let i = 0; i < sim.nx; i += 1) {
-            const id = idx(i, j);
-            if (!mask[id]) {
-              outScale[id] = 0;
-              inScale[id] = 0;
-              continue;
-            }
-            const cNow = cTmp[id];
-            outScale[id] = outReq[id] > 1e-12 ? Math.min(1, cNow / outReq[id]) : 1;
-            inScale[id] = inReq[id] > 1e-12 ? Math.min(1, (1 - cNow) / inReq[id]) : 1;
+        for (const id of fluidCells) {
+          const target = targets[id];
+          if (target >= 0) {
+            const transfer = settlingFlux[id] * Math.min(outScale[id], inScale[target]);
+            dc[id] -= transfer;
+            dc[target] += transfer;
           }
+          const proposed = xFaceProp[id];
+          if (!proposed) continue;
+          const from = proposed > 0 ? id : id + lateralStride;
+          const to = proposed > 0 ? id + lateralStride : id;
+          const transfer = Math.abs(proposed) * Math.min(outScale[from], inScale[to]);
+          dc[from] -= transfer;
+          dc[to] += transfer;
         }
-
-        for (let j = 0; j < sim.ny; j += 1) {
-          for (let iFace = 1; iFace < sim.nx; iFace += 1) {
-            const iL = iFace - 1;
-            const iR = iFace;
-            if (!isFluidCell(iL, j) || !isFluidCell(iR, j)) continue;
-            const idL = idx(iL, j);
-            const idR = idx(iR, j);
-            const proposed = xFaceProp[xFaceIdx(iFace, j)];
-            if (proposed >= 0) {
-              const tr = proposed * Math.min(outScale[idL], inScale[idR]);
-              dc[idL] -= tr;
-              dc[idR] += tr;
-            } else {
-              const tr = (-proposed) * Math.min(outScale[idR], inScale[idL]);
-              dc[idR] -= tr;
-              dc[idL] += tr;
-            }
-          }
-        }
-
-        for (let jFace = 1; jFace < sim.ny; jFace += 1) {
-          for (let i = 0; i < sim.nx; i += 1) {
-            const jU = jFace - 1;
-            const jD = jFace;
-            if (!isFluidCell(i, jU) || !isFluidCell(i, jD)) continue;
-            const idU = idx(i, jU);
-            const idD = idx(i, jD);
-            const proposed = yFaceProp[yFaceIdx(i, jFace)];
-            if (proposed >= 0) {
-              const tr = proposed * Math.min(outScale[idU], inScale[idD]);
-              dc[idU] -= tr;
-              dc[idD] += tr;
-            } else {
-              const tr = (-proposed) * Math.min(outScale[idD], inScale[idU]);
-              dc[idD] -= tr;
-              dc[idU] += tr;
-            }
-          }
-        }
-
-        for (let j = 0; j < sim.ny - 1; j += 1) {
-          for (let i = 0; i < sim.nx - 1; i += 1) {
-            if (!isFluidCell(i, j) || !isFluidCell(i + 1, j + 1)) continue;
-            const idA = idx(i, j);
-            const idB = idx(i + 1, j + 1);
-            const proposed = dFacePropA[dFaceIdx(i, j)];
-            if (proposed >= 0) {
-              const tr = proposed * Math.min(outScale[idA], inScale[idB]);
-              dc[idA] -= tr;
-              dc[idB] += tr;
-            } else {
-              const tr = (-proposed) * Math.min(outScale[idB], inScale[idA]);
-              dc[idB] -= tr;
-              dc[idA] += tr;
-            }
-          }
-        }
-
-        for (let j = 1; j < sim.ny; j += 1) {
-          for (let i = 0; i < sim.nx - 1; i += 1) {
-            if (!isFluidCell(i, j) || !isFluidCell(i + 1, j - 1)) continue;
-            const idA = idx(i, j);
-            const idB = idx(i + 1, j - 1);
-            const proposed = dFacePropB[dFaceIdx(i, j - 1)];
-            if (proposed >= 0) {
-              const tr = proposed * Math.min(outScale[idA], inScale[idB]);
-              dc[idA] -= tr;
-              dc[idB] += tr;
-            } else {
-              const tr = (-proposed) * Math.min(outScale[idB], inScale[idA]);
-              dc[idB] -= tr;
-              dc[idA] += tr;
-            }
-          }
-        }
-
-        for (let j = 0; j < sim.ny; j += 1) {
-          for (let i = 0; i < sim.nx; i += 1) {
-            const id = idx(i, j);
-            if (!mask[id]) {
-              c[id] = 0;
-              continue;
-            }
-            const next = cTmp[id] + dc[id];
-            c[id] = next < 0 ? 0 : (next > 1 ? 1 : next);
-          }
-        }
+        for (const id of fluidCells) c[id] = Math.max(0, Math.min(1, cTmp[id] + dc[id]));
       }
 
       function diffuseConcentrationConservative(dt, diffCoeff) {
@@ -1064,7 +1411,7 @@
           for (let i = 0; i < sim.nx - 1; i += 1) {
             const idA = idx(i, j);
             const idB = idx(i + 1, j + 1);
-            if (mask[idA] && mask[idB]) {
+            if (isOpenDiagonal(i, j, 1, 1)) {
               const flux = -dDiag * (cTmp[idB] - cTmp[idA]);
               const tr = flux * dt;
               dc[idA] -= tr;
@@ -1076,7 +1423,7 @@
           for (let i = 0; i < sim.nx - 1; i += 1) {
             const idA = idx(i, j);
             const idB = idx(i + 1, j - 1);
-            if (mask[idA] && mask[idB]) {
+            if (isOpenDiagonal(i, j, 1, -1)) {
               const flux = -dDiag * (cTmp[idB] - cTmp[idA]);
               const tr = flux * dt;
               dc[idA] -= tr;
@@ -1094,33 +1441,6 @@
             }
             const next = cTmp[id] + dc[id];
             c[id] = next < 0 ? 0 : (next > 1 ? 1 : next);
-          }
-        }
-      }
-
-      function enforceBinaryPhaseField() {
-        const strict = sim.noEmulsification;
-        const relax = sim.phaseRelaxation;
-        const low = 0.40;
-        const high = 0.60;
-        for (let j = 0; j < sim.ny; j += 1) {
-          for (let i = 0; i < sim.nx; i += 1) {
-            const id = idx(i, j);
-            if (!mask[id]) {
-              c[id] = 0;
-              continue;
-            }
-            const cv = c[id];
-            if (strict) {
-              if (cv <= low) c[id] = 0;
-              else if (cv >= high) c[id] = 1;
-              else c[id] = cv >= 0.5 ? 1 : 0;
-            } else {
-              // Soft phase relaxation: allow intermediate concentrations while
-              // gently pushing toward 0/1.
-              const target = cv >= 0.5 ? 1 : 0;
-              c[id] = cv + relax * (target - cv);
-            }
           }
         }
       }
@@ -1167,35 +1487,102 @@
       function applyForces(dt) {
         fillInterfaceGeometry(c);
         const rhoRef = Math.max(1e-6, waterDensity);
+        const densityDifference = oilDensity - waterDensity;
+        const gravity = localGravity();
+        const { omega, alpha } = rotation;
+        referenceForceX.fill(0);
+        referenceForceY.fill(0);
         for (let j = 0; j < sim.ny; j += 1) {
           for (let i = 0; i < sim.nx; i += 1) {
             const id = idx(i, j);
             if (!mask[id]) continue;
             const cc = c[id];
             const rhoMix = waterDensity + (oilDensity - waterDensity) * cc;
-            const invRho = 1 / Math.max(1e-6, rhoMix);
-            const sigmaKappa = surfaceTension * curvature[id];
-            // CSF force -> acceleration: f / rho
-            u[id] += sigmaKappa * gradX[id] * dt * 7.5 * invRho;
-            v[id] += sigmaKappa * gradY[id] * dt * 7.5 * invRho;
-
+            // Integral dc/rho(c): its difference gives a balanced capillary
+            // acceleration even when the two model densities are different.
+            phasePressure[id] = Math.abs(densityDifference / rhoRef) > 1e-6
+              ? Math.log1p(densityDifference * cc / rhoRef) / densityDifference : cc / rhoRef;
             // Density-driven body force (Boussinesq form): only density contrast contributes.
             const densityContrast = (rhoMix - rhoRef) / rhoRef;
-            v[id] += sim.gravity * sim.densityForceGain * densityContrast * dt;
-            v[id] += buoyancy * sim.gravity * sim.densityForceGain * densityContrast * dt;
+            const densityForce = sim.gravity * sim.densityForceGain * densityContrast * (1 + buoyancy);
+            forceX[id] = densityForce * gravity.x;
+            forceY[id] = densityForce * gravity.y;
+            referenceForceX[i] += forceX[id];
+            referenceForceY[j] += forceY[id];
+          }
+        }
+        // Split off a separable pressure potential P0(x,y)=Px(x)+Py(y).
+        // A force depending only on its own coordinate is a pure gradient,
+        // so it belongs in pressure rather than driving incompressible flow.
+        // This balances a resting layer algebraically and keeps tiny residuals
+        // from feeding the phase/compression update. Rebuilding the entire
+        // hydrostatic pressure with the old truncated solve caused currents.
+        // No concentration is changed here. Spatial variations in the force,
+        // including those from a sloping interface or a falling drop, remain.
+        for (let i = 0; i < sim.nx; i += 1) referenceForceX[i] /= Math.max(1, columnFluidCount[i]);
+        for (let j = 0; j < sim.ny; j += 1) referenceForceY[j] /= Math.max(1, rowFluidCount[j]);
+        for (let j = 0; j < sim.ny; j += 1) {
+          for (let i = 0; i < sim.nx; i += 1) {
+            const id = idx(i, j);
+            if (!mask[id]) continue;
+            u[id] += (forceX[id] - referenceForceX[i]) * dt;
+            v[id] += (forceY[id] - referenceForceY[j]) * dt;
+            if (omega || alpha) {
+              // Velocity is relative to the vessel. Coriolis, centrifugal and
+              // Euler terms allow the liquid to lag the accelerating walls.
+              const rx = i + 0.5 - sim.nx * 0.5;
+              const ry = j + 0.5 - sim.ny * 0.5;
+              const vx = u[id];
+              const vy = v[id];
+              u[id] += (2 * omega * vy + omega * omega * rx + alpha * ry) * dt;
+              v[id] += (-2 * omega * vx + omega * omega * ry - alpha * rx) * dt;
+            }
           }
         }
       }
 
-      function step(dt) {
-        const stepDtTotal = Math.min(0.18, dt * speed * 60);
+      function step(dt, frameLimit = Infinity) {
+        if (!running || !Number.isFinite(dt) || dt <= 0) return false;
+        // A fixed solver step makes different speed settings advance the same
+        // trajectory at different rates, independent of the display frame rate.
+        // A manual inversion advances rotation and fluid together at 1x,
+        // independent of the user's playback setting before/after the turn.
+        timeAccumulator += dt * (rotation.active ? 1 : speed);
+        const frames = Math.floor((timeAccumulator + 1e-12) / frameStep);
+        timeAccumulator = Math.max(0, timeAccumulator - frames * frameStep);
+        // The UI may drop excess playback time rather than blocking input with
+        // dozens of solver steps. Never accumulate a catch-up backlog.
+        for (let frame = 0; frame < Math.min(frames, frameLimit); frame += 1) {
+          if (rotation.active) {
+            const from = rotation.elapsed;
+            const to = Math.min(rotation.duration, from + frameStep);
+            advanceSimulation(solverStep, from, to);
+            rotation.elapsed = to;
+            setTurnPose(to);
+            if (to >= rotation.duration - 1e-10) {
+              finishTurn();
+              if (!running) break;
+            }
+          } else {
+            advanceSimulation(solverStep);
+          }
+        }
+        return frames > frameLimit;
+      }
+
+      function advanceSimulation(stepDtTotal, turnFrom = null, turnTo = null) {
+        if (flowModel === "immiscible") {
+          if (turnFrom !== null) setTurnPose((turnFrom + turnTo) * 0.5);
+          immiscible.step(stepDtTotal, { oilDensity, waterDensity, viscosity, waterViscosity,
+            surfaceTension, contactAngle, buoyancy, gravity: localGravity(), omega: rotation.omega, alpha: rotation.alpha });
+          return;
+        }
         const cfl = maxVelocityMag() * stepDtTotal;
         const nSub = Math.min(12, Math.max(1, Math.ceil(cfl / 0.45)));
         const stepDt = stepDtTotal / nSub;
 
         for (let sub = 0; sub < nSub; sub += 1) {
-          applyForces(stepDt);
-
+          if (turnFrom !== null) setTurnPose(turnFrom + (turnTo - turnFrom) * (sub + 0.5) / nSub);
           uTmp.set(u);
           vTmp.set(v);
           advectSignedFieldEight(u, uTmp, uTmp, vTmp, stepDt, 0.999);
@@ -1209,12 +1596,19 @@
           diffuse(u, uTmp, nu, stepDt, sim.viscIters);
           diffuse(v, vTmp, nu, stepDt, sim.viscIters);
 
-          project();
-          enforceNoFluxBoundary();
-          advectConcentrationConservative(stepDt);
-          diffuseConcentrationConservative(stepDt, sim.concentrationDiffusion);
-          enforceBinaryPhaseField();
+          applyForces(stepDt);
+          if (vesselShape === "wheel") wheel.couple(stepDt, legacyWheelPorts, rotation.alpha);
+          // Apply force impulses immediately before projection, so they are
+          // balanced by pressure before being used to transport either phase.
           sanitizeFields();
+          project(stepDt);
+          advectConcentrationConservative(stepDt);
+          settleConcentration(stepDt);
+          diffuseConcentrationConservative(stepDt, sim.concentrationDiffusion);
+          // Interface sharpening is already included in the conservative
+          // face fluxes. Rounding cells toward 0/1 here creates/destroys oil.
+          sanitizeFields();
+          if (vesselShape === "wheel") wheel.advance(stepDt);
           if (sim.concDissipation < 1) {
             for (let j = 0; j < sim.ny; j += 1) {
               for (let i = 0; i < sim.nx; i += 1) {
@@ -1229,49 +1623,183 @@
 
       function drawGlass() {
         ctx.save();
+        ctx.fillStyle = "rgba(200, 234, 255, 0.035)";
+        ctx.fill(glassPath);
         const bodyGrad = ctx.createLinearGradient(0, geom.topY, 0, geom.bottomY);
         bodyGrad.addColorStop(0, "rgba(210, 236, 255, 0.94)");
         bodyGrad.addColorStop(0.5, "rgba(166, 190, 224, 0.72)");
         bodyGrad.addColorStop(1, "rgba(210, 236, 255, 0.92)");
         ctx.lineWidth = 3;
+        ctx.lineJoin = "round";
         ctx.strokeStyle = bodyGrad;
         ctx.stroke(glassPath);
-
-        ctx.lineWidth = 10;
+        // Soft, broken reflections follow the actual vessel profile.
         ctx.lineCap = "round";
-        ctx.strokeStyle = "rgba(211, 240, 255, 0.7)";
+        for (const side of [-1, 1]) {
+          ctx.lineWidth = side < 0 ? 4 : 2;
+          ctx.strokeStyle = side < 0 ? "rgba(235, 249, 255, 0.28)" : "rgba(195, 230, 255, 0.13)";
+          for (const [start, end] of [[geom.topY + 24, geom.topY + 124], [geom.bottomY - 160, geom.bottomY - 40]]) {
+            ctx.beginPath();
+            for (let y = start; y <= end; y += 2) {
+              const x = geom.cx + side * Math.max(0, halfWidthAt(y) - 7);
+              if (y === start) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+          }
+        }
+        ctx.restore();
+      }
+
+      function drawInternalWalls() {
+        if (!wallRects.length) return;
+        ctx.save();
+        ctx.clip(glassPath);
+        ctx.fillStyle = "rgba(107, 162, 202, 0.27)";
+        ctx.fill(wallPath);
+        ctx.lineWidth = 1.5;
+        ctx.lineCap = "round";
+        ctx.strokeStyle = "rgba(212, 239, 255, 0.78)";
+        ctx.stroke(wallOutlinePath);
+        ctx.restore();
+      }
+
+      function drawWheel() {
+        if (vesselShape !== "wheel") return;
+        ctx.save();
+        ctx.clip(glassPath);
+        ctx.translate(wheel.x * cellW, wheel.y * cellH);
+        ctx.rotate(wheel.angle);
+        ctx.lineCap = "round";
+        for (let k = 0; k < wheel.blades; k++) {
+          const a = k * 2 * Math.PI / wheel.blades;
+          ctx.beginPath();
+          ctx.moveTo(Math.cos(a) * wheel.hubRadius * cellW, Math.sin(a) * wheel.hubRadius * cellH);
+          ctx.lineTo(Math.cos(a) * wheel.radius * cellW, Math.sin(a) * wheel.radius * cellH);
+          ctx.lineWidth = wheel.thickness * cellW;
+          ctx.strokeStyle = k === 0 ? "#ffcf75" : "rgba(237, 174, 78, 0.86)";
+          ctx.stroke();
+          ctx.lineWidth = 1;
+          ctx.strokeStyle = "rgba(255, 245, 210, 0.85)";
+          ctx.stroke();
+        }
         ctx.beginPath();
-        ctx.moveTo(geom.cx - geom.neckRadius * 0.75, geom.neckY - 10);
-        ctx.lineTo(geom.cx + geom.neckRadius * 0.75, geom.neckY + 10);
+        ctx.arc(0, 0, (wheel.hubRadius + 0.35) * cellW, 0, Math.PI * 2);
+        ctx.fillStyle = "#284455";
+        ctx.fill();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = "#e7bc78";
         ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(0, 0, 3, 0, Math.PI * 2);
+        ctx.fillStyle = "#ffdc9e";
+        ctx.fill();
         ctx.restore();
       }
 
       const fieldCanvas = document.createElement("canvas");
-      fieldCanvas.width = sim.nx;
-      fieldCanvas.height = sim.ny;
+      fieldCanvas.width = canvas.width;
+      fieldCanvas.height = canvas.height;
       const fieldCtx = fieldCanvas.getContext("2d");
-      const fieldImage = fieldCtx.createImageData(sim.nx, sim.ny);
+      const fieldImage = fieldCtx.createImageData(fieldCanvas.width, fieldCanvas.height);
+      // Choose once per document, never during a frame or a simulation reset.
+      // Keep the previous choice in this tab so consecutive reloads differ.
+      const oilPalette = [
+        { name: "Cyan", rgb: [140, 220, 248] },
+        { name: "Mint", rgb: [108, 226, 178] },
+        { name: "Coral", rgb: [255, 143, 124] },
+        { name: "Rose", rgb: [246, 139, 187] },
+        { name: "Lilac", rgb: [189, 155, 255] },
+        { name: "Lime", rgb: [198, 230, 116] },
+        { name: "Blue", rgb: [126, 178, 255] },
+        { name: "Amber", rgb: [248, 192, 104] }
+      ];
+      const oilColorStorageKey = "oil-timer-lab:last-oil-color";
+      let previousOilColor = null;
+      try { previousOilColor = sessionStorage.getItem(oilColorStorageKey); } catch { /* Storage may be unavailable. */ }
+      const colorChoices = oilPalette.filter(color => color.name !== previousOilColor);
+      const oilColor = colorChoices[Math.floor(Math.random() * colorChoices.length)];
+      try { sessionStorage.setItem(oilColorStorageKey, oilColor.name); } catch { /* Color must not block the simulation. */ }
+      canvas.setAttribute("aria-label", "Oil timer simulation — " + oilColor.name + " oil");
+      const renderSources = new Int32Array(nCells);
+      const renderConcentration = new Float64Array(nCells);
+      const renderXCells = new Int32Array(fieldCanvas.width);
+      const renderXWeights = new Float64Array(fieldCanvas.width);
+      for (let x = 0; x < fieldCanvas.width; x += 1) {
+        const gx = Math.max(0, Math.min(sim.nx - 1, (x + 0.5) / cellW - 0.5));
+        renderXCells[x] = Math.min(sim.nx - 2, Math.floor(gx));
+        renderXWeights[x] = gx - renderXCells[x];
+      }
+      for (let k = 0; k < fieldImage.data.length; k += 4) {
+        fieldImage.data[k] = oilColor.rgb[0];
+        fieldImage.data[k + 1] = oilColor.rgb[1];
+        fieldImage.data[k + 2] = oilColor.rgb[2];
+      }
 
-      function renderField() {
-        const d = fieldImage.data;
+      function buildRenderSources() {
+        renderSources.fill(-1);
         for (let j = 0; j < sim.ny; j += 1) {
           for (let i = 0; i < sim.nx; i += 1) {
             const id = idx(i, j);
-            const k = id * 4;
-            if (!mask[id]) {
-              d[k] = 0;
-              d[k + 1] = 0;
-              d[k + 2] = 0;
-              d[k + 3] = 0;
+            if (mask[id]) {
+              renderSources[id] = id;
               continue;
             }
-            const cc = Math.max(0, Math.min(1, c[id]));
-            const vv = Math.min(1, Math.hypot(u[id], v[id]) * 0.12);
-            d[k] = 72 + cc * 68 + vv * 14;
-            d[k + 1] = 130 + cc * 90 + vv * 20;
-            d[k + 2] = 186 + cc * 62 + vv * 28;
-            d[k + 3] = Math.min(255, cc * 255);
+            // Extend color just beyond the sampled wall for interpolation.
+            // The exact vector clip trims it back to the container outline;
+            // the concentration and solid-cell mask remain untouched.
+            let nearestDistance = Infinity;
+            for (let dj = -2; dj <= 2; dj += 1) {
+              for (let di = -2; di <= 2; di += 1) {
+                if (!isFluidCell(i + di, j + dj)) continue;
+                const distance = (di * cellW) ** 2 + (dj * cellH) ** 2;
+                if (distance < nearestDistance) {
+                  nearestDistance = distance;
+                  renderSources[id] = idx(i + di, j + dj);
+                }
+              }
+            }
+          }
+        }
+      }
+
+      function renderField() {
+        if (flowModel === "immiscible" && immiscible) {
+          immiscible.render(fieldImage);
+          fieldCtx.putImageData(fieldImage, 0, 0);
+          return;
+        }
+        const d = fieldImage.data;
+        for (let id = 0; id < nCells; id += 1) {
+          const source = renderSources[id];
+          renderConcentration[id] = source < 0 ? 0 : c[source];
+        }
+        // Interpolate the concentration FIRST, then reconstruct its c = 0.5
+        // contour at canvas resolution. Thresholding the coarse grid first
+        // would bring back square stair steps; scaling concentration-as-alpha
+        // instead makes every numerically mixed cell look like transparent fog.
+        // Only edge pixels receive partial coverage. The gradient sets a one-
+        // pixel antialiasing width, independent of the mixed layer's thickness.
+        // These are display samples: never round or write back to the solver.
+        for (let y = 0; y < fieldCanvas.height; y += 1) {
+          const gy = Math.max(0, Math.min(sim.ny - 1, (y + 0.5) / cellH - 0.5));
+          const j = Math.min(sim.ny - 2, Math.floor(gy));
+          const ty = gy - j;
+          const row = j * sim.nx;
+          for (let x = 0; x < fieldCanvas.width; x += 1) {
+            const a = row + renderXCells[x];
+            const tx = renderXWeights[x];
+            const c00 = renderConcentration[a], c10 = renderConcentration[a + 1];
+            const c01 = renderConcentration[a + sim.nx], c11 = renderConcentration[a + sim.nx + 1];
+            const left = c00 + (c01 - c00) * ty;
+            const right = c10 + (c11 - c10) * ty;
+            const cc = left + (right - left) * tx;
+            const gxPixel = (right - left) / cellW;
+            const gyPixel = ((c01 - c00) * (1 - tx) + (c11 - c10) * tx) / cellH;
+            const pixelWidth = Math.abs(gxPixel) + Math.abs(gyPixel);
+            const coverage = pixelWidth > 1e-8
+              ? Math.max(0, Math.min(1, 0.5 + (cc - 0.5) / pixelWidth))
+              : (cc >= 0.5 ? 1 : 0);
+            d[(x + y * fieldCanvas.width) * 4 + 3] = Math.round(255 * coverage);
           }
         }
         fieldCtx.putImageData(fieldImage, 0, 0);
@@ -1287,15 +1815,46 @@
 
         renderField();
         ctx.save();
+        const scale = vesselViewScale();
+        ctx.translate(geom.cx, geom.neckY);
+        ctx.scale(scale, scale);
+        ctx.rotate(rotation.angle);
+        ctx.translate(-geom.cx, -geom.neckY);
+        ctx.save();
+        ctx.clip(glassPath);
+        if (wallRects.length) ctx.clip(liquidCutoutPath, "evenodd");
         ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
         ctx.drawImage(fieldCanvas, 0, 0, canvas.width, canvas.height);
         ctx.restore();
         drawGlass();
+        drawInternalWalls();
+        drawWheel();
+        ctx.restore();
       }
 
       function getMassFractions() {
+        const reservoir = reservoirLayout();
+        if (flowModel === "immiscible" && immiscible) {
+          let top = 0, total = 0, collected = 0;
+          const gravity = localGravity();
+          const destinationDown = gravityDirection() * gravity.y >= 0;
+          const w = canvas.width / immiscible.nx, h = canvas.height / immiscible.ny;
+          for (const id of immiscible.cells) {
+            const x = (id % immiscible.nx + 0.5) * w;
+            const y = (Math.floor(id / immiscible.nx) + 0.5) * h;
+            const amount = immiscible.c[id];
+            total += amount;
+            if ((x - geom.cx) * gravity.x + (y - geom.neckY) * gravity.y < 0) top += amount;
+            if (reservoir && (destinationDown ? y >= (reservoir.bottomFloor + reservoir.floorThickness) * cellH : y < reservoir.topFloor * cellH)) collected += amount;
+          }
+          return { topFraction: top / Math.max(total, 1e-12), reservoirFraction: collected / Math.max(total, 1e-12), totalMass: total * immiscible.h * immiscible.h };
+        }
         let topMass = 0;
         let totalMass = 0;
+        let reservoirMass = 0;
+        const gravity = localGravity();
+        const destinationDown = gravityDirection() * gravity.y >= 0;
         for (let j = 0; j < sim.ny; j += 1) {
           const y = (j + 0.5) * cellH;
           for (let i = 0; i < sim.nx; i += 1) {
@@ -1303,42 +1862,59 @@
             if (!mask[id]) continue;
             const m = Math.max(0, c[id]);
             totalMass += m;
-            if (y < geom.neckY) topMass += m;
+            if (reservoir && (destinationDown ? j + 0.5 >= reservoir.bottomFloor + reservoir.floorThickness : j + 0.5 < reservoir.topFloor)) reservoirMass += m;
+            // Report screen-space top/bottom, including after a half turn.
+            const worldY = ((i + 0.5) * cellW - geom.cx) * gravity.x + (y - geom.neckY) * gravity.y;
+            if (worldY < 0) topMass += m;
           }
         }
         const safeTotal = Math.max(1e-9, totalMass);
-        return { topFraction: topMass / safeTotal, totalMass: safeTotal };
+        return { topFraction: topMass / safeTotal, reservoirFraction: reservoirMass / safeTotal, totalMass: safeTotal };
+      }
+
+      function gravityDirection() {
+        return Math.sign((oilDensity - waterDensity) * (1 + buoyancy));
+      }
+
+      function getRemainingFraction(topFraction, reservoirFraction) {
+        if (reservoirLayout()) return 1 - (reservoirFraction ?? getMassFractions().reservoirFraction);
+        return gravityDirection() < 0 ? 1 - topFraction : topFraction;
       }
 
       function updateInfo(dt) {
         const mass = getMassFractions();
         const topFraction = mass.topFraction;
         const bottomFraction = 1 - topFraction;
-        const instRate = Math.max(0, (lastTopFraction - topFraction) / Math.max(dt, 1e-5));
-        transferRateEma = transferRateEma * 0.9 + instRate * 0.1;
-        lastTopFraction = topFraction;
-        const eta = transferRateEma > 1e-4 ? topFraction / transferRateEma : Infinity;
-        const stateText = running ? (topFraction < 0.015 ? "SETTLED | NS" : "RUNNING | NS") : "PAUSED | NS";
+        const direction = gravityDirection();
+        const remaining = getRemainingFraction(topFraction, mass.reservoirFraction);
+        if (running && !rotation.active && dt > 0 && direction !== 0) {
+          const instRate = Math.max(0, (lastRemainingFraction - remaining) / dt);
+          const smoothing = 1 - Math.exp(-dt * 6);
+          transferRateEma += smoothing * (instRate - transferRateEma);
+        }
+        lastRemainingFraction = remaining;
+        const eta = direction !== 0 && transferRateEma > 1e-4 ? remaining / transferRateEma : Infinity;
+        const settled = !rotation.active && direction !== 0 && remaining < 0.00001;
+        const stateText = rotation.active ? (running ? "TURNING" : "TURN PAUSED") : (running ? (direction === 0 ? "BALANCED" : (settled ? "COMPLETE" : "RUNNING")) : "PAUSED");
 
         stateLabel.textContent = stateText;
         progressText.textContent = "top " + (topFraction * 100).toFixed(1) + "% | bottom " + (bottomFraction * 100).toFixed(1) + "%";
-        etaText.textContent = Number.isFinite(eta) ? ("ETA " + eta.toFixed(1) + "s") : "ETA --";
-        flowText.textContent = "Transfer rate " + (transferRateEma * 100).toFixed(2) + " %/s";
-        dropsText.textContent = "Grid " + sim.nx + "x" + sim.ny + " | Oil mass " + mass.totalMass.toFixed(0);
-        speedText.textContent = speed.toFixed(2) + "x";
-        surfaceText.textContent = surfaceTension.toFixed(2);
-        phaseText.textContent = phaseSeparation.toFixed(2);
-        viscosityText.textContent = viscosity.toFixed(2);
-        waterViscosityText.textContent = waterViscosity.toFixed(2);
-        oilDensityText.textContent = oilDensity.toFixed(2);
-        waterDensityText.textContent = waterDensity.toFixed(2);
-        buoyancyText.textContent = buoyancy.toFixed(2);
+        if (reservoirLayout()) progressText.textContent = "Collected " + (mass.reservoirFraction * 100).toFixed(1) + "% | on the way " + (remaining * 100).toFixed(1) + "%";
+        if (rotation.active) progressText.textContent = "Turning " + Math.round((rotation.angle - rotation.startAngle) * 180 / Math.PI) + "° / 180°";
+        etaText.textContent = rotation.active ? "Rotation in progress" : (settled ? "Transfer complete" : (Number.isFinite(eta) ? ("ETA " + eta.toFixed(1) + "s") : "ETA --"));
+        flowText.textContent = rotation.active ? "Transfer rate -- during rotation" : "Transfer rate " + (transferRateEma * 100).toFixed(2) + " %/s";
+        const activeGrid = flowModel === "immiscible" && immiscible ? immiscible : sim;
+        dropsText.textContent = (flowModel === "immiscible" ? "VOF " : "Legacy ") + "Grid " + activeGrid.nx + "x" + activeGrid.ny + " | Oil mass " + mass.totalMass.toFixed(0);
+        const massError = initialOilMass > 0 ? 100 * (mass.totalMass / initialOilMass - 1) : 0;
+        massErrorText.textContent = "Mass error " + (Math.abs(massError) < 0.00005 ? "0.0000" : massError.toFixed(4)) + "%";
+        runtimeText.textContent = playbackLimited ? "Playback limited to keep controls responsive." : "";
+        document.getElementById("wheelStatus").textContent = "Wheel · " + (Math.abs(wheel.omega) < 0.0001 ? "resting" : wheel.omega > 0 ? "clockwise" : "counterclockwise");
       }
 
       function tick(ts) {
-        const dt = Math.min(0.03, (ts - lastTs) / 1000);
+        const dt = document.hidden ? 0 : Math.min(0.05, Math.max(0, (ts - lastTs) / 1000));
         lastTs = ts;
-        if (running) step(dt);
+        playbackLimited = running ? step(dt, 3) : false;
         draw();
         updateInfo(dt);
         requestAnimationFrame(tick);
@@ -1346,64 +1922,227 @@
 
       toggleBtn.addEventListener("click", () => {
         running = !running;
+        lastTs = performance.now();
         toggleBtn.textContent = running ? "Pause" : "Resume";
+        updateInfo(0);
       });
+
+      function localGravity() {
+        const x = Math.sin(rotation.angle);
+        const y = Math.cos(rotation.angle);
+        return { x: Math.abs(x) < 1e-12 ? 0 : x, y: Math.abs(y) < 1e-12 ? 0 : y };
+      }
+
+      function setTurnPose(elapsed) {
+        const t = Math.max(0, Math.min(1, elapsed / rotation.duration));
+        // Quintic easing starts and stops with zero angular velocity and
+        // acceleration. Convert derivatives to the solver's time units.
+        const eased = t * t * t * (10 + t * (-15 + 6 * t));
+        const duration = rotation.duration * solverStep / frameStep;
+        rotation.angle = rotation.startAngle + Math.PI * eased;
+        rotation.omega = Math.PI * 30 * t * t * (1 - t) * (1 - t) / duration;
+        rotation.alpha = Math.PI * 60 * t * (1 - t) * (1 - 2 * t) / (duration * duration);
+      }
+
+      function vesselViewScale() {
+        const sin = Math.sin(rotation.angle);
+        const cos = Math.cos(rotation.angle);
+        let halfWidth = 0;
+        let halfHeight = 0;
+        for (const [x, y] of glassOutline) {
+          halfWidth = Math.max(halfWidth, Math.abs(cos * x - sin * y));
+          halfHeight = Math.max(halfHeight, Math.abs(sin * x + cos * y));
+        }
+        // Wide/straight corners need a little camera room while rotating.
+        return Math.min(1, (canvas.width * 0.5 - 18) / halfWidth, (canvas.height * 0.5 - 18) / halfHeight);
+      }
+
+      function finishTurn() {
+        rotation.angle = (rotation.startAngle + Math.PI) % (2 * Math.PI);
+        rotation.active = false;
+        rotation.omega = rotation.alpha = 0;
+        // Keep the fields in vessel coordinates: no resampling, teleporting
+        // or loss of oil at a rotated grid boundary.
+        if (rotation.pauseAfter) running = false;
+        flipBtn.disabled = false;
+        flipBtn.textContent = "Invert";
+        flipBtn.setAttribute("aria-busy", "false");
+        toggleBtn.textContent = running ? "Pause" : "Resume";
+        lastRemainingFraction = getRemainingFraction(getMassFractions().topFraction);
+        transferRateEma = 0;
+      }
 
       flipBtn.addEventListener("click", () => {
-        const uNew = new Float32Array(nCells);
-        const vNew = new Float32Array(nCells);
-        const cNew = new Float32Array(nCells);
-        for (let j = 0; j < sim.ny; j += 1) {
-          for (let i = 0; i < sim.nx; i += 1) {
-            const src = idx(i, j);
-            const dst = idx(sim.nx - 1 - i, sim.ny - 1 - j);
-            cNew[dst] = mask[dst] ? c[src] : 0;
-            uNew[dst] = mask[dst] ? -u[src] : 0;
-            vNew[dst] = mask[dst] ? -v[src] : 0;
-          }
-        }
-        c = cNew;
-        u = uNew;
-        v = vNew;
-        p.fill(0);
-        const m = getMassFractions();
-        lastTopFraction = m.topFraction;
+        if (rotation.active) return;
+        rotation.active = true;
+        rotation.startAngle = rotation.angle;
+        rotation.elapsed = 0;
+        rotation.pauseAfter = !running;
+        rotation.omega = rotation.alpha = 0;
+        running = true;
+        timeAccumulator = 0;
+        lastTs = performance.now();
         transferRateEma = 0;
+        flipBtn.disabled = true;
+        flipBtn.textContent = "Turning…";
+        flipBtn.setAttribute("aria-busy", "true");
+        toggleBtn.textContent = "Pause";
+        updateInfo(0);
       });
 
-      resetBtn.addEventListener("click", () => {
+      function resetTimer() {
+        rotation.active = false;
+        rotation.angle = rotation.startAngle = rotation.elapsed = rotation.omega = rotation.alpha = 0;
+        rotation.pauseAfter = false;
+        wheel.reset();
+        flipBtn.disabled = false;
+        flipBtn.textContent = "Invert";
+        flipBtn.setAttribute("aria-busy", "false");
+        if (flowModel === "immiscible") resetImmiscible();
         seedConcentration();
         running = true;
+        lastTs = performance.now();
         toggleBtn.textContent = "Pause";
-      });
+      }
 
-      speedRange.addEventListener("input", (ev) => {
-        speed = Number(ev.target.value);
+      resetBtn.addEventListener("click", resetTimer);
+
+      function resetImmiscible() {
+        if (!immiscible || immiscibleShape !== vesselShape) {
+          const nx = 216, ny = 243;
+          const fineMask = new Uint8Array(nx * ny);
+          for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+            fineMask[i + j * nx] = isInsideContainer((i + 0.5) * canvas.width / nx, (j + 0.5) * canvas.height / ny) ? 1 : 0;
+          }
+          immiscible = new OilTimerVOF.Solver({ nx, ny, mask: fineMask, width: sim.nx, contactAngle });
+          immiscible.attachWheel(vesselShape === "wheel" ? wheel : null);
+          immiscibleShape = vesselShape;
+        }
+        const upperY = reservoirLayout() ? reservoirLayout().topFloor : (geom.neckY - 10) / cellH;
+        immiscible.setContactAngle(contactAngle);
+        immiscible.reset(upperY);
+      }
+
+      function updateModelUI() {
+        const modern = flowModel === "immiscible";
+        for (const [name, button] of Object.entries(modelButtons)) button.setAttribute("aria-pressed", String(name === flowModel));
+        document.getElementById("modelHint").textContent = modern
+          ? "Sharp oil/water interface · 216×243 grid. Changing model resets the timer."
+          : "Previous concentration/settling model · 144×162 grid. Changing model resets the timer.";
+        document.getElementById("immiscibleNote").hidden = !modern;
+        document.getElementById("legacyNote").hidden = modern;
+        document.getElementById("phaseNumber").disabled = modern;
+        document.getElementById("phaseRange").disabled = modern;
+        document.getElementById("phaseHelp").textContent = modern ? "Legacy only · VOF tracks an unmixed interface." : "0 – 100";
+        document.getElementById("contactAngleNumber").disabled = !modern;
+        document.getElementById("contactAngleRange").disabled = !modern;
+        document.getElementById("contactAngleHelp").textContent = modern ? "15 – 165" : "VOF only · Legacy keeps its original wall treatment.";
+      }
+
+      for (const [model, button] of Object.entries(modelButtons)) {
+        button.addEventListener("click", () => {
+          if (flowModel === model) return;
+          flowModel = model;
+          updateModelUI();
+          resetTimer();
+          draw();
+          updateInfo(0);
+        });
+      }
+
+      for (const [shape, button] of Object.entries(shapeButtons)) {
+        button.addEventListener("click", () => {
+          if (shape === vesselShape) return;
+          vesselShape = shape;
+          const hints = {
+            stairs: "Three stair runs carry the oil between reservoirs. A single zigzag path represents the toy in 2D.",
+            capsule: "A round-ended capsule with a narrow opening through its center partition.",
+            twin: "Three bulbs joined by two necks. Collected oil must reach the last bulb.",
+            pegboard: "Oil splits around four rows of glass pins between the end reservoirs.",
+            wheel: "Offset outlets feed six paddles. Flow turns the wheel and feels its drag. The blades are a permeable drag approximation, not sealed moving walls."
+          };
+          document.getElementById("vesselHint").hidden = !hints[shape];
+          document.getElementById("vesselHint").textContent = hints[shape] || "";
+          document.getElementById("wheelStatus").hidden = shape !== "wheel";
+          glassPath = buildGlassPath();
+          buildMask();
+          buildRenderSources();
+          resetTimer();
+          for (const [name, shapeButton] of Object.entries(shapeButtons)) {
+            shapeButton.setAttribute("aria-pressed", String(name === vesselShape));
+          }
+        });
+      }
+
+      function bindParameter(prefix, read, write) {
+        const slider = document.getElementById(prefix + "Range");
+        const number = document.getElementById(prefix + "Number");
+        const help = document.getElementById(prefix + "Help");
+        const min = Number(slider.min);
+        const max = Number(slider.max);
+        const stepSize = Number(slider.step);
+        const rangeHelp = min + " – " + max;
+        function showValidity(message = "") {
+          number.setCustomValidity(message);
+          number.setAttribute("aria-invalid", String(Boolean(message)));
+          help.textContent = message || rangeHelp;
+        }
+        function sync() {
+          slider.value = String(read());
+          number.value = read().toFixed(2);
+          showValidity();
+        }
+        function apply(source) {
+          const raw = source.value.trim();
+          const value = Number(raw);
+          if (!raw || !Number.isFinite(value) || value < min || value > max) {
+            showValidity("Enter a number from " + min + " to " + max + ".");
+            return false;
+          }
+          const steps = (value - min) / stepSize;
+          if (Math.abs(steps - Math.round(steps)) > 1e-7) {
+            showValidity("Use increments of " + stepSize + ".");
+            return false;
+          }
+          write(Number(value.toFixed(2)));
+          slider.value = String(read());
+          if (source === slider) number.value = read().toFixed(2);
+          showValidity();
+          lastRemainingFraction = getRemainingFraction(getMassFractions().topFraction);
+          transferRateEma = 0;
+          return true;
+        }
+        slider.addEventListener("input", () => apply(slider));
+        number.addEventListener("input", () => apply(number));
+        // Invalid drafts never reach the solver; leaving the field restores the
+        // last accepted value. Do not overwrite an unfinished edit every frame.
+        number.addEventListener("change", () => { apply(number); sync(); });
+        number.addEventListener("blur", sync);
+        sync();
+      }
+
+      bindParameter("speed", () => speed, (value) => { speed = value; });
+      bindParameter("surface", () => surfaceTension, (value) => { surfaceTension = value; });
+      bindParameter("contactAngle", () => contactAngle, (value) => {
+        contactAngle = value;
+        if (immiscible) immiscible.setContactAngle(value);
       });
-      surfaceRange.addEventListener("input", (ev) => {
-        surfaceTension = Number(ev.target.value);
-      });
-      phaseRange.addEventListener("input", (ev) => {
-        phaseSeparation = Number(ev.target.value);
-      });
-      viscosityRange.addEventListener("input", (ev) => {
-        viscosity = Number(ev.target.value);
-      });
-      waterViscosityRange.addEventListener("input", (ev) => {
-        waterViscosity = Number(ev.target.value);
-      });
-      oilDensityRange.addEventListener("input", (ev) => {
-        oilDensity = Number(ev.target.value);
-      });
-      waterDensityRange.addEventListener("input", (ev) => {
-        waterDensity = Number(ev.target.value);
-      });
-      buoyancyRange.addEventListener("input", (ev) => {
-        buoyancy = Number(ev.target.value);
+      bindParameter("phase", () => phaseSeparation, (value) => { phaseSeparation = value; });
+      bindParameter("viscosity", () => viscosity, (value) => { viscosity = value; });
+      bindParameter("waterViscosity", () => waterViscosity, (value) => { waterViscosity = value; });
+      bindParameter("oilDensity", () => oilDensity, (value) => { oilDensity = value; });
+      bindParameter("waterDensity", () => waterDensity, (value) => { waterDensity = value; });
+      bindParameter("buoyancy", () => buoyancy, (value) => { buoyancy = value; });
+
+      document.addEventListener("visibilitychange", () => {
+        lastTs = performance.now();
       });
 
       buildMask();
+      buildRenderSources();
+      resetImmiscible();
       seedConcentration();
+      updateModelUI();
       requestAnimationFrame((ts) => {
         lastTs = ts;
         tick(ts);
