@@ -27,6 +27,7 @@ body {
   width: min(760px, calc(100% - 2rem));
   margin: 2.2rem auto 3.2rem;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 1rem;
 }
 
@@ -153,6 +154,167 @@ button:hover {
 
 .error {
   color: #ab2f2f;
+}
+
+#mp-form button:disabled,
+#mp-form select:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+#mp-form[aria-busy="true"] button:disabled,
+#mp-form[aria-busy="true"] select:disabled {
+  cursor: wait;
+}
+
+#mp-form input:focus-visible,
+#mp-form select:focus-visible,
+#mp-form button:focus-visible,
+.mp-periodic-scroll:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.mp-element-filter {
+  min-width: 0;
+  margin: 1rem 0;
+  padding: 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.mp-element-filter legend {
+  max-width: 100%;
+  padding: 0 0.3rem;
+  font-weight: 700;
+}
+
+.mp-periodic-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  margin-top: 0.8rem;
+  padding: 0.2rem;
+  border-radius: 4px;
+}
+
+.mp-periodic-table {
+  display: grid;
+  grid-template-columns: repeat(18, minmax(0, 1fr));
+  gap: 0.2rem;
+  min-width: 38rem;
+}
+
+.mp-element {
+  min-height: 2.25rem;
+  margin: 0;
+  padding: 0.25rem 0;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: #fff;
+  color: var(--ink);
+  font-size: 0.85rem;
+}
+
+.mp-element:hover:not(:disabled) {
+  background: #ffe6cd;
+}
+
+.mp-element[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  box-shadow: inset 0 0 0 1px #fff;
+}
+
+.mp-element[aria-pressed="true"]:hover:not(:disabled) {
+  background: #934719;
+}
+
+#mp-form .mp-element:disabled {
+  background: #f2ece4;
+  color: var(--muted);
+  opacity: 0.5;
+  filter: none;
+}
+
+.mp-element-spacer {
+  display: grid;
+  place-items: center;
+  font-size: 0.55rem;
+  color: var(--muted);
+}
+
+.mp-f-block {
+  margin-top: 0.3rem;
+}
+
+.mp-filter-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  margin-top: 0.6rem;
+}
+
+.mp-filter-toolbar .meta {
+  flex: 1 1 15rem;
+  margin: 0;
+}
+
+#mp-clear-elements {
+  width: auto;
+  margin: 0;
+  padding: 0.45rem 0.7rem;
+}
+
+.mp-output {
+  margin-top: 0.8rem;
+  padding: 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff8ef;
+}
+
+.mp-pagination {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.7rem;
+}
+
+.mp-pagination button {
+  width: auto;
+  margin: 0;
+  padding: 0.5rem 0.7rem;
+}
+
+.mp-pagination .meta {
+  margin: 0;
+  text-align: center;
+}
+
+.mp-output a {
+  display: inline-block;
+  margin-top: 0.6rem;
+}
+
+.mp-material-name {
+  margin: 0 0 0.5rem;
+  font-size: 1.15rem;
+  overflow-wrap: anywhere;
+}
+
+#materials-project .meta {
+  overflow-wrap: anywhere;
+}
+
+#materials-project a {
+  color: var(--accent);
+}
+
+.mp-source {
+  padding-top: 0.6rem;
 }
 
 .periodic-table {

@@ -19,11 +19,57 @@
   <link rel="stylesheet" href="../shared/back-to-hub.css" />
   <script defer src="../shared/back-to-hub.js"></script>
 </head>
-<body data-page-version="0.2.0" data-page-updated="2026-03-16">
+<body data-page-version="0.6.10" data-page-updated="2026-08-28">
   <main class="app">
     <header class="hero">
       <h1><i>T</i><sub>2</sub></h1>
       </header>
+
+    <section class="card" id="materials-project" aria-labelledby="mp-title">
+      <h2 id="mp-title">Materials Project ID → <i>T</i><sub>2</sub></h2>
+      <p id="mp-sample-info" class="meta">Local material sample. No API key or live Materials Project request is needed.</p>
+      <form id="mp-form" novalidate>
+        <fieldset class="mp-element-filter" aria-describedby="mp-element-help">
+          <legend>Filter materials by elements (multiple selection)</legend>
+          <p id="mp-element-help" class="meta">Select all elements the material must contain, e.g., Si + C. Click again to deselect. Dimmed elements have no matching saved materials under the current element and text filters. Selected elements can always be deselected. Scroll horizontally on smaller screens.</p>
+          <div class="mp-periodic-scroll" tabindex="0" role="region" aria-label="Material element filters, periodic table">
+            <div id="mp-periodic-table" class="mp-periodic-table"></div>
+          </div>
+          <div class="mp-filter-toolbar">
+            <p id="mp-filter-summary" class="meta" role="status" aria-live="polite" aria-atomic="true">Loading element filters…</p>
+            <button id="mp-clear-elements" class="secondary-btn" type="button" disabled>Clear elements</button>
+          </div>
+        </fieldset>
+        <label for="mp-id">Materials Project ID</label>
+        <input id="mp-id" name="material-id" type="text" value="mp-8062" placeholder="e.g., mp-8062" maxlength="40" autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="mp-help" required />
+        <label for="mp-search">Search formula or ID</label>
+        <input id="mp-search" type="search" placeholder="e.g., NaCl, SiO2, or mp-149" maxlength="80" autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="mp-search-help" disabled />
+        <p id="mp-search-help" class="meta">Matches formula text or ID, together with the selected elements. Results are shown 100 at a time.</p>
+        <label for="mp-sample-select">Or choose a material (formula — ID)</label>
+        <select id="mp-sample-select" disabled>
+          <option value="">Loading local sample…</option>
+        </select>
+        <div class="mp-pagination" role="group" aria-label="Material result pages">
+          <button id="mp-page-prev" class="secondary-btn" type="button" disabled>Previous</button>
+          <p id="mp-page-summary" class="meta" role="status" aria-live="polite" aria-atomic="true">Loading results…</p>
+          <button id="mp-page-next" class="secondary-btn" type="button" disabled>Next</button>
+        </div>
+        <button id="mp-calculate" type="submit" disabled>Calculate <i>T</i><sub>2</sub> from ID</button>
+      </form>
+      <p id="mp-help" class="meta">Only IDs included in this sample are supported. Direct ID lookup searches all saved materials, clears incompatible search filters, and opens the matching result page. Materials with the same formula are distinguished by their MP IDs. For other materials, use the CIF/JSON input below.</p>
+      <p class="formula-note">Natural-abundance scaling estimate using the same material model as the file calculator, not CCE or a measured material property. Atomic number density is taken from the saved material, independently of the concentration input in the element/isotope calculator.</p>
+      <p class="meta">This estimate includes nuclear-spin contributions only. It does not assess metallic conduction, electronic magnetism, defects, temperature, or whether a material is a suitable qubit host.</p>
+      <p id="mp-status" class="meta" role="status" aria-live="polite">Loading local sample…</p>
+      <div id="mp-output" class="mp-output" hidden>
+        <h3 id="mp-material-name" class="mp-material-name"></h3>
+        <p id="mp-result" class="result" aria-live="polite"></p>
+        <p id="mp-meta" class="meta"></p>
+        <a id="mp-material-link" target="_blank" rel="noopener noreferrer">View material on Materials Project</a>
+      </div>
+      <p id="mp-source" class="meta mp-source">Data source: <a href="https://optimade.materialsproject.org/" target="_blank" rel="noopener noreferrer">Materials Project OPTIMADE</a>. Database reference: A. Jain et al., APL Materials 1, 011002 (2013). DOI: <a id="mp-source-doi" href="https://doi.org/10.1063/1.4812323" target="_blank" rel="noopener noreferrer">10.1063/1.4812323</a>.</p>
+      <p id="mp-density-source" class="meta">Atomic number density is derived from MP cell data as n = N / V &times; 10<sup>24</sup> cm<sup>&minus;3</sup>, where N is the total number of atoms in the cell and V is its volume in &Aring;<sup>3</sup>, then rounded to 10 significant digits. These are derived densities, not experimental measurements. Snapshot retrieved: <time datetime="2026-08-27">2026-08-27</time>. This saved sample may differ from the latest MP database. <a href="data/README.md">Sample details and attribution</a>. <a href="https://materialsproject.org/about/terms" target="_blank" rel="noopener noreferrer">Materials Project terms</a>.</p>
+      <noscript><p class="error">JavaScript is required for ID lookup and calculation.</p></noscript>
+    </section>
 
     <section class="card" aria-labelledby="calc-title">
       <h2 id="calc-title">Input</h2>
@@ -104,6 +150,10 @@
 
     <section class="card" aria-labelledby="references-title">
       <h2 id="references-title">References</h2>
+      <p id="mp-reference" class="meta">
+        Materials Project data: A. Jain et al., "Commentary: The Materials Project: A materials genome approach to accelerating materials innovation," APL Materials 1, 011002 (2013). DOI:
+        <a href="https://doi.org/10.1063/1.4812323" target="_blank" rel="noopener noreferrer">https://doi.org/10.1063/1.4812323</a>
+      </p>
       <p class="meta">
         S. Kanai, F. J. Heremans, H. Seo, G. Wolfowicz, C. P. Anderson, S. E. Sullivan, M. Onizhuk, G. Galli, D. D. Awschalom, and H. Ohno, Proc. Natl. Acad. Sci. U.S.A. 119, e2121808119(1)-(8) (2022). DOI:
         <a href="https://doi.org/10.1073/pnas.2121808119" target="_blank" rel="noopener noreferrer">https://doi.org/10.1073/pnas.2121808119</a>
@@ -123,6 +173,7 @@
   </main>
 
   <script src="script.js"></script>
+  <script src="materials.js?v=0.6.10"></script>
 </body>
 </html>
 
