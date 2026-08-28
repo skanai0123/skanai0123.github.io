@@ -5,14 +5,16 @@
 })(typeof window === "undefined" ? this : window, function (O) {
   "use strict";
 
-  const FORMAT = "optics-bench", SCHEMA_VERSION = 1, MAX_BYTES = 256 * 1024;
-  const MAX_ELEMENTS = O.MAX_ELEMENTS;
+  const FORMAT = "optics-bench", SCHEMA_VERSION = 2, MAX_BYTES = 256 * 1024;
+  const COMPONENT_PREFIX = "Optics Bench component v1\n";
+  const MAX_ELEMENTS = O.MAX_ELEMENTS, MAX_FIBER_LINKS = O.MAX_FIBER_LINKS;
   const DEFAULTS = Object.freeze({ format: FORMAT, schemaVersion: SCHEMA_VERSION, title: "無題の光学系", unit: "cm", gridStep: 10, snap: true, angleSnap: true });
   const UNITS = Object.freeze({ mm: 1, cm: 10, in: 25.4 });
-  const SCENE_KEYS = new Set(["format", "schemaVersion", "title", "unit", "gridStep", "snap", "angleSnap", "elements"]);
-  const ELEMENT_KEYS = new Set(["id", "type", "x", "y", "angle", "aperture", "focal", "beamWidth", "wavelength", "power", "rayCount", "divergence", "polarization", "polAngle", "axisAngle", "designWavelength", "opening", "coreDiameter", "na", "transmission", "cutoff", "mode", "enabled", "label"]);
+  const SCENE_KEYS = new Set(["format", "schemaVersion", "title", "unit", "gridStep", "snap", "angleSnap", "elements", "fiberLinks"]);
+  const FIBER_LINK_KEYS = new Set(["a", "b"]);
+  const ELEMENT_KEYS = new Set(["id", "type", "x", "y", "angle", "aperture", "focal", "beamWidth", "wavelength", "power", "rayCount", "divergence", "polarization", "polAngle", "axisAngle", "designWavelength", "opening", "coreDiameter", "na", "transmission", "cutoff", "mode", "phase", "enabled", "label", "pixelCount", "exposure", "autoExposure", "filterMode", "bandLow", "bandHigh", "opticalDensity"]);
   const ANGLE_KEYS = new Set(["angle", "polAngle", "axisAngle"]);
-  const NUMERIC_KEYS = ["angle", "aperture", "focal", "beamWidth", "wavelength", "power", "rayCount", "divergence", "polAngle", "axisAngle", "designWavelength", "opening", "coreDiameter", "na", "transmission", "cutoff"];
+  const NUMERIC_KEYS = ["angle", "aperture", "focal", "beamWidth", "wavelength", "power", "rayCount", "divergence", "polAngle", "axisAngle", "designWavelength", "opening", "coreDiameter", "na", "transmission", "cutoff", "phase", "pixelCount", "exposure", "bandLow", "bandHigh", "opticalDensity"];
   const POLARIZATIONS = new Set(["linear", "right", "left", "unpolarized"]);
   const MODES = new Set(["longpass", "shortpass"]);
   const own = (value, key) => Object.prototype.hasOwnProperty.call(value, key);
@@ -76,8 +78,8 @@
     ids.add(id);
     const type = input.type;
     if (typeof type !== "string" || !own(O.TYPES, type)) fail(`${name}の部品種別に対応していません。`);
-    const x = number(input.x, `${name}のX`, O.MARGIN, O.WIDTH - O.MARGIN);
-    const y = number(input.y, `${name}のY`, O.MARGIN, O.HEIGHT - O.MARGIN);
+    const x = number(input.x, `${name}のX`, -O.COORDINATE_LIMIT, O.COORDINATE_LIMIT);
+    const y = number(input.y, `${name}のY`, -O.COORDINATE_LIMIT, O.COORDINATE_LIMIT);
     const element = O.createElement(type, id, x, y);
     // Positions in the file are physical millimetres, not grid indices.
     element.x = x;
@@ -85,9 +87,10 @@
     for (const key of NUMERIC_KEYS) {
       if (!own(input, key)) continue;
       const limit = O.PARAM_LIMITS[key];
-      const value = number(input[key], `${name}の${key}`, limit.min, limit.max, key === "rayCount");
+      const value = number(input[key], `${name}の${key}`, limit.min, limit.max, ["rayCount", "pixelCount"].includes(key));
       if (key === "focal" && Math.abs(value) < 1) fail(`${name}の焦点距離の絶対値は1 mm以上にしてください。`);
-      element[key] = ANGLE_KEYS.has(key) ? O.normalizeAngle(value) : value;
+      // The range is already checked; avoid modulo rounding of valid decimal angles.
+      element[key] = ANGLE_KEYS.has(key) && value === 360 ? 0 : value;
     }
     if (own(input, "polarization")) {
       if (!POLARIZATIONS.has(input.polarization)) fail(`${name}の偏光状態に対応していません。`);
@@ -97,17 +100,25 @@
       if (!MODES.has(input.mode)) fail(`${name}のダイクロイックモードに対応していません。`);
       element.mode = input.mode;
     }
+    if (own(input, "filterMode")) {
+      if (!O.FILTER_MODES.includes(input.filterMode)) fail(`${name}のフィルター種別に対応していません。`);
+      element.filterMode = input.filterMode;
+    }
     if (own(input, "enabled")) element.enabled = boolean(input.enabled, `${name}の有効状態`);
+    if (own(input, "autoExposure")) element.autoExposure = boolean(input.autoExposure, `${name}の自動明るさ`);
     if (own(input, "label")) element.label = safeText(input.label, `${name}の名前`, 100);
     if (type === "iris" && element.opening > element.aperture) fail(`${name}のアイリス開口は部品径以下にしてください。`);
     if (type === "fiber" && element.coreDiameter > element.aperture) fail(`${name}のファイバーコア径は部品径以下にしてください。`);
+    if (type === "concave" && !O.concaveGeometry(element)) fail(`${name}の凹面ミラーはfを正にし、有効径を4f（曲率半径Rの2倍）未満にしてください。`);
+    if (type === "filter" && element.bandLow >= element.bandHigh) fail(`${name}の透過帯域は下限波長を上限波長より小さくしてください。`);
     return element;
   }
 
   function validateScene(input) {
     plainObject(input, "設計データ", SCENE_KEYS);
     if (input.format !== FORMAT) fail("Optics Bench形式のJSONを選んでください。");
-    if (input.schemaVersion !== SCHEMA_VERSION) fail("この保存形式のバージョンには対応していません。");
+    if (input.schemaVersion !== 1 && input.schemaVersion !== SCHEMA_VERSION) fail("この保存形式のバージョンには対応していません。");
+    if (input.schemaVersion === 1 && own(input, "fiberLinks")) fail("保存形式1ではファイバー接続を指定できません。");
     const unit = own(input, "unit") ? input.unit : DEFAULTS.unit;
     unitScale(unit);
     const scene = {
@@ -118,14 +129,35 @@
       gridStep: own(input, "gridStep") ? number(input.gridStep, "グリッド間隔（mm）", 1, 254) : defaultGridStep(unit),
       snap: own(input, "snap") ? boolean(input.snap, "グリッド吸着") : DEFAULTS.snap,
       angleSnap: own(input, "angleSnap") ? boolean(input.angleSnap, "角度吸着") : DEFAULTS.angleSnap,
-      elements: []
+      elements: [],
+      fiberLinks: []
     };
     if (!Array.isArray(input.elements) || input.elements.length > MAX_ELEMENTS) fail(`部品は${MAX_ELEMENTS}個以下の配列で指定してください。`);
     const ids = new Set();
     for (let index = 0; index < input.elements.length; index++) {
       scene.elements.push(validateElement(input.elements[index], index, ids));
     }
+    scene.fiberLinks = validateFiberLinks(own(input, "fiberLinks") ? input.fiberLinks : [], scene.elements);
     return scene;
+  }
+
+  function validateFiberLinks(input, elements) {
+    if (!Array.isArray(input) || input.length > MAX_FIBER_LINKS) fail(`ファイバー接続は${MAX_FIBER_LINKS}本以下の配列で指定してください。`);
+    const fibers = new Set(elements.filter(element => element.type === "fiber").map(element => element.id));
+    const occupied = new Set(), links = [];
+    for (let index = 0; index < input.length; index++) {
+      const name = `ファイバー接続${index + 1}`, link = input[index];
+      plainObject(link, name, FIBER_LINK_KEYS);
+      if (!own(link, "a") || !own(link, "b")) fail(`${name}には両端のID（a・b）を指定してください。`);
+      const a = number(link.a, `${name}のa`, 1, 1000000000, true);
+      const b = number(link.b, `${name}のb`, 1, 1000000000, true);
+      if (a === b) fail(`${name}は異なる2つの端面を指定してください。`);
+      if (!fibers.has(a) || !fibers.has(b)) fail(`${name}は実在するファイバー端面同士を指定してください。`);
+      if (occupied.has(a) || occupied.has(b)) fail("1つのファイバー端面には1本だけ接続できます。");
+      occupied.add(a); occupied.add(b);
+      links.push({ a, b });
+    }
+    return links;
   }
 
   function byteLength(text) {
@@ -148,10 +180,48 @@
     return validateScene(input);
   }
 
+  function documentRecord(scene) {
+    // Do not introduce an unused phase key into older ordinary component files.
+    // New half-wave/phase types still need a reader that supports those types.
+    return { ...scene, elements: scene.elements.map(element => {
+      const record = { ...element };
+      if (record.type !== "phase" && record.phase === 0) delete record.phase;
+      if (record.type !== "camera") for (const key of ["pixelCount", "exposure", "autoExposure"]) {
+        if (record[key] === O.DEFAULTS[key]) delete record[key];
+      }
+      if (record.type !== "filter") for (const key of ["filterMode", "bandLow", "bandHigh", "opticalDensity"]) {
+        if (record[key] === O.DEFAULTS[key]) delete record[key];
+      }
+      return record;
+    }) };
+  }
+
   function serialize(scene) {
-    const text = JSON.stringify(validateScene(scene), null, 2) + "\n";
+    const text = JSON.stringify(documentRecord(validateScene(scene)), null, 2) + "\n";
     if (byteLength(text) > MAX_BYTES) fail("保存データが256 KiBを超えています。");
     return text;
+  }
+
+  function serializeComponent(element) {
+    const scene = defaultScene([element], { unit: "mm" });
+    // Keep disconnected copies in a schema-1 wrapper; readers must also support the component type.
+    delete scene.fiberLinks;
+    scene.schemaVersion = 1;
+    const text = COMPONENT_PREFIX + JSON.stringify(documentRecord(scene), null, 2) + "\n";
+    if (byteLength(text) > MAX_BYTES) fail("部品のコピーデータは256 KiB以下にしてください。");
+    return text;
+  }
+
+  function parseComponent(text) {
+    if (typeof text !== "string") fail("部品のコピーデータをテキストで指定してください。");
+    if (text.length > MAX_BYTES || byteLength(text) > MAX_BYTES) fail("部品のコピーデータは256 KiB以下にしてください。");
+    // Native Windows clipboards can use CRLF. Normalize only the header separator.
+    const lineEnd = text.indexOf("\n");
+    const normalized = lineEnd > 0 && text[lineEnd - 1] === "\r" ? text.slice(0, lineEnd - 1) + text.slice(lineEnd) : text;
+    if (!normalized.startsWith(COMPONENT_PREFIX)) fail("Optics Benchの部品コピー形式ではありません。");
+    const scene = parse(normalized.slice(COMPONENT_PREFIX.length));
+    if (scene.elements.length !== 1) fail("部品のコピーデータには1個の部品を指定してください。");
+    return scene.elements[0];
   }
 
   function defaultScene(elements = [], overrides = {}) {
@@ -163,6 +233,6 @@
     return validateScene({ ...scene, unit, gridStep: defaultGridStep(unit) });
   }
 
-  return Object.freeze({ FORMAT, SCHEMA_VERSION, MAX_BYTES, MAX_ELEMENTS, DEFAULTS, defaults: DEFAULTS, UNITS,
-    validateScene, parse, serialize, defaultScene, unitScale, defaultGridStep, fromDisplay, toDisplay, switchUnit });
+  return Object.freeze({ FORMAT, SCHEMA_VERSION, COMPONENT_PREFIX, MAX_BYTES, MAX_ELEMENTS, MAX_FIBER_LINKS, DEFAULTS, defaults: DEFAULTS, UNITS,
+    validateScene, parse, serialize, serializeComponent, parseComponent, defaultScene, unitScale, defaultGridStep, fromDisplay, toDisplay, switchUnit });
 });

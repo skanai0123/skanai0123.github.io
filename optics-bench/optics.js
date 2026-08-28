@@ -4,22 +4,32 @@
   // Millimetres; geometric angles are clockwise on the board. Polarization
   // angles belong to a separate local transverse reference frame.
   const WIDTH = 1000, HEIGHT = 600, GRID = 25, MARGIN = 50;
+  // No physical table boundary. Keep a numerical guard (1000 km either side)
+  // so coordinates remain precise enough for the existing millimetre model.
+  const COORDINATE_LIMIT = 1e9;
   const EPS = 1e-7, MAX_INTERACTIONS = 40, MAX_ELEMENTS = 80;
+  const MAX_FIBER_LINKS = MAX_ELEMENTS / 2;
   const MAX_SEGMENTS = 12000, MAX_RAYS = 4096, MIN_POWER = 1e-9;
   const TYPES = Object.freeze({
     laser: { label: "レーザー", short: "LAS", color: "#ff8279" },
     point: { label: "点光源", short: "PT", color: "#ffba73" },
     mirror: { label: "ミラー", short: "M", color: "#a8becf" },
+    concave: { label: "凹面ミラー", short: "CM", color: "#bdd0ec" },
     lens: { label: "レンズ", short: "L", color: "#70d5ee" },
     iris: { label: "アイリス", short: "IR", color: "#d4c5ac" },
+    filter: { label: "フィルター", short: "FLT", color: "#91dec6" },
     polarizer: { label: "偏光子", short: "POL", color: "#afa1ff" },
     waveplate: { label: "λ/4板", short: "λ/4", color: "#e5a0ef" },
+    halfwave: { label: "λ/2板", short: "λ/2", color: "#d39de9" },
+    phase: { label: "位相シフター", short: "φ", color: "#f0d083" },
     dichroic: { label: "ダイクロイック", short: "DM", color: "#f3be68" },
     objective: { label: "対物レンズ", short: "OBJ", color: "#70d5ee" },
     fiber: { label: "ファイバー", short: "FIB", color: "#87d9a8" },
     blocker: { label: "ビームブロッカー", short: "STOP", color: "#b6b9c4" },
-    splitter: { label: "ビームスプリッター", short: "BS", color: "#b4d5fb" },
-    screen: { label: "スクリーン / 検出器", short: "DET", color: "#95e1bf" }
+    splitter: { label: "無偏光BS（NPBS）", short: "NPBS", color: "#b4d5fb" },
+    pbs: { label: "偏光BS（PBS）", short: "PBS", color: "#f7b6c7" },
+    screen: { label: "スクリーン / 検出器", short: "DET", color: "#95e1bf" },
+    camera: { label: "カメラ", short: "CAM", color: "#f1c992" }
   });
   const PARAM_LIMITS = Object.freeze({
     angle: { min: 0, max: 360 }, polAngle: { min: 0, max: 360 }, axisAngle: { min: 0, max: 360 },
@@ -28,20 +38,26 @@
     power: { min: 0, max: 100 }, rayCount: { min: 1, max: 61 },
     divergence: { min: 1, max: 360 }, designWavelength: { min: 200, max: 2500 },
     opening: { min: 0, max: 300 }, coreDiameter: { min: 0.01, max: 200 },
-    na: { min: 0.01, max: 1 }, transmission: { min: 0, max: 1 }, cutoff: { min: 200, max: 2500 }
+    na: { min: 0.01, max: 1 }, transmission: { min: 0, max: 1 }, cutoff: { min: 200, max: 2500 },
+    phase: { min: 0, max: 360 }, pixelCount: { min: 16, max: 1024 }, exposure: { min: 0.01, max: 100 },
+    bandLow: { min: 200, max: 2500 }, bandHigh: { min: 200, max: 2500 }, opticalDensity: { min: 0, max: 6 }
   });
+  const FILTER_MODES = Object.freeze(["longpass", "shortpass", "bandpass", "nd"]);
   const DEFAULTS = Object.freeze({
     angle: 0, focal: 100, aperture: 50, beamWidth: 12, wavelength: 532,
     power: 1, rayCount: 9, divergence: 20, polarization: "linear", polAngle: 0,
     axisAngle: 0, designWavelength: 532, opening: 20, coreDiameter: 1, na: 0.22,
-    transmission: 0.5, cutoff: 600, mode: "longpass", enabled: true, label: ""
+    transmission: 0.5, cutoff: 600, mode: "longpass", phase: 0, enabled: true, label: "",
+    pixelCount: 256, exposure: 1, autoExposure: true,
+    filterMode: "bandpass", bandLow: 500, bandHigh: 560, opticalDensity: 1
   });
   const TYPE_DEFAULTS = {
     point: { polarization: "unpolarized", rayCount: 21, divergence: 30, beamWidth: 0 },
-    mirror: { angle: 45, aperture: 100 }, lens: { aperture: 100 },
-    waveplate: { axisAngle: 45 }, dichroic: { angle: 45, aperture: 100 },
-    objective: { focal: 50, na: 0.35 }, splitter: { angle: 45, aperture: 100 },
-    blocker: { aperture: 100 }, screen: { aperture: 100 }
+    mirror: { angle: 45, aperture: 100 }, concave: { focal: 100, aperture: 100 }, lens: { aperture: 100 },
+    waveplate: { axisAngle: 45 }, halfwave: { axisAngle: 22.5 }, dichroic: { angle: 45, aperture: 100 },
+    objective: { focal: 50, na: 0.35 }, splitter: { angle: 45, aperture: 100 }, pbs: { angle: 45, aperture: 100 },
+    blocker: { aperture: 100 }, screen: { aperture: 100 }, camera: { aperture: 24 },
+    filter: { aperture: 100, transmission: 1 }
   };
   const isSource = element => element.type === "laser" || element.type === "point";
   const dot = (a, b) => a.x * b.x + a.y * b.y;
@@ -60,8 +76,8 @@
     const step = Number.isFinite(grid) && grid > 0 ? grid : GRID;
     const quantize = value => snap ? Math.round(value / step) * step : Math.round(value * 10) / 10;
     return {
-      x: clamp(quantize(Number.isFinite(x) ? x : WIDTH / 2), MARGIN, WIDTH - MARGIN),
-      y: clamp(quantize(Number.isFinite(y) ? y : HEIGHT / 2), MARGIN, HEIGHT - MARGIN)
+      x: clamp(quantize(Number.isFinite(x) ? x : WIDTH / 2), -COORDINATE_LIMIT, COORDINATE_LIMIT),
+      y: clamp(quantize(Number.isFinite(y) ? y : HEIGHT / 2), -COORDINATE_LIMIT, COORDINATE_LIMIT)
     };
   }
 
@@ -77,9 +93,69 @@
     return [laser, mirror, lens];
   }
 
+  // Ideal, polarization-independent intensity transmission. Spectral edges
+  // include their endpoints; rejected power is absorbed, never reflected.
+  // ND uses OD alone, so switching modes retains the separate passband T.
+  function filterTransmission(element, wavelength) {
+    if (!Number.isFinite(wavelength)) return 0;
+    if (element.filterMode === "nd") return 10 ** -element.opticalDensity;
+    const pass = element.filterMode === "longpass" ? wavelength >= element.cutoff :
+      element.filterMode === "shortpass" ? wavelength <= element.cutoff :
+      element.filterMode === "bandpass" && wavelength >= element.bandLow && wavelength <= element.bandHigh;
+    return pass ? element.transmission : 0;
+  }
+
   function segment(element) {
     const n = direction(element.angle), tangent = { x: -n.y, y: n.x };
     return { a: add(element, tangent, -element.aperture / 2), b: add(element, tangent, element.aperture / 2), n, tangent };
+  }
+
+  // Spherical cap, not a powered plane. The vertex is the element position;
+  // angle 0 opens to the left. f is the positive paraxial value, R = 2f.
+  function concaveGeometry(element) {
+    const radius = 2 * element.focal, half = element.aperture / 2;
+    if (!(radius > 0 && half > 0 && half < radius)) return null;
+    const n = direction(element.angle), tangent = { x: -n.y, y: n.x };
+    const sag = half * half / (radius + Math.sqrt(radius * radius - half * half));
+    const rim = add(element, n, -sag);
+    return { vertex: { x: element.x, y: element.y }, radius, half, sag, n, tangent,
+      a: add(rim, tangent, -half), b: add(rim, tangent, half) };
+  }
+
+  function geometryTolerance(...points) {
+    return Math.max(EPS, ...points.map(p => Math.max(Math.abs(p.x), Math.abs(p.y)) * Number.EPSILON * 8));
+  }
+
+  function intersectConcave(origin, ray, arc, minDistance = EPS) {
+    if (!arc) return null;
+    const offset = { x: origin.x - arc.vertex.x, y: origin.y - arc.vertex.y };
+    const dx = dot(ray, arc.n), dy = dot(ray, arc.tangent), norm = Math.hypot(dx, dy);
+    if (!(norm > 0)) return null;
+    const ux = dx / norm, uy = dy / norm;
+    const x = dot(offset, arc.n) + arc.radius, y = dot(offset, arc.tangent);
+    const along = x * ux + y * uy, perpendicular = x * uy - y * ux;
+    const tolerance = geometryTolerance(origin, arc.vertex);
+    // Closest approach avoids subtracting two large squared distances when
+    // the source is far away. Construct the hit locally, then translate once.
+    const discriminant = arc.radius * arc.radius - perpendicular * perpendicular;
+    if (discriminant < -2 * arc.radius * tolerance) return null;
+    const root = Math.sqrt(Math.max(0, discriminant));
+    for (const sign of [-1, 1]) {
+      const distance = -along + sign * root;
+      if (distance <= (minDistance < 0 ? -tolerance : Math.max(minDistance, tolerance))) continue;
+      const cx = perpendicular * uy + sign * root * ux;
+      const cy = -perpendicular * ux + sign * root * uy;
+      if (cx < arc.radius - arc.sag - tolerance || Math.abs(cy) > arc.half + tolerance) continue;
+      const normal = unit(add({ x: arc.n.x * cx, y: arc.n.y * cx }, arc.tangent, cy));
+      const axial = -cy * cy / (arc.radius + Math.max(0, cx));
+      return { distance, point: add(add(arc.vertex, arc.n, axial), arc.tangent, cy), normal };
+    }
+    return null;
+  }
+
+  function opticalSurface(element, index) {
+    const arc = element.type === "concave" ? concaveGeometry(element) : null;
+    return { ...(arc || segment(element)), arc, element, index };
   }
 
   function intersect(origin, ray, a, b) {
@@ -93,13 +169,37 @@
     return { distance, point: add(origin, ray, distance) };
   }
 
-  function boundaryDistance(origin, ray) {
+  function boundaryDistance(origin, ray, bounds = { x: 0, y: 0, width: WIDTH, height: HEIGHT }) {
     const values = [];
-    if (ray.x > EPS) values.push((WIDTH - origin.x) / ray.x);
-    if (ray.x < -EPS) values.push(-origin.x / ray.x);
-    if (ray.y > EPS) values.push((HEIGHT - origin.y) / ray.y);
-    if (ray.y < -EPS) values.push(-origin.y / ray.y);
+    if (ray.x > EPS) values.push((bounds.x + bounds.width - origin.x) / ray.x);
+    if (ray.x < -EPS) values.push((bounds.x - origin.x) / ray.x);
+    if (ray.y > EPS) values.push((bounds.y + bounds.height - origin.y) / ray.y);
+    if (ray.y < -EPS) values.push((bounds.y - origin.y) / ray.y);
     return values.length ? Math.max(0, Math.min(...values)) : 0;
+  }
+
+  function elementBounds(elements) {
+    if (!elements.length) return { x: 0, y: 0, width: WIDTH, height: HEIGHT };
+    let left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity;
+    for (const e of elements) {
+      // Conservative rotation-independent envelope of the body and source fan.
+      const sag = e.type === "concave" ? concaveGeometry(e)?.sag || 0 : 0;
+      const radius = Math.max(40, Math.hypot(e.aperture / 2, sag) + 20, isSource(e) ? e.beamWidth / 2 + 8 : 0);
+      left = Math.min(left, e.x - radius); right = Math.max(right, e.x + radius);
+      top = Math.min(top, e.y - radius); bottom = Math.max(bottom, e.y + radius);
+    }
+    return { x: left, y: top, width: right - left, height: bottom - top };
+  }
+
+  function traceBounds(elements, viewBounds) {
+    const scene = elementBounds(elements);
+    let left = scene.x - 200, top = scene.y - 200, right = scene.x + scene.width + 200, bottom = scene.y + scene.height + 200;
+    if (viewBounds && [viewBounds.x, viewBounds.y, viewBounds.width, viewBounds.height].every(Number.isFinite) && viewBounds.width > 0 && viewBounds.height > 0 &&
+        Math.abs(viewBounds.x) <= COORDINATE_LIMIT * 256 && Math.abs(viewBounds.y) <= COORDINATE_LIMIT * 256 && viewBounds.width <= COORDINATE_LIMIT * 256 && viewBounds.height <= COORDINATE_LIMIT * 256) {
+      left = Math.min(left, viewBounds.x); top = Math.min(top, viewBounds.y);
+      right = Math.max(right, viewBounds.x + viewBounds.width); bottom = Math.max(bottom, viewBounds.y + viewBounds.height);
+    }
+    return { x: left, y: top, width: right - left, height: bottom - top };
   }
 
   function reflect(ray, normal) { return unit(add(ray, normal, -2 * dot(ray, normal))); }
@@ -180,8 +280,9 @@
   function nearestHit(origin, ray, surfaces, lastIndex, boundary) {
     let nearest = null;
     for (const surface of surfaces) {
-      if (surface.index === lastIndex) continue;
-      const hit = intersect(origin, ray, surface.a, surface.b);
+      // A deep spherical cap can be struck twice; only discard its zero root.
+      if (surface.index === lastIndex && !surface.arc) continue;
+      const hit = surface.arc ? intersectConcave(origin, ray, surface.arc) : intersect(origin, ray, surface.a, surface.b);
       if (hit && hit.distance < boundary - EPS && (!nearest || hit.distance < nearest.distance)) {
         nearest = { ...hit, surface, element: surface.element };
       }
@@ -196,7 +297,7 @@
       if (!raw || !Object.prototype.hasOwnProperty.call(TYPES, raw.type) ||
           !["number", "string"].includes(typeof raw.id) ||
           (typeof raw.id === "number" && !Number.isFinite(raw.id)) || ids.has(raw.id) ||
-          !Number.isFinite(raw.x) || !Number.isFinite(raw.y) || raw.x < 0 || raw.x > WIDTH || raw.y < 0 || raw.y > HEIGHT) {
+          !Number.isFinite(raw.x) || !Number.isFinite(raw.y) || Math.abs(raw.x) > COORDINATE_LIMIT || Math.abs(raw.y) > COORDINATE_LIMIT) {
         warnings.add("種類・ID・位置が不正な素子を計算から除外しました。"); continue;
       }
       const element = createElement(raw.type, raw.id, raw.x, raw.y);
@@ -208,23 +309,58 @@
         if (["angle", "polAngle", "axisAngle"].includes(key)) element[key] = normalizeAngle(element[key]);
         else if (element[key] < limits.min || element[key] > limits.max) { invalid = true; break; }
       }
-      invalid ||= !Number.isInteger(element.rayCount) || Math.abs(element.focal) < 1 ||
+      invalid ||= !Number.isInteger(element.rayCount) || !Number.isInteger(element.pixelCount) || typeof element.autoExposure !== "boolean" || Math.abs(element.focal) < 1 ||
         !["linear", "right", "left", "unpolarized"].includes(element.polarization) ||
         !["longpass", "shortpass"].includes(element.mode) || typeof element.enabled !== "boolean" ||
+        !FILTER_MODES.includes(element.filterMode) ||
+        (element.type === "filter" && element.bandLow >= element.bandHigh) ||
         (element.type === "iris" && element.opening > element.aperture) ||
-        (element.type === "fiber" && element.coreDiameter > element.aperture);
+        (element.type === "fiber" && element.coreDiameter > element.aperture) ||
+        (element.type === "concave" && !concaveGeometry(element));
       if (invalid) { warnings.add("範囲外または不正なパラメーターの素子を計算から除外しました。"); continue; }
       ids.add(element.id);
-      if (element.enabled) valid.push(element);
+      valid.push(element);
     }
     if (elements.length > MAX_ELEMENTS) warnings.add(`素子数の上限（${MAX_ELEMENTS}個）を超えた分を除外しました。`);
     return valid;
   }
 
+  function prepareFiberLinks(links, elements, surfaces, warnings) {
+    const pairs = new Map();
+    if (links === undefined) return pairs;
+    if (!Array.isArray(links)) { warnings.add("ファイバー接続の配列が不正です。接続を無視しました。"); return pairs; }
+    const byId = new Map(elements.map(element => [element.id, element]));
+    const surfaceById = new Map(surfaces.map(surface => [surface.element.id, surface]));
+    const used = new Set();
+    for (const link of links.slice(0, MAX_FIBER_LINKS)) {
+      if (!link || typeof link !== "object" || Array.isArray(link) ||
+          !Object.prototype.hasOwnProperty.call(link, "a") || !Object.prototype.hasOwnProperty.call(link, "b") ||
+          Object.keys(link).some(key => key !== "a" && key !== "b") ||
+          !Number.isSafeInteger(link.a) || link.a <= 0 || !Number.isSafeInteger(link.b) || link.b <= 0) {
+        warnings.add("ファイバー接続の型またはIDが不正です。その接続を無視しました。"); continue;
+      }
+      const a = byId.get(link.a), b = byId.get(link.b);
+      if (!a || !b || a.type !== "fiber" || b.type !== "fiber" || a.id === b.id) {
+        warnings.add("ファイバー接続は異なる2つの有効な端面を指定してください。不正な接続を無視しました。"); continue;
+      }
+      if (used.has(a.id) || used.has(b.id)) {
+        warnings.add("重複・多重のファイバー接続を無視しました。先に指定した接続を使用します。"); continue;
+      }
+      used.add(a.id); used.add(b.id);
+      // Disabled ends keep their pairing but turn off the relay. Any active end
+      // then behaves as the original receiving/terminating fiber.
+      if (!a.enabled || !b.enabled) continue;
+      pairs.set(a.id, surfaceById.get(b.id)); pairs.set(b.id, surfaceById.get(a.id));
+    }
+    if (links.length > MAX_FIBER_LINKS) warnings.add(`ファイバー接続の上限（${MAX_FIBER_LINKS}組）を超えた分を無視しました。`);
+    return pairs;
+  }
+
   function detectorRecord(element) {
     return { id: element.id, type: element.type, power: 0, incidentPower: 0, hits: 0, acceptedPower: 0,
       acceptedHits: 0, centroid: null, span: 0, stokes: { I: 0, Q: 0, U: 0, V: 0 }, powerByWavelength: {},
-      _sumX: 0, _sumY: 0, _min: Infinity, _max: -Infinity };
+      _sumX: 0, _sumY: 0, _min: Infinity, _max: -Infinity,
+      ...(element.type === "camera" ? { samples: [] } : {}) };
   }
 
   function recordHit(detector, state, point, height, accepted) {
@@ -232,6 +368,7 @@
     detector.incidentPower += state.stokes.I;
     if (!accepted) return;
     detector.acceptedHits++;
+    if (detector.samples) detector.samples.push({ position: height, power: state.stokes.I, wavelength: state.wavelength, sourceId: state.sourceId });
     detector.power += state.stokes.I;
     detector.acceptedPower = detector.power;
     detector._sumX += state.stokes.I * point.x;
@@ -246,18 +383,20 @@
   // Laser samples a uniform-width beam. No Fresnel phase or branch interference.
   function simulate(elements, options = {}) {
     const warnings = new Set();
-    const scene = prepareElements(elements, warnings);
-    const surfaces = scene.filter(element => !isSource(element)).map((element, index) => ({ ...segment(element), element, index }));
-    const detectors = scene.filter(element => ["screen", "fiber"].includes(element.type)).map(detectorRecord);
+    const prepared = prepareElements(elements, warnings), scene = prepared.filter(element => element.enabled);
+    const extent = traceBounds(scene, options.viewBounds);
+    const surfaces = scene.filter(element => !isSource(element)).map(opticalSurface);
+    const fiberPairs = prepareFiberLinks(options.fiberLinks, prepared, surfaces, warnings);
+    const detectors = scene.filter(element => ["screen", "fiber", "camera"].includes(element.type)).map(detectorRecord);
     const detectorMap = new Map(detectors.map(detector => [detector.id, detector]));
     const cap = (value, fallback) => Number.isFinite(value) ? clamp(Math.floor(value), 1, fallback) : fallback;
     const maxInteractions = cap(options.maxInteractions, MAX_INTERACTIONS);
     const maxSegments = cap(options.maxSegments, MAX_SEGMENTS), maxRays = cap(options.maxRays, MAX_RAYS);
     const minPower = Number.isFinite(options.minPower) ? clamp(options.minPower, 0, 1) : MIN_POWER;
-    const segments = [], queue = [];
+    const segments = [], fiberTransfers = [], detectedPaths = [], queue = [];
     let rayCount = 0, hitCount = 0, branchCounter = 0, truncated = Array.isArray(elements) && elements.length > MAX_ELEMENTS;
     let sourcePower = 0, escapedPower = 0, absorbedPower = 0, detectedPower = 0, discardedPower = 0;
-    let clippedByIris = false, clippedByNA = false, paraxialWarning = false;
+    let clippedByIris = false, clippedByNA = false, clippedByFiberOutput = false, paraxialWarning = false;
 
     for (const source of scene.filter(isSource)) {
       sourcePower += source.power;
@@ -270,14 +409,10 @@
         const origin = source.type === "laser" ? add(source, tangent, fraction * source.beamWidth) : { x: source.x, y: source.y };
         const offset = source.divergence === 360 ? (i - Math.floor(count / 2)) * 360 / count : fraction * source.divergence;
         const ray = source.type === "point" ? direction(source.angle + offset) : base;
-        if (origin.x < 0 || origin.x > WIDTH || origin.y < 0 || origin.y > HEIGHT) {
-          discardedPower += power;
-          warnings.add("光源の幅がボードの外に出ているため、一部の光線を除外しました。");
-          continue;
-        }
         rayCount++;
         queue.push({ origin, ray, stokes: sourceStokes(source, power), wavelength: source.wavelength,
-          sourceId: source.id, branchId: ++branchCounter, center: i === Math.floor(count / 2), lastIndex: -1, interactions: 0 });
+          sourceId: source.id, path: options.recordPaths ? [] : null,
+          traceKey: `${source.id}:${count}:${i}`, branchId: ++branchCounter, center: i === Math.floor(count / 2), lastIndex: -1, interactions: 0 });
       }
     }
 
@@ -291,27 +426,60 @@
           discardedPower += state.stokes.I + queue.reduce((sum, pending) => sum + pending.stokes.I, 0);
           truncated = true; queue.length = 0; break;
         }
-        const boundary = boundaryDistance(state.origin, state.ray);
-        if (boundary <= EPS) { escapedPower += state.stokes.I; break; }
-        const nearest = nearestHit(state.origin, state.ray, surfaces, state.lastIndex, boundary);
+        const boundary = boundaryDistance(state.origin, state.ray, extent);
+        // Trace every optical surface, including those outside the viewport.
+        // The finite extent only chooses where to draw an otherwise escaping ray.
+        const nearest = nearestHit(state.origin, state.ray, surfaces, state.lastIndex, Infinity);
         const end = nearest ? nearest.point : add(state.origin, state.ray, boundary);
         segments.push({ a: { ...state.origin }, b: { ...end }, wavelength: state.wavelength,
           power: state.stokes.I, stokes: { ...state.stokes }, sourceId: state.sourceId,
+          key: `${state.traceKey}->${nearest ? nearest.element.id : 'edge'}`,
           branchId: state.branchId, center: state.center, hitId: nearest ? nearest.element.id : null });
         if (!nearest) { escapedPower += state.stokes.I; break; }
         hitCount++;
         state.interactions++;
         state.origin = end;
         state.lastIndex = nearest.surface.index;
-        const element = nearest.element, n = nearest.surface.n;
+        const element = nearest.element, n = nearest.normal || nearest.surface.n;
+        // Probe identity follows the sampled ray and its optical path, not the
+        // queue's branch numbering, which changes when other branches vanish.
+        state.traceKey += `/${element.id}`;
+        // Optional immutable path history for the separate coherent-mode analysis.
+        // These are the actual hit positions, not screen pixels or preset geometry.
+        if (state.path) state.path = state.path.concat({ id: element.id, point: { ...end } });
         const height = dot({ x: end.x - element.x, y: end.y - element.y }, nearest.surface.tangent);
 
-        if (element.type === "screen" || element.type === "fiber") {
+        if (["screen", "fiber", "camera"].includes(element.type)) {
           // Fiber angle is accepted propagation direction; air NA=sin(half-angle).
           // This is a geometric acceptance model, not single-mode overlap efficiency.
-          const accepted = element.type === "screen" || (Math.abs(height) <= element.coreDiameter / 2 + EPS &&
-            dot(state.ray, n) > EPS && Math.abs(cross(state.ray, n)) <= element.na + EPS);
+          const accepted = element.type === "screen" || (element.type === "camera" ? dot(state.ray, n) > EPS :
+            Math.abs(height) <= element.coreDiameter / 2 + EPS && dot(state.ray, n) > EPS && Math.abs(cross(state.ray, n)) <= element.na + EPS);
+          if (element.type === "camera" && !accepted) warnings.add("カメラの裏面に当たった光は吸収しました。配置角度は受光する光の進行方向です。");
           recordHit(detectorMap.get(element.id), state, end, height, accepted);
+          if (accepted && state.path && element.type === "screen") detectedPaths.push({
+            sourceId: state.sourceId, detectorId: element.id, steps: state.path, direction: { ...state.ray }
+          });
+          const output = accepted && element.type === "fiber" ? fiberPairs.get(element.id) : null;
+          if (output) {
+            // Ideal bidirectional geometric relay: preserve absolute transverse
+            // height and ray components, without core-size rescaling, scrambling,
+            // modal overlap, delay, bend loss, or polarization transformation.
+            // The partner's receiving axis is reversed to obtain its output axis.
+            const axial = dot(state.ray, n), transverse = dot(state.ray, nearest.surface.tangent);
+            if (Math.abs(height) > output.element.coreDiameter / 2 + EPS || Math.abs(transverse) > output.element.na + EPS) {
+              absorbedPower += state.stokes.I; clippedByFiberOutput = true; break;
+            }
+            const forward = { x: -output.n.x, y: -output.n.y }, tangent = { x: -forward.y, y: forward.x };
+            state.origin = add(output.element, tangent, height);
+            state.ray = unit({ x: axial * forward.x + transverse * tangent.x, y: axial * forward.y + transverse * tangent.y });
+            state.lastIndex = output.index;
+            state.traceKey += `>${output.element.id}`;
+            fiberTransfers.push({ fromId: element.id, toId: output.element.id, power: state.stokes.I,
+              wavelength: state.wavelength, sourceId: state.sourceId, stokes: { ...state.stokes } });
+            // The input detector is a pass-through monitor, not an additional
+            // terminal detection. Only the eventual termination enters the ledger.
+            continue;
+          }
           if (accepted) detectedPower += state.stokes.I;
           else absorbedPower += state.stokes.I;
           break;
@@ -321,11 +489,23 @@
           if (element.opening === 0 || Math.abs(height) > element.opening / 2 + EPS) {
             absorbedPower += state.stokes.I; clippedByIris = true; break;
           }
+        } else if (element.type === "concave") {
+          if (dot(state.ray, n) < 0) {
+            absorbedPower += state.stokes.I;
+            warnings.add("凹面ミラーの裏面に当たった光線は吸収しました。開いている側を入射光へ向けてください。");
+            break;
+          }
+          state.ray = reflect(state.ray, n);
         } else if (element.type === "mirror") state.ray = reflect(state.ray, n);
         else if (element.type === "dichroic") {
           // At the exact cutoff either selectable mode transmits the ray.
           const pass = element.mode === "longpass" ? state.wavelength >= element.cutoff : state.wavelength <= element.cutoff;
           if (!pass) state.ray = reflect(state.ray, n);
+        } else if (element.type === "filter") {
+          const after = scaleStokes(state.stokes, filterTransmission(element, state.wavelength));
+          absorbedPower += state.stokes.I - after.I;
+          state.stokes = after;
+          if (after.I === 0) break;
         } else if (element.type === "lens" || element.type === "objective") {
           const result = refract(state.ray, end, element);
           paraxialWarning ||= result.warning;
@@ -339,13 +519,27 @@
           const after = polarize(state.stokes, element.axisAngle);
           absorbedPower += state.stokes.I - after.I;
           state.stokes = after;
-        } else if (element.type === "waveplate") {
+        } else if (element.type === "waveplate" || element.type === "halfwave") {
           // Constant-birefringence zero-order approximation: retardance ~ 1/lambda.
-          state.stokes = retard(state.stokes, element.axisAngle, Math.PI / 2 * element.designWavelength / state.wavelength);
+          state.stokes = retard(state.stokes, element.axisAngle, (element.type === "halfwave" ? Math.PI : Math.PI / 2) * element.designWavelength / state.wavelength);
+        } else if (element.type === "pbs") {
+          // Fixed local s/p projection: out-of-board s is +Q and reflects;
+          // in-plane p is -Q and transmits. Geometric placement does not rotate
+          // these polarization axes. Ideal extinction, no coating phase/loss.
+          const reflected = clamp((state.stokes.I + state.stokes.Q) / 2, 0, state.stokes.I);
+          const transmitted = state.stokes.I - reflected;
+          for (const [power, sign, ray] of [[reflected, 1, reflect(state.ray, n)], [transmitted, -1, state.ray]]) {
+            if (power === 0) continue;
+            const side = sign === 1 ? 'R' : 'T';
+            queue.push({ ...state, ray, stokes: { I: power, Q: sign * power, U: 0, V: 0 },
+              path: branchPath(state.path, side), traceKey: state.traceKey + side, branchId: ++branchCounter });
+          }
+          break;
         } else if (element.type === "splitter") {
-          for (const [fraction, ray] of [[1 - element.transmission, reflect(state.ray, n)], [element.transmission, state.ray]]) {
+          for (const [fraction, ray, side] of [[1 - element.transmission, reflect(state.ray, n), 'R'], [element.transmission, state.ray, 'T']]) {
             if (fraction === 0) continue;
-            queue.push({ ...state, ray, stokes: scaleStokes(state.stokes, fraction), branchId: ++branchCounter });
+            queue.push({ ...state, ray, stokes: scaleStokes(state.stokes, fraction),
+              path: branchPath(state.path, side), traceKey: state.traceKey + side, branchId: ++branchCounter });
           }
           break;
         }
@@ -361,11 +555,16 @@
     }
     if (paraxialWarning) warnings.add("薄レンズの近軸近似（角度±15°目安）を超える光線があります。");
     if (clippedByNA) warnings.add("対物レンズのNAで一部の光線を遮断しました。空気中の幾何光学近似です。");
+    if (clippedByFiberOutput) warnings.add("出射側ファイバーのコア径またはNAで一部の光線を遮断しました。");
     if (clippedByIris) warnings.add("アイリスで光線を遮断しました。透過率は追跡本数に依存する離散的な近似です。");
     if (overlapping(scene)) warnings.add("素子が重なる・交差する位置では、光線が作用する順序が曖昧になります。");
     if (truncated) warnings.add("光線・線分・反射回数の上限に達したため、追跡の一部を打ち切りました。");
-    return { segments, detectors, warnings: [...warnings], rayCount, hitCount, truncated,
+    return { segments, detectors, fiberTransfers, detectedPaths, bounds: extent, warnings: [...warnings], rayCount, hitCount, truncated,
       sourcePower, escapedPower, absorbedPower, detectedPower, discardedPower, branchCount: branchCounter };
+  }
+
+  function branchPath(path, side) {
+    return path ? path.slice(0, -1).concat({ ...path[path.length - 1], side }) : null;
   }
 
   // Original geometric-demo API: one branch, no polarization, five samples.
@@ -374,7 +573,7 @@
     let current = { ...origin }, ray = unit(directionVector), lastIndex = -1;
     const points = [{ ...current }], hits = [];
     const surfaces = elements.filter(element => !isSource(element) && element.enabled !== false)
-      .map((element, index) => ({ ...segment(element), element, index }));
+      .map(opticalSurface);
     let paraxialWarning = false;
     for (let count = 0; count < maxInteractions; count++) {
       const boundary = boundaryDistance(current, ray);
@@ -387,13 +586,16 @@
       points.push(current);
       hits.push(nearest.element.id);
       const element = nearest.element;
-      if (element.type === "mirror") ray = reflect(ray, nearest.surface.n);
+      if (element.type === "concave") {
+        if (dot(ray, nearest.normal) < 0) return { points, hits, paraxialWarning, limited: false };
+        ray = reflect(ray, nearest.normal);
+      } else if (element.type === "mirror") ray = reflect(ray, nearest.surface.n);
       else if (element.type === "lens" || element.type === "objective") {
         const result = refract(ray, current, element);
         paraxialWarning ||= result.warning;
         if (!result.ray) return { points, hits, paraxialWarning, limited: false };
         ray = result.ray;
-      } else if (["blocker", "screen", "fiber"].includes(element.type) || (element.type === "iris" &&
+      } else if (["blocker", "screen", "fiber", "camera"].includes(element.type) || (element.type === "iris" &&
           (element.opening === 0 || Math.abs(dot({ x: current.x - element.x, y: current.y - element.y }, nearest.surface.tangent)) > element.opening / 2 + EPS))) {
         return { points, hits, paraxialWarning, limited: false };
       }
@@ -422,6 +624,10 @@
         if (isSource(a) && isSource(b)) continue;
         if (Math.hypot(a.x - b.x, a.y - b.y) < 1) return true;
         if (isSource(a) || isSource(b)) continue;
+        if (a.type === "concave" || b.type === "concave") {
+          if (curvedOverlap(a, b)) return true;
+          continue;
+        }
         const sa = segment(a), sb = segment(b);
         const onSurface = (point, surface, length) => {
           const delta = { x: point.x - surface.a.x, y: point.y - surface.a.y };
@@ -441,10 +647,43 @@
     return false;
   }
 
-  const api = { WIDTH, HEIGHT, GRID, MARGIN, MAX_ELEMENTS, MAX_INTERACTIONS, MAX_SEGMENTS, MAX_RAYS,
-    TYPES, DEFAULTS, PARAM_LIMITS, direction, normalizeAngle, snapAngle, position,
-    createElement, initialElements, segment, intersect, reflect, refract, traceRay, traceScene, overlapping,
-    simulate, sourceStokes, polarize, retard, wavelengthColor };
+  function onArc(point, arc) {
+    const delta = { x: point.x - arc.vertex.x, y: point.y - arc.vertex.y };
+    const x = dot(delta, arc.n) + arc.radius, y = dot(delta, arc.tangent);
+    const tolerance = geometryTolerance(point, arc.vertex);
+    return x >= arc.radius - arc.sag - tolerance && Math.abs(y) <= arc.half + tolerance &&
+      Math.abs(Math.hypot(x, y) - arc.radius) <= tolerance;
+  }
+
+  function curvedOverlap(a, b) {
+    if (a.type !== "concave") return curvedOverlap(b, a);
+    const arc = concaveGeometry(a);
+    if (!arc) return false;
+    if (b.type !== "concave") {
+      const line = segment(b), hit = intersectConcave(line.a, line.tangent, arc, -EPS);
+      return Boolean(hit && hit.distance <= b.aperture + geometryTolerance(a, b));
+    }
+    const other = concaveGeometry(b);
+    if (!other) return false;
+    const delta = { x: b.x - a.x + arc.radius * arc.n.x - other.radius * other.n.x,
+      y: b.y - a.y + arc.radius * arc.n.y - other.radius * other.n.y };
+    const distance = Math.hypot(delta.x, delta.y), tolerance = geometryTolerance(a, b);
+    if (distance <= tolerance) {
+      return Math.abs(arc.radius - other.radius) <= tolerance &&
+        (onArc(arc.a, other) || onArc(arc.b, other) || onArc(other.a, arc) || onArc(other.b, arc));
+    }
+    if (distance > arc.radius + other.radius + tolerance || distance < Math.abs(arc.radius - other.radius) - tolerance) return false;
+    const along = (distance * distance + arc.radius * arc.radius - other.radius * other.radius) / (2 * distance);
+    const height = Math.sqrt(Math.max(0, arc.radius * arc.radius - along * along));
+    const axis = unit(delta), tangent = { x: -axis.y, y: axis.x };
+    const base = add(add(arc.vertex, arc.n, -arc.radius), axis, along);
+    return [-1, 1].some(sign => { const p = add(base, tangent, sign * height); return onArc(p, arc) && onArc(p, other); });
+  }
+
+  const api = { WIDTH, HEIGHT, GRID, MARGIN, COORDINATE_LIMIT, MAX_ELEMENTS, MAX_FIBER_LINKS, MAX_INTERACTIONS, MAX_SEGMENTS, MAX_RAYS,
+    TYPES, DEFAULTS, PARAM_LIMITS, FILTER_MODES, direction, normalizeAngle, snapAngle, position,
+    createElement, initialElements, elementBounds, traceBounds, segment, intersect, concaveGeometry, intersectConcave, reflect, refract, traceRay, traceScene, overlapping,
+    simulate, sourceStokes, polarize, retard, wavelengthColor, filterTransmission };
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.Optics = api;
 })(typeof window === "undefined" ? this : window);

@@ -4,18 +4,21 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Optics Bench — 光学系デザインツール</title>
-  <meta name="description" content="光学部品をドラッグで配置し、波長・開口・偏光を調整。4F・共焦点などのプリセットと設計JSONの保存・読込に対応する2次元光学ベンチ。">
+  <meta name="description" content="光学部品をドラッグで配置し、波長・開口・偏光を調整。フィルター・カメラ像・凹面ミラー・量子消しゴム・干渉計・4F・共焦点など26種類のプリセット、位相走査、圧縮URLの共有・設計JSONの保存・読込に対応。">
   <link rel="icon" href="../shared/icons/general.svg" type="image/svg+xml">
   <link rel="stylesheet" href="../shared/back-to-hub.css">
-  <link rel="stylesheet" href="styles.css?v=0.2.0">
+  <link rel="stylesheet" href="styles.css?v=0.11.0">
   <script defer src="../shared/back-to-hub.js"></script>
-  <script defer src="optics.js?v=0.2.0"></script>
-  <script defer src="state.js?v=0.2.0"></script>
-  <script defer src="presets.js?v=0.2.0"></script>
-  <script defer src="view.js?v=0.2.0"></script>
-  <script defer src="script.js?v=0.2.0"></script>
+  <script defer src="optics.js?v=0.11.0"></script>
+  <script defer src="camera.js?v=0.11.0"></script>
+  <script defer src="coherence.js?v=0.11.0"></script>
+  <script defer src="state.js?v=0.11.0"></script>
+  <script defer src="share.js?v=0.11.0"></script>
+  <script defer src="presets.js?v=0.11.0"></script>
+  <script defer src="view.js?v=0.11.0"></script>
+  <script defer src="script.js?v=0.11.0"></script>
 </head>
-<body data-page-version="0.2.0" data-page-updated="2026-08-28" data-page-copyright="© 2026 skanai">
+<body data-page-version="0.11.0" data-page-updated="2026-08-28" data-page-copyright="© 2026 skanai">
   <main class="page-shell">
     <header class="hero">
       <div class="eyebrow"><span class="brand-mark" aria-hidden="true">↗</span> OPTICS LAB <span class="prototype">DESIGN STUDIO</span></div>
@@ -26,19 +29,29 @@
       <div class="project-bar">
         <label class="scene-title">設計名<input id="scene-title" type="text" maxlength="160" aria-label="設計名"></label>
         <div class="file-actions">
-          <button id="undo" type="button" title="元に戻す Ctrl+Z">↶ <span>戻す</span></button>
-          <button id="redo" type="button" title="やり直す Ctrl+Shift+Z">↷ <span>やり直す</span></button>
+          <button id="undo" type="button" title="元に戻す Ctrl+Z / ⌘Z" aria-keyshortcuts="Control+z Meta+z">↶ <span>戻す</span></button>
+          <button id="redo" type="button" title="やり直す Ctrl+Y / Ctrl+Shift+Z / ⌘⇧Z" aria-keyshortcuts="Control+y Control+Shift+z Meta+y Meta+Shift+z">↷ <span>やり直す</span></button>
           <button id="new-scene" type="button">新規</button>
           <button id="import" type="button">↑ 読み込む</button>
+          <button id="share-copy" type="button" aria-controls="share-panel" title="配置と設定を圧縮してURLに保存">共有リンクをコピー</button>
           <a id="export" class="primary download-link" href="#" download>↓ JSON保存</a>
           <a id="export-svg" class="download-link" href="#" download title="表示中の光学図をSVG形式で保存">図を保存</a>
           <input id="import-file" type="file" accept=".json,application/json" hidden>
         </div>
       </div>
+      <section id="share-panel" class="share-panel" aria-labelledby="share-title" hidden>
+        <div class="share-heading"><h2 id="share-title">リンクで光学系を共有</h2><button id="share-close" type="button" aria-label="共有パネルを閉じる">×</button></div>
+        <p id="share-status" role="status" aria-live="polite"></p>
+        <div id="share-result" class="share-result" hidden>
+          <label class="field">共有リンク<input id="share-url" type="text" readonly aria-label="共有リンク" spellcheck="false"></label>
+          <button id="share-select" type="button">URLを選択</button>
+        </div>
+        <p class="share-note">リンクを開くだけで配置と設定を復元できます。JSONファイル・ログインは不要。編集後はリンクを作り直してください。リンクを知る人は設計を見られます。暗号化や共同編集ではありません。部品・名前が増えるとURLも長くなります。</p>
+      </section>
       <div class="preset-bar">
-        <label for="preset">測定系プリセット</label><select id="preset" aria-label="測定系プリセット"></select>
+        <label for="preset">測定系・実験プリセット</label><select id="preset" aria-label="測定系プリセット"></select>
         <button id="load-preset" type="button">配置する</button>
-        <span class="save-hint">配置の変更は元に戻せます · 必要な設計はJSON保存</span>
+        <span class="save-hint">配置の変更は元に戻せます · 共有リンク／JSONで保存</span>
       </div>
       <div class="work-area">
         <aside class="palette" aria-labelledby="palette-title">
@@ -53,18 +66,19 @@
             <div class="view-controls"><button id="zoom-out" type="button" aria-label="縮小">−</button><output id="zoom-level" aria-live="off">100%</output><button id="zoom-in" type="button" aria-label="拡大">＋</button><button id="fit" type="button">全体表示</button></div>
           </div>
           <div class="bench-viewport">
-            <svg id="bench" viewBox="-48 -42 1096 704" role="group" aria-label="光学ベンチ。部品をドラッグで配置、背景ドラッグでパン" aria-describedby="keyboard-help" tabindex="0">
+            <svg id="bench" viewBox="-48 -42 1096 704" role="group" aria-label="光学ベンチ。光路をクリックで偏光を確認、部品をドラッグで配置、Ctrl＋ドラッグで複製、背景ドラッグでパン" aria-describedby="keyboard-help" tabindex="0">
               <defs>
                 <pattern id="minor-grid" width="10" height="10" patternUnits="userSpaceOnUse"><path id="minor-grid-path" d="M 10 0 H 0 V 10" fill="none" stroke="#2d4249" stroke-width="0.6"/></pattern>
                 <pattern id="major-grid" width="50" height="50" patternUnits="userSpaceOnUse"><rect id="major-grid-fill" width="50" height="50" fill="url(#minor-grid)"/><path id="major-grid-path" d="M 50 0 H 0 V 50" fill="none" stroke="#43545a" stroke-width="0.9"/></pattern>
-                <clipPath id="table-clip"><rect width="1000" height="600"/></clipPath>
+                <clipPath id="table-clip"><rect id="table-clip-rect" x="-48" y="-42" width="1096" height="704"/></clipPath>
               </defs>
-              <rect class="table-background" width="1000" height="600" rx="3" fill="url(#major-grid)" stroke="#4a6368"/>
-              <g id="rulers" aria-hidden="true"></g><g id="guides" clip-path="url(#table-clip)" aria-hidden="true"></g>
-              <g id="rays" clip-path="url(#table-clip)" aria-hidden="true"></g><g id="elements"></g><g id="placement" aria-hidden="true"></g>
+              <rect id="table-background" class="table-background" x="-48" y="-42" width="1096" height="704" fill="url(#major-grid)"/>
+              <g id="fiber-links" aria-hidden="true"></g><g id="guides" clip-path="url(#table-clip)" aria-hidden="true"></g>
+              <g id="rays" clip-path="url(#table-clip)" aria-hidden="true"></g><g id="ray-probe" clip-path="url(#table-clip)" aria-hidden="true"></g><g id="elements"></g><g id="placement" aria-hidden="true"></g>
+              <g id="rulers" aria-hidden="true"></g>
             </svg>
           </div>
-          <div class="bench-footer"><span id="grid-readout"></span><span>Shift＋ホイールでズーム · 背景ドラッグで移動</span></div>
+          <div class="bench-footer"><button id="inspect-ray" type="button" aria-controls="ray-inspector" aria-expanded="false" title="光路をクリックでも確認できます">光路を調べる</button><span id="grid-readout"></span><span>無限キャンバス · Shift＋ホイールでズーム · 背景ドラッグで移動</span></div>
           <div class="grid-controls">
             <label>単位<select id="unit" aria-label="表示単位"><option value="cm">cm</option><option value="in">inch</option><option value="mm">mm</option></select></label>
             <label>グリッド<input id="grid-step" type="number" step="any" required aria-label="グリッド間隔"><span class="display-unit">cm</span></label>
@@ -74,13 +88,37 @@
           </div>
         </section>
         <aside class="inspector" aria-labelledby="inspector-title">
+          <section id="ray-inspector" class="ray-inspector" aria-labelledby="probe-title" hidden>
+            <div class="section-label">LIGHT PROBE</div>
+            <div class="inspector-heading"><h2 id="probe-title">光路の状態</h2><button id="probe-close" type="button" aria-label="光路の状態を閉じる">×</button></div>
+            <p id="probe-status" class="probe-status" role="status" aria-live="polite"></p>
+            <div class="probe-navigation"><button id="probe-prev" type="button">前の区間</button><span id="probe-index"></span><button id="probe-next" type="button">次の区間</button></div>
+            <div id="probe-data">
+              <label id="probe-overlap-label" class="field" hidden>この位置付近の光線<select id="probe-overlap" aria-label="この位置付近の光線"></select></label>
+              <div class="probe-wave"><span id="probe-swatch" class="wave-swatch" aria-hidden="true"></span><strong id="probe-wavelength"></strong><span id="probe-source"></span></div>
+              <div class="probe-polarization">
+                <svg id="probe-diagram" viewBox="0 0 110 108" role="img" aria-label="偏光楕円">
+                  <path d="M 10 54 H 101 M 54 97 V 9" fill="none" stroke="#9cac9e" stroke-width=".8"/>
+                  <text x="78" y="68">0° s</text><text x="58" y="12">90° p</text>
+                  <ellipse id="probe-ellipse" cx="54" cy="54" rx="32" ry="16" fill="none" stroke="#38765e" stroke-width="2.5"/>
+                  <path id="probe-linear" d="M 22 54 H 86" fill="none" stroke="#38765e" stroke-width="2.5"/>
+                  <text id="probe-no-ellipse" x="54" y="44" text-anchor="middle">一定の楕円なし</text>
+                </svg>
+                <div><strong id="probe-polarization-name"></strong><p id="probe-degree"></p><p id="probe-angles"></p></div>
+              </div>
+              <dl class="probe-values"><dt>相対P（光線1本）</dt><dd id="probe-power"></dd><dt>選択位置</dt><dd id="probe-position"></dd><dt>進行方向</dt><dd id="probe-direction"></dd></dl>
+              <p id="probe-stokes" class="stokes"></p>
+              <p class="field-hint">楕円は光に垂直な断面の偏光成分。s＝ベンチ面に垂直、p＝面内。V＝I<sub>R</sub>−I<sub>L</sub>。重なる光線は合算しません。</p>
+            </div>
+            <p class="field-hint">光路クリック／前・次で切替。空白クリック・Escで閉じます。</p>
+          </section>
           <div class="section-label">INSPECTOR</div>
           <div class="inspector-heading"><h2 id="inspector-title">素子の設定</h2><span id="selected-kind" class="kind-badge"></span></div>
           <label class="field">選択中の部品<select id="element-select" aria-label="選択中の部品"></select></label>
           <p id="empty-selection">パレットから部品を配置してください。</p>
           <form id="properties" novalidate autocomplete="off">
             <div id="parameter-fields"></div>
-            <div class="element-actions"><button id="rotate" type="button">↻ 22.5°</button><button id="duplicate" type="button">複製</button><button id="delete" type="button" class="danger">削除</button></div>
+            <div class="element-actions"><button id="rotate" type="button">↻ 22.5°</button><button id="duplicate" type="button" title="複製 Ctrl+D">複製</button><button id="delete" type="button" class="danger" title="削除 Delete / Backspace">削除</button></div>
           </form>
           <p id="input-error" class="input-error" role="alert"></p>
           <div id="selected-output" class="selected-output"></div>
@@ -89,17 +127,58 @@
       <div class="status-row"><p id="status" role="status" aria-live="polite">部品をパレットからグリッドへドラッグしてください。</p><span id="ray-stats"></span></div>
       <div id="trace-warning" class="trace-warning" role="status" hidden></div>
     </section>
+    <section id="coherence-panel" class="coherence-panel" aria-labelledby="coherence-title" hidden>
+      <div class="section-label">INTERFERENCE LAB · IDEAL SINGLE MODE</div>
+      <h2 id="coherence-title">位相を動かして、干渉を確かめる</h2>
+      <p class="coherence-intro">実際の光路と偏光から複素振幅を合成。下の「干渉P」が明暗を示します。ベンチ上の光線・光路プローブ・通常の検出表は、各経路を独立に計算した幾何光学の表示です。</p>
+      <div class="coherence-layout">
+        <div class="coherence-controls">
+          <label class="field">走査する位相シフター<select id="coherence-phase-select" aria-label="走査する位相シフター"></select></label>
+          <label class="field" for="coherence-phase-value">追加位相 φ（1回通過あたり）</label>
+          <div class="phase-inputs"><input id="coherence-phase-slider" type="range" min="0" max="360" step="1" value="0" aria-label="干渉位相スライダー"><input id="coherence-phase-value" type="number" min="0" max="360" step="any" value="0" required aria-label="干渉位相"><span>°</span></div>
+          <div id="coherence-phase-buttons" class="phase-buttons"><button type="button" data-phase="0">φ 0°</button><button type="button" data-phase="90">φ 90°</button><button type="button" data-phase="180">φ 180°</button><button id="coherence-select-part" type="button">部品を選ぶ</button></div>
+          <h3 id="coherence-optics-title" class="field-group-title">偏光素子を入れる／外す</h3>
+          <div id="coherence-optics" class="coherence-optics" aria-labelledby="coherence-optics-title"></div>
+          <p id="coherence-input-error" class="input-error" role="alert"></p>
+          <p id="coherence-status" class="coherence-status" role="status" aria-live="polite"></p>
+          <p class="subtle">位相は22.5°吸着とは独立。値は部品設定として保存・Undoできます。曲線は選択したφだけを0〜360°走査した予測です。</p>
+        </div>
+        <div id="coherence-results" class="coherence-results">
+          <svg id="coherence-plot" viewBox="0 0 640 252" role="img" aria-label="追加位相と検出パワーの干渉曲線"><g id="coherence-curves"></g></svg>
+          <div id="coherence-readout"></div>
+          <p class="subtle">Pは入力光源と同じ相対単位。走査V＝(最大−最小)/(最大＋最小)、2°刻みの近似。無受光は未定義。検出位置・方向が一致しない光路や、別のレーザーは干渉させません。</p>
+        </div>
+      </div>
+      <p class="coherence-limit">量子消しゴムはレーザーで示せる偏光の光学アナログです。もつれ光子対・同時計数・遅延選択のシミュレーションではありません。未対応の部品や追跡の打ち切りがある系では干渉解析を停止します。</p>
+    </section>
+    <section id="camera-panel" class="camera-panel" aria-labelledby="camera-title" hidden>
+      <div class="section-label">CAMERA VIEW · 1D SENSOR</div>
+      <h2 id="camera-title">カメラに届く像</h2>
+      <p class="subtle">センサーへ届いた光線を位置ごとに集計。カメラやレンズを動かすと、像の位置・色・ピントずれが変わります。</p>
+      <div class="camera-toolbar">
+        <label class="field">表示するカメラ<select id="camera-select" aria-label="表示するカメラ"></select></label>
+        <button id="camera-edit" type="button">カメラの設定</button>
+        <a id="camera-save" class="download-link" href="#">像をSVG保存</a>
+      </div>
+      <img id="camera-image" class="camera-image" alt="カメラの1列分の像" width="960" height="450">
+      <p id="camera-stats" class="camera-stats"></p>
+      <p id="camera-status" class="subtle" role="status"></p>
+      <p class="camera-limit">2D光学系の断面なので、計算するのは1列分です。上の帯はその列を縦に引き伸ばした表示で、縦方向の像は未計算。横軸の正方向はカメラの配置角度＋90°です。グラフの縦軸は毎回最大Pに合わせます。レンズは内蔵しません。像・グラフは非干渉で、回折・3D画像・センサーノイズ・実カメラの色応答は含みません。</p>
+    </section>
     <section class="readouts" aria-label="測定系の読み出し">
       <div class="readout-card preset-description"><div class="section-label">SETUP NOTES</div><h2 id="setup-title">配置のメモ</h2><p id="setup-description"></p><p id="setup-notes" class="subtle"></p></div>
       <div class="readout-card"><div class="section-label">SOURCES</div><h2>波長と光源</h2><div id="source-readout"></div><p class="subtle">波長色は表示用近似。UV・IRは破線の疑似色です。</p></div>
-      <div class="readout-card detectors-card"><div class="section-label">DETECTION</div><h2>検出・ファイバー受光</h2><div id="detector-readout"></div><p class="subtle">相対パワーは光線サンプルの合計。実際の検出感度・波動結合効率ではありません。</p></div>
+      <div class="readout-card detectors-card"><div class="section-label">DETECTION</div><h2>検出・ファイバー伝送</h2><div id="detector-readout"></div><p class="subtle">受光P・出射Pは端面ごとの光線パワー。中継端面の受光を最終検出と重複して数えません。実際の検出感度・波動結合効率ではありません。</p></div>
     </section>
     <details class="model-note">
       <summary>操作ガイド・計算モデルと限界</summary>
       <div class="model-columns">
-        <section><h3>操作</h3><p id="keyboard-help">パレットからドラッグで配置、部品をドラッグで移動。選択部品の丸いハンドルで回転できます。スライダーは22.5°吸着、数値欄は任意角度。Shift＋ホイール／＋−でズーム、背景ドラッグでパン。素子にフォーカスして矢印キーで移動、R／Shift+Rで回転、Deleteで削除。Ctrl+Zで元に戻す、Ctrl+Shift+Zでやり直す。ドラッグ中はEscで取消。</p><p>単位の変更は表示とグリッドだけを切り替え、物理的な配置・焦点距離は維持します。左上が原点、右が＋X、下が＋Y。配置角度は光軸／面の法線方向を時計回りで表します。</p></section>
-        <section><h3>幾何光学＋理想偏光素子</h3><p>2次元の光線とStokesベクトルを追跡します。レンズ・対物は近軸の薄レンズ近似、ダイクロイックは理想的なカットオフ、偏光子とλ/4板は理想素子。偏光の0°はベンチ面に垂直な基準方向で、配置角度とは別です。Q/U/Vの検出表示を用意し、ポアンカレ球ビューは将来の拡張です。</p><p>回折・干渉・収差・蛍光生成・PSF・高NA対物の厳密な結像・ファイバーのモード重なりは計算しません。ミラーやコーティングのs/p損失・位相差も未計算です。共焦点プリセットの蛍光は独立した点光源による模式モデルです。</p></section>
-        <section><h3>設計データ</h3><p>JSON保存と読み込みは、このページの形式に対応します。数値範囲・素子数・形式を検証し、不正なファイルでは現在の設計を変更しません。新規作成・プリセット・読み込みも「戻す」で復元できます。自動保存はしないため、必要な配置はJSON保存してください。</p><p><a href="README.md">モデルの詳細</a> · <a href="DESIGN_PLAN.md">設計・検証計画</a> · <a href="../poincare-sphere/" target="_blank" rel="noopener">既存のポアンカレ球ツール</a></p></section>
+        <section><h3>キャンバスと全体表示</h3><p>固定サイズのテーブルを持たず、背景ドラッグで上下左右へ移動し、負の座標や離れた場所にも部品を配置できます。「全体表示」は無効な部品も含む全素子の外形と接続ケーブルを、余白を付けて画面へ収めます。部品がない場合は初期の表示範囲に戻ります。光線の長さは全体表示の範囲に含めません。</p><p>表示するグリッドと目盛は現在の画面範囲だけを描き、ズームアウト時は間引きます。画面外の部品も光線計算の対象です。進行先に部品がない光は表示範囲まで延長し、ズーム・パンだけではパワーや偏光は変わりません。数値精度の保護として座標は±10億 mm（±1000 km）まで。最大80部品と光線追跡の上限は維持します。JSON形式はv2のままですが、旧アプリは旧テーブル外の座標を読み込めません。</p></section>
+        <section><h3>光路の状態を見る</h3><p>光路上をクリックすると、選択した区間を点線と進行方向の矢印で示し、波長・偏光楕円・偏光度・Q/I、U/I、V/I・相対パワーを表示します。交差・往復する光路や近接した光線は「この位置付近の光線」で切り替えられます。「光路を調べる」と前／次のボタンでも全区間を確認できます。各区間の状態は、その区間の終端にある素子に入る直前の状態です。</p><p>表示Pは離散的に追跡する光線1本分で、ビーム全体のパワーや強度分布ではありません。偏光角ψと楕円率角χは局所的なs/p基準です。円偏光のψ、無偏光のψ・χは未定義として表示します。設定変更には同じ光線の区間を追従し、遮断などで消えると未検出を表示。新規・読み込み・プリセット・Undo／Redoで選択を解除します。確認状態はJSONや図の保存には含めません。</p></section>
+        <section><h3>操作</h3><p id="keyboard-help">パレットからドラッグで配置、部品をドラッグで移動。Ctrlを押しながら部品を掴むと、元を残して複製できます。選択部品の丸いハンドルで回転できます。スライダーは22.5°吸着、数値欄は任意角度。Shift＋ホイール／＋−でズーム、背景ドラッグでパン。素子にフォーカスして矢印キーで移動、R／Shift+Rで回転、Deleteで削除。Ctrl+Zで元に戻す、Ctrl+Y／Ctrl+Shift+Zでやり直す。Ctrl+Cで選択部品をコピー、Ctrl+Xで切り取り、Ctrl+Vで貼り付け。Ctrl+Dで複製。MacではCtrlの代わりに⌘を使えます。文字入力中は通常の文字編集を優先。ドラッグ中はEsc／Ctrl+Zでその操作を取消。</p><p>コピーは全パラメーターを保持し、別の設計にも貼り付けられます。貼り付け先に同じ中心位置の部品があれば、近くの空き位置へずらします。Ctrlドラッグも名前・設定を保持し、画面内で離すと確定、外で離すと取消。切り取り・貼り付け・複製もそれぞれ元に戻せます。</p><p>単位の変更は表示とグリッドだけを切り替え、物理的な配置・焦点距離は維持します。原点は座標(0,0)で、右が＋X、下が＋Y。負の座標にも配置できます。配置角度は光軸／面の法線方向を時計回りで表します。</p></section>
+        <section><h3>幾何光学＋理想偏光素子</h3><p>2次元の光線とStokesベクトルを追跡します。凹面ミラーは球面上で反射し、球面収差を含みます。fとRはR=2fで連動し、0°では凹面が左向き。Fは近軸焦点、Cは曲率中心で、裏面は吸収します。レンズ・対物は近軸の薄レンズ近似、ダイクロイックは理想的なカットオフ、偏光子とλ/4・λ/2板は理想素子。偏光の0°はベンチ面に垂直な基準方向で、配置角度とは別です。Q/U/Vの検出表示を用意し、ポアンカレ球ビューは将来の拡張です。</p><p>無偏光BS（NPBS）は偏光に依存しない比率で分岐し、入力の偏光状態を保ちます。偏光BS（PBS）はp偏光（90°）を透過、s偏光（0°）を反射。無偏光や円偏光は各50%に分かれ、出力はそれぞれ直線偏光になります。</p><p>通常の光線表示は非干渉です。干渉は別欄の理想モード解析に限ります。回折・レンズの収差・蛍光生成・PSF・高NA対物の厳密な結像・ファイバーのモード重なりは計算しません。実BSの消光比・損失・波長や入射角への依存、ミラーやコーティングのs/p位相差も未計算です。共焦点プリセットの蛍光は独立した点光源による模式モデルです。</p></section>
+        <section><h3>干渉と量子消しゴム</h3><p>位相シフターを含む配置では「干渉解析」が現れます。レーザーは光線数1・ビーム径0で、1本の主光線が理想空間モードを表します。実際に通った経路の長さ・偏光・BSの複素振幅・追加位相から、検出器の干渉Pを計算します。同じレーザーの同じ検出位置・方向だけを合成し、片腕の遮断や光軸ずれも反映します。点光源・レンズ・凹面ミラー・対物・ファイバー・ダイクロイック・カメラが有効な系、部品が重なる系、追跡が打ち切られた系には未対応。各光路長は1 km以下です。</p><p>φは1回通過あたりの位相で、往復では2回作用します。位相の値と偏光素子のON/OFFは保存・Undo対象。光線図・光路プローブ・幾何Pには干渉を反映しないので、暗い出力でも幾何光線は残ります。量子消しゴムは偏光で経路を区別し、検光子で干渉を復元する光学アナログ。もつれ光子対・同時計数・遅延選択・量子検出統計は扱いません。</p></section>
+        <section><h3>設計データ・ファイバー</h3><p>JSON保存と読み込みは、このページの形式に対応します。接続も保存する形式v2で書き出し、以前のv1も読み込めます。数値範囲・素子数・形式を検証し、不正なファイルでは現在の設計を変更しません。新規作成・プリセット・読み込みも「戻す」で復元できます。共有リンクでも同じ設計を復元できます。自動保存はしないため、必要な配置は共有リンクかJSONで保存してください。</p><p>ファイバーを2つ置き、設定欄の「接続先のファイバー」で相手を選ぶと接続。移動・回転してもケーブルが追従し、切断・削除・再接続も元に戻せます。部品単体のコピー・複製・貼り付けでは接続を複製しません。</p><p>受け入れた光は相手の配置角度＋180°へ出射します。両端のコア径・NAで制限する理想的な幾何伝送です。実ファイバーの曲げ損失・モード変化・偏光変化は計算せず、ケーブルは接続関係だけを表します。</p><p><a href="README.md">モデルの詳細</a> · <a href="DESIGN_PLAN.md">設計・検証計画</a> · <a href="../poincare-sphere/" target="_blank" rel="noopener">既存のポアンカレ球ツール</a></p></section>
       </div>
     </details>
     <noscript><p class="input-error">このツールにはJavaScriptが必要です。</p></noscript>
