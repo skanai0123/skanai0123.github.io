@@ -600,6 +600,110 @@ test('ideal mirrors preserve local Stokes as the documented coating-phase approx
   bounded(result);
 });
 
+test('source bands use uniform midpoint samples and preserve the monochromatic limit', () => {
+  assert.deepEqual(O.sourceBand({wavelength:532,wavelengthWidth:20}),{min:522,max:542});
+  assert.deepEqual(O.sourceSpectrum({wavelength:532}),[{wavelength:532,weight:1}]);
+  assert.deepEqual(O.sourceSpectrum({wavelength:550,wavelengthWidth:300,spectralSamples:3}),
+    [450,550,650].map(wavelength=>({wavelength,weight:1/3})));
+  for (const spectralSamples of [3,17,30,61]) {
+    const spectrum=O.sourceSpectrum({wavelength:1350,wavelengthWidth:2300,spectralSamples});
+    assert.equal(spectrum.length,spectralSamples); near(spectrum.reduce((s,p)=>s+p.weight,0),1);
+    near(spectrum.reduce((s,p)=>s+p.wavelength*p.weight,0),1350);
+    assert.ok(spectrum.every(p=>p.wavelength>200 && p.wavelength<2500));
+  }
+  for (const changes of [{wavelengthWidth:-1},{wavelengthWidth:Infinity},{wavelength:200,wavelengthWidth:1},
+    {wavelengthWidth:1e-15},{spectralSamples:2},{spectralSamples:62},{spectralSamples:3.5},{spectralSamples:1e12}]) {
+    assert.throws(()=>O.sourceSpectrum({wavelength:550,wavelengthWidth:300,spectralSamples:17,...changes}));
+  }
+});
+
+test('laser and point spectra repeat the spatial samples without multiplying total power', () => {
+  for (const type of ['laser','point']) for (const spectralSamples of [3,17,61]) {
+    const source=part(type,1,100,300,{power:2.4,rayCount:5,beamWidth:20,divergence:10,
+      wavelength:550,wavelengthWidth:300,spectralSamples,polarization:'right'});
+    const result=O.simulate([source]); assert.equal(result.rayCount,5*spectralSamples);
+    near(result.sourcePower,2.4); near(result.escapedPower,2.4); assert.equal(result.truncated,false);
+    const wavelengths=O.sourceSpectrum(source);
+    for (const sample of wavelengths) {
+      const segments=result.segments.filter(s=>s.wavelength===sample.wavelength);
+      assert.equal(segments.length,5); near(segments.reduce((s,p)=>s+p.power,0),2.4/spectralSamples);
+      for(const s of segments)near(s.stokes.V/s.stokes.I,1);
+    }
+    assert.equal(new Set(result.segments.map(s=>s.key)).size,result.segments.length); bounded(result);
+  }
+  const modern=part('laser',1,100,300,{spectralSamples:61}), legacy={...modern};
+  delete legacy.wavelengthWidth; delete legacy.spectralSamples;
+  assert.deepEqual(O.simulate([modern]),O.simulate([legacy]));
+});
+
+test('broadband filter preset has measured spectral throughput and a monochromatic limit', () => {
+  const scene=P.create('broadband-filter'), [source,filter,camera]=scene.elements;
+  for(const [filterMode,power,hits] of [['bandpass',.2,54],['longpass',1/3,90],['shortpass',2/3,180],['nd',.1,270]]) {
+    filter.filterMode=filterMode;
+    const result=O.simulate(scene.elements), received=detector(result,camera.id);
+    near(received.power,power); assert.equal(received.acceptedHits,hits); near(result.absorbedPower,1-power);
+    const frame=K.capture(camera,received); near(frame.totalPower,power); assert.equal(frame.hits,hits);
+    assert.equal(result.warnings.length,0); bounded(result);
+  }
+  filter.filterMode='bandpass'; source.wavelengthWidth=0;
+  const mono=O.simulate(scene.elements); near(detector(mono,3).power,1); assert.equal(detector(mono,3).acceptedHits,9);
+  source.wavelengthWidth=300; filter.bandLow=500; filter.bandHigh=501;
+  // A narrow band between sample wavelengths is not integrated analytically.
+  near(detector(O.simulate(scene.elements),3).power,0);
+});
+
+test('each wavelength sees its own waveplate retardance and dichroic output', () => {
+  const source=part('laser',1,100,300,{rayCount:1,wavelength:550,wavelengthWidth:300,spectralSamples:3});
+  const plate=part('waveplate',2,250,300,{axisAngle:45,designWavelength:532});
+  const scene=[source,plate,part('dichroic',3,400,300,{cutoff:600}),part('screen',4,700,300),part('screen',5,400,100,{angle:90})];
+  const result=O.simulate(scene);
+  assert.deepEqual(Object.keys(detector(result,4).powerByWavelength),['650']);
+  assert.deepEqual(Object.keys(detector(result,5).powerByWavelength),['450','550']);
+  for(const sample of O.sourceSpectrum(source)) {
+    const segment=result.segments.find(s=>s.wavelength===sample.wavelength && Math.abs(s.a.x-250)<1e-6);
+    assert.ok(segment); near(segment.stokes.Q,Math.cos(Math.PI/2*532/sample.wavelength)/3);
+    near(segment.stokes.V,Math.sin(Math.PI/2*532/sample.wavelength)/3);
+  }
+  bounded(result);
+});
+
+test('fiber transfer retains the full source spectrum and camera adds its colors by power', () => {
+  const source=part('laser',1,100,300,{rayCount:1,beamWidth:0,wavelength:550,wavelengthWidth:300,spectralSamples:3});
+  const camera=part('camera',4,800,300,{autoExposure:false});
+  const result=O.simulate([source,part('fiber',2,300,300),part('fiber',3,600,300,{angle:180}),camera],{fiberLinks:[{a:2,b:3}]});
+  const received=detector(result,4); near(received.power,1);
+  assert.deepEqual(Object.keys(received.powerByWavelength),['450','550','650']);
+  const frame=K.capture(camera,received), pixel=frame.pixels.find(p=>p.power>0);
+  const monochrome=K.capture(camera,{samples:[{position:0,power:1,wavelength:550}]});
+  assert.notEqual(pixel.color,monochrome.pixels.find(p=>p.power>0).color);
+  const individual=[450,550,650].map(wavelength=>K.capture(camera,{samples:[{position:0,power:1/3,wavelength}]}).pixels.find(p=>p.power>0));
+  pixel.rgb.forEach((value,i)=>near(value,individual.reduce((sum,p)=>sum+p.rgb[i],0)));
+  bounded(result);
+});
+
+test('spectral emission and segment budgets retain an explicit power ledger', () => {
+  const source=part('laser',1,100,300,{wavelengthWidth:100,spectralSamples:61,rayCount:61});
+  for(const options of [{maxRays:7},{maxSegments:11},{maxRays:1,maxSegments:1}]) {
+    const result=O.simulate([source],options); assert.equal(result.truncated,true);
+    assert.ok(result.discardedPower>0); near(result.sourcePower,1); bounded(result);
+  }
+  for(const patch of [{enabled:false},{power:0}])assert.equal(O.simulate([{...source,...patch}]).rayCount,0);
+  for(const patch of [{wavelengthWidth:-1},{wavelengthWidth:700},{spectralSamples:2},{spectralSamples:3.5}]) {
+    const result=O.simulate([{...source,...patch}]); assert.equal(result.rayCount,0);
+    assert.ok(result.warnings.length); bounded(result);
+  }
+});
+
+test('nonzero bandwidth explicitly stops interference instead of treating the band as its center', () => {
+  const scene=P.create('mach-zehnder'), source=scene.elements.find(e=>e.type==='laser'), phase=scene.elements.find(e=>e.type==='phase');
+  source.wavelengthWidth=20;
+  const analysis=coherent(scene,phase.id); assert.equal(analysis.valid,false); assert.match(analysis.message,/波長幅/);
+  bounded(O.simulate(scene.elements)); source.wavelengthWidth=0; assert.equal(coherent(scene,phase.id).valid,true);
+  const extra=part('laser',99,50,50,{wavelengthWidth:20,beamWidth:0,rayCount:1,enabled:false}); scene.elements.push(extra);
+  assert.equal(coherent(scene,phase.id).valid,true); extra.enabled=true; extra.power=0;
+  assert.equal(coherent(scene,phase.id).valid,true);
+});
+
 test('spectral filters include exact band edges and absorb rejected wavelengths without reflected rays', () => {
   for (const filterMode of ['longpass', 'shortpass', 'bandpass']) {
     const filter = part('filter', 2, 400, 300, { filterMode, cutoff: 550, bandLow: 500, bandHigh: 560, transmission: .73, angle: 22.5 });

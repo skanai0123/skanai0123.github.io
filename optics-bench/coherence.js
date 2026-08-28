@@ -75,6 +75,7 @@
     const active = elements.filter(e => e.enabled), sources = active.filter(e => e.type === "laser" && e.power > 0);
     if (active.some(e => !SUPPORTED.has(e.type))) return fail("干渉解析は平行な理想単一モード用です。点光源・レンズ・凹面ミラー・対物・ファイバー・ダイクロイック・カメラには未対応（通常の光線・カメラ像は非干渉で計算を継続）。");
     if (sources.some(e => e.rayCount !== 1 || e.beamWidth !== 0)) return fail("干渉解析ではレーザーの光線サンプル数を1、ビーム直径を0にしてください。1本の主光線で理想空間モードを表します。");
+    if (sources.some(e => (e.wavelengthWidth ?? 0) > 0)) return fail("波長幅のある光源の干渉・時間コヒーレンスは未対応です。干渉解析では波長幅を0 nmにしてください。通常の光線・検出・カメラは帯域を分割して計算します。");
     if (!sources.length) return fail("有効なレーザーがありません。");
     if (trace.truncated || trace.discardedPower > 0) return fail("追跡の打ち切りがあるため干渉解析を停止しました。光路を簡単にしてください。");
     if (O.overlapping(active)) return fail("部品が重なっているため干渉解析を停止しました。素子を離してください。");

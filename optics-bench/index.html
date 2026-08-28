@@ -4,26 +4,26 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Optics Bench — 光学系デザインツール</title>
-  <meta name="description" content="光学部品をドラッグで配置し、波長・開口・偏光を調整。フィルター・カメラ像・凹面ミラー・量子消しゴム・干渉計・4F・共焦点など26種類のプリセット、位相走査、圧縮URLの共有・設計JSONの保存・読込に対応。">
+  <meta name="description" content="光学部品をドラッグで配置し、中心波長・波長幅・開口・偏光を調整。広帯域光・フィルター・カメラ像・量子消しゴム・干渉計・4F・共焦点など27種類のプリセット、位相走査、圧縮URLの共有・設計JSONの保存・読込に対応。">
   <link rel="icon" href="../shared/icons/general.svg" type="image/svg+xml">
   <link rel="stylesheet" href="../shared/back-to-hub.css">
-  <link rel="stylesheet" href="styles.css?v=0.11.0">
+  <link rel="stylesheet" href="styles.css?v=0.12.0">
   <script defer src="../shared/back-to-hub.js"></script>
-  <script defer src="optics.js?v=0.11.0"></script>
-  <script defer src="camera.js?v=0.11.0"></script>
-  <script defer src="coherence.js?v=0.11.0"></script>
-  <script defer src="state.js?v=0.11.0"></script>
-  <script defer src="share.js?v=0.11.0"></script>
-  <script defer src="presets.js?v=0.11.0"></script>
-  <script defer src="view.js?v=0.11.0"></script>
-  <script defer src="script.js?v=0.11.0"></script>
+  <script defer src="optics.js?v=0.12.0"></script>
+  <script defer src="camera.js?v=0.12.0"></script>
+  <script defer src="coherence.js?v=0.12.0"></script>
+  <script defer src="state.js?v=0.12.0"></script>
+  <script defer src="share.js?v=0.12.0"></script>
+  <script defer src="presets.js?v=0.12.0"></script>
+  <script defer src="view.js?v=0.12.0"></script>
+  <script defer src="script.js?v=0.12.0"></script>
 </head>
-<body data-page-version="0.11.0" data-page-updated="2026-08-28" data-page-copyright="© 2026 skanai">
+<body data-page-version="0.12.0" data-page-updated="2026-08-29" data-page-copyright="© 2026 skanai">
   <main class="page-shell">
     <header class="hero">
       <div class="eyebrow"><span class="brand-mark" aria-hidden="true">↗</span> OPTICS LAB <span class="prototype">DESIGN STUDIO</span></div>
       <h1>Optics Bench <span>光学系を、組み立てる。</span></h1>
-      <p class="lead">部品をドラッグして配置。波長・角度・開口を調整して、光の行き先を確かめる。</p>
+      <p class="lead">部品をドラッグして配置。波長帯・角度・開口を調整して、光の行き先を確かめる。</p>
     </header>
     <section class="workspace" aria-label="光学系の設計">
       <div class="project-bar">
@@ -167,17 +167,18 @@
     </section>
     <section class="readouts" aria-label="測定系の読み出し">
       <div class="readout-card preset-description"><div class="section-label">SETUP NOTES</div><h2 id="setup-title">配置のメモ</h2><p id="setup-description"></p><p id="setup-notes" class="subtle"></p></div>
-      <div class="readout-card"><div class="section-label">SOURCES</div><h2>波長と光源</h2><div id="source-readout"></div><p class="subtle">波長色は表示用近似。UV・IRは破線の疑似色です。</p></div>
+      <div class="readout-card"><div class="section-label">SOURCES</div><h2>波長と光源</h2><div id="source-readout"></div><p class="subtle">波長色は表示用近似。重なる帯域サンプルはパワーで混色し、UV・IRを含む光路は破線の疑似色です。</p></div>
       <div class="readout-card detectors-card"><div class="section-label">DETECTION</div><h2>検出・ファイバー伝送</h2><div id="detector-readout"></div><p class="subtle">受光P・出射Pは端面ごとの光線パワー。中継端面の受光を最終検出と重複して数えません。実際の検出感度・波動結合効率ではありません。</p></div>
     </section>
     <details class="model-note">
       <summary>操作ガイド・計算モデルと限界</summary>
       <div class="model-columns">
         <section><h3>キャンバスと全体表示</h3><p>固定サイズのテーブルを持たず、背景ドラッグで上下左右へ移動し、負の座標や離れた場所にも部品を配置できます。「全体表示」は無効な部品も含む全素子の外形と接続ケーブルを、余白を付けて画面へ収めます。部品がない場合は初期の表示範囲に戻ります。光線の長さは全体表示の範囲に含めません。</p><p>表示するグリッドと目盛は現在の画面範囲だけを描き、ズームアウト時は間引きます。画面外の部品も光線計算の対象です。進行先に部品がない光は表示範囲まで延長し、ズーム・パンだけではパワーや偏光は変わりません。数値精度の保護として座標は±10億 mm（±1000 km）まで。最大80部品と光線追跡の上限は維持します。JSON形式はv2のままですが、旧アプリは旧テーブル外の座標を読み込めません。</p></section>
-        <section><h3>光路の状態を見る</h3><p>光路上をクリックすると、選択した区間を点線と進行方向の矢印で示し、波長・偏光楕円・偏光度・Q/I、U/I、V/I・相対パワーを表示します。交差・往復する光路や近接した光線は「この位置付近の光線」で切り替えられます。「光路を調べる」と前／次のボタンでも全区間を確認できます。各区間の状態は、その区間の終端にある素子に入る直前の状態です。</p><p>表示Pは離散的に追跡する光線1本分で、ビーム全体のパワーや強度分布ではありません。偏光角ψと楕円率角χは局所的なs/p基準です。円偏光のψ、無偏光のψ・χは未定義として表示します。設定変更には同じ光線の区間を追従し、遮断などで消えると未検出を表示。新規・読み込み・プリセット・Undo／Redoで選択を解除します。確認状態はJSONや図の保存には含めません。</p></section>
+        <section><h3>光路の状態を見る</h3><p>光路上をクリックすると、選択した区間を点線と進行方向の矢印で示し、波長・偏光楕円・偏光度・Q/I、U/I、V/I・相対パワーを表示します。交差・往復する光路や近接した光線、重なった帯域内の波長サンプルは「この位置付近の光線」で個別に切り替えられます。「光路を調べる」と前／次のボタンでも全区間を確認できます。各区間の状態は、その区間の終端にある素子に入る直前の状態です。</p><p>表示Pは離散的に追跡する光線1本分で、ビーム全体のパワーや強度分布ではありません。偏光角ψと楕円率角χは局所的なs/p基準です。円偏光のψ、無偏光のψ・χは未定義として表示します。設定変更には同じ光線の区間を追従し、遮断などで消えると未検出を表示。新規・読み込み・プリセット・Undo／Redoで選択を解除します。確認状態はJSONや図の保存には含めません。</p></section>
+        <section><h3>中心波長と波長幅</h3><p>レーザーと点光源は中心波長と波長幅Δλをnmで設定できます。中心532・幅20なら522〜542 nm、幅0なら従来の単色光です。幅は帯域の全幅で、Gaussianの半値幅ではありません。帯域全体を200〜2500 nm内にしてください。</p><p>帯域内は1 nmあたり同じパワーの近似で、3〜61個の等幅区間の中央波長を追跡します。相対パワーは全帯域の合計で、空間本数×波長数に分配します。狭いフィルターはサンプル間に入って見落とすことがあるため、波長数を変えて確認してください。波長ごとのフィルター・偏光素子の作用やカメラの混色に反映しますが、実測スペクトル・レンズの色収差・線幅による干渉や時間コヒーレンスは未計算。干渉解析には波長幅0を使います。</p></section>
         <section><h3>操作</h3><p id="keyboard-help">パレットからドラッグで配置、部品をドラッグで移動。Ctrlを押しながら部品を掴むと、元を残して複製できます。選択部品の丸いハンドルで回転できます。スライダーは22.5°吸着、数値欄は任意角度。Shift＋ホイール／＋−でズーム、背景ドラッグでパン。素子にフォーカスして矢印キーで移動、R／Shift+Rで回転、Deleteで削除。Ctrl+Zで元に戻す、Ctrl+Y／Ctrl+Shift+Zでやり直す。Ctrl+Cで選択部品をコピー、Ctrl+Xで切り取り、Ctrl+Vで貼り付け。Ctrl+Dで複製。MacではCtrlの代わりに⌘を使えます。文字入力中は通常の文字編集を優先。ドラッグ中はEsc／Ctrl+Zでその操作を取消。</p><p>コピーは全パラメーターを保持し、別の設計にも貼り付けられます。貼り付け先に同じ中心位置の部品があれば、近くの空き位置へずらします。Ctrlドラッグも名前・設定を保持し、画面内で離すと確定、外で離すと取消。切り取り・貼り付け・複製もそれぞれ元に戻せます。</p><p>単位の変更は表示とグリッドだけを切り替え、物理的な配置・焦点距離は維持します。原点は座標(0,0)で、右が＋X、下が＋Y。負の座標にも配置できます。配置角度は光軸／面の法線方向を時計回りで表します。</p></section>
         <section><h3>幾何光学＋理想偏光素子</h3><p>2次元の光線とStokesベクトルを追跡します。凹面ミラーは球面上で反射し、球面収差を含みます。fとRはR=2fで連動し、0°では凹面が左向き。Fは近軸焦点、Cは曲率中心で、裏面は吸収します。レンズ・対物は近軸の薄レンズ近似、ダイクロイックは理想的なカットオフ、偏光子とλ/4・λ/2板は理想素子。偏光の0°はベンチ面に垂直な基準方向で、配置角度とは別です。Q/U/Vの検出表示を用意し、ポアンカレ球ビューは将来の拡張です。</p><p>無偏光BS（NPBS）は偏光に依存しない比率で分岐し、入力の偏光状態を保ちます。偏光BS（PBS）はp偏光（90°）を透過、s偏光（0°）を反射。無偏光や円偏光は各50%に分かれ、出力はそれぞれ直線偏光になります。</p><p>通常の光線表示は非干渉です。干渉は別欄の理想モード解析に限ります。回折・レンズの収差・蛍光生成・PSF・高NA対物の厳密な結像・ファイバーのモード重なりは計算しません。実BSの消光比・損失・波長や入射角への依存、ミラーやコーティングのs/p位相差も未計算です。共焦点プリセットの蛍光は独立した点光源による模式モデルです。</p></section>
-        <section><h3>干渉と量子消しゴム</h3><p>位相シフターを含む配置では「干渉解析」が現れます。レーザーは光線数1・ビーム径0で、1本の主光線が理想空間モードを表します。実際に通った経路の長さ・偏光・BSの複素振幅・追加位相から、検出器の干渉Pを計算します。同じレーザーの同じ検出位置・方向だけを合成し、片腕の遮断や光軸ずれも反映します。点光源・レンズ・凹面ミラー・対物・ファイバー・ダイクロイック・カメラが有効な系、部品が重なる系、追跡が打ち切られた系には未対応。各光路長は1 km以下です。</p><p>φは1回通過あたりの位相で、往復では2回作用します。位相の値と偏光素子のON/OFFは保存・Undo対象。光線図・光路プローブ・幾何Pには干渉を反映しないので、暗い出力でも幾何光線は残ります。量子消しゴムは偏光で経路を区別し、検光子で干渉を復元する光学アナログ。もつれ光子対・同時計数・遅延選択・量子検出統計は扱いません。</p></section>
+        <section><h3>干渉と量子消しゴム</h3><p>位相シフターを含む配置では「干渉解析」が現れます。レーザーは光線数1・ビーム径0・波長幅0で、1本の主光線が理想空間モードを表します。実際に通った経路の長さ・偏光・BSの複素振幅・追加位相から、検出器の干渉Pを計算します。同じレーザーの同じ検出位置・方向だけを合成し、片腕の遮断や光軸ずれも反映します。点光源・レンズ・凹面ミラー・対物・ファイバー・ダイクロイック・カメラが有効な系、部品が重なる系、追跡が打ち切られた系には未対応。各光路長は1 km以下です。</p><p>φは1回通過あたりの位相で、往復では2回作用します。位相の値と偏光素子のON/OFFは保存・Undo対象。光線図・光路プローブ・幾何Pには干渉を反映しないので、暗い出力でも幾何光線は残ります。量子消しゴムは偏光で経路を区別し、検光子で干渉を復元する光学アナログ。もつれ光子対・同時計数・遅延選択・量子検出統計は扱いません。</p></section>
         <section><h3>設計データ・ファイバー</h3><p>JSON保存と読み込みは、このページの形式に対応します。接続も保存する形式v2で書き出し、以前のv1も読み込めます。数値範囲・素子数・形式を検証し、不正なファイルでは現在の設計を変更しません。新規作成・プリセット・読み込みも「戻す」で復元できます。共有リンクでも同じ設計を復元できます。自動保存はしないため、必要な配置は共有リンクかJSONで保存してください。</p><p>ファイバーを2つ置き、設定欄の「接続先のファイバー」で相手を選ぶと接続。移動・回転してもケーブルが追従し、切断・削除・再接続も元に戻せます。部品単体のコピー・複製・貼り付けでは接続を複製しません。</p><p>受け入れた光は相手の配置角度＋180°へ出射します。両端のコア径・NAで制限する理想的な幾何伝送です。実ファイバーの曲げ損失・モード変化・偏光変化は計算せず、ケーブルは接続関係だけを表します。</p><p><a href="README.md">モデルの詳細</a> · <a href="DESIGN_PLAN.md">設計・検証計画</a> · <a href="../poincare-sphere/" target="_blank" rel="noopener">既存のポアンカレ球ツール</a></p></section>
       </div>
     </details>

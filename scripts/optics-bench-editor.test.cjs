@@ -946,6 +946,74 @@ test('Ctrl and Meta preserve palette placement and background panning', () => {
   }
 });
 
+test('source bandwidth controls update the full-band summary, bounds, sample count and detected power', async () => {
+  const scene=require('../optics-bench/presets.js').create('broadband-filter'), h=editorHarness();
+  await h.load(scene.elements,{unit:'mm'}); h.select(1);
+  const set=(key,value)=>{const input=h.get('param-'+key);input.value=String(value);h.fire('change',input);};
+  assert.match(h.get('source-spectrum-summary').textContent,/400–700 nm.*9 × 波長 30 = 270 本/);
+  near(h.result().detectedPower,.2); assert.equal(h.get('param-spectralSamples').disabled,false);
+  assert.equal(Number(h.get('param-wavelength').min),350); assert.equal(Number(h.get('param-wavelengthWidth').max),700);
+  set('wavelengthWidth',0); assert.equal(h.get('param-spectralSamples').disabled,true);
+  near(h.result().detectedPower,1); assert.equal(h.result().rayCount,9);
+  assert.equal(h.selected().spectralSamples,30); assert.match(h.get('source-spectrum-summary').textContent,/単色：550 nm/);
+  set('wavelengthWidth',300); set('spectralSamples',3); near(h.result().detectedPower,1/3); near(h.result().sourcePower,1);
+  h.get('bench').focus();h.key('z');near(h.result().detectedPower,.2);h.key('y');near(h.result().detectedPower,1/3);
+  h.get('unit').value='in'; h.fire('change',h.get('unit'));
+  assert.equal(h.get('param-wavelengthWidth').value,'300');
+  assert.equal(h.get('param-wavelengthWidth').closest('label').querySelector('.unit-label').textContent,'nm');
+});
+
+test('invalid source bands and sample counts preserve the last valid scene and calculation', async () => {
+  const h=editorHarness();await h.load([h.element('laser',1,{wavelength:550,wavelengthWidth:300})]);h.select(1);
+  const before=h.scene(), result=h.result();
+  for(const [key,value] of [['wavelength',300],['wavelengthWidth',701],['wavelengthWidth',-1],['spectralSamples',2],['spectralSamples',3.5]]) {
+    const input=h.get('param-'+key);input.value=String(value);h.fire('change',input);
+    assert.equal(input.getAttribute('aria-invalid'),'true'); assert.deepEqual(h.scene(),before); assert.deepEqual(h.result(),result);
+  }
+  const width=h.get('param-wavelengthWidth');width.value='20';h.fire('change',width);
+  assert.equal(width.getAttribute('aria-invalid'),null);assert.match(h.get('source-spectrum-summary').textContent,/540–560 nm/);
+});
+
+test('source bandwidth is retained by clipboard, history and shared-link restoration', async () => {
+  for(const type of ['laser','point']) {
+    const h=editorHarness(), source=h.element(type,1,{wavelength:550.25,wavelengthWidth:300.5,spectralSamples:30});
+    await h.load([source]);h.select(1);
+    const copy=h.clipboard('copy').data.get('text/plain');assert.deepEqual(h.parseComponent(copy),source);
+    h.clipboard('paste',copy);assert.equal(h.selected().wavelengthWidth,300.5);assert.equal(h.selected().spectralSamples,30);
+    h.key('z');assert.equal(h.scene().elements.length,1);h.key('y');assert.equal(h.scene().elements.length,2);
+    await h.click('share-copy').done;const recipient=editorHarness({href:h.get('share-url').value});await recipient.ready();
+    assert.deepEqual(recipient.scene(),h.scene());recipient.select(1);
+    assert.match(recipient.get('source-spectrum-summary').textContent,/400–700.5 nm/);
+  }
+});
+
+test('spectral display merges only coincident samples and never modifies probe or physics records', () => {
+  const O=require('../optics-bench/optics.js'), source={...O.createElement('laser',1,100,300),rayCount:5,wavelength:550,wavelengthWidth:300,spectralSamples:3};
+  const result=O.simulate([source]), before=JSON.stringify(result.segments), displayed=V.displaySegments(result.segments);
+  assert.equal(displayed.length,5);for(const s of displayed)near(s.power,.2);
+  assert.equal(JSON.stringify(result.segments),before);assert.equal(result.segments.length,15);
+  assert.match(displayed[0].color,/^rgb\(/);assert.notEqual(displayed[0].color,O.wavelengthColor(650));
+  const reversed=V.displaySegments([...result.segments].reverse());
+  assert.deepEqual(reversed.map(s=>s.color),displayed.map(s=>s.color));
+  const next={...source,id:2};assert.equal(V.displaySegments(O.simulate([source,next]).segments).length,10);
+  const shifted={...result.segments[0],a:{...result.segments[0].a,x:101}};
+  assert.equal(V.displaySegments([...result.segments,shifted]).length,6);
+  assert.equal(V.displaySegments(O.simulate([{...source,wavelengthWidth:0}]).segments).length,5);
+  const S=require('../optics-bench/state.js'),{view,document}=drawingHarness();view.draw(S.defaultScene([source]),1,result);
+  assert.equal(document.getElementById('elements').children[0].querySelector('.element-info').textContent,'400–700 nm');
+  assert.match(V.spectrumSwatch(source),/^linear-gradient/);assert.equal(V.spectrumSwatch({...source,wavelengthWidth:0}),O.wavelengthColor(550));
+});
+
+test('a broadband probe selects individual wavelengths and clears stale selection when sampling changes', async () => {
+  const h=editorHarness();await h.load([h.element('laser',1,{x:100,y:300,wavelength:550,wavelengthWidth:300,spectralSamples:3,rayCount:1}),h.element('screen',2,{x:900,y:300})]);
+  probeClick(h,500,300);assert.equal(h.get('probe-overlap').children.length,3);
+  const choice=h.get('probe-overlap');choice.value='1';h.fire('change',choice);
+  assert.equal(h.get('probe-wavelength').textContent,'550 nm');near(h.probe().segment.power,1/3);
+  h.select(1);const width=h.get('param-wavelengthWidth');width.value='0';h.fire('change',width);
+  assert.equal(h.probe(),null);assert.match(h.get('probe-status').textContent,/見つかりません|未検出|ありません/);
+  probeClick(h,500,300);assert.equal(h.get('probe-wavelength').textContent,'550 nm');near(h.probe().segment.power,1);
+});
+
 test('filter inspector switches relevant fields without losing focus and updates camera power with undo', async () => {
   const P = require('../optics-bench/presets.js'), h = editorHarness(), scene = P.create('spectral-filter');
   await h.load(scene.elements); h.select(4);
@@ -1116,6 +1184,7 @@ test('drag copies preserve complete component records for all nineteen optical t
   for (const [index, type] of types.entries()) {
     const source = h.element(type, 31, { angle: 21.3, enabled: false, label: index % 2 ? type + ' component' : '' });
     if (type === 'filter') Object.assign(source,{filterMode:'nd',opticalDensity:1.23,bandLow:450,bandHigh:650,transmission:.7});
+    if (type === 'laser' || type === 'point') Object.assign(source,{wavelength:550,wavelengthWidth:300,spectralSamples:30});
     await h.load([source], { unit: 'mm', snap: false });
     const before = h.scene();
     h.fire('pointerdown', h.component(source.id), { pointerId: 23, ctrlKey: true, clientX: source.x + 5, clientY: source.y - 8 });

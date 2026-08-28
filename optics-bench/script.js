@@ -6,7 +6,7 @@
   const angles = new Set(["angle", "polAngle", "axisAngle"]);
   const names = {
     x: "X", y: "Y", angle: "配置角度", aperture: "部品径 / 有効径", focal: "焦点距離 f", radius: "曲率半径 R",
-    beamWidth: "ビーム直径", wavelength: "波長", power: "相対パワー", rayCount: "光線サンプル数",
+    beamWidth: "ビーム直径", wavelength: "中心波長", wavelengthWidth: "波長幅 Δλ（全幅）", spectralSamples: "波長サンプル数", power: "相対パワー", rayCount: "光線サンプル数",
     divergence: "発光角（全角）", polarization: "偏光状態", polAngle: "偏光角",
     axisAngle: "軸角度", designWavelength: "設計波長", phase: "追加位相 φ", opening: "開口直径",
     coreDiameter: "コア直径", na: "開口数 NA", transmission: "透過率 T", cutoff: "境界波長", mode: "透過側", label: "部品名",
@@ -108,6 +108,8 @@
     if (key === "x" || key === "y") return { min: -O.COORDINATE_LIMIT, max: O.COORDINATE_LIMIT };
     if (key === "radius") return { min: 2, max: 2 * O.PARAM_LIMITS.focal.max };
     const limits = { ...O.PARAM_LIMITS[key] };
+    if (isSource(e) && key === "wavelength") { limits.min += e.wavelengthWidth / 2; limits.max -= e.wavelengthWidth / 2; }
+    if (isSource(e) && key === "wavelengthWidth") limits.max = 2 * Math.min(e.wavelength - O.PARAM_LIMITS.wavelength.min, O.PARAM_LIMITS.wavelength.max - e.wavelength);
     if (key === "focal" && e.type === "concave") limits.min = 1;
     if (key === "opening" || key === "coreDiameter") limits.max = Math.min(limits.max, e.aperture);
     return limits;
@@ -118,13 +120,13 @@
     const limits = bounds(key, e), length = lengths.has(key);
     input.min = String(length ? S.toDisplay(limits.min, scene.unit) : limits.min);
     input.max = String(length ? S.toDisplay(limits.max, scene.unit) : limits.max);
-    input.step = input.type === "range" && angles.has(key) ? String(scene.angleSnap ? 22.5 : 0.1) : ["rayCount", "pixelCount"].includes(key) || (key === "phase" && input.type === "range") ? "1" : key === "opticalDensity" && input.type === "range" ? "0.01" : "any";
-    input.disabled = (key === "polAngle" && e.polarization !== "linear") || Boolean(input.closest("[data-filter-modes]")?.hidden);
+    input.step = input.type === "range" && angles.has(key) ? String(scene.angleSnap ? 22.5 : 0.1) : ["rayCount", "spectralSamples", "pixelCount"].includes(key) || (key === "phase" && input.type === "range") ? "1" : key === "opticalDensity" && input.type === "range" ? "0.01" : "any";
+    input.disabled = (key === "polAngle" && e.polarization !== "linear") || (key === "spectralSamples" && e.wavelengthWidth === 0) || Boolean(input.closest("[data-filter-modes]")?.hidden);
   }
   function makeField(key, options = {}) {
     const e = selected(), title = options.title || names[key];
     const wrap = node("label", "field", title), unit = lengths.has(key) ? scene.unit :
-      angles.has(key) || key === "divergence" || key === "phase" ? "°" : ["wavelength", "designWavelength", "cutoff", "bandLow", "bandHigh"].includes(key) ? "nm" : "";
+      angles.has(key) || key === "divergence" || key === "phase" ? "°" : ["wavelength", "wavelengthWidth", "designWavelength", "cutoff", "bandLow", "bandHigh"].includes(key) ? "nm" : "";
     if (unit) wrap.append(node("span", "unit-label", unit));
     const input = node(options.choices ? "select" : "input");
     input.id = "param-" + key; input.dataset.key = key; input.setAttribute("aria-label", title);
@@ -171,16 +173,20 @@
     fields.append(makeField("angle", { hint: angleHint + " 数値入力は任意角度。" }));
     fields.append(node("h3", "field-group-title", "光学パラメーター"));
     if (isSource(e)) {
-      fields.append(makeField("wavelength"));
+      fields.append(makeField("wavelength", { hint: "帯域の中央。全帯域が200〜2500 nmに収まる範囲で設定できます。" }));
       const wavelengths = node("div", "wavelength-buttons");
       for (const nm of [405, 450, 488, 532, 561, 633, 650, 785, 1064]) {
         const b = node("button", "", String(nm)); b.type = "button"; b.dataset.wavelength = String(nm);
         b.title = nm + " nm"; wavelengths.append(b);
       }
-      fields.append(wavelengths, makeField("power", { hint: "相対値。光線数で分配するため、本数を変えても総パワーは一定。" }));
+      fields.append(wavelengths,
+        makeField("wavelengthWidth", { hint: "中心波長±Δλ/2。0は単色。帯域内のパワー密度が均一な近似で、半値幅（FWHM）ではありません。" }),
+        makeField("spectralSamples", { hint: "3〜61の整数。各等幅区間の中央波長を追跡します。狭いフィルターは分割数を増やして確認してください。" }));
+      const spectrum = node("p", "param-note"); spectrum.id = "source-spectrum-summary"; fields.append(spectrum);
+      fields.append(makeField("power", { hint: "全帯域・全光線を合わせた相対パワー。波長幅やサンプル数を変えても総パワーは一定。" }));
       if (e.type === "laser") fields.append(makeField("beamWidth", { hint: "平行光線の幅。Gaussianビームの1/e²径ではありません。" }));
       else fields.append(makeField("divergence", { hint: "2Dの角度サンプル。360°で全周発光。" }));
-      fields.append(makeField("rayCount"), makeField("polarization", { choices: [
+      fields.append(makeField("rayCount", { hint: "空間方向の本数。各波長で同じビーム幅・発光角をサンプルします。" }), makeField("polarization", { choices: [
         ["linear", "直線偏光"], ["right", "円偏光（V / I = +1）"], ["left", "円偏光（V / I = −1）"], ["unpolarized", "無偏光"]
       ] }), makeField("polAngle", { hint: "偏光の0°はベンチ面に垂直な方向。配置角度とは別です。" }));
     } else {
@@ -262,6 +268,12 @@
     updateOptions();
     if (!e) return;
     if (e.type === "fiber") syncFiberConnection(e);
+    if (isSource(e)) {
+      const count = e.wavelengthWidth > 0 ? e.spectralSamples : 1;
+      $("source-spectrum-summary").textContent = (e.wavelengthWidth > 0 ? "帯域：" : "単色：") + V.spectrumLabel(e) +
+        " ／ 空間 " + e.rayCount + " × 波長 " + count + " = " + e.rayCount * count + " 本" +
+        (e.wavelengthWidth > 0 ? "。分割幅 " + V.formatWavelength(e.wavelengthWidth / count) + " nm。波長間は非干渉。" : "。");
+    }
     if (e.type === "filter") {
       for (const field of $("parameter-fields").querySelectorAll("[data-filter-modes]")) {
         field.hidden = !field.dataset.filterModes.split(" ").includes(e.filterMode);
@@ -280,7 +292,7 @@
         input.value = String(lengths.has(k) ? display(value) : typeof value === "number" ? num(value) : value);
       }
     }
-    if ($("selected-wavelength-color")) $("selected-wavelength-color").style.background = O.wavelengthColor(e.wavelength);
+    if ($("selected-wavelength-color")) $("selected-wavelength-color").style.background = V.spectrumSwatch(e);
   }
   function syncFiberConnection(e) {
     const input = $("fiber-partner"); if (!input) return;
@@ -334,8 +346,8 @@
     if (input.value.trim() === "" || !Number.isFinite(value)) throw new Error((names[key] || key) + "を数値で入力してください。");
     if (lengths.has(key)) value = S.fromDisplay(value, scene.unit);
     const limits = bounds(key, e);
-    if (value < limits.min - 1e-7 || value > limits.max + 1e-7 || ["rayCount", "pixelCount"].includes(key) && !Number.isInteger(value)) {
-      throw new Error((names[key] || key) + "は " + input.min + "〜" + input.max + (["rayCount", "pixelCount"].includes(key) ? " の整数" : " の数値") + "を入力してください。");
+    if (value < limits.min - 1e-7 || value > limits.max + 1e-7 || ["rayCount", "spectralSamples", "pixelCount"].includes(key) && !Number.isInteger(value)) {
+      throw new Error((names[key] || key) + "は " + input.min + "〜" + input.max + (["rayCount", "spectralSamples", "pixelCount"].includes(key) ? " の整数" : " の数値") + "を入力してください。");
     }
     value = Math.max(limits.min, Math.min(limits.max, value));
     if (key === "focal" && Math.abs(value) < 1) throw new Error("焦点距離の絶対値は " + display(1) + " " + scene.unit + " 以上にしてください。");
@@ -372,9 +384,9 @@
     $("setup-notes").textContent = preset ? (edited ? "元のプリセット「" + preset.title + "」の説明： " : "") + preset.notes : "数値は幾何光学の目安です。実機設計では素子の仕様・収差・回折などを別途確認してください。";
     const sourceRows = scene.elements.filter(isSource).map(e => {
       const row = node("div", "source-row"), swatch = node("span", "wave-swatch");
-      swatch.style.background = O.wavelengthColor(e.wavelength); swatch.setAttribute("aria-hidden", "true");
+      swatch.style.background = V.spectrumSwatch(e); swatch.setAttribute("aria-hidden", "true");
       const button = node("button", "", label(e)); button.type = "button"; button.dataset.select = String(e.id);
-      row.append(swatch, button, node("span", "source-details", e.wavelength + " nm · " + (e.enabled ? "P " + power(e.power) : "OFF")));
+      row.append(swatch, button, node("span", "source-details", V.spectrumLabel(e) + " · " + (e.enabled ? "P " + power(e.power) : "OFF")));
       return row;
     });
     $("source-readout").replaceChildren(...(sourceRows.length ? sourceRows : [node("p", "subtle", "光源を配置してください。")]));
@@ -418,12 +430,12 @@
               wavelengths.set(transfer.wavelength, (wavelengths.get(transfer.wavelength) || 0) + transfer.power);
             }
             output.append(node("p", "stokes", "出射偏光（理想伝送）：" + stokesText(stokes)));
-            for (const [wavelength, p] of wavelengths) output.append(node("p", "", "出射 " + wavelength + " nm : P " + power(p)));
+            for (const [wavelength, p] of wavelengths) output.append(node("p", "", "出射 " + V.formatWavelength(wavelength) + " nm : P " + power(p)));
           }
         }
         if (d?.acceptedHits) {
           output.append(node("p", "", "重心 X " + display(d.centroid.x) + " / Y " + display(d.centroid.y) + " " + scene.unit));
-          for (const [wavelength, p] of Object.entries(d.powerByWavelength || {})) output.append(node("p", "", wavelength + " nm : P " + power(p)));
+          for (const [wavelength, p] of Object.entries(d.powerByWavelength || {})) output.append(node("p", "", V.formatWavelength(Number(wavelength)) + " nm : P " + power(p)));
         }
       } else if (e.type === "pbs") output.append(node("p", "", "分岐前後の光路をクリックして偏光を確認できます。透過pはQ/I = −1、反射sはQ/I = +1（光がある場合）。"));
       else if (["polarizer", "waveplate", "halfwave"].includes(e.type)) output.append(node("p", "", "素子の前後の光路をクリックして、偏光楕円・Q/I・U/I・V/Iを確認できます。"));
@@ -636,7 +648,7 @@
     $("probe-overlap").replaceChildren(...probeHits.map(hit => {
       const ray = result.segments[hit.index], source = scene.elements.find(e => e.id === ray.sourceId);
       const direction = num(O.normalizeAngle(Math.atan2(ray.b.y - ray.a.y, ray.b.x - ray.a.x) * 180 / Math.PI), 1);
-      const option = node("option", "", `区間${hit.index + 1} · ${ray.wavelength} nm · ${source ? label(source) : ray.sourceId} · ${direction}°`);
+      const option = node("option", "", `区間${hit.index + 1} · ${V.formatWavelength(ray.wavelength)} nm · ${source ? label(source) : ray.sourceId} · ${direction}°`);
       option.value = String(hit.index); return option;
     }));
     $("probe-overlap").value = String(index);
@@ -644,8 +656,8 @@
     const kind = pol?.kind, handed = pol?.v > 0 ? "右" : "左";
     const name = !pol ? "偏光は未定義" : kind === "unpolarized" ? "無偏光" :
       (pol.degree < 1 - 1e-6 ? "部分偏光 · " : "") + (kind === "linear" ? "直線偏光" : kind === "circular" ? handed + "円偏光" : handed + "楕円偏光");
-    $("probe-status").textContent = `区間 ${index + 1}：${name} · ${s.wavelength} nm`;
-    $("probe-wavelength").textContent = s.wavelength + " nm" + (s.wavelength < 380 ? " · UV（疑似色）" : s.wavelength > 780 ? " · IR（疑似色）" : "");
+    $("probe-status").textContent = `区間 ${index + 1}：${name} · ${V.formatWavelength(s.wavelength)} nm`;
+    $("probe-wavelength").textContent = V.formatWavelength(s.wavelength) + " nm" + (s.wavelength < 380 ? " · UV（疑似色）" : s.wavelength > 780 ? " · IR（疑似色）" : "");
     $("probe-swatch").style.background = O.wavelengthColor(s.wavelength);
     $("probe-source").textContent = "光源：" + (source ? label(source) : s.sourceId);
     $("probe-polarization-name").textContent = name;

@@ -29,6 +29,43 @@ test('compressed share links round-trip every preset with exact settings and sma
   }
 });
 
+test('source bandwidth and sampling survive design, component and compressed-link round trips', async () => {
+  for (const type of ['laser','point']) {
+    const source={...O.createElement(type,1,100,300),wavelength:550.125,wavelengthWidth:300.25,spectralSamples:30};
+    const scene=S.defaultScene([source],{unit:'in'});
+    assert.deepEqual(S.parse(S.serialize(scene)),scene);
+    assert.deepEqual(S.parseComponent(S.serializeComponent(source)),source);
+    assert.deepEqual(await Q.decode(await Q.encode(scene)),scene);
+    assert.deepEqual(O.simulate(S.parse(S.serialize(scene)).elements),O.simulate(scene.elements));
+  }
+});
+
+test('legacy source records stay monochromatic and omit default spectral fields when saved', () => {
+  const scene=basic(), record=JSON.parse(S.serialize(scene));
+  assert.equal(Object.hasOwn(record.elements[0],'wavelengthWidth'),false);
+  assert.equal(Object.hasOwn(record.elements[0],'spectralSamples'),false);
+  const restored=S.parse(JSON.stringify(record)); assert.equal(restored.elements[0].wavelengthWidth,0);
+  assert.equal(restored.elements[0].spectralSamples,17); assert.deepEqual(restored,scene);
+  restored.elements[0].spectralSamples=61;
+  assert.equal(S.parse(S.serialize(restored)).elements[0].spectralSamples,61);
+});
+
+test('source bands reject out-of-domain edges and invalid sampling without changing valid input', () => {
+  for (const type of ['laser','point']) {
+    const source=O.createElement(type,1,100,300);
+    for (const changes of [{wavelengthWidth:-.1},{wavelengthWidth:2301},{wavelengthWidth:1e-15},
+      {wavelength:200,wavelengthWidth:1},{wavelength:2500,wavelengthWidth:1},{spectralSamples:2},
+      {spectralSamples:62},{spectralSamples:3.5},{wavelengthWidth:NaN},{spectralSamples:Infinity}]) {
+      assert.throws(()=>S.defaultScene([{...source,...changes}]));
+      assert.throws(()=>S.serializeComponent({...source,...changes}));
+    }
+    for(const changes of [{wavelength:200,wavelengthWidth:0},{wavelength:2500,wavelengthWidth:0},
+      {wavelength:1350,wavelengthWidth:2300,spectralSamples:61}]) {
+      const scene=S.defaultScene([{...source,...changes}]); assert.deepEqual(S.parse(S.serialize(scene)),scene);
+    }
+  }
+});
+
 test('share snapshots preserve all types, precision, unicode, disabled parts and fiber connections', async () => {
   const elements = Object.keys(O.TYPES).map((type,i)=>({ ...O.createElement(type,i+1,0,0),x:-10000.123456789+i*200,y:9876.123456789,
     label:'部品 '+type+' 🧪',enabled:i%2===0,angle:22.5123456789 }));
@@ -626,7 +663,7 @@ test('browser globals load without Node, DOM access or network APIs', () => {
 });
 
 test('preset factories return independent validated scenes and reject unknown IDs', () => {
-  assert.equal(P.list.length, 26);
+  assert.equal(P.list.length, 27);
   assert.equal(new Set(P.list.map(entry => entry.id)).size, P.list.length);
   const a = P.create('starter'), b = P.create('starter');
   a.elements[0].x += 10;

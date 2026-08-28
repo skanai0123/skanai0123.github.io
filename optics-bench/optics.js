@@ -35,6 +35,7 @@
     angle: { min: 0, max: 360 }, polAngle: { min: 0, max: 360 }, axisAngle: { min: 0, max: 360 },
     aperture: { min: 2, max: 300 }, focal: { min: -1000, max: 1000 },
     beamWidth: { min: 0, max: 200 }, wavelength: { min: 200, max: 2500 },
+    wavelengthWidth: { min: 0, max: 2300 }, spectralSamples: { min: 3, max: 61 },
     power: { min: 0, max: 100 }, rayCount: { min: 1, max: 61 },
     divergence: { min: 1, max: 360 }, designWavelength: { min: 200, max: 2500 },
     opening: { min: 0, max: 300 }, coreDiameter: { min: 0.01, max: 200 },
@@ -44,7 +45,7 @@
   });
   const FILTER_MODES = Object.freeze(["longpass", "shortpass", "bandpass", "nd"]);
   const DEFAULTS = Object.freeze({
-    angle: 0, focal: 100, aperture: 50, beamWidth: 12, wavelength: 532,
+    angle: 0, focal: 100, aperture: 50, beamWidth: 12, wavelength: 532, wavelengthWidth: 0, spectralSamples: 17,
     power: 1, rayCount: 9, divergence: 20, polarization: "linear", polAngle: 0,
     axisAngle: 0, designWavelength: 532, opening: 20, coreDiameter: 1, na: 0.22,
     transmission: 0.5, cutoff: 600, mode: "longpass", phase: 0, enabled: true, label: "",
@@ -91,6 +92,31 @@
     const mirror = createElement("mirror", 2, 550, 400);
     const lens = { ...createElement("lens", 3, 550, 200), focal: 125, angle: 90 };
     return [laser, mirror, lens];
+  }
+
+  function sourceBand(source) {
+    const half = (source.wavelengthWidth ?? 0) / 2;
+    return { min: source.wavelength - half, max: source.wavelength + half };
+  }
+
+  function validSourceBand(source) {
+    const width = source.wavelengthWidth ?? 0, band = sourceBand(source);
+    return Number.isFinite(source.wavelength) && Number.isFinite(width) && width >= 0 &&
+      band.min >= PARAM_LIMITS.wavelength.min && band.max <= PARAM_LIMITS.wavelength.max &&
+      (width === 0 || band.min < band.max);
+  }
+
+  // Uniform spectral power density per nm, sampled at equal-bin midpoints.
+  // Width is the full finite band, not Gaussian FWHM or a coherence model.
+  function sourceSpectrum(source) {
+    const width = source.wavelengthWidth ?? 0, count = width > 0 ? source.spectralSamples ?? DEFAULTS.spectralSamples : 1;
+    if (!validSourceBand(source) || !Number.isInteger(count) || count < 1 ||
+        count > PARAM_LIMITS.spectralSamples.max || (width > 0 && count < PARAM_LIMITS.spectralSamples.min)) {
+      throw new Error("光源の波長帯域または波長サンプル数が不正です。");
+    }
+    return Array.from({ length: count }, (_, i) => ({
+      wavelength: source.wavelength + ((i + .5) / count - .5) * width, weight: 1 / count
+    }));
   }
 
   // Ideal, polarization-independent intensity transmission. Spectral edges
@@ -309,7 +335,8 @@
         if (["angle", "polAngle", "axisAngle"].includes(key)) element[key] = normalizeAngle(element[key]);
         else if (element[key] < limits.min || element[key] > limits.max) { invalid = true; break; }
       }
-      invalid ||= !Number.isInteger(element.rayCount) || !Number.isInteger(element.pixelCount) || typeof element.autoExposure !== "boolean" || Math.abs(element.focal) < 1 ||
+      invalid ||= !Number.isInteger(element.rayCount) || !Number.isInteger(element.spectralSamples) || !Number.isInteger(element.pixelCount) || typeof element.autoExposure !== "boolean" || Math.abs(element.focal) < 1 ||
+        (isSource(element) && !validSourceBand(element)) ||
         !["linear", "right", "left", "unpolarized"].includes(element.polarization) ||
         !["longpass", "shortpass"].includes(element.mode) || typeof element.enabled !== "boolean" ||
         !FILTER_MODES.includes(element.filterMode) ||
@@ -401,18 +428,21 @@
     for (const source of scene.filter(isSource)) {
       sourcePower += source.power;
       if (source.power === 0) continue;
-      const count = source.rayCount, base = direction(source.angle), tangent = { x: -base.y, y: base.x };
+      const count = source.rayCount, spectrum = sourceSpectrum(source), base = direction(source.angle), tangent = { x: -base.y, y: base.x };
       for (let i = 0; i < count; i++) {
-        const power = source.power / count;
-        if (rayCount >= maxRays) { discardedPower += power; truncated = true; continue; }
         const fraction = count === 1 ? 0 : i / (count - 1) - 0.5;
         const origin = source.type === "laser" ? add(source, tangent, fraction * source.beamWidth) : { x: source.x, y: source.y };
         const offset = source.divergence === 360 ? (i - Math.floor(count / 2)) * 360 / count : fraction * source.divergence;
         const ray = source.type === "point" ? direction(source.angle + offset) : base;
-        rayCount++;
-        queue.push({ origin, ray, stokes: sourceStokes(source, power), wavelength: source.wavelength,
-          sourceId: source.id, path: options.recordPaths ? [] : null,
-          traceKey: `${source.id}:${count}:${i}`, branchId: ++branchCounter, center: i === Math.floor(count / 2), lastIndex: -1, interactions: 0 });
+        for (let j = 0; j < spectrum.length; j++) {
+          const sample = spectrum[j], power = source.power * sample.weight / count;
+          if (rayCount >= maxRays) { discardedPower += power; truncated = true; continue; }
+          rayCount++;
+          queue.push({ origin, ray, stokes: sourceStokes(source, power), wavelength: sample.wavelength,
+            sourceId: source.id, path: options.recordPaths ? [] : null,
+            traceKey: `${source.id}:${count}:${i}` + (spectrum.length > 1 ? `~${spectrum.length}:${j}` : ""),
+            branchId: ++branchCounter, center: i === Math.floor(count / 2), lastIndex: -1, interactions: 0 });
+        }
       }
     }
 
@@ -683,7 +713,7 @@
   const api = { WIDTH, HEIGHT, GRID, MARGIN, COORDINATE_LIMIT, MAX_ELEMENTS, MAX_FIBER_LINKS, MAX_INTERACTIONS, MAX_SEGMENTS, MAX_RAYS,
     TYPES, DEFAULTS, PARAM_LIMITS, FILTER_MODES, direction, normalizeAngle, snapAngle, position,
     createElement, initialElements, elementBounds, traceBounds, segment, intersect, concaveGeometry, intersectConcave, reflect, refract, traceRay, traceScene, overlapping,
-    simulate, sourceStokes, polarize, retard, wavelengthColor, filterTransmission };
+    simulate, sourceStokes, sourceBand, validSourceBand, sourceSpectrum, polarize, retard, wavelengthColor, filterTransmission };
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.Optics = api;
 })(typeof window === "undefined" ? this : window);

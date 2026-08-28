@@ -12,9 +12,9 @@
   const UNITS = Object.freeze({ mm: 1, cm: 10, in: 25.4 });
   const SCENE_KEYS = new Set(["format", "schemaVersion", "title", "unit", "gridStep", "snap", "angleSnap", "elements", "fiberLinks"]);
   const FIBER_LINK_KEYS = new Set(["a", "b"]);
-  const ELEMENT_KEYS = new Set(["id", "type", "x", "y", "angle", "aperture", "focal", "beamWidth", "wavelength", "power", "rayCount", "divergence", "polarization", "polAngle", "axisAngle", "designWavelength", "opening", "coreDiameter", "na", "transmission", "cutoff", "mode", "phase", "enabled", "label", "pixelCount", "exposure", "autoExposure", "filterMode", "bandLow", "bandHigh", "opticalDensity"]);
+  const ELEMENT_KEYS = new Set(["id", "type", "x", "y", "angle", "aperture", "focal", "beamWidth", "wavelength", "wavelengthWidth", "spectralSamples", "power", "rayCount", "divergence", "polarization", "polAngle", "axisAngle", "designWavelength", "opening", "coreDiameter", "na", "transmission", "cutoff", "mode", "phase", "enabled", "label", "pixelCount", "exposure", "autoExposure", "filterMode", "bandLow", "bandHigh", "opticalDensity"]);
   const ANGLE_KEYS = new Set(["angle", "polAngle", "axisAngle"]);
-  const NUMERIC_KEYS = ["angle", "aperture", "focal", "beamWidth", "wavelength", "power", "rayCount", "divergence", "polAngle", "axisAngle", "designWavelength", "opening", "coreDiameter", "na", "transmission", "cutoff", "phase", "pixelCount", "exposure", "bandLow", "bandHigh", "opticalDensity"];
+  const NUMERIC_KEYS = ["angle", "aperture", "focal", "beamWidth", "wavelength", "wavelengthWidth", "spectralSamples", "power", "rayCount", "divergence", "polAngle", "axisAngle", "designWavelength", "opening", "coreDiameter", "na", "transmission", "cutoff", "phase", "pixelCount", "exposure", "bandLow", "bandHigh", "opticalDensity"];
   const POLARIZATIONS = new Set(["linear", "right", "left", "unpolarized"]);
   const MODES = new Set(["longpass", "shortpass"]);
   const own = (value, key) => Object.prototype.hasOwnProperty.call(value, key);
@@ -87,7 +87,7 @@
     for (const key of NUMERIC_KEYS) {
       if (!own(input, key)) continue;
       const limit = O.PARAM_LIMITS[key];
-      const value = number(input[key], `${name}の${key}`, limit.min, limit.max, ["rayCount", "pixelCount"].includes(key));
+      const value = number(input[key], `${name}の${key}`, limit.min, limit.max, ["rayCount", "spectralSamples", "pixelCount"].includes(key));
       if (key === "focal" && Math.abs(value) < 1) fail(`${name}の焦点距離の絶対値は1 mm以上にしてください。`);
       // The range is already checked; avoid modulo rounding of valid decimal angles.
       element[key] = ANGLE_KEYS.has(key) && value === 360 ? 0 : value;
@@ -111,6 +111,7 @@
     if (type === "fiber" && element.coreDiameter > element.aperture) fail(`${name}のファイバーコア径は部品径以下にしてください。`);
     if (type === "concave" && !O.concaveGeometry(element)) fail(`${name}の凹面ミラーはfを正にし、有効径を4f（曲率半径Rの2倍）未満にしてください。`);
     if (type === "filter" && element.bandLow >= element.bandHigh) fail(`${name}の透過帯域は下限波長を上限波長より小さくしてください。`);
+    if (["laser", "point"].includes(type) && !O.validSourceBand(element)) fail(`${name}の光源帯域（中心波長±幅/2）は200〜2500 nm内にしてください。幅が数値精度より小さい場合は0を指定してください。`);
     return element;
   }
 
@@ -185,6 +186,9 @@
     // New half-wave/phase types still need a reader that supports those types.
     return { ...scene, elements: scene.elements.map(element => {
       const record = { ...element };
+      // Preserve the old monochromatic record when the new settings are unused.
+      if (record.wavelengthWidth === 0) delete record.wavelengthWidth;
+      if (record.spectralSamples === O.DEFAULTS.spectralSamples) delete record.spectralSamples;
       if (record.type !== "phase" && record.phase === 0) delete record.phase;
       if (record.type !== "camera") for (const key of ["pixelCount", "exposure", "autoExposure"]) {
         if (record[key] === O.DEFAULTS[key]) delete record[key];

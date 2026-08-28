@@ -7,7 +7,38 @@
   const BASE_VIEW = Object.freeze({ x: -48, y: -42, width: 1096, height: 704 });
   const MIN_VIEW_WIDTH = 20, MAX_VIEW_WIDTH = O.COORDINATE_LIMIT * 64;
   const round = value => Number(value.toFixed(6));
+  const formatWavelength = value => String(Number(value.toPrecision(10)));
   const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
+  function spectrumLabel(source) {
+    const band = O.sourceBand(source);
+    return (source.wavelengthWidth ?? 0) > 0 ? `${formatWavelength(band.min)}–${formatWavelength(band.max)} nm` : `${source.wavelength} nm`;
+  }
+  function spectrumSwatch(source) {
+    if (!(source.wavelengthWidth > 0)) return O.wavelengthColor(source.wavelength);
+    const band = O.sourceBand(source);
+    return 'linear-gradient(90deg,' + Array.from({length:5},(_,i)=>O.wavelengthColor(band.min+(band.max-band.min)*i/4)).join(',') + ')';
+  }
+  // Merge only spectral samples of the same spatial ray and exact path.
+  // Probing still uses the untouched per-wavelength records. This avoids the
+  // last SVG stroke hiding all other wavelengths of a broadband source.
+  function displaySegments(segments) {
+    const output = [], groups = new Map();
+    for (const s of segments) {
+      const color = O.wavelengthColor(s.wavelength), nonvisible = s.wavelength < 380 || s.wavelength > 780;
+      if (!/~\d+:\d+/.test(s.key || '')) { output.push({...s,color,nonvisible}); continue; }
+      const key = [s.key.replace(/~\d+:\d+/,''),s.a.x,s.a.y,s.b.x,s.b.y].join('|');
+      let group = groups.get(key);
+      if (!group) { group={...s,power:0,nonvisible:false,color,rgb:[0,0,0]}; groups.set(key,group); output.push(group); }
+      const rgb = color.startsWith('#') ? [1,3,5].map(i=>parseInt(color.slice(i,i+2),16)) : color.match(/[\d.]+/g).map(Number);
+      group.power += s.power; group.nonvisible ||= nonvisible;
+      rgb.forEach((value,i)=>{group.rgb[i]+=s.power*value;});
+    }
+    for (const group of groups.values()) {
+      if (group.power > 0) group.color='rgb('+group.rgb.map(v=>Math.round(clamp(v/group.power,0,255))).join(',')+')';
+      delete group.rgb;
+    }
+    return output;
+  }
   function snapAngle(angle, enabled = true) {
     return O.normalizeAngle(enabled ? Math.round(angle / 22.5) * 22.5 : round(angle));
   }
@@ -144,8 +175,11 @@
     function information(e) {
       const unit = cache?.[0]?.unit || 'mm', scale = unit === 'cm' ? 10 : unit === 'in' ? 25.4 : 1;
       const length = value => round(value / scale) + ' ' + unit;
-      if (['laser','point'].includes(e.type) && e.label === `${e.wavelength} nm` && e.wavelength >= 380 && e.wavelength <= 780) return '';
-      if (['laser','point'].includes(e.type)) return `${e.wavelength} nm${e.wavelength < 380 ? ' · UV' : e.wavelength > 780 ? ' · IR' : ''}`;
+      if (['laser','point'].includes(e.type) && !(e.wavelengthWidth > 0) && e.label === `${e.wavelength} nm` && e.wavelength >= 380 && e.wavelength <= 780) return '';
+      if (['laser','point'].includes(e.type)) {
+        const band=O.sourceBand(e);
+        return spectrumLabel(e)+(band.min<380?' · UV':'')+(band.max>780?' · IR':'');
+      }
       if (e.type === 'camera') return `${e.pixelCount} px · ${length(e.aperture)}`;
       if (['lens','objective','concave'].includes(e.type)) return `f ${length(e.focal)}${e.type === 'objective' ? ' · NA '+e.na : ''}`;
       if (e.type === 'iris') return `開口 ${length(e.opening)}`;
@@ -284,8 +318,8 @@
       byId('fiber-links').replaceChildren(...cables);
       for(const [id,entry] of nodes)if(!scene.elements.some(e=>e.id===id)){entry.node.remove();nodes.delete(id);}
       for(const e of scene.elements)drawNode(e,selectedId,showLabels);
-      const maxPower=Math.max(...result.segments.map(s=>s.power),1e-10);
-      byId('rays').replaceChildren(...result.segments.map(s=>make('line',{x1:s.a.x,y1:s.a.y,x2:s.b.x,y2:s.b.y,stroke:O.wavelengthColor(s.wavelength),'stroke-width':1.35,opacity:Math.max(.16,Math.min(.95,Math.sqrt(s.power/maxPower))),'vector-effect':'non-scaling-stroke',...(s.wavelength<380||s.wavelength>780?{'stroke-dasharray':'5 5'}:{})})));
+      const displayed=displaySegments(result.segments),maxPower=Math.max(...displayed.map(s=>s.power),1e-10);
+      byId('rays').replaceChildren(...displayed.map(s=>make('line',{x1:s.a.x,y1:s.a.y,x2:s.b.x,y2:s.b.y,stroke:s.color,'stroke-width':1.35,opacity:Math.max(.16,Math.min(.95,Math.sqrt(s.power/maxPower))),'vector-effect':'non-scaling-stroke',...(s.nonvisible?{'stroke-dasharray':'5 5'}:{})})));
       const e=scene.elements.find(item=>item.id===selectedId),guides=[],k=pixel();
       if(e&&['lens','objective','concave'].includes(e.type)){
         const curved=e.type==='concave',axis=O.direction(e.angle),p=d=>({x:e.x+d*axis.x,y:e.y+d*axis.y}),a=p(-(curved?2:1)*Math.abs(e.focal)-15),b=p(curved?15:Math.abs(e.focal)+15);
@@ -327,5 +361,5 @@
       fit:(elements=cache?.[0]?.elements||[],fiberLinks=cache?.[0]?.fiberLinks||[])=>setView(fitView(elements,bench.getBoundingClientRect(),fiberLinks)),
       getView:()=>({...viewport}),setView,zoom:(factor,anchor)=>setView(zoomAt(viewport,factor,anchor||{x:viewport.x+viewport.width/2,y:viewport.y+viewport.height/2})),focus:id=>nodes.get(id)?.node.focus({preventScroll:true}),title };
   }
-  return {BASE_VIEW,MIN_VIEW_WIDTH,MAX_VIEW_WIDTH,snapAngle,place,nudge,pastePosition,zoomAt,clampView,fitView,fiberCablePoints,fiberCablePath,pickSegments,polarizationState,symbols,create};
+  return {BASE_VIEW,MIN_VIEW_WIDTH,MAX_VIEW_WIDTH,snapAngle,place,nudge,pastePosition,zoomAt,clampView,fitView,fiberCablePoints,fiberCablePath,pickSegments,polarizationState,formatWavelength,spectrumLabel,spectrumSwatch,displaySegments,symbols,create};
 });
