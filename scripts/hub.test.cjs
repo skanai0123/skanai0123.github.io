@@ -39,6 +39,18 @@ test('Hub exposes one Oil Timer bookmark pointing directly to the existing lab',
   assert.ok(existsSync(join(__dirname, '..', url.pathname, 'index.html')));
 });
 
+test('Hub exposes the optical bench from local and hosted bookmarks', () => {
+  const nav = html.match(/<nav\b[^>]*aria-label="Bookmarks"[^>]*>([\s\S]*?)<\/nav>/)[1];
+  const links = [...nav.matchAll(/<a\b[^>]*href="([^"]+)"[^>]*>\s*Optics Bench\s*<\/a>/g)];
+  assert.equal(links.length, 1);
+  for (const origin of ['https://skanai0123.github.io/', 'http://127.0.0.1:8877/']) {
+    const target = new URL(links[0][1], origin);
+    assert.equal(target.pathname, '/optics-bench/');
+    assert.equal(target.origin, new URL(origin).origin);
+    assert.ok(existsSync(join(__dirname, '..', target.pathname, 'index.html')));
+  }
+});
+
 test('Hub page version and date appear immediately and cannot be overwritten by repository metadata', async () => {
   assert.ok(pageMetadata.pageVersion && pageMetadata.pageUpdated);
   const state = loadMetadata(pageMetadata, github);
