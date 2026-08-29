@@ -181,7 +181,8 @@
       e.type === "fiber" ? "入射する光の進行方向。0°＝右向き入射。接続時の出射は反対向き（＋180°）。" :
       e.type === "concave" ? "頂点の法線。0°は凹面が左向き、180°は右向き。裏面は吸収。" :
       e.type === "camera" ? "受光する光の進行方向。0°は右向き入射を受光。裏面は吸収。" :
-      ["mirror", "dichroic", "splitter", "pbs"].includes(e.type) ? "面の法線。45°で右向きの光を上へ反射。" : "光軸 / 面の法線。0°＝水平な光路。";
+      e.type === "mirror" ? "反射面から裏面へ向かう法線。0°は表面が左向き、180°は右向き。裏面入射は吸収。45°で右向きの光を上へ反射。" :
+      ["dichroic", "splitter", "pbs"].includes(e.type) ? "面の法線。45°で右向きの光を上へ反射。" : "光軸 / 面の法線。0°＝水平な光路。";
     fields.append(makeField("angle", { hint: angleHint + " 数値入力は任意角度。" }));
     fields.append(node("h3", "field-group-title", "光学パラメーター"));
     if (isSource(e)) {
@@ -204,7 +205,8 @@
     } else {
       const isBS = ["splitter", "pbs"].includes(e.type);
       fields.append(makeField("aperture", { title: e.type === "camera" ? "センサー幅" : isBS ? "分離面の長さ" : names.aperture,
-        hint: isBS ? "プリズム中央の対角線の長さ。標準100 mm。外形は表示用で、光は厚さ0の分離面だけで反射・透過します。屈折・光路長の追加はありません。" : "この幅の外側を通る光線は部品に当たりません。" }));
+        hint: isBS ? "プリズム中央の対角線の長さ。標準36 mm。外形は表示用で、光は厚さ0の分離面だけで反射・透過します。屈折・光路長の追加はありません。" :
+          e.type === "mirror" ? "X/Y座標は反射面の中心です。位置吸着時はこの中心がグリッド交点に合い、この幅の外側を通る光線は当たりません。" : "この幅の外側を通る光線は部品に当たりません。" }));
       if (e.type === "camera") {
         fields.append(makeField("pixelCount", { hint: "16〜1024画素。1列分の受光位置を集計。光源のサンプル数とは別です。" }));
         const auto = node("label", "element-enabled"), check = node("input");
@@ -807,9 +809,9 @@
 
   const groups = [
     ["光源", ["laser", "point"]],
-    ["光路", ["mirror", "concave", "lens", "objective", "iris", "filter", "dichroic", "splitter", "pbs"]],
+    ["光路", ["mirror", "concave", "lens", "objective", "iris", "blocker", "filter", "dichroic", "splitter", "pbs"]],
     ["偏光・位相", ["polarizer", "waveplate", "halfwave", "phase"]],
-    ["検出・終端", ["fiber", "camera", "screen", "blocker"]]
+    ["検出・終端", ["fiber", "camera", "screen"]]
   ];
   for (const [heading, types] of groups) {
     const group = node("div", "palette-group"); group.append(node("h3", "", heading));

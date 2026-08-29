@@ -33,7 +33,7 @@ test('probe keys remain stable when unrelated rays or PBS branches disappear', (
 
 test('repeated mirror passes have unique probe keys and preserve local polarization', () => {
   const source = { ...element('laser', 1, 500, 300), rayCount: 1, polarization: 'right' };
-  const result = O.simulate([source, element('mirror', 2, 900, 300), element('mirror', 3, 100, 300)], { maxInteractions: 8 });
+  const result = O.simulate([source, element('mirror', 2, 900, 300), element('mirror', 3, 100, 300, 180)], { maxInteractions: 8 });
   assert.equal(result.segments.length, 8);
   assert.equal(new Set(result.segments.map(s => s.key)).size, 8);
   for (const s of result.segments) near(s.stokes.V / s.stokes.I, 1);
@@ -76,6 +76,26 @@ test('mirror reflects toward the upper edge at 45 degrees and toward source at 0
   near(ray.points.at(-1).x, 400); near(ray.points.at(-1).y, 0);
   const reverse = O.traceRay(origin, { x: 1, y: 0 }, [element('mirror', 2, 400, 300)]);
   near(reverse.points.at(-1).x, 0); near(reverse.points.at(-1).y, 300);
+});
+
+test('flat mirror reflects only at its front and absorbs backside incidence', () => {
+  const mirror = element('mirror', 2, 400, 300, 0);
+  const front = O.simulate([
+    { ...element('laser', 1, 100, 300), rayCount: 1, beamWidth: 0 }, mirror
+  ]);
+  assert.equal(front.hitCount, 1); near(front.escapedPower, 1); near(front.absorbedPower, 0);
+  assert.ok(front.segments.at(-1).b.x < front.segments.at(-1).a.x);
+
+  const back = O.simulate([
+    { ...element('laser', 1, 700, 300), angle: 180, rayCount: 1, beamWidth: 0 }, mirror
+  ]);
+  assert.equal(back.hitCount, 1); near(back.absorbedPower, 1); near(back.escapedPower, 0);
+  assert.equal(back.segments.length, 1);
+  assert.match(back.warnings.join(' '), /平面ミラーの裏面/);
+
+  const legacy = O.traceRay({ x: 700, y: 300 }, { x: -1, y: 0 }, [mirror]);
+  assert.deepEqual(legacy.hits, [2]); assert.equal(legacy.points.length, 2);
+  near(legacy.points.at(-1).x, 400); near(legacy.points.at(-1).y, 300);
 });
 
 test('reflection conserves unit length and is reversible at arbitrary orientations', () => {
@@ -162,7 +182,7 @@ test('large incident and outgoing angles raise approximation warnings', () => {
 });
 
 test('repeated reflections stop at the interaction cap, with finite coordinates', () => {
-  const scene = [element('mirror', 1, 250, 300), element('mirror', 2, 750, 300)];
+  const scene = [element('mirror', 1, 250, 300, 180), element('mirror', 2, 750, 300)];
   const ray = O.traceRay({ x: 500, y: 300 }, { x: 1, y: 0 }, scene);
   assert.equal(ray.hits.length, O.MAX_INTERACTIONS);
   assert.equal(ray.limited, true);
@@ -909,7 +929,7 @@ test('invalid parameters and duplicate IDs are excluded explicitly without nonfi
 
 test('interaction, segment and emission caps bound tracing and account for omitted power', () => {
   const source = part('laser', 1, 500, 300, { rayCount: 1 });
-  const cavity = O.simulate([source, part('mirror', 2, 250, 300, { angle: 0 }),
+  const cavity = O.simulate([source, part('mirror', 2, 250, 300, { angle: 180 }),
     part('mirror', 3, 750, 300, { angle: 0 })]);
   assert.equal(cavity.hitCount, O.MAX_INTERACTIONS);
   assert.equal(cavity.truncated, true); near(cavity.discardedPower, 1);
@@ -920,7 +940,7 @@ test('interaction, segment and emission caps bound tracing and account for omitt
   const rays = O.simulate([samples], { maxRays: 3 });
   assert.equal(rays.rayCount, 3); assert.equal(rays.truncated, true);
   near(rays.escapedPower, 1 / 3); near(rays.discardedPower, 2 / 3);
-  const branches = O.simulate([source, part('mirror', 2, 250, 300, { angle: 0 }),
+  const branches = O.simulate([source, part('mirror', 2, 250, 300, { angle: 180 }),
     part('splitter', 3, 750, 300, { angle: 0 })], { maxSegments: 10 });
   assert.equal(branches.segments.length, 10); assert.equal(branches.truncated, true);
   bounded(cavity); bounded(lines); bounded(rays); bounded(branches);
@@ -1455,7 +1475,7 @@ test('PBS branch budgets and repeated reflections terminate with all omitted pow
   assert.equal(samples.rayCount, 2); near(samples.detectedPower, 0.4); near(samples.discardedPower, 0.6);
   const cavity = O.simulate([
     part('laser', 1, 500, 300, { beamWidth: 0, rayCount: 1, polarization: 'unpolarized' }),
-    part('pbs', 2, 750, 300, { angle: 0 }), part('mirror', 3, 250, 300, { angle: 0 })
+    part('pbs', 2, 750, 300, { angle: 0 }), part('mirror', 3, 250, 300, { angle: 180 })
   ]);
   near(cavity.escapedPower, 0.5); near(cavity.discardedPower, 0.5); near(cavity.detectedPower, 0);
   assert.equal(cavity.hitCount, O.MAX_INTERACTIONS); assert.equal(cavity.truncated, true);

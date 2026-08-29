@@ -14,7 +14,7 @@
     const elements = [
       part("laser", 1, 100, 450, { beamWidth: 0, rayCount: 1, polAngle: 0, label: "単一モード光源" }),
       part("splitter", 2, 300, 450, { label: "BS₁ 分岐" }),
-      part("mirror", 3, 300, 150, { aperture: 80, label: "上腕ミラー" }),
+      part("mirror", 3, 300, 150, { angle: 225, aperture: 80, label: "上腕ミラー" }),
       part("mirror", 4, 700, 450, { aperture: 80, label: "下腕ミラー" }),
       part("splitter", 5, 700, 150, { label: "BS₂ 合流" }),
       part("phase", 6, 450, 150, { label: "上腕の位相 φ" }),
@@ -71,7 +71,7 @@
     },
     {
       id: "starter", title: "ミラーとレンズ", description: "レーザーを折り返して集光する、最初の配置。",
-      notes: "ミラーの角度は面の法線です。45°のミラーで90°折り返し、焦点距離125 mmのレンズでスクリーン上に集光します。ドラッグで位置を変えて光路を確認できます。",
+      notes: "ミラーの角度は反射面から裏面へ向かう法線です。45°のミラーで右向きの光を上へ90°折り返し、焦点距離125 mmのレンズでスクリーン上に集光します。裏面へ入射すると吸収されます。ドラッグで位置を変えて光路を確認できます。",
       elements: () => [
         part("laser", 1, 150, 400, { angle: 0, beamWidth: 5, wavelength: 532, rayCount: 9, label: "入射レーザー" }),
         part("mirror", 2, 550, 400, { angle: 45, aperture: 25, label: "折返しミラー" }),
@@ -153,7 +153,7 @@
       elements: () => [
         part("laser", 1, 150, 350, { angle: 0, wavelength: 594, beamWidth: 12, rayCount: 9, label: "入射レーザー" }),
         part("splitter", 2, 500, 350, { angle: 45, transmission: 0.5, label: "無偏光BS（NPBS）" }),
-        part("mirror", 3, 500, 150, { angle: 45, aperture: 80, label: "反射側の折返し" }),
+        part("mirror", 3, 500, 150, { angle: 225, aperture: 80, label: "反射側の折返し" }),
         part("screen", 4, 820, 350, { angle: 0, aperture: 80, label: "透過出力" }),
         part("screen", 5, 820, 150, { angle: 0, aperture: 80, label: "反射出力" })
       ]
@@ -201,7 +201,7 @@
         part("laser", 1, 150, 350, { beamWidth: 0, rayCount: 1, label: "単一モード光源" }),
         part("splitter", 2, 450, 350, { label: "往復BS" }),
         part("mirror", 3, 750, 350, { angle: 0, aperture: 80, label: "右腕ミラー" }),
-        part("mirror", 4, 450, 50, { angle: 90, aperture: 80, label: "上腕ミラー" }),
+        part("mirror", 4, 450, 50, { angle: 270, aperture: 80, label: "上腕ミラー" }),
         part("phase", 5, 600, 350, { label: "往復位相 φ" }),
         part("screen", 6, 450, 600, { angle: 90, label: "D₁ 下出力" }),
         part("screen", 7, 50, 350, { label: "D₂ 戻りポート" })

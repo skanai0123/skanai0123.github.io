@@ -530,6 +530,17 @@ test('palette parts expose the requested defaults in centimetres', () => {
   }
 });
 
+test('the beam blocker stays in the optical-path palette group and remains placeable', () => {
+  const h=editorHarness(),groups=h.get('palette-buttons').children;
+  const optical=groups.find(group=>group.children[0].textContent==='光路');
+  const terminal=groups.find(group=>group.children[0].textContent==='検出・終端');
+  const blocker=optical.querySelector('[data-add="blocker"]');
+  assert.ok(blocker);assert.equal(terminal.querySelector('[data-add="blocker"]'),null);
+  assert.equal(groups.flatMap(group=>group.querySelectorAll('.part-button')).length,19);
+  h.click('new-scene');h.fire('click',blocker);
+  assert.equal(h.selected().type,'blocker');assert.match(h.get('status').textContent,/ビームブロッカー/);
+});
+
 test('the 450 nm shortcut updates either source, beam spectrum and swatch as one undo step', async () => {
   const O = require('../optics-bench/optics.js');
   for (const type of ['laser', 'point']) {
@@ -1276,6 +1287,34 @@ test('concave drawing, interaction bounds and focus guides follow the actual sph
   }
   scene.elements[0].focal = 100; view.draw(scene, 7, O.simulate(scene.elements));
   assert.match(document.getElementById('elements').querySelector('[data-concave-surface]').getAttribute('d'), /A 200 200/);
+});
+
+test('flat mirror drawing and dragging use the reflective surface centre as the grid anchor', async () => {
+  const O = require('../optics-bench/optics.js'), S = require('../optics-bench/state.js');
+  const { document, view } = drawingHarness();
+  const mirror = { ...O.createElement('mirror', 7, 130, 250), x: 130, y: 250, angle: 45, aperture: 25, label: '片面ミラー' };
+  const scene = S.defaultScene([mirror]); view.draw(scene, 7, O.simulate(scene.elements));
+  const node = document.getElementById('elements').children[0], body = node.children[0];
+  assert.equal(node.getAttribute('transform'), 'translate(130 250)');
+  assert.equal(body.getAttribute('transform'), 'rotate(45)');
+  const surface = body.querySelector('[data-mirror-surface="front"]');
+  assert.deepEqual(['x1','x2','y1','y2'].map(key => Number(surface.getAttribute(key))), [0,0,-12.5,12.5]);
+  const backing = body.querySelector('[data-mirror-backing]');
+  assert.deepEqual(['x','y','width','height'].map(key => Number(backing.getAttribute(key))), [0,-12.5,8,25]);
+  const snap = body.querySelector('[data-snap-center]');
+  assert.deepEqual([Number(snap.getAttribute('cx')),Number(snap.getAttribute('cy'))], [0,0]);
+  assert.equal(node.querySelector('.element-info').textContent, '表 225°側');
+  assert.match(node.getAttribute('aria-label'), /X 130、Y 250 mm.*反射面は 225 度側/);
+  view.preview(mirror); assert.ok(document.getElementById('placement').querySelector('[data-mirror-surface="front"]'));
+
+  const h = editorHarness(); await h.load([h.element('mirror', 7, { x: 130, y: 250, angle: 45, aperture: 25 })], { gridStep: 10, snap: true });
+  h.select(7);
+  assert.match(h.get('hint-angle').textContent, /反射面から裏面へ向かう法線.*裏面入射は吸収/);
+  assert.match(h.get('hint-aperture').textContent, /X\/Y座標は反射面の中心.*グリッド交点/);
+  h.fire('pointerdown', h.component(7), { pointerId: 77, clientX: 130, clientY: 250 });
+  h.fire('pointermove', h.document, { pointerId: 77, clientX: 147, clientY: 278 });
+  h.fire('pointerup', h.document, { pointerId: 77, clientX: 147, clientY: 278 });
+  assert.deepEqual({ x: h.selected().x, y: h.selected().y }, { x: 150, y: 280 });
 });
 
 test('drag copies preserve complete component records for all nineteen optical types', async () => {

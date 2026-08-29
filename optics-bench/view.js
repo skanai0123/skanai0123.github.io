@@ -207,6 +207,7 @@
         const band=O.sourceBand(e);
         return spectrumLabel(e)+(band.min<380?' · UV':'')+(band.max>780?' · IR':'');
       }
+      if (e.type === 'mirror') return `表 ${round(O.normalizeAngle(e.angle + 180))}°側`;
       if (e.type === 'camera') return `${e.pixelCount} px · ${length(e.aperture)}`;
       if (['lens','objective','concave'].includes(e.type)) return `f ${length(e.focal)}${e.type === 'objective' ? ' · NA '+e.na : ''}`;
       if (e.type === 'iris') return `開口 ${length(e.opening)}`;
@@ -230,6 +231,14 @@
         body.append(box(-33,-h,33,h*2,'#2b454c',color), box(-2,-Math.max(3,e.beamWidth/2),4,Math.max(6,e.beamWidth),color), line([-24,-h+4],[-24,h-4],'#8eaca4',1),line([-18,-h+4],[-18,h-4],'#8eaca4',1));
       } else if (e.type === 'point') {
         body.append(make('circle',{r:5,fill:color,stroke:'#eee','stroke-width':1}),make('circle',{r:10,fill:'none',stroke:color,'stroke-dasharray':'2 3'}),line([13,0],[22,0],color,1.5));
+      } else if (e.type === 'mirror') {
+        // The optical surface and snap anchor are both local (0,0). The body
+        // extends only along +X, the angle direction, so front/back stay clear.
+        body.append(
+          make('rect',{x:0,y:-half,width:8,height:e.aperture,rx:1.5,fill:'#3a4d58',stroke:'#63778b','stroke-width':1.3,'data-mirror-backing':'true'}),
+          make('line',{x1:0,y1:-half,x2:0,y2:half,stroke:c,'stroke-width':2.5,'data-mirror-surface':'front'}),
+          make('circle',{cx:0,cy:0,r:1.8,fill:'#f5ffe0',stroke:'#142831','stroke-width':.7,'data-snap-center':'true'})
+        );
       } else if (e.type === 'concave') {
         const arc = O.concaveGeometry(e), d = `M ${-arc.sag} ${-half} A ${arc.radius} ${arc.radius} 0 0 1 ${-arc.sag} ${half}`;
         body.append(make('path',{d,transform:'translate(3 0)',fill:'none',stroke:'#63778b','stroke-width':6}),
@@ -283,7 +292,7 @@
       n.classList.toggle('is-selected',selectedIds.includes(e.id));
       n.classList.toggle('is-primary',e.id===selectedId);
       n.classList.toggle('is-disabled',!e.enabled);
-      if(!isPreview){const mate=fiberMate(e),kind=e.label&&['splitter','pbs'].includes(e.type)?'、'+O.TYPES[e.type].label:'';n.setAttribute('aria-pressed',String(selectedIds.includes(e.id)));n.setAttribute('aria-label',`${title(e)}${kind}。X ${round(e.x)}、Y ${round(e.y)} mm、角度 ${round(e.angle)} 度${e.enabled?'':'、無効'}${mate?'、接続先 '+title(mate):''}`);}
+      if(!isPreview){const mate=fiberMate(e),kind=e.label&&['splitter','pbs'].includes(e.type)?'、'+O.TYPES[e.type].label:'',front=e.type==='mirror'?`、反射面は ${round(O.normalizeAngle(e.angle+180))} 度側`:'';n.setAttribute('aria-pressed',String(selectedIds.includes(e.id)));n.setAttribute('aria-label',`${title(e)}${kind}。X ${round(e.x)}、Y ${round(e.y)} mm、角度 ${round(e.angle)} 度${front}${e.enabled?'':'、無効'}${mate?'、接続先 '+title(mate):''}`);}
       const sag=e.type==='concave'?O.concaveGeometry(e).sag:0,isBS=['splitter','pbs'].includes(e.type);
       const hitHalf=Math.max(isBS?half+4:12,10*k),ringHalf=isBS?half+8:18;
       const body=bodyFor(e),hit=make('rect',{x:e.type==='laser'?-38:-sag-hitHalf,y:-Math.max(half+4,13*k),width:e.type==='laser'?48:sag+2*hitHalf,height:Math.max(half*2+8,26*k),class:'element-hit'});

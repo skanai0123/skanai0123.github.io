@@ -536,7 +536,16 @@
             break;
           }
           state.ray = reflect(state.ray, n);
-        } else if (element.type === "mirror") state.ray = reflect(state.ray, n);
+        } else if (element.type === "mirror") {
+          // n points from the reflective plane into the backing. Rays arriving
+          // from the front travel broadly along +n; backside incidence stops.
+          if (dot(state.ray, n) < 0) {
+            absorbedPower += state.stokes.I;
+            warnings.add("平面ミラーの裏面に当たった光線は吸収しました。反射面を入射光へ向けてください。");
+            break;
+          }
+          state.ray = reflect(state.ray, n);
+        }
         else if (element.type === "dichroic") {
           // At the exact cutoff either selectable mode transmits the ray.
           const pass = element.mode === "longpass" ? state.wavelength >= element.cutoff : state.wavelength <= element.cutoff;
@@ -629,7 +638,10 @@
       if (element.type === "concave") {
         if (dot(ray, nearest.normal) < 0) return { points, hits, paraxialWarning, limited: false };
         ray = reflect(ray, nearest.normal);
-      } else if (element.type === "mirror") ray = reflect(ray, nearest.surface.n);
+      } else if (element.type === "mirror") {
+        if (dot(ray, nearest.surface.n) < 0) return { points, hits, paraxialWarning, limited: false };
+        ray = reflect(ray, nearest.surface.n);
+      }
       else if (element.type === "lens" || element.type === "objective") {
         const result = refract(ray, current, element);
         paraxialWarning ||= result.warning;
