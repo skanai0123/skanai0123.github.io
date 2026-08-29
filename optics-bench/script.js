@@ -15,6 +15,10 @@
   };
   const num = (v, digits = 6) => Number(v.toFixed(digits));
   const power = v => v === 0 ? "0" : v < 1e-4 ? v.toExponential(2) : String(Number(v.toPrecision(4)));
+  const distance = v => {
+    const converted = display(v);
+    return (Math.abs(converted) >= 1e7 ? converted.toExponential(4) : num(converted, 4)) + " " + scene.unit;
+  };
   const node = (tag, className, text) => {
     const n = document.createElement(tag);
     if (className) n.className = className;
@@ -636,7 +640,7 @@
     probe = { key: segment.key, t, distance: segment.hitId === null ? t * Math.hypot(segment.b.x - segment.a.x, segment.b.y - segment.a.y) : null }; renderProbe();
     $("ray-inspector").parentNode.scrollTop = 0;
     if (focus) $("probe-close").focus();
-    announce("光路の状態を表示しました。別の光路をクリックして比較できます。");
+    announce("クリック位置までの光路距離と状態を表示しました。別の光路をクリックして比較できます。");
   }
   function inspectPoint(point) {
     const hits = V.pickSegments(result.segments, point, 6 * view.worldPerPixel());
@@ -660,7 +664,9 @@
     }
     // Escaping rays extend with the viewport; keep their probe at a physical
     // distance from the last surface instead of moving it when zooming/panning.
-    const t = probe.distance === null ? probe.t : probe.distance / Math.hypot(s.b.x - s.a.x, s.b.y - s.a.y);
+    const segmentLength = Math.hypot(s.b.x - s.a.x, s.b.y - s.a.y);
+    const t = probe.distance === null ? probe.t : probe.distance / segmentLength;
+    const segmentDistance = probe.distance === null ? Math.max(0, t * segmentLength) : Math.max(0, probe.distance);
     const at = { x: s.a.x + t * (s.b.x - s.a.x), y: s.a.y + t * (s.b.y - s.a.y) };
     probeHits = V.pickSegments(result.segments, at, 6 * view.worldPerPixel());
     $("probe-overlap-label").hidden = probeHits.length < 2;
@@ -692,6 +698,13 @@
     $("probe-ellipse").setAttribute("transform", transform); $("probe-linear").setAttribute("transform", transform);
     $("probe-diagram").setAttribute("aria-label", name + "。" + $("probe-angles").textContent + "。s/p基準の偏光断面");
     $("probe-power").textContent = power(s.power);
+    const fiberLinks = Number.isSafeInteger(s.unmeasuredFiberLinks) ? s.unmeasuredFiberLinks : 0;
+    $("probe-path-length").textContent = distance((Number.isFinite(s.pathLengthStart) ? s.pathLengthStart : 0) + segmentDistance) +
+      (fiberLinks ? ` + ファイバー${fiberLinks}区間（長さ未設定）` : "");
+    $("probe-segment-distance").textContent = distance(segmentDistance);
+    $("probe-path-note").textContent = fiberLinks ?
+      `空気中の光線中心に沿う積算値です。ファイバー${fiberLinks}区間の内部長と屈折率は未設定のため、表示値に含みません。位相φも距離へ換算しません。` :
+      "空気中の光線中心に沿う積算値です。薄い素子は厚さ0、空気はn=1。位相φは距離へ換算しません。";
     $("probe-position").textContent = "X " + num(display(at.x), 3) + " / Y " + num(display(at.y), 3) + " " + scene.unit;
     $("probe-direction").textContent = num(O.normalizeAngle(Math.atan2(s.b.y - s.a.y, s.b.x - s.a.x) * 180 / Math.PI), 2) + "°（右0°・下90°）";
     $("probe-stokes").textContent = stokesText(s.stokes);

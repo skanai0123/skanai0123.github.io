@@ -1579,6 +1579,36 @@ test('ray picking uses screen-pixel tolerance and redraws its marker with zoom a
   view.markProbe(null); assert.equal(group.children.length, 0);
 });
 
+test('the ray probe measures cumulative distance along reflected paths and flags unmeasured fiber length', async () => {
+  const h = editorHarness();
+  await h.load([
+    h.element('laser', 1, { x: 100, y: 300, beamWidth: 0, rayCount: 1 }),
+    h.element('mirror', 2, { x: 400, y: 300, angle: 45 }),
+    h.element('screen', 3, { x: 400, y: 100, angle: 90 })
+  ]);
+  probeClick(h, 400, 150);
+  assert.equal(h.get('probe-path-length').textContent, '45 cm');
+  assert.equal(h.get('probe-segment-distance').textContent, '15 cm');
+  assert.match(h.get('probe-path-note').textContent, /空気.*n=1/);
+  near(h.probe().segment.pathLengthStart, 300);
+
+  h.get('unit').value = 'in'; h.fire('change', h.get('unit'));
+  assert.equal(h.get('probe-path-length').textContent, '17.7165 in');
+  assert.equal(h.get('probe-segment-distance').textContent, '5.9055 in');
+
+  await h.load([
+    h.element('laser', 1, { x: 100, y: 300, beamWidth: 0, rayCount: 1 }),
+    h.element('fiber', 2, { x: 300, y: 300, angle: 0 }),
+    h.element('fiber', 3, { x: 600, y: 300, angle: 180 }),
+    h.element('screen', 4, { x: 800, y: 300 })
+  ], { fiberLinks: [{ a: 2, b: 3 }] });
+  probeClick(h, 700, 300);
+  assert.equal(h.get('probe-path-length').textContent, '30 cm + ファイバー1区間（長さ未設定）');
+  assert.equal(h.get('probe-segment-distance').textContent, '10 cm');
+  assert.match(h.get('probe-path-note').textContent, /内部長と屈折率.*含みません/);
+  assert.equal(h.probe().segment.unmeasuredFiberLinks, 1);
+});
+
 test('SVG export removes the probe marker without mutating the live optical diagram', () => {
   const O = require('../optics-bench/optics.js'), S = require('../optics-bench/state.js');
   const { document, view } = drawingHarness(), scene = S.defaultScene([O.createElement('laser', 1, 100, 300)]);

@@ -39,6 +39,27 @@ test('repeated mirror passes have unique probe keys and preserve local polarizat
   for (const s of result.segments) near(s.stokes.V / s.stokes.I, 1);
 });
 
+test('ray segments accumulate geometric path distance through reflection and splitter branches', () => {
+  const source = { ...element('laser', 1, 100, 300), beamWidth: 0, rayCount: 1 };
+  const reflected = O.simulate([
+    source, element('mirror', 2, 400, 300, 45), element('screen', 3, 400, 100, 90)
+  ]);
+  assert.deepEqual(reflected.segments.map(segment => segment.hitId), [2, 3]);
+  assert.deepEqual(reflected.segments.map(segment => [segment.pathLengthStart, segment.pathLengthEnd]), [[0, 300], [300, 500]]);
+  assert.ok(reflected.segments.every(segment => segment.unmeasuredFiberLinks === 0));
+
+  const split = O.simulate([
+    source, element('splitter', 2, 400, 300, 45),
+    element('screen', 3, 700, 300), element('screen', 4, 400, 100, 90)
+  ]);
+  const input = split.segments.find(segment => segment.hitId === 2);
+  const transmitted = split.segments.find(segment => segment.hitId === 3);
+  const branchReflected = split.segments.find(segment => segment.hitId === 4);
+  assert.deepEqual([input.pathLengthStart, input.pathLengthEnd], [0, 300]);
+  assert.deepEqual([transmitted.pathLengthStart, transmitted.pathLengthEnd], [300, 600]);
+  assert.deepEqual([branchReflected.pathLengthStart, branchReflected.pathLengthEnd], [300, 500]);
+});
+
 test('five parallel laser rays reach the edge; no laser produces no rays', () => {
   assert.deepEqual(O.traceScene([]), []);
   const rays = O.traceScene([{ ...element('laser', 1, 100, 300), beamWidth: 30 }]);
@@ -189,6 +210,12 @@ const conserve = result => near(result.sourcePower,
 const bounded = result => {
   for (const segment of result.segments) {
     assert.ok(segment.power >= 0 && Number.isFinite(segment.power));
+    assert.ok(Number.isFinite(segment.pathLengthStart) && Number.isFinite(segment.pathLengthEnd));
+    assert.ok(segment.pathLengthStart >= 0 && segment.pathLengthEnd >= segment.pathLengthStart);
+    // Subtracting large cumulative lengths can lose a few low bits for sources
+    // near the coordinate limit; one micrometre is far below displayed precision.
+    near(segment.pathLengthEnd - segment.pathLengthStart, Math.hypot(segment.b.x - segment.a.x, segment.b.y - segment.a.y), 1e-6);
+    assert.ok(Number.isSafeInteger(segment.unmeasuredFiberLinks) && segment.unmeasuredFiberLinks >= 0);
     near(segment.stokes.I, segment.power);
     assert.ok(Math.hypot(segment.stokes.Q, segment.stokes.U, segment.stokes.V) <= segment.power + 1e-9);
     for (const point of [segment.a, segment.b]) {
@@ -982,8 +1009,12 @@ test('linked fibers retain the input monitor without double-counting terminal de
   }
   assert.equal(result.segments.length, 10);
   assert.ok(result.segments.every(segment => segment.hitId === 2 || segment.hitId === 4));
+  assert.ok(result.segments.filter(segment => segment.hitId === 2).every(segment =>
+    segment.pathLengthStart === 0 && segment.pathLengthEnd === 200 && segment.unmeasuredFiberLinks === 0));
   for (const segment of result.segments.filter(segment => segment.hitId === 4)) {
     near(segment.a.x, 650); near(segment.b.x, 850);
+    near(segment.pathLengthStart, 200); near(segment.pathLengthEnd, 400);
+    assert.equal(segment.unmeasuredFiberLinks, 1);
   }
   boundedRelay(result);
 });
@@ -1111,6 +1142,7 @@ test('successive fiber pairs relay a beam through multiple axes while counting i
   near(detector(result, 2).power, 1); near(detector(result, 4).power, 1); near(detector(result, 6).power, 1);
   near(detector(result, 3).power, 0); near(detector(result, 5).power, 0);
   near(detector(result, 6).span, 4); near(result.detectedPower, 1); boundedRelay(result);
+  assert.ok(result.segments.filter(segment => segment.hitId === 6).every(segment => segment.unmeasuredFiberLinks === 2));
 });
 
 test('splitter branches and fiber monitors preserve the same terminal energy ledger', () => {

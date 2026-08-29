@@ -83,6 +83,7 @@ h2 { font-size:15px; font-weight:600; margin:7px 0 11px; }.palette-hint,.palette
 .probe-polarization { display:flex; align-items:center; gap:6px; }.probe-polarization > div { flex:1; min-width:0; font-size:11px; }.probe-polarization p { font-size:10px; line-height:1.7; margin:5px 0; }
 #probe-diagram { flex:0 0 94px; width:94px; height:94px; }#probe-diagram text { font:9px sans-serif; fill:#657b68; }
 .probe-values { display:grid; grid-template-columns:1fr; gap:3px; margin:8px 0; font-size:10px; }.probe-values dt { color:var(--muted); }.probe-values dd { margin:0 0 4px; font:11px Consolas,monospace; }
+.probe-values .probe-distance { color:#285f4d; font-size:13px; font-weight:700; }
 .ray-inspector .stokes { font-size:10px; line-height:1.8; }.ray-inspector .field-hint { margin:9px 0 0; }.ray-inspector .field { margin:9px 0; }
 .inspector { padding:20px 17px; border-left:1px solid var(--line); overflow:auto; }.inspector-heading { display:flex; align-items:center; justify-content:space-between; }.kind-badge { font-size:9px; color:#678579; }
 .field { display:block; font-size:11px; margin:12px 0; font-weight:600; }.field input,.field select { margin-top:5px; }.field > span.unit-label { float:right; font-weight:400; color:var(--muted); }

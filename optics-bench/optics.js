@@ -442,7 +442,8 @@
           queue.push({ origin, ray, stokes: sourceStokes(source, power), wavelength: sample.wavelength,
             sourceId: source.id, path: options.recordPaths ? [] : null,
             traceKey: `${source.id}:${count}:${i}` + (spectrum.length > 1 ? `~${spectrum.length}:${j}` : ""),
-            branchId: ++branchCounter, center: i === Math.floor(count / 2), lastIndex: -1, interactions: 0 });
+            branchId: ++branchCounter, center: i === Math.floor(count / 2), lastIndex: -1, interactions: 0,
+            pathLength: 0, unmeasuredFiberLinks: 0 });
         }
       }
     }
@@ -462,10 +463,17 @@
         // The finite extent only chooses where to draw an otherwise escaping ray.
         const nearest = nearestHit(state.origin, state.ray, surfaces, state.lastIndex, Infinity);
         const end = nearest ? nearest.point : add(state.origin, state.ray, boundary);
+        const segmentLength = Math.hypot(end.x - state.origin.x, end.y - state.origin.y);
+        const pathLengthStart = state.pathLength;
+        state.pathLength += segmentLength;
         segments.push({ a: { ...state.origin }, b: { ...end }, wavelength: state.wavelength,
           power: state.stokes.I, stokes: { ...state.stokes }, sourceId: state.sourceId,
           key: `${state.traceKey}->${nearest ? nearest.element.id : 'edge'}`,
-          branchId: state.branchId, center: state.center, hitId: nearest ? nearest.element.id : null });
+          branchId: state.branchId, center: state.center, hitId: nearest ? nearest.element.id : null,
+          // Millimetres along the traced centre line. Ideal thin surfaces add no
+          // thickness; linked fibers are flagged separately because their length
+          // and refractive index are not part of the current scene model.
+          pathLengthStart, pathLengthEnd: state.pathLength, unmeasuredFiberLinks: state.unmeasuredFiberLinks });
         if (!nearest) { escapedPower += state.stokes.I; break; }
         hitCount++;
         state.interactions++;
@@ -505,6 +513,7 @@
             state.ray = unit({ x: axial * forward.x + transverse * tangent.x, y: axial * forward.y + transverse * tangent.y });
             state.lastIndex = output.index;
             state.traceKey += `>${output.element.id}`;
+            state.unmeasuredFiberLinks++;
             fiberTransfers.push({ fromId: element.id, toId: output.element.id, power: state.stokes.I,
               wavelength: state.wavelength, sourceId: state.sourceId, stokes: { ...state.stokes } });
             // The input detector is a pass-through monitor, not an additional
