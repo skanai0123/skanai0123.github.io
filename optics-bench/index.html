@@ -7,18 +7,18 @@
   <meta name="description" content="20種類の光学部品をドラッグ・範囲選択で配置し、波長・開口・偏光を調整。見つけやすいカメラ、励起光を別波長へ変える蛍光板、カメラ像・量子消しゴム・干渉計・4F・共焦点など28種類のプリセット、圧縮URL共有に対応。">
   <link rel="icon" href="../shared/icons/general.svg" type="image/svg+xml">
   <link rel="stylesheet" href="../shared/back-to-hub.css">
-  <link rel="stylesheet" href="styles.css?v=0.16.0">
+  <link rel="stylesheet" href="styles.css?v=0.16.1">
   <script defer src="../shared/back-to-hub.js"></script>
-  <script defer src="optics.js?v=0.16.0"></script>
-  <script defer src="camera.js?v=0.16.0"></script>
-  <script defer src="coherence.js?v=0.16.0"></script>
-  <script defer src="state.js?v=0.16.0"></script>
-  <script defer src="share.js?v=0.16.0"></script>
-  <script defer src="presets.js?v=0.16.0"></script>
-  <script defer src="view.js?v=0.16.0"></script>
-  <script defer src="script.js?v=0.16.0"></script>
+  <script defer src="optics.js?v=0.16.1"></script>
+  <script defer src="camera.js?v=0.16.1"></script>
+  <script defer src="coherence.js?v=0.16.1"></script>
+  <script defer src="state.js?v=0.16.1"></script>
+  <script defer src="share.js?v=0.16.1"></script>
+  <script defer src="presets.js?v=0.16.1"></script>
+  <script defer src="view.js?v=0.16.1"></script>
+  <script defer src="script.js?v=0.16.1"></script>
 </head>
-<body data-page-version="0.16.0" data-page-updated="2026-08-29" data-page-copyright="© 2026 skanai">
+<body data-page-version="0.16.1" data-page-updated="2026-08-29" data-page-copyright="© 2026 skanai">
   <main class="page-shell">
     <header class="hero">
       <div class="eyebrow"><span class="brand-mark" aria-hidden="true">↗</span> OPTICS LAB <span class="prototype">DESIGN STUDIO</span></div>
@@ -63,10 +63,10 @@
         <section class="bench-panel" aria-label="光学テーブル">
           <div class="bench-heading">
             <span><i class="live-dot" aria-hidden="true"></i><span id="element-count">0</span> components</span>
-            <div class="view-controls"><button id="select-tool" type="button" aria-pressed="true">選択</button><button id="pan-tool" type="button" aria-pressed="false">手</button><button id="zoom-out" type="button" aria-label="縮小">−</button><output id="zoom-level" aria-live="off">100%</output><button id="zoom-in" type="button" aria-label="拡大">＋</button><button id="fit" type="button">全体表示</button></div>
+            <div class="view-controls"><button id="select-tool" type="button" aria-pressed="true">選択</button><button id="measure-tool" type="button" aria-pressed="false" title="光路上をクリックして光源からの距離を測定">距離測定</button><button id="pan-tool" type="button" aria-pressed="false">手</button><button id="zoom-out" type="button" aria-label="縮小">−</button><output id="zoom-level" aria-live="off">100%</output><button id="zoom-in" type="button" aria-label="拡大">＋</button><button id="fit" type="button">全体表示</button></div>
           </div>
           <div class="bench-viewport">
-            <svg id="bench" viewBox="-48 -42 1096 704" role="group" aria-label="光学ベンチ。空白ドラッグで範囲選択、Shift＋クリックで複数選択、部品をドラッグで移動、Shift＋ドラッグで縦横固定、Ctrl＋ドラッグで複製、Space＋ドラッグでパン" aria-describedby="keyboard-help" tabindex="0">
+            <svg id="bench" viewBox="-48 -42 1096 704" role="group" aria-label="光学ベンチ。距離測定を選んで光路をクリック、空白ドラッグで範囲選択、Shift＋クリックで複数選択、部品をドラッグで移動、Shift＋ドラッグで縦横固定、Ctrl＋ドラッグで複製、Space＋ドラッグでパン" aria-describedby="keyboard-help" tabindex="0">
               <defs>
                 <pattern id="minor-grid" width="10" height="10" patternUnits="userSpaceOnUse"><path id="minor-grid-path" d="M 10 0 H 0 V 10" fill="none" stroke="#2d4249" stroke-width="0.6"/></pattern>
                 <pattern id="major-grid" width="50" height="50" patternUnits="userSpaceOnUse"><rect id="major-grid-fill" width="50" height="50" fill="url(#minor-grid)"/><path id="major-grid-path" d="M 50 0 H 0 V 50" fill="none" stroke="#43545a" stroke-width="0.9"/></pattern>
@@ -78,7 +78,7 @@
               <g id="rulers" aria-hidden="true"></g>
             </svg>
           </div>
-          <div class="bench-footer"><button id="inspect-ray" type="button" aria-controls="ray-inspector" aria-expanded="false" title="光路をクリックでも確認できます">光路を調べる</button><span id="grid-readout"></span><span>空白ドラッグ：範囲選択 · Space＋ドラッグ：移動 · Shift＋ホイール：ズーム</span></div>
+          <div class="bench-footer"><button id="inspect-ray" type="button" aria-controls="ray-inspector" aria-expanded="false" title="主光路の中央をすぐ測定">主光路を測定</button><span id="grid-readout"></span><span id="interaction-hints">Ctrl／⌘＋部品ドラッグ：複製 · 空白ドラッグ：範囲選択 · Space＋ドラッグ：移動 · Shift＋ホイール：ズーム</span></div>
           <div class="grid-controls">
             <label>単位<select id="unit" aria-label="表示単位"><option value="cm">cm</option><option value="in">inch</option><option value="mm">mm</option></select></label>
             <label>グリッド<input id="grid-step" type="number" step="any" required aria-label="グリッド間隔"><span class="display-unit">cm</span></label>

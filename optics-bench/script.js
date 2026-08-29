@@ -292,7 +292,7 @@
     if (force || key !== inspectorKey) { inspectorKey = key; buildInspector(e); $("input-error").textContent = ""; }
     $("properties").hidden = !e; $("empty-selection").hidden = Boolean(e);
     $("selected-kind").textContent = e ? O.TYPES[e.type].short : "";
-    $("selection-summary").textContent = selectedIds.length > 1 ? selectedIds.length + "個選択中 · 主選択：" + label(e) + "。数値編集・回転は主選択だけに作用します。" : e ? "1個選択中 · Shift＋クリックで追加・解除" : "空白をドラッグして範囲選択できます。";
+    $("selection-summary").textContent = selectedIds.length > 1 ? selectedIds.length + "個選択中 · 主選択：" + label(e) + "。Ctrl／⌘＋部品ドラッグでまとめて複製できます。" : e ? "1個選択中 · Ctrl／⌘＋ドラッグで複製 · Shift＋クリックで追加・解除" : "空白をドラッグして範囲選択できます。";
     $("clear-selection").disabled = !selectedIds.length;
     $("select-all").disabled = !scene.elements.length;
     $("duplicate").textContent = selectedIds.length > 1 ? "複製（" + selectedIds.length + "）" : "複製";
@@ -670,6 +670,8 @@
   }
   function renderProbe() {
     $("inspect-ray").disabled = !result.segments.length;
+    $("measure-tool").disabled = !result.segments.length;
+    if (!result.segments.length && pointerTool === "measure") setPointerTool("select", false);
     $("inspect-ray").setAttribute("aria-expanded", String(Boolean(probe)));
     $("ray-inspector").hidden = !probe;
     if (!probe) { probeHits = []; view.markProbe(null); return; }
@@ -966,9 +968,12 @@
   }
   bench.addEventListener("pointerdown", event => {
     if (event.button !== 0 || event.isPrimary === false || pending) return;
+    const target = event.target.closest("[data-element-id]");
+    if (pointerTool === "measure" && !(target && (event.ctrlKey || event.metaKey))) {
+      event.preventDefault(); window.getSelection()?.removeAllRanges(); inspectPoint(view.point(event)); bench.focus({ preventScroll: true }); return;
+    }
     event.preventDefault(); checkpoint();
     window.getSelection()?.removeAllRanges();
-    const target = event.target.closest("[data-element-id]");
     if (target) {
       const id = Number(target.dataset.elementId), previousIds=[...selectedIds], previousPrimary=selectedId;
       const rotating=Boolean(event.target.closest("[data-rotate]")), copying=!rotating&&(event.ctrlKey||event.metaKey);
@@ -1109,8 +1114,18 @@
     if (applyField(input)) { checkpoint(); syncInspector(); }
   });
   $("element-select").addEventListener("change", event => select(Number(event.target.value)));
-  $("select-tool").addEventListener("click",()=>{pointerTool="select";bench.classList.remove("pan-tool");$("select-tool").setAttribute("aria-pressed","true");$("pan-tool").setAttribute("aria-pressed","false");bench.focus({preventScroll:true});});
-  $("pan-tool").addEventListener("click",()=>{pointerTool="pan";bench.classList.add("pan-tool");$("select-tool").setAttribute("aria-pressed","false");$("pan-tool").setAttribute("aria-pressed","true");bench.focus({preventScroll:true});});
+  function setPointerTool(tool, focus = true) {
+    pointerTool = tool;
+    bench.classList.toggle("pan-tool", tool === "pan");
+    bench.classList.toggle("measure-tool", tool === "measure");
+    for (const [id, value] of [["select-tool", "select"], ["measure-tool", "measure"], ["pan-tool", "pan"]]) {
+      $(id).setAttribute("aria-pressed", String(tool === value));
+    }
+    if (focus) bench.focus({ preventScroll: true });
+  }
+  $("select-tool").addEventListener("click",()=>setPointerTool("select"));
+  $("measure-tool").addEventListener("click",()=>{setPointerTool("measure");announce("距離測定：光路上の測りたい位置をクリックしてください。Ctrl／⌘＋部品ドラッグの複製はこのモードでも使えます。");});
+  $("pan-tool").addEventListener("click",()=>setPointerTool("pan"));
   $("select-all").addEventListener("click",selectAll);
   $("clear-selection").addEventListener("click",()=>{checkpoint();setSelection([]);rememberSelection();syncInspector();render();bench.focus({preventScroll:true});});
   $("rotate").addEventListener("click", () => rotateSelected());

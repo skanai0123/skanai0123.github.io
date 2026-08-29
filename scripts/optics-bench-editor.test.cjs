@@ -1628,6 +1628,35 @@ test('small click jitter selects a ray while marquee, Space-pan, cancellation an
   assert.equal(h.probe(), null); assert.deepEqual(h.scene(), before);
 });
 
+test('the visible distance tool measures a clicked path and keeps Ctrl-drag duplication available', () => {
+  const h = editorHarness(), before = h.scene();
+  const html = fs.readFileSync(path.join(__dirname, '../optics-bench/index.html'), 'utf8');
+  assert.match(html, /id="interaction-hints">Ctrl／⌘＋部品ドラッグ：複製/);
+  assert.match(h.get('selection-summary').textContent, /Ctrl／⌘＋ドラッグで複製/);
+
+  h.click('measure-tool');
+  assert.equal(h.get('measure-tool').getAttribute('aria-pressed'), 'true');
+  assert.equal(h.get('select-tool').getAttribute('aria-pressed'), 'false');
+  assert.equal(h.get('pan-tool').getAttribute('aria-pressed'), 'false');
+  assert.equal(h.get('bench').classList.contains('measure-tool'), true);
+  h.fire('pointerdown', h.get('bench'), { pointerId: 71, clientX: 350, clientY: 400 });
+  h.fire('pointerup', h.document, { pointerId: 71, clientX: 350, clientY: 400 });
+  assert.ok(h.probe());
+  assert.equal(h.get('probe-path-length').textContent, '20 cm');
+  assert.deepEqual(h.scene(), before);
+
+  h.fire('pointerdown', h.component(1), { pointerId: 72, ctrlKey: true, clientX: 150, clientY: 400 });
+  h.fire('pointermove', h.document, { pointerId: 72, ctrlKey: true, clientX: 230, clientY: 460 });
+  h.fire('pointerup', h.document, { pointerId: 72, ctrlKey: true, clientX: 230, clientY: 460 });
+  assert.equal(h.scene().elements.length, before.elements.length + 1);
+  assert.deepEqual({ x: h.selected().x, y: h.selected().y }, { x: 230, y: 460 });
+
+  h.click('select-tool');
+  assert.equal(h.get('measure-tool').getAttribute('aria-pressed'), 'false');
+  assert.equal(h.get('select-tool').getAttribute('aria-pressed'), 'true');
+  assert.equal(h.get('bench').classList.contains('measure-tool'), false);
+});
+
 test('keyboard-entry controls cover all intervals, close safely and leave redo available', () => {
   const h = editorHarness(); h.add('mirror'); const added = h.scene(); h.key('z');
   assert.equal(h.get('redo').disabled, false);
@@ -1639,6 +1668,7 @@ test('keyboard-entry controls cover all intervals, close safely and leave redo a
   assert.equal(h.get('redo').disabled, false); h.key('y'); assert.deepEqual(h.scene(), added);
   h.click('inspect-ray'); probeClick(h, 100, 100); assert.equal(h.probe(), null);
   h.click('inspect-ray'); h.click('new-scene'); assert.equal(h.probe(), null); assert.equal(h.get('inspect-ray').disabled, true);
+  assert.equal(h.get('measure-tool').disabled, true); assert.equal(h.get('select-tool').getAttribute('aria-pressed'), 'true');
 });
 
 test('ray picking uses screen-pixel tolerance and redraws its marker with zoom and physical units', async () => {

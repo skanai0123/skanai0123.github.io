@@ -60,6 +60,7 @@ h2 { font-size:15px; font-weight:600; margin:7px 0 11px; }.palette-hint,.palette
 #zoom-level { font-size:10px; width:37px; text-align:center; }
 .bench-viewport { flex:1; min-height:0; overflow:hidden; position:relative; }
 #bench { width:100%; height:100%; display:block; touch-action:none; user-select:none; -webkit-user-select:none; cursor:crosshair; }#bench.pan-tool,#bench.space-pan { cursor:grab; }#bench.is-panning { cursor:grabbing; }
+#bench.measure-tool,#bench.measure-tool .optical-element { cursor:crosshair; }
 #rulers { fill:#9aafaf; font-family:Consolas,monospace; }#rays,#guides { pointer-events:none; }
 #fiber-links,#ray-probe,#rulers { pointer-events:none; }
 .optical-element { cursor:grab; outline:none; }.optical-element.is-dragging { cursor:grabbing; }.optical-element.is-disabled { opacity:.32; }
