@@ -76,6 +76,21 @@ test('placement crosses former board edges and preserves negative and distant po
   assert.deepEqual(V.place(-114.3, 114.3, 25.4), { x: -101.6, y: 127 });
 });
 
+test('marquee geometry works in every drag direction and group movement preserves spacing', () => {
+  const O=require('../optics-bench/optics.js'),elements=[{id:1,x:10,y:10},{id:2,x:20,y:30},{id:3,x:40,y:40}];
+  assert.deepEqual(V.marqueeRect({x:30,y:35},{x:5,y:5}),{x:5,y:5,width:25,height:30});
+  assert.deepEqual(V.marqueeIds(elements,{x:5,y:5},{x:20,y:30}),[1,2]);
+  assert.deepEqual(V.marqueeIds(elements,{x:20,y:30},{x:5,y:5}),[1,2]);
+  const group=[{x:10.25,y:-20.5},{x:35.75,y:44.125}];
+  assert.deepEqual(V.groupDelta(group,group[0],{x:63,y:83},10,true,'x'),{x:49.75,y:0});
+  assert.deepEqual(V.groupDelta(group,group[0],{x:63,y:83},10,true,'y'),{x:0,y:100.5});
+  const edge=[{x:O.COORDINATE_LIMIT-10,y:1},{x:O.COORDINATE_LIMIT,y:17.25}];
+  assert.deepEqual(V.groupDelta(edge,edge[0],{x:O.COORDINATE_LIMIT+100,y:1},10,false),{x:0,y:0});
+  assert.deepEqual(V.pasteGroupDelta(group,[],10,true),{x:0,y:0});
+  const d=V.pasteGroupDelta(group,group,10,true);assert.ok(d);assert.notDeepEqual(d,{x:0,y:0});
+  near((group[1].x+d.x)-(group[0].x+d.x),25.5);near((group[1].y+d.y)-(group[0].y+d.y),64.625);
+});
+
 test('keyboard nudging changes only the requested axis of an off-grid preset component', () => {
   const confocalLaser = Object.freeze({ x: 150, y: 325 });
   assert.deepEqual(V.nudge(confocalLaser, 1, 0, 10), { x: 160, y: 325 });
@@ -341,7 +356,7 @@ function editorHarness(options = {}) {
   for (const id of ['probe-close', 'probe-prev', 'probe-next', 'probe-overlap']) get('ray-inspector').append(get(id));
   const frames = new Map(), windowListeners = new Map();
   const location = new URL(options.href || 'https://skanai0123.github.io/optics-bench/'), sharedCopies = [];
-  let nextFrame = 1, lastScene, lastResult, selectedId, selectionText = '', lastPreview = null, lastProbe = null;
+  let nextFrame = 1, lastScene, lastResult, selectedId, lastSelectedIds = [], selectionText = '', lastPreview = null, lastProbe = null, lastMarquee = null;
   const context = vm.createContext({
     document, console, performance: { now: () => 100 }, location, URL,
     TextEncoder, TextDecoder, ReadableStream, CompressionStream, DecompressionStream, btoa, atob,
@@ -363,8 +378,8 @@ function editorHarness(options = {}) {
   }
   const componentNodes = new Map(); let viewport = { ...context.OpticsView.BASE_VIEW };
   context.OpticsView = { ...context.OpticsView, create: (_, onChange = () => {}) => ({
-    draw(scene, selection, result) {
-      lastScene = clone(scene); lastResult = clone(result); selectedId = selection;
+    draw(scene, selection, result, _labels, selectionIds = [selection]) {
+      lastScene = clone(scene); lastResult = clone(result); selectedId = selection; lastSelectedIds = clone(selectionIds);
       for (const [id, node] of componentNodes) if (!scene.elements.some(e => e.id === id)) { node.remove(); componentNodes.delete(id); }
       for (const element of scene.elements) if (!componentNodes.has(element.id)) {
         const node = document.createElement('g'); node.dataset.elementId = String(element.id);
@@ -376,6 +391,8 @@ function editorHarness(options = {}) {
     point: event => ({ x: event.clientX, y: event.clientY }),
     inside: event => event.clientX >= 0 && event.clientX <= 1000 && event.clientY >= 0 && event.clientY <= 600,
     preview: element => { lastPreview = element ? clone(element) : null; },
+    previewGroup: elements => { lastPreview = !elements.length ? null : elements.length === 1 ? clone(elements[0]) : clone(elements); },
+    marquee: rect => { lastMarquee = rect ? clone(rect) : null; },
     markProbe: value => { lastProbe = clone(value); }, worldPerPixel: () => viewport.width / V.BASE_VIEW.width,
     getView: () => ({ ...viewport }), visibleBounds: () => ({ ...viewport }), setView: value => { viewport = { ...value }; onChange(); },
     fit: (elements = lastScene?.elements || [], fiberLinks = lastScene?.fiberLinks || []) => { viewport = V.fitView(elements, { width: 1000, height: 600 }, fiberLinks); onChange(); },
@@ -390,8 +407,8 @@ function editorHarness(options = {}) {
   }
   function fire(type, target = document.activeElement, properties = {}) { const event = target.dispatch(type, properties); flush(); return event; }
   return {
-    document, get, fire, scene: () => clone(lastScene), result: () => clone(lastResult), selectedId: () => selectedId,
-    preview: () => clone(lastPreview), viewport: () => clone(viewport), probe: () => clone(lastProbe),
+    document, get, fire, scene: () => clone(lastScene), result: () => clone(lastResult), selectedId: () => selectedId, selectedIds: () => clone(lastSelectedIds),
+    preview: () => clone(lastPreview), marquee: () => clone(lastMarquee), viewport: () => clone(viewport), probe: () => clone(lastProbe),
     location, sharedCopies,
     async ready() {
       for (let i = 0; get('share-panel').getAttribute('aria-busy') === 'true' && i < 1000; i++) await new Promise(resolve => setTimeout(resolve, 1));
@@ -946,6 +963,80 @@ test('Ctrl and Meta preserve palette placement and background panning', () => {
   }
 });
 
+test('Shift-click toggles a multi-selection and the selection controls remain non-destructive', () => {
+  const h=editorHarness();assert.deepEqual(h.selectedIds(),[3]);
+  h.fire('pointerdown',h.component(2),{pointerId:31,shiftKey:true,clientX:550,clientY:400});
+  h.fire('pointerup',h.document,{pointerId:31,shiftKey:true,clientX:550,clientY:400});
+  assert.deepEqual(h.selectedIds(),[3,2]);assert.equal(h.selectedId(),2);assert.match(h.get('selection-summary').textContent,/2個選択中/);
+  h.fire('pointerdown',h.component(3),{pointerId:32,shiftKey:true,clientX:550,clientY:200});
+  h.fire('pointerup',h.document,{pointerId:32,shiftKey:true,clientX:550,clientY:200});assert.deepEqual(h.selectedIds(),[2]);
+  h.click('select-all');assert.deepEqual(h.selectedIds(),[1,2,3,4]);
+  const before=h.scene();h.click('clear-selection');assert.deepEqual(h.selectedIds(),[]);assert.deepEqual(h.scene(),before);
+  assert.equal(h.get('undo').disabled,true);
+  const viewport=h.viewport();h.click('pan-tool');assert.equal(h.get('pan-tool').getAttribute('aria-pressed'),'true');assert.equal(h.get('bench').classList.contains('pan-tool'),true);
+  h.fire('pointerdown',h.get('bench'),{pointerId:33,clientX:100,clientY:100});h.fire('pointerup',h.document,{pointerId:33,clientX:140,clientY:125});
+  assert.deepEqual(h.viewport(),{...viewport,x:viewport.x-40,y:viewport.y-25});assert.deepEqual(h.scene(),before);
+  h.click('select-tool');assert.equal(h.get('bench').classList.contains('pan-tool'),false);
+});
+
+test('marquee selects by component center, adds with Shift and cancels without changing history', () => {
+  const h=editorHarness();
+  h.fire('pointerdown',h.get('bench'),{pointerId:41,clientX:500,clientY:150});h.fire('pointermove',h.document,{pointerId:41,clientX:600,clientY:450});
+  assert.deepEqual(h.selectedIds(),[2,3]);assert.deepEqual(h.marquee(),{x:500,y:150,width:100,height:300});
+  h.fire('pointerup',h.document,{pointerId:41,clientX:600,clientY:450});assert.equal(h.marquee(),null);
+  h.fire('pointerdown',h.get('bench'),{pointerId:42,shiftKey:true,clientX:100,clientY:350});h.fire('pointermove',h.document,{pointerId:42,shiftKey:true,clientX:200,clientY:450});
+  h.fire('pointerup',h.document,{pointerId:42,shiftKey:true,clientX:200,clientY:450});assert.deepEqual(h.selectedIds(),[2,3,1]);
+  const before=h.scene();h.fire('pointerdown',h.get('bench'),{pointerId:43,clientX:0,clientY:0});h.fire('pointermove',h.document,{pointerId:43,clientX:1000,clientY:600});
+  h.fire('pointercancel',h.document,{pointerId:43});assert.deepEqual(h.selectedIds(),[2,3,1]);assert.deepEqual(h.scene(),before);assert.equal(h.get('undo').disabled,true);
+});
+
+test('dragging a selection moves every member once and Shift locks the dominant axis', () => {
+  const h=editorHarness();
+  h.fire('pointerdown',h.component(2),{pointerId:51,shiftKey:true,clientX:550,clientY:400});h.fire('pointerup',h.document,{pointerId:51,shiftKey:true,clientX:550,clientY:400});
+  const before=h.scene();h.fire('pointerdown',h.component(2),{pointerId:52,shiftKey:true,clientX:550,clientY:400});
+  h.fire('pointermove',h.document,{pointerId:52,shiftKey:false,clientX:632,clientY:437});h.fire('pointerup',h.document,{pointerId:52,shiftKey:false,clientX:632,clientY:437});
+  const moved=h.scene();assert.deepEqual(h.selectedIds(),[3,2]);assert.deepEqual(moved.elements.map(e=>[e.id,e.x,e.y]),[[1,150,400],[2,630,400],[3,630,200],[4,550,75]]);
+  assert.match(h.get('status').textContent,/2個の部品を移動/);h.key('z');assert.deepEqual(h.scene(),before);assert.deepEqual(h.selectedIds(),[3,2]);
+  h.key('y');assert.deepEqual(h.scene(),moved);assert.deepEqual(h.selectedIds(),[3,2]);
+});
+
+test('group clipboard, deletion and Ctrl-drag preserve internal fiber connections and are undoable', async () => {
+  const h=editorHarness(),a=h.element('fiber',1,{x:200,y:200}),b=h.element('fiber',2,{x:500,y:200,angle:180});
+  await h.load([a,b],{fiberLinks:[{a:1,b:2}]});h.select(1);
+  h.fire('pointerdown',h.component(2),{pointerId:61,shiftKey:true,clientX:500,clientY:200});h.fire('pointerup',h.document,{pointerId:61,shiftKey:true,clientX:500,clientY:200});
+  const text=h.clipboard('copy').data.get('text/plain');assert.match(text,/^Optics Bench selection v1/);h.clipboard('paste',text);
+  assert.equal(h.scene().elements.length,4);assert.equal(h.scene().fiberLinks.length,2);assert.equal(h.selectedIds().length,2);h.key('z');assert.equal(h.scene().elements.length,2);
+  h.fire('pointerdown',h.component(1),{pointerId:60,clientX:200,clientY:200});h.fire('pointerup',h.document,{pointerId:60,clientX:200,clientY:200});
+  h.fire('pointerdown',h.component(2),{pointerId:62,shiftKey:true,clientX:500,clientY:200});h.fire('pointerup',h.document,{pointerId:62,shiftKey:true,clientX:500,clientY:200});
+  h.fire('pointerdown',h.component(1),{pointerId:63,ctrlKey:true,clientX:200,clientY:200});h.fire('pointermove',h.document,{pointerId:63,clientX:300,clientY:300});
+  h.fire('pointerup',h.document,{pointerId:63,clientX:300,clientY:300});assert.equal(h.scene().elements.length,4);assert.equal(h.scene().fiberLinks.length,2);
+  h.click('delete');assert.equal(h.scene().elements.length,2);h.key('z');assert.equal(h.scene().elements.length,4);
+});
+
+test('normal group drag keeps relative positions, while a click collapses to one component', () => {
+  const h=editorHarness();h.click('select-all');const before=h.scene();
+  h.fire('pointerdown',h.component(2),{pointerId:71,clientX:550,clientY:400});h.fire('pointermove',h.document,{pointerId:71,clientX:610,clientY:430});
+  h.fire('pointerup',h.document,{pointerId:71,clientX:610,clientY:430});const moved=h.scene();
+  for(let i=0;i<4;i++){near(moved.elements[i].x-before.elements[i].x,60);near(moved.elements[i].y-before.elements[i].y,30);}
+  h.fire('pointerdown',h.component(1),{pointerId:72,clientX:210,clientY:430});h.fire('pointerup',h.document,{pointerId:72,clientX:210,clientY:430});assert.deepEqual(h.selectedIds(),[1]);
+});
+
+test('a cancelled group drag restores every position and the former multi-selection', () => {
+  const h=editorHarness();h.click('select-all');const before=h.scene(),ids=h.selectedIds();
+  h.fire('pointerdown',h.component(2),{pointerId:73,clientX:550,clientY:400});
+  h.fire('pointermove',h.document,{pointerId:73,clientX:620,clientY:445});assert.notDeepEqual(h.scene(),before);
+  h.fire('pointercancel',h.document,{pointerId:73});assert.deepEqual(h.scene(),before);assert.deepEqual(h.selectedIds(),ids);
+  assert.equal(h.get('undo').disabled,true);
+});
+
+test('a blocked group nudge preserves the redo branch and component spacing', async () => {
+  const O=require('../optics-bench/optics.js'),h=editorHarness(),limit=O.COORDINATE_LIMIT;
+  await h.load([h.element('laser',1,{x:limit-50,y:100}),h.element('mirror',2,{x:limit,y:140})]);
+  h.click('select-all');h.click('rotate');const later=h.scene();h.get('bench').focus();h.key('z');const before=h.scene();
+  h.key('ArrowRight',{ctrlKey:false});assert.deepEqual(h.scene(),before);assert.equal(h.get('redo').disabled,false);
+  assert.match(h.get('status').textContent,/上限/);h.key('y');assert.deepEqual(h.scene(),later);
+});
+
 test('source bandwidth controls update the full-band summary, bounds, sample count and detected power', async () => {
   const scene=require('../optics-bench/presets.js').create('broadband-filter'), h=editorHarness();
   await h.load(scene.elements,{unit:'mm'}); h.select(1);
@@ -1222,7 +1313,7 @@ function drawingHarness() {
   document.getElementById = id => document.querySelector('[id="' + id + '"]');
   const bench = document.createElementNS('', 'svg'); bench.id = 'bench'; document.append(bench);
   for (const id of ['minor-grid', 'major-grid', 'minor-grid-path', 'major-grid-path', 'major-grid-fill', 'rulers',
-    'elements', 'rays', 'ray-probe', 'guides', 'fiber-links', 'zoom-level', 'grid-readout', 'placement', 'table-background', 'table-clip-rect']) {
+    'elements', 'rays', 'ray-probe', 'guides', 'fiber-links', 'zoom-level', 'grid-readout', 'selection-marquee', 'placement', 'table-background', 'table-clip-rect']) {
     const node = document.createElementNS('', 'g'); node.id = id; bench.append(node);
   }
   return { document, bench, view: V.create(bench) };
@@ -1428,7 +1519,7 @@ test('overlapping wavelengths and counterpropagating rays can be selected withou
   near(h.probe().segment.power, 1); assert.equal(h.get('probe-power').textContent, '1');
 });
 
-test('small click jitter selects a ray while pan, cancellation and component gestures keep their original roles', () => {
+test('small click jitter selects a ray while marquee, Space-pan, cancellation and component gestures keep their roles', () => {
   const h = editorHarness(), before = h.scene(), viewport = h.viewport();
   probeClick(h, 350, 400, { clientX: 352, clientY: 401 });
   assert.ok(h.probe()); assert.deepEqual(h.viewport(), viewport);
@@ -1436,7 +1527,13 @@ test('small click jitter selects a ray while pan, cancellation and component ges
   h.fire('pointerdown', h.get('bench'), { clientX: 350, clientY: 400 });
   h.fire('pointermove', h.document, { clientX: 400, clientY: 420 });
   h.fire('pointerup', h.document, { clientX: 400, clientY: 420 });
-  assert.equal(h.probe(), null); assert.notDeepEqual(h.viewport(), viewport);
+  assert.equal(h.probe(), null); assert.deepEqual(h.viewport(), viewport);
+  assert.equal(h.marquee(),null);
+  h.key(' ',{ctrlKey:false});
+  h.fire('pointerdown', h.get('bench'), { clientX:350,clientY:400 });
+  h.fire('pointermove',h.document,{clientX:400,clientY:420});
+  h.fire('pointerup',h.document,{clientX:400,clientY:420});
+  assert.notDeepEqual(h.viewport(),viewport);h.fire('keyup',h.document,{key:' '});
   h.fire('pointerdown', h.get('bench'), { clientX: 350, clientY: 400 });
   h.fire('pointercancel', h.document); assert.equal(h.probe(), null);
   h.fire('pointerdown', h.component(1), { clientX: 150, clientY: 400 });
@@ -1488,6 +1585,22 @@ test('SVG export removes the probe marker without mutating the live optical diag
   assert.equal(exported.getAttribute('viewBox'), `${visible.x} ${visible.y} ${visible.width} ${visible.height}`);
   assert.equal(exported.getAttribute('height'), String(Math.round(1400 * visible.height / visible.width)));
   assert.equal(document.getElementById('ray-probe').children.length, 4);
+});
+
+test('the SVG view distinguishes primary and secondary selections and omits editor overlays from export', () => {
+  const O=require('../optics-bench/optics.js'),S=require('../optics-bench/state.js');
+  const {document,view}=drawingHarness(),scene=S.defaultScene([O.createElement('laser',1,100,300),O.createElement('mirror',2,400,300)]);
+  view.draw(scene,2,O.simulate(scene.elements),true,[1,2]);view.marquee({x:50,y:250,width:400,height:100});
+  const [first,second]=document.getElementById('elements').children;
+  assert.equal(first.classList.contains('is-selected'),true);assert.equal(first.classList.contains('is-primary'),false);
+  assert.equal(second.classList.contains('is-selected'),true);assert.equal(second.classList.contains('is-primary'),true);
+  assert.equal(first.getAttribute('aria-pressed'),'true');assert.equal(first.querySelector('.rotation-handle'),null);
+  assert.ok(second.querySelector('.rotation-handle'));assert.equal(document.getElementById('selection-marquee').children.length,1);
+  const previous=global.XMLSerializer;let exported;
+  global.XMLSerializer=class{serializeToString(node){exported=node;return '<svg/>';}};
+  try{view.exportSvg(scene.title);}finally{if(previous===undefined)delete global.XMLSerializer;else global.XMLSerializer=previous;}
+  assert.equal(exported.querySelector('#selection-marquee'),null);assert.equal(exported.querySelector('.selection-ring'),null);
+  assert.equal(document.getElementById('selection-marquee').children.length,1);
 });
 
 test('probe selection is ephemeral across scene imports and handles a disabled source without stale measurements', async () => {

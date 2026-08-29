@@ -22,6 +22,7 @@
     return n;
   };
   let scene = P.create("starter"), selectedId = 3, activePresetId = "starter", edited = false;
+  let selectedIds = [3], pointerTool = "select", spaceHeld = false;
   let result, pending = null, suppressedClick = null, frame = 0, inspectorKey = "", optionsKey = "";
   let history = [], historyIndex = -1;
   let probe = null, probeHits = [];
@@ -29,6 +30,14 @@
   let cameraId = null, cameraOptionsKey = "", cameraSvg = "";
   let designRevision = 0, shareJob = 0, hashJob = 0, hashLoading = false;
   const selected = () => scene.elements.find(e => e.id === selectedId);
+  const selectedElements = () => scene.elements.filter(e => selectedIds.includes(e.id));
+  function setSelection(ids, primary = ids.at(-1)) {
+    selectedIds = [...new Set(ids)].filter(id => scene.elements.some(e => e.id === id));
+    selectedId = selectedIds.includes(primary) ? primary : selectedIds.at(-1) ?? null;
+  }
+  function rememberSelection() {
+    if (history[historyIndex]) Object.assign(history[historyIndex], { selectedId, selectedIds: [...selectedIds] });
+  }
   const label = e => view.title(e);
   const display = v => num(S.toDisplay(v, scene.unit), 8);
   const announce = message => { $("status").textContent = message; };
@@ -51,7 +60,7 @@
     const text = S.serialize(scene);
     if (history[historyIndex]?.text !== text) {
       history = history.slice(0, historyIndex + 1);
-      history.push({ text, selectedId, activePresetId, edited });
+      history.push({ text, selectedId, selectedIds: [...selectedIds], activePresetId, edited });
       if (history.length > 60) history.shift();
       historyIndex = history.length - 1;
     }
@@ -65,8 +74,7 @@
     if (index < 0 || index >= history.length) return;
     const entry = history[index];
     clearProbe();
-    scene = S.parse(entry.text); selectedId = entry.selectedId; activePresetId = entry.activePresetId; edited = entry.edited;
-    if (!selected()) selectedId = scene.elements[0]?.id ?? null;
+    scene = S.parse(entry.text); setSelection(entry.selectedIds || [entry.selectedId], entry.selectedId); activePresetId = entry.activePresetId; edited = entry.edited;
     historyIndex = index;
     invalidateShare();
     syncControls(); syncInspector(true); render();
@@ -265,6 +273,11 @@
     if (force || key !== inspectorKey) { inspectorKey = key; buildInspector(e); $("input-error").textContent = ""; }
     $("properties").hidden = !e; $("empty-selection").hidden = Boolean(e);
     $("selected-kind").textContent = e ? O.TYPES[e.type].short : "";
+    $("selection-summary").textContent = selectedIds.length > 1 ? selectedIds.length + "個選択中 · 主選択：" + label(e) + "。数値編集・回転は主選択だけに作用します。" : e ? "1個選択中 · Shift＋クリックで追加・解除" : "空白をドラッグして範囲選択できます。";
+    $("clear-selection").disabled = !selectedIds.length;
+    $("select-all").disabled = !scene.elements.length;
+    $("duplicate").textContent = selectedIds.length > 1 ? "複製（" + selectedIds.length + "）" : "複製";
+    $("delete").textContent = selectedIds.length > 1 ? "削除（" + selectedIds.length + "）" : "削除";
     updateOptions();
     if (!e) return;
     if (e.type === "fiber") syncFiberConnection(e);
@@ -368,10 +381,16 @@
       clearInputError(input); markEdited(); syncInspector(); requestRender(); return true;
     } catch (error) { setInputError(input, error.message); return false; }
   }
-  function select(id, focus = false) {
-    checkpoint(); selectedId = scene.elements.some(e => e.id === id) ? id : null;
-    history[historyIndex].selectedId = selectedId;
+  function select(id, focus = false, extend = false) {
+    checkpoint();
+    setSelection(extend ? selectedIds.includes(id) ? selectedIds.filter(i => i !== id) : [...selectedIds,id] : [id], id);
+    rememberSelection();
     syncInspector(); render(); if (focus && selectedId !== null) view.focus(selectedId);
+  }
+  function selectAll() {
+    if (pending) return;
+    checkpoint(); setSelection(scene.elements.map(e=>e.id),selectedId); rememberSelection();
+    syncInspector(); render(); bench.focus({preventScroll:true});
   }
   function stokesText(s) {
     if (!s || s.I <= 1e-12) return "受光がないため偏光は未定義";
@@ -444,9 +463,9 @@
   function render() {
     result = O.simulate(scene.elements, { fiberLinks: scene.fiberLinks || [], viewBounds: view.visibleBounds(), recordPaths: scene.elements.some(e => e.type === "phase") });
     coherence = C.analyze(scene.elements, result, phaseId);
-    view.draw(scene, selectedId, result, $("show-labels").checked);
+    view.draw(scene, selectedId, result, $("show-labels").checked, selectedIds);
     if (pending && (pending.kind === "move" || pending.kind === "rotate")) {
-      bench.querySelector('[data-element-id="' + pending.id + '"]')?.classList.add("is-dragging");
+      for (const id of pending.kind === "move" ? selectedIds : [pending.id]) bench.querySelector('[data-element-id="' + id + '"]')?.classList.add("is-dragging");
     }
     updateOptions(); renderReadouts(); renderProbe(); renderCoherence(); renderCamera();
     $("element-count").textContent = String(scene.elements.length);
@@ -693,26 +712,39 @@
     checkpoint();
     if (scene.elements.length >= O.MAX_ELEMENTS) { announce("部品は最大" + O.MAX_ELEMENTS + "個までです。"); return; }
     const p = at || freeSpot(), e = { ...O.createElement(type, allocateId(), p.x, p.y), x: p.x, y: p.y };
-    scene.elements.push(e); selectedId = e.id; markEdited(); checkpoint(); syncInspector(); render(); view.focus(e.id);
+    scene.elements.push(e); setSelection([e.id]); markEdited(); checkpoint(); syncInspector(); render(); view.focus(e.id);
     announce(label(e) + "を X " + display(e.x) + " / Y " + display(e.y) + " " + scene.unit + " に配置しました。");
   }
   function deleteSelected() {
     finishInteraction(true); checkpoint();
-    const e = selected(); if (!e) return;
+    const e = selected(), ids = [...selectedIds]; if (!e) return;
     clearProbe();
-    scene.elements = scene.elements.filter(item => item.id !== e.id); selectedId = scene.elements.at(-1)?.id ?? null;
-    if (scene.fiberLinks) scene.fiberLinks = scene.fiberLinks.filter(link => link.a !== e.id && link.b !== e.id);
+    scene.elements = scene.elements.filter(item => !ids.includes(item.id)); setSelection([scene.elements.at(-1)?.id]);
+    if (scene.fiberLinks) scene.fiberLinks = scene.fiberLinks.filter(link => !ids.includes(link.a) && !ids.includes(link.b));
     markEdited(); checkpoint(); syncInspector(); render();
     if (selectedId !== null) view.focus(selectedId); else bench.focus({ preventScroll: true });
-    announce(label(e) + "を削除しました。「戻す」で復元できます。");
+    announce((ids.length>1?ids.length+"個の部品":label(e)) + "を削除しました。「戻す」で復元できます。");
+  }
+  function insertCopies(sources, links, delta, rename = false) {
+    if (scene.elements.length + sources.length > O.MAX_ELEMENTS) throw new Error("部品は最大" + O.MAX_ELEMENTS + "個までです。");
+    const used=new Set(scene.elements.map(e=>e.id)), ids=new Map();
+    const copies=sources.map(source=>{
+      let id=1; while(used.has(id))id++; used.add(id); ids.set(source.id,id);
+      return {...source,id,x:source.x+delta.x,y:source.y+delta.y,label:rename&&source.label?source.label.slice(0,96)+" 複製":source.label};
+    });
+    const copiedLinks=links.filter(l=>ids.has(l.a)&&ids.has(l.b)).map(l=>({a:ids.get(l.a),b:ids.get(l.b)}));
+    const next=S.validateScene({...scene,elements:[...scene.elements,...copies],fiberLinks:[...scene.fiberLinks,...copiedLinks]});
+    checkpoint(); scene=next; setSelection(copies.map(e=>e.id)); markEdited(); checkpoint(); syncInspector(); render(); view.focus(selectedId);
+    return copies;
   }
   function duplicateSelected() {
-    checkpoint(); const e = selected(); if (!e || scene.elements.length >= O.MAX_ELEMENTS) return;
-    const delta = Math.max(scene.gridStep, 25);
-    const at = V.pastePosition(e, scene.elements, scene.gridStep, scene.snap) || V.place(e.x + delta, e.y + delta, scene.gridStep, scene.snap);
-    const copy = { ...e, ...at, id: allocateId(), label: e.label ? e.label.slice(0, 96) + " 複製" : "" };
-    scene.elements.push(copy); selectedId = copy.id; markEdited(); checkpoint(); syncInspector(); render(); view.focus(copy.id);
-    announce(label(copy) + "を複製しました。");
+    const sources=selectedElements(); if(!sources.length)return;
+    try {
+      const delta=V.pasteGroupDelta(sources,scene.elements,scene.gridStep,scene.snap);
+      if(!delta)throw new Error("配置できる空き位置がありません。");
+      const copies=insertCopies(sources,scene.fiberLinks,delta,true);
+      announce((copies.length>1?copies.length+"個の部品":label(copies[0]))+"を複製しました。");
+    } catch(error) { announce("複製できませんでした。 "+error.message); }
   }
   function componentClipboardEvent(event) {
     return !event.defaultPrevented && !pending && !isTextEditing(event.target) &&
@@ -720,31 +752,29 @@
   }
   function copySelected(event, cut = false) {
     if (!componentClipboardEvent(event)) return;
-    const e = selected(); if (!e) return;
+    const e = selected(), sources=selectedElements(); if (!e) return;
     event.preventDefault();
     try {
       if (!event.clipboardData) throw new Error("クリップボードを利用できません。");
-      event.clipboardData.setData("text/plain", S.serializeComponent(e));
+      event.clipboardData.setData("text/plain", S.serializeSelection(sources,scene.fiberLinks));
     } catch (_) {
       announce("部品をコピーできませんでした。現在の設計は変更していません。"); return;
     }
     // Only remove the source after the browser has accepted the clipboard data.
     if (cut) deleteSelected();
-    announce(label(e) + (cut ? "を切り取りました。Ctrl+Vで貼り付け、Ctrl+Zで復元できます。" : "をコピーしました。Ctrl+Vで貼り付けられます。"));
+    announce((sources.length>1?sources.length+"個の部品":label(e)) + (cut ? "を切り取りました。Ctrl+Vで貼り付け、Ctrl+Zで復元できます。" : "をコピーしました。Ctrl+Vで貼り付けられます。"));
   }
   function pasteComponent(event) {
     if (!componentClipboardEvent(event)) return;
     event.preventDefault();
     try {
       if (!event.clipboardData) throw new Error("クリップボードを利用できません。");
-      const source = S.parseComponent(event.clipboardData.getData("text/plain"));
-      if (scene.elements.length >= O.MAX_ELEMENTS) throw new Error("部品は最大" + O.MAX_ELEMENTS + "個までです。");
-      const at = V.pastePosition(source, scene.elements, scene.gridStep, scene.snap);
-      if (!at) throw new Error("配置できる空き位置がありません。グリッドを細かくするか位置吸着を解除してください。");
-      const copy = { ...source, ...at, id: allocateId() };
-      checkpoint(); scene.elements.push(copy); selectedId = copy.id;
-      markEdited(); checkpoint(); syncInspector(); render(); view.focus(copy.id);
-      announce(label(copy) + "を貼り付けました。X " + display(copy.x) + " / Y " + display(copy.y) + " " + scene.unit + "。「戻す」で取り消せます。");
+      const source = S.parseSelection(event.clipboardData.getData("text/plain"));
+      if (scene.elements.length + source.elements.length > O.MAX_ELEMENTS) throw new Error("部品は最大" + O.MAX_ELEMENTS + "個までです。");
+      const delta = V.pasteGroupDelta(source.elements, scene.elements, scene.gridStep, scene.snap);
+      if (!delta) throw new Error("配置できる空き位置がありません。グリッドを細かくするか位置吸着を解除してください。");
+      const copies=insertCopies(source.elements,source.fiberLinks,delta);
+      announce((copies.length>1?copies.length+"個の部品":label(copies[0])) + "を貼り付けました。「戻す」で取り消せます。");
     } catch (error) {
       announce("貼り付けできませんでした。 " + error.message);
     }
@@ -758,7 +788,7 @@
     finishInteraction(true); checkpoint();
     clearProbe();
     invalidateShare();
-    scene = S.validateScene(next); selectedId = scene.fiberLinks[0]?.a ?? scene.elements.find(e => e.type === "lens")?.id ?? scene.elements[0]?.id ?? null;
+    scene = S.validateScene(next); setSelection([scene.fiberLinks[0]?.a ?? scene.elements.find(e => e.type === "lens")?.id ?? scene.elements[0]?.id ?? null]);
     activePresetId = presetId; edited = false; checkpoint(); syncControls(); syncInspector(true); view.fit(scene.elements, scene.fiberLinks || []); render();
   }
 
@@ -826,19 +856,36 @@
     if (!p.moved && Math.hypot(event.clientX - p.startX, event.clientY - p.startY) < 4) return;
     p.moved = true;
     const point = view.point(event);
+    if (p.kind === "marquee") {
+      p.point=point;
+      const ids=V.marqueeIds(scene.elements,p.start,p.point), next=p.additive?[...p.baseIds,...ids]:ids;
+      setSelection(next,selectedIds.includes(p.primaryId)?p.primaryId:ids.at(-1));
+      view.marquee(V.marqueeRect(p.start,p.point)); syncInspector(); requestRender(); return;
+    }
     if (p.kind === "place" || p.kind === "copy") {
       const copying = p.kind === "copy";
       p.inside = view.inside(event);
-      p.point = V.place(point.x - (copying ? p.offsetX : 0), point.y - (copying ? p.offsetY : 0), scene.gridStep, scene.snap);
-      const source = copying ? p.source : O.createElement(p.type, 1, p.point.x, p.point.y);
-      view.preview(p.inside ? { ...source, ...p.point } : null, copying ? "ここに複製" : "ここに配置");
+      const target={x:point.x-(copying?p.offsetX:0),y:point.y-(copying?p.offsetY:0)};
+      if(copying){
+        if(p.shiftKey&&!p.axis)p.axis=Math.abs(target.x-p.anchor.x)>=Math.abs(target.y-p.anchor.y)?'x':'y';
+        p.delta=V.groupDelta(p.sources,p.anchor,target,scene.gridStep,scene.snap,p.axis);
+        view.previewGroup(p.inside?p.sources.map(e=>({...e,x:e.x+p.delta.x,y:e.y+p.delta.y})):[],"ここに複製");
+      } else {
+        p.point=V.place(target.x,target.y,scene.gridStep,scene.snap);
+        view.preview(p.inside?{...O.createElement(p.type,1,p.point.x,p.point.y),...p.point}:null,"ここに配置");
+      }
       $("placement-cursor").hidden = p.inside;
       $("placement-cursor").style.left = event.clientX + 14 + "px"; $("placement-cursor").style.top = event.clientY + 14 + "px";
       bench.classList.toggle("accepting-drop", p.inside); return;
     }
     const e = scene.elements.find(item => item.id === p.id);
     if (!e) return;
-    if (p.kind === "move") Object.assign(e, V.place(point.x - p.offsetX, point.y - p.offsetY, scene.gridStep, scene.snap));
+    if (p.kind === "move") {
+      const target={x:point.x-p.offsetX,y:point.y-p.offsetY};
+      if(p.shiftKey&&!p.axis)p.axis=Math.abs(target.x-p.anchor.x)>=Math.abs(target.y-p.anchor.y)?'x':'y';
+      p.delta=V.groupDelta(p.sources,p.anchor,target,scene.gridStep,scene.snap,p.axis);
+      for(const before of p.before){const member=scene.elements.find(item=>item.id===before.id);if(member)Object.assign(member,{x:before.x+p.delta.x,y:before.y+p.delta.y});}
+    }
     else e.angle = V.snapAngle(Math.atan2(point.y - e.y, point.x - e.x) * 180 / Math.PI, scene.angleSnap);
     syncInspector(); requestRender();
   }
@@ -852,14 +899,20 @@
       if (!cancel && p.moved && p.inside) addElement(p.type, p.point);
       else if (p.moved || cancel) announce("配置を取り消しました。テーブル内へドラッグしてください。");
     } else if (p.kind === "copy") {
-      view.preview(null); $("placement-cursor").hidden = true; bench.classList.remove("accepting-drop", "is-copying");
+      view.previewGroup([]); $("placement-cursor").hidden = true; bench.classList.remove("accepting-drop", "is-copying");
       if (!cancel && p.moved && p.inside) {
-        if (scene.elements.length >= O.MAX_ELEMENTS) { announce("部品は最大" + O.MAX_ELEMENTS + "個までです。"); return; }
-        const copy = { ...p.source, ...p.point, id: allocateId() };
-        checkpoint(); scene.elements.push(copy); selectedId = copy.id;
-        markEdited(); checkpoint(); syncInspector(); render(); view.focus(copy.id);
-        announce(label(copy) + "を X " + display(copy.x) + " / Y " + display(copy.y) + " " + scene.unit + " に複製しました。「戻す」で取り消せます。");
+        try { const copies=insertCopies(p.sources,p.links,p.delta); announce((copies.length>1?copies.length+"個の部品":label(copies[0]))+"を複製しました。「戻す」で取り消せます。"); }
+        catch(error){announce("複製できませんでした。 "+error.message);}
       } else if (p.moved || cancel) announce("複製を取り消しました。元の部品は変更していません。");
+      else { setSelection(p.clickIds,p.id); rememberSelection(); syncInspector(); render(); }
+    } else if (p.kind === "marquee") {
+      view.marquee(null);
+      if(cancel)setSelection(p.baseIds,p.primaryId);
+      else if(!p.moved){
+        setSelection(p.baseIds,p.primaryId);
+        if(!p.additive)inspectPoint(p.start);
+      }
+      rememberSelection();syncInspector();render();
     } else if (p.kind === "range") {
       if (cancel) { scene = S.parse(p.before); edited = p.edited; }
       checkpoint(); syncInspector(cancel); render();
@@ -868,11 +921,13 @@
       else if (!p.moved) inspectPoint(p.point);
     } else {
       const e = scene.elements.find(item => item.id === p.id);
-      if (e && cancel) Object.assign(e, p.before);
-      if (!cancel && p.moved) { markEdited(); checkpoint(); }
+      const changed=p.before.some(before=>{const member=scene.elements.find(item=>item.id===before.id);return member&&(member.x!==before.x||member.y!==before.y||member.angle!==before.angle);});
+      if(cancel){for(const before of p.before){const member=scene.elements.find(item=>item.id===before.id);if(member)Object.assign(member,before);}setSelection(p.previousIds,p.previousPrimary);}
+      else if(!p.moved){setSelection(p.clickIds,p.id);rememberSelection();}
+      if (!cancel && p.moved && changed) { markEdited(); checkpoint(); }
       syncInspector(); render();
-      if (p.moved) announce(cancel ? "操作を取り消しました。" : p.kind === "move" ?
-        label(e) + "を X " + display(e.x) + " / Y " + display(e.y) + " " + scene.unit + " に移動しました。" : "配置角度を " + num(e.angle) + "° にしました。");
+      if (p.moved) announce(cancel ? "操作を取り消しました。" : !changed ? "移動できる範囲の上限です。" : p.kind === "move" ?
+        (p.sources.length>1?p.sources.length+"個の部品":label(e)) + "を移動しました。" : "配置角度を " + num(e.angle) + "° にしました。");
     }
   }
   bench.addEventListener("pointerdown", event => {
@@ -881,22 +936,28 @@
     window.getSelection()?.removeAllRanges();
     const target = event.target.closest("[data-element-id]");
     if (target) {
-      const id = Number(target.dataset.elementId); select(id); view.focus(id);
+      const id = Number(target.dataset.elementId), previousIds=[...selectedIds], previousPrimary=selectedId;
+      const rotating=Boolean(event.target.closest("[data-rotate]")), copying=!rotating&&(event.ctrlKey||event.metaKey);
+      const clickIds=event.shiftKey&&!copying?(previousIds.includes(id)?previousIds.filter(i=>i!==id):[...previousIds,id]):[id];
+      if(previousIds.includes(id)&&!rotating)setSelection(previousIds,id);else setSelection([...previousIds.filter(i=>event.shiftKey&&!copying),id],id);
+      syncInspector();render();view.focus(id);
       const e = selected(), p = view.point(event);
       // Latch the gesture when grabbed; releasing Ctrl before dropping still copies.
-      const kind = event.target.closest("[data-rotate]") ? "rotate" : (event.ctrlKey || event.metaKey) ? "copy" : "move";
-      if (kind === "copy" && scene.elements.length >= O.MAX_ELEMENTS) { announce("部品は最大" + O.MAX_ELEMENTS + "個までです。"); return; }
+      const kind = rotating ? "rotate" : copying ? "copy" : "move", sources=selectedElements();
+      if (kind === "copy" && scene.elements.length+sources.length>O.MAX_ELEMENTS) { announce("部品は最大" + O.MAX_ELEMENTS + "個までです。");setSelection(previousIds,previousPrimary);return; }
       pending = { kind, id, owner: bench, pointerId: event.pointerId,
-        startX: event.clientX, startY: event.clientY, moved: false, offsetX: p.x - e.x, offsetY: p.y - e.y, before: { x: e.x, y: e.y, angle: e.angle } };
+        startX:event.clientX,startY:event.clientY,moved:false,offsetX:p.x-e.x,offsetY:p.y-e.y,anchor:{x:e.x,y:e.y},sources:sources.map(e=>({...e})),
+        before:sources.map(e=>({id:e.id,x:e.x,y:e.y,angle:e.angle})),previousIds,previousPrimary,clickIds,shiftKey:event.shiftKey,axis:null,delta:{x:0,y:0} };
       if (kind === "copy") {
-        pending.source = { ...e }; pending.inside = false;
+        pending.links=scene.fiberLinks.filter(l=>selectedIds.includes(l.a)&&selectedIds.includes(l.b)); pending.inside=false;
         bench.classList.add("is-copying"); $("placement-cursor").textContent = label(e) + "の複製をテーブルへ";
       }
     } else {
       bench.focus({ preventScroll: true });
-      pending = { kind: "pan", owner: bench, pointerId: event.pointerId, lastX: event.clientX, lastY: event.clientY,
-        startX: event.clientX, startY: event.clientY, moved: false, point: view.point(event), view: view.getView() };
-      bench.classList.add("is-panning");
+      const point=view.point(event), pan=pointerTool==='pan'||spaceHeld||event.ctrlKey||event.metaKey;
+      pending = pan ? {kind:"pan",owner:bench,pointerId:event.pointerId,lastX:event.clientX,lastY:event.clientY,startX:event.clientX,startY:event.clientY,moved:false,point,view:view.getView()} :
+        {kind:"marquee",owner:bench,pointerId:event.pointerId,startX:event.clientX,startY:event.clientY,start:point,point,moved:false,additive:event.shiftKey,baseIds:[...selectedIds],primaryId:selectedId};
+      if(pan)bench.classList.add("is-panning");else {view.marquee(V.marqueeRect(point,point));syncInspector();render();}
     }
     bench.setPointerCapture(event.pointerId);
   });
@@ -905,10 +966,10 @@
   document.addEventListener("pointerup", event => { if (event.pointerId === pending?.pointerId) { updateInteraction(event); finishInteraction(); } });
   document.addEventListener("pointercancel", event => { if (event.pointerId === pending?.pointerId) finishInteraction(true); });
   bench.addEventListener("lostpointercapture", () => { if (pending?.owner === bench) finishInteraction(true); });
-  window.addEventListener("blur", () => finishInteraction(true));
+  window.addEventListener("blur", () => { spaceHeld=false; bench.classList.remove("space-pan"); finishInteraction(true); });
   bench.addEventListener("focusin", event => {
     const target = event.target.closest("[data-element-id]");
-    if (target && Number(target.dataset.elementId) !== selectedId) select(Number(target.dataset.elementId));
+    if (target && !selectedIds.includes(Number(target.dataset.elementId))) select(Number(target.dataset.elementId));
   });
   bench.addEventListener("wheel", event => {
     if (!event.shiftKey || pending) return;
@@ -921,8 +982,10 @@
     if (event.key === "Escape" && pending) { event.preventDefault(); finishInteraction(true); return; }
     if (isTextEditing(event.target)) return;
     if (event.key === "Escape" && probe) { event.preventDefault(); clearProbe(true); return; }
+    if (event.key === "Escape" && selectedIds.length) { event.preventDefault(); checkpoint(); setSelection([]); rememberSelection(); syncInspector(); render(); bench.focus({ preventScroll: true }); return; }
     const key = event.key.toLowerCase();
     if ((event.ctrlKey || event.metaKey) && !event.altKey) {
+      if(key==="a"&&!isTextEditing(event.target)&&bench.contains(event.target)){event.preventDefault();selectAll();return;}
       if (key === "z" || (key === "y" && !event.shiftKey)) {
         event.preventDefault(); undo(key === "y" || event.shiftKey ? 1 : -1); return;
       }
@@ -935,19 +998,26 @@
         event.preventDefault(); if (!pending && !event.repeat) duplicateSelected(); return;
       }
     }
+    if(event.key===" "&&!event.ctrlKey&&!event.metaKey&&!event.altKey&&bench.contains(event.target)){
+      event.preventDefault();spaceHeld=true;bench.classList.add("space-pan");return;
+    }
     if (event.ctrlKey || event.metaKey || event.altKey || pending || !bench.contains(event.target)) return;
     const e = selected(); if (!e) return;
     const moves = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
     if (moves[event.key]) {
       event.preventDefault(); checkpoint();
       const [dx, dy] = moves[event.key];
-      Object.assign(e, V.nudge(e, dx, dy, scene.gridStep, scene.snap, event.shiftKey ? 10 : 1));
+      const at=V.nudge(e,dx,dy,scene.gridStep,scene.snap,event.shiftKey?10:1),members=selectedElements();
+      const delta=V.groupDelta(members,e,at,scene.gridStep,scene.snap);
+      if(!delta.x&&!delta.y){announce("移動できる範囲の上限です。");return;}
+      for(const member of members){member.x+=delta.x;member.y+=delta.y;}
       markEdited(); checkpoint(); syncInspector(); render();
       announce("X " + display(e.x) + " / Y " + display(e.y) + " " + scene.unit);
     } else if (key === "r") { event.preventDefault(); rotateSelected(event.shiftKey ? -22.5 : 22.5); }
     else if (["Delete", "Backspace"].includes(event.key)) { event.preventDefault(); deleteSelected(); }
-    else if (["Enter", " "].includes(event.key)) { event.preventDefault(); announce(label(e) + "を選択中。矢印キーで移動できます。"); }
+    else if (event.key==="Enter") { event.preventDefault(); announce((selectedIds.length>1?selectedIds.length+"個の部品":label(e)) + "を選択中。矢印キーで移動できます。"); }
   });
+  document.addEventListener("keyup",event=>{if(event.key===" "){spaceHeld=false;bench.classList.remove("space-pan");}});
   document.addEventListener("copy", event => copySelected(event));
   document.addEventListener("cut", event => copySelected(event, true));
   document.addEventListener("paste", pasteComponent);
@@ -1005,6 +1075,10 @@
     if (applyField(input)) { checkpoint(); syncInspector(); }
   });
   $("element-select").addEventListener("change", event => select(Number(event.target.value)));
+  $("select-tool").addEventListener("click",()=>{pointerTool="select";bench.classList.remove("pan-tool");$("select-tool").setAttribute("aria-pressed","true");$("pan-tool").setAttribute("aria-pressed","false");bench.focus({preventScroll:true});});
+  $("pan-tool").addEventListener("click",()=>{pointerTool="pan";bench.classList.add("pan-tool");$("select-tool").setAttribute("aria-pressed","false");$("pan-tool").setAttribute("aria-pressed","true");bench.focus({preventScroll:true});});
+  $("select-all").addEventListener("click",selectAll);
+  $("clear-selection").addEventListener("click",()=>{checkpoint();setSelection([]);rememberSelection();syncInspector();render();bench.focus({preventScroll:true});});
   $("rotate").addEventListener("click", () => rotateSelected());
   $("duplicate").addEventListener("click", duplicateSelected);
   $("delete").addEventListener("click", deleteSelected);

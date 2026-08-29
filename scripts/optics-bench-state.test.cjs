@@ -40,6 +40,17 @@ test('source bandwidth and sampling survive design, component and compressed-lin
   }
 });
 
+test('multi-component clipboard records retain precision and internal fiber links while single copies stay compatible', () => {
+  const a={...O.createElement('fiber',7,100.125,200.25),label:'入力'},b={...O.createElement('fiber',9,500.75,600.5),angle:180,label:'出力'};
+  const selection=S.serializeSelection([a,b],[{a:7,b:9}]);assert.match(selection,/^Optics Bench selection v1\n/);
+  assert.deepEqual(S.parseSelection(selection),{elements:[a,b],fiberLinks:[{a:7,b:9}]});
+  assert.deepEqual(S.parseSelection(selection.replace(/\n/g,'\r\n')),{elements:[a,b],fiberLinks:[{a:7,b:9}]});
+  const one=S.serializeSelection([a],[{a:7,b:9}]);assert.match(one,/^Optics Bench component v1\n/);
+  assert.deepEqual(S.parseSelection(one),{elements:[a],fiberLinks:[]});assert.deepEqual(S.parseComponent(one),a);
+  assert.throws(()=>S.serializeSelection([],[]));assert.throws(()=>S.parseSelection('not optics'));
+  assert.throws(()=>S.parseSelection(S.SELECTION_PREFIX+JSON.stringify({...S.defaultScene([a]),extra:true})));
+});
+
 test('legacy source records stay monochromatic and omit default spectral fields when saved', () => {
   const scene=basic(), record=JSON.parse(S.serialize(scene));
   assert.equal(Object.hasOwn(record.elements[0],'wavelengthWidth'),false);

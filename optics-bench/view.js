@@ -78,6 +78,33 @@
     }
     return null;
   }
+  function marqueeRect(a, b) {
+    return { x: Math.min(a.x,b.x), y: Math.min(a.y,b.y), width: Math.abs(b.x-a.x), height: Math.abs(b.y-a.y) };
+  }
+  function marqueeIds(elements, a, b) {
+    const r=marqueeRect(a,b);
+    return elements.filter(e=>e.x>=r.x && e.x<=r.x+r.width && e.y>=r.y && e.y<=r.y+r.height).map(e=>e.id);
+  }
+  // Snap the grabbed anchor once, then clamp one common displacement. Never
+  // snap or clamp members separately: off-grid preset spacing must survive.
+  function groupDelta(elements, anchor, target, gridStep, snap = true, axis = null) {
+    if (!elements.length) return {x:0,y:0};
+    const at=place(target.x,target.y,gridStep,snap), limit=O.COORDINATE_LIMIT;
+    const dx=axis==='y'?0:at.x-anchor.x, dy=axis==='x'?0:at.y-anchor.y;
+    return {x:clamp(dx,-limit-Math.min(...elements.map(e=>e.x)),limit-Math.max(...elements.map(e=>e.x))),
+      y:clamp(dy,-limit-Math.min(...elements.map(e=>e.y)),limit-Math.max(...elements.map(e=>e.y)))};
+  }
+  function pasteGroupDelta(group, elements, gridStep, snap = true) {
+    if (!group.length) return null;
+    const free=d=>group.every(g=>elements.every(e=>Math.abs(g.x+d.x-e.x)>1e-6 || Math.abs(g.y+d.y-e.y)>1e-6));
+    if (free({x:0,y:0})) return {x:0,y:0};
+    const anchor=group[0], step=snap?Math.max(gridStep,25):25;
+    for(let r=1;r<=elements.length+1;r++)for(let i=r;i>-r;i--)for(const [dx,dy] of [[r,i],[i,-r],[-r,-i],[-i,r]]) {
+      const d=groupDelta(group,anchor,{x:anchor.x+dx*step,y:anchor.y+dy*step},gridStep,snap);
+      if(free(d))return d;
+    }
+    return null;
+  }
   function zoomAt(view, factor, anchor) {
     if (!Number.isFinite(factor) || factor <= 0) return { ...view };
     const width = clamp(view.width / factor, MIN_VIEW_WIDTH, MAX_VIEW_WIDTH);
@@ -244,7 +271,7 @@
       else body.append(box(-4,-half,8,e.aperture,'#82745b','#e3cda5'),line([-4,-half],[-4,half],'#f7e7c4',2));
       return body;
     }
-    function drawNode(e, selectedId, showLabels, isPreview = false, previewLabel = 'ここに配置') {
+    function drawNode(e, selectedId, showLabels, isPreview = false, previewLabel = 'ここに配置', selectedIds = [selectedId]) {
       let entry = !isPreview && nodes.get(e.id);
       if (!entry) {
         const node = make('g',isPreview?{class:'optical-element placement-preview'}:{class:'optical-element','data-element-id':e.id,role:'button',tabindex:0});
@@ -253,9 +280,10 @@
       }
       const n=entry.node,k=pixel(),half=['laser','point'].includes(e.type)?Math.max(18,Math.min(65,e.beamWidth/2+4)):e.aperture/2;
       n.setAttribute('transform',`translate(${e.x} ${e.y})`);
-      n.classList.toggle('is-selected',e.id===selectedId);
+      n.classList.toggle('is-selected',selectedIds.includes(e.id));
+      n.classList.toggle('is-primary',e.id===selectedId);
       n.classList.toggle('is-disabled',!e.enabled);
-      if(!isPreview){const mate=fiberMate(e),kind=e.label&&['splitter','pbs'].includes(e.type)?'、'+O.TYPES[e.type].label:'';n.setAttribute('aria-pressed',String(e.id===selectedId));n.setAttribute('aria-label',`${title(e)}${kind}。X ${round(e.x)}、Y ${round(e.y)} mm、角度 ${round(e.angle)} 度${e.enabled?'':'、無効'}${mate?'、接続先 '+title(mate):''}`);}
+      if(!isPreview){const mate=fiberMate(e),kind=e.label&&['splitter','pbs'].includes(e.type)?'、'+O.TYPES[e.type].label:'';n.setAttribute('aria-pressed',String(selectedIds.includes(e.id)));n.setAttribute('aria-label',`${title(e)}${kind}。X ${round(e.x)}、Y ${round(e.y)} mm、角度 ${round(e.angle)} 度${e.enabled?'':'、無効'}${mate?'、接続先 '+title(mate):''}`);}
       const sag=e.type==='concave'?O.concaveGeometry(e).sag:0,isBS=['splitter','pbs'].includes(e.type);
       const hitHalf=Math.max(isBS?half+4:12,10*k),ringHalf=isBS?half+8:18;
       const body=bodyFor(e),hit=make('rect',{x:e.type==='laser'?-38:-sag-hitHalf,y:-Math.max(half+4,13*k),width:e.type==='laser'?48:sag+2*hitHalf,height:Math.max(half*2+8,26*k),class:'element-hit'});
@@ -266,7 +294,7 @@
         const axis=O.direction(e.angle),radius=Math.max(half+20,32*k);
         children.push(make('line',{x1:0,y1:0,x2:axis.x*radius,y2:axis.y*radius,class:'rotation-arm'}),make('circle',{cx:axis.x*radius,cy:axis.y*radius,r:5*k,class:'rotation-handle','data-rotate':e.id}));
       }
-      if(showLabels||isPreview){
+      if(showLabels||isPreview&&previewLabel){
         const name=isPreview?previewLabel:!e.label&&['splitter','pbs'].includes(e.type)?`${O.TYPES[e.type].short} ${e.id}`:title(e);
         const axis=O.direction(e.angle),sideLabel=Math.abs(axis.y)>.65&&!['laser','splitter','pbs'].includes(e.type),side=e.enabled?1:-1;
         const above=e.type==='concave'||e.type==='fiber'&&fiberMate(e)&&!isPreview;
@@ -301,13 +329,13 @@
       byId('rulers').replaceChildren(...labels);
       byId('grid-readout').textContent=`grid ${round(scene.gridStep/scale)} ${scene.unit}${step!==scene.gridStep?' · 表示線 '+round(step/scale)+' '+scene.unit:''}`;
     }
-    function draw(scene, selectedId, result, showLabels=true) {
-      cache=[scene,selectedId,result,showLabels]; grid(scene);
+    function draw(scene, selectedId, result, showLabels=true, selectedIds=[selectedId]) {
+      cache=[scene,selectedId,result,showLabels,selectedIds]; grid(scene);
       const cables=[];
       for(const link of scene.fiberLinks||[]){
         const a=scene.elements.find(e=>e.id===link.a),b=scene.elements.find(e=>e.id===link.b);
         if(!a||!b)continue;
-        const active=a.enabled&&b.enabled,selected=selectedId===a.id||selectedId===b.id;
+        const active=a.enabled&&b.enabled,selected=selectedIds.includes(a.id)||selectedIds.includes(b.id);
         const group=make('g',{'data-fiber-link':`${a.id}:${b.id}`,opacity:active?1:.4});
         const shape={d:fiberCablePath(a,b),fill:'none','vector-effect':'non-scaling-stroke','stroke-linecap':'round'};
         group.append(make('title',{},`${title(a)} ↔ ${title(b)}（模式的な接続線）`),
@@ -317,7 +345,7 @@
       }
       byId('fiber-links').replaceChildren(...cables);
       for(const [id,entry] of nodes)if(!scene.elements.some(e=>e.id===id)){entry.node.remove();nodes.delete(id);}
-      for(const e of scene.elements)drawNode(e,selectedId,showLabels);
+      for(const e of scene.elements)drawNode(e,selectedId,showLabels,false,'ここに配置',selectedIds);
       const displayed=displaySegments(result.segments),maxPower=Math.max(...displayed.map(s=>s.power),1e-10);
       byId('rays').replaceChildren(...displayed.map(s=>make('line',{x1:s.a.x,y1:s.a.y,x2:s.b.x,y2:s.b.y,stroke:s.color,'stroke-width':1.35,opacity:Math.max(.16,Math.min(.95,Math.sqrt(s.power/maxPower))),'vector-effect':'non-scaling-stroke',...(s.nonvisible?{'stroke-dasharray':'5 5'}:{})})));
       const e=scene.elements.find(item=>item.id===selectedId),guides=[],k=pixel();
@@ -346,20 +374,22 @@
     }
     function markProbe(value) { probe = value; drawProbe(); }
     function preview(e, message = 'ここに配置') { byId('placement').replaceChildren(...(e?[drawNode(e,-1,true,true,message)]:[])); }
+    function previewGroup(elements, message = 'ここに複製') { byId('placement').replaceChildren(...elements.map((e,i)=>drawNode(e,-1,i===0,true,i===0?message:''))); }
+    function marquee(rect) { byId('selection-marquee').replaceChildren(...(rect?[make('rect',{...rect,class:'marquee-box','vector-effect':'non-scaling-stroke'})]:[])); }
     function exportSvg(name) {
       const copy=bench.cloneNode(true), area=visibleBounds();
       copy.setAttribute('viewBox',`${area.x} ${area.y} ${area.width} ${area.height}`);
       copy.setAttribute('xmlns',ns);copy.setAttribute('width','1400');copy.setAttribute('height',String(Math.round(1400*area.height/area.width)));
       copy.removeAttribute('tabindex');copy.removeAttribute('class');
-      for(const node of copy.querySelectorAll('.selection-ring,.rotation-handle,.rotation-arm,#placement,.element-hit,#ray-probe'))node.remove();
+      for(const node of copy.querySelectorAll('.selection-ring,.rotation-handle,.rotation-arm,#placement,.element-hit,#ray-probe,#selection-marquee'))node.remove();
       for(const node of copy.querySelectorAll('[tabindex]'))node.removeAttribute('tabindex');
       const style=make('style',{},'.element-name{fill:#deebe6;paint-order:stroke;stroke:#142831;stroke-width:4;stroke-linejoin:round}.element-info{fill:#b5cec4;paint-order:stroke;stroke:#142831;stroke-width:3}.is-disabled{opacity:.32}#rulers{fill:#9aafaf;font-family:monospace}text{font-family:Segoe UI,sans-serif}');
       copy.prepend(make('rect',{x:area.x,y:area.y,width:area.width,height:area.height,fill:'#142831'}),style,make('title',{},name));
       return new XMLSerializer().serializeToString(copy);
     }
-    return { draw,point,inside,preview,exportSvg,markProbe,worldPerPixel:pixel,visibleBounds,
+    return { draw,point,inside,preview,previewGroup,marquee,exportSvg,markProbe,worldPerPixel:pixel,visibleBounds,
       fit:(elements=cache?.[0]?.elements||[],fiberLinks=cache?.[0]?.fiberLinks||[])=>setView(fitView(elements,bench.getBoundingClientRect(),fiberLinks)),
       getView:()=>({...viewport}),setView,zoom:(factor,anchor)=>setView(zoomAt(viewport,factor,anchor||{x:viewport.x+viewport.width/2,y:viewport.y+viewport.height/2})),focus:id=>nodes.get(id)?.node.focus({preventScroll:true}),title };
   }
-  return {BASE_VIEW,MIN_VIEW_WIDTH,MAX_VIEW_WIDTH,snapAngle,place,nudge,pastePosition,zoomAt,clampView,fitView,fiberCablePoints,fiberCablePath,pickSegments,polarizationState,formatWavelength,spectrumLabel,spectrumSwatch,displaySegments,symbols,create};
+  return {BASE_VIEW,MIN_VIEW_WIDTH,MAX_VIEW_WIDTH,snapAngle,place,nudge,pastePosition,marqueeRect,marqueeIds,groupDelta,pasteGroupDelta,zoomAt,clampView,fitView,fiberCablePoints,fiberCablePath,pickSegments,polarizationState,formatWavelength,spectrumLabel,spectrumSwatch,displaySegments,symbols,create};
 });

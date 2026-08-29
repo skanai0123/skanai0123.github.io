@@ -7,6 +7,7 @@
 
   const FORMAT = "optics-bench", SCHEMA_VERSION = 2, MAX_BYTES = 256 * 1024;
   const COMPONENT_PREFIX = "Optics Bench component v1\n";
+  const SELECTION_PREFIX = "Optics Bench selection v1\n";
   const MAX_ELEMENTS = O.MAX_ELEMENTS, MAX_FIBER_LINKS = O.MAX_FIBER_LINKS;
   const DEFAULTS = Object.freeze({ format: FORMAT, schemaVersion: SCHEMA_VERSION, title: "無題の光学系", unit: "cm", gridStep: 10, snap: true, angleSnap: true });
   const UNITS = Object.freeze({ mm: 1, cm: 10, in: 25.4 });
@@ -232,11 +233,30 @@
     return validateScene({ ...DEFAULTS, ...overrides, elements });
   }
 
+  function serializeSelection(elements, fiberLinks = []) {
+    if (elements.length === 1) return serializeComponent(elements[0]);
+    if (!elements.length) fail("コピーする部品を選択してください。");
+    const ids=new Set(elements.map(e=>e.id));
+    const scene=defaultScene(elements,{unit:"mm",fiberLinks:fiberLinks.filter(l=>ids.has(l.a)&&ids.has(l.b))});
+    const text=SELECTION_PREFIX+serialize(scene);
+    if(byteLength(text)>MAX_BYTES)fail("部品のコピーデータは256 KiB以下にしてください。");
+    return text;
+  }
+  function parseSelection(text) {
+    if(typeof text!=="string" || text.length>MAX_BYTES || byteLength(text)>MAX_BYTES)fail("部品のコピーデータは256 KiB以下のテキストで指定してください。");
+    const normalized=text.replace(/\r?\n/,"\n");
+    if(normalized.startsWith(COMPONENT_PREFIX))return {elements:[parseComponent(text)],fiberLinks:[]};
+    if(!normalized.startsWith(SELECTION_PREFIX))fail("Optics Benchの部品コピー形式ではありません。");
+    const scene=parse(normalized.slice(SELECTION_PREFIX.length));
+    if(!scene.elements.length)fail("コピーする部品がありません。");
+    return {elements:scene.elements,fiberLinks:scene.fiberLinks};
+  }
+
   function switchUnit(scene, unit) {
     unitScale(unit);
     return validateScene({ ...scene, unit, gridStep: defaultGridStep(unit) });
   }
 
-  return Object.freeze({ FORMAT, SCHEMA_VERSION, COMPONENT_PREFIX, MAX_BYTES, MAX_ELEMENTS, MAX_FIBER_LINKS, DEFAULTS, defaults: DEFAULTS, UNITS,
-    validateScene, parse, serialize, serializeComponent, parseComponent, defaultScene, unitScale, defaultGridStep, fromDisplay, toDisplay, switchUnit });
+  return Object.freeze({ FORMAT, SCHEMA_VERSION, COMPONENT_PREFIX, SELECTION_PREFIX, MAX_BYTES, MAX_ELEMENTS, MAX_FIBER_LINKS, DEFAULTS, defaults: DEFAULTS, UNITS,
+    validateScene, parse, serialize, serializeComponent, parseComponent, serializeSelection, parseSelection, defaultScene, unitScale, defaultGridStep, fromDisplay, toDisplay, switchUnit });
 });
