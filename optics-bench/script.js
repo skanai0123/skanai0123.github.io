@@ -122,6 +122,8 @@
     const limits = { ...O.PARAM_LIMITS[key] };
     if (isSource(e) && key === "wavelength") { limits.min += e.wavelengthWidth / 2; limits.max -= e.wavelengthWidth / 2; }
     if (isSource(e) && key === "wavelengthWidth") limits.max = 2 * Math.min(e.wavelength - O.PARAM_LIMITS.wavelength.min, O.PARAM_LIMITS.wavelength.max - e.wavelength);
+    if (e.type === "fluorescent" && key === "wavelength") limits.min = Math.max(limits.min, e.cutoff);
+    if (e.type === "fluorescent" && key === "cutoff") limits.max = Math.min(limits.max, e.wavelength);
     if (key === "focal" && e.type === "concave") limits.min = 1;
     if (key === "opening" || key === "coreDiameter") limits.max = Math.min(limits.max, e.aperture);
     return limits;
@@ -181,6 +183,7 @@
       e.type === "fiber" ? "入射する光の進行方向。0°＝右向き入射。接続時の出射は反対向き（＋180°）。" :
       e.type === "concave" ? "頂点の法線。0°は凹面が左向き、180°は右向き。裏面は吸収。" :
       e.type === "camera" ? "受光する光の進行方向。0°は右向き入射を受光。裏面は吸収。" :
+      e.type === "fluorescent" ? "板面の法線と蛍光の発光扇形の中心。発光角360°では両側へ放出。" :
       e.type === "mirror" ? "反射面から裏面へ向かう法線。0°は表面が左向き、180°は右向き。裏面入射は吸収。45°で右向きの光を上へ反射。" :
       ["dichroic", "splitter", "pbs"].includes(e.type) ? "面の法線。45°で右向きの光を上へ反射。" : "光軸 / 面の法線。0°＝水平な光路。";
     fields.append(makeField("angle", { hint: angleHint + " 数値入力は任意角度。" }));
@@ -204,7 +207,7 @@
       ] }), makeField("polAngle", { hint: "偏光の0°はベンチ面に垂直な方向。配置角度とは別です。" }));
     } else {
       const isBS = ["splitter", "pbs"].includes(e.type);
-      fields.append(makeField("aperture", { title: e.type === "camera" ? "センサー幅" : isBS ? "分離面の長さ" : names.aperture,
+      fields.append(makeField("aperture", { title: e.type === "camera" ? "センサー幅" : e.type === "fluorescent" ? "蛍光板の幅" : isBS ? "分離面の長さ" : names.aperture,
         hint: isBS ? "プリズム中央の対角線の長さ。標準36 mm。外形は表示用で、光は厚さ0の分離面だけで反射・透過します。屈折・光路長の追加はありません。" :
           e.type === "mirror" ? "X/Y座標は反射面の中心です。位置吸着時はこの中心がグリッド交点に合い、この幅の外側を通る光線は当たりません。" : "この幅の外側を通る光線は部品に当たりません。" }));
       if (e.type === "camera") {
@@ -215,6 +218,16 @@
         auto.append(check, document.createTextNode("像の明るさを自動調整"));
         fields.append(auto, makeField("exposure", { hint: "表示だけの倍率。自動OFFでは1画素P=1が基準。露光時間・感度・受光パワー自体は変えません。" }));
         fields.append(node("p", "param-note", "レンズを内蔵しないセンサー面です。外付けレンズで結像させ、下のカメラビューで像を確認できます。縦方向・回折・干渉・ノイズは未計算。"));
+      }
+      if (e.type === "fluorescent") {
+        fields.append(
+          makeField("cutoff", { title: "励起波長の上限", hint: "この波長以下の入射光を蛍光へ変換。長波長側は吸収し、蛍光を出しません。" }),
+          makeField("wavelength", { title: "蛍光波長", hint: "励起上限以上の単一波長として再放出します。" }),
+          makeField("transmission", { range: true, title: "蛍光変換効率 η", hint: "入射Pのうち蛍光として再放出する割合。残りは吸収されます。" }),
+          makeField("divergence", { title: "蛍光の発光角（全角）", hint: "2Dの発光扇形。360°では板の両側へ全周発光します。" }),
+          makeField("rayCount", { title: "蛍光の光線サンプル数", hint: "蛍光Pをこの本数へ均等に分けます。増やすと角度サンプリングが細かくなります。" }),
+          node("p", "param-note", "励起光を吸収して、無偏光の単色蛍光へ瞬時に変換する理想2Dモデルです。寿命・発光スペクトル・再吸収・散乱・量子収率とエネルギー収支の違いは未計算。")
+        );
       }
       if (e.type === "lens" || e.type === "objective") fields.append(makeField("focal", { hint: "正＝集光、負＝発散。|f| ≥ " + display(1) + " " + scene.unit + "。近軸薄レンズモデル。" }));
       if (e.type === "concave") fields.append(
@@ -415,7 +428,7 @@
       return row;
     });
     $("source-readout").replaceChildren(...(sourceRows.length ? sourceRows : [node("p", "subtle", "光源を配置してください。")]));
-    const detectors = scene.elements.filter(e => ["fiber", "screen", "camera"].includes(e.type)), emitted = new Map(), forwarded = new Map();
+    const detectors = scene.elements.filter(e => ["fiber", "screen", "camera", "fluorescent"].includes(e.type)), emitted = new Map(), forwarded = new Map();
     for (const transfer of result.fiberTransfers || []) {
       emitted.set(transfer.toId, (emitted.get(transfer.toId) || 0) + transfer.power);
       forwarded.set(transfer.fromId, (forwarded.get(transfer.fromId) || 0) + transfer.power);
@@ -427,12 +440,13 @@
       const d = result.detectors.find(item => item.id === e.id), row = node("tr"), cell = node("td");
       const b = node("button", "", label(e)); b.type = "button"; b.dataset.select = String(e.id); cell.append(b);
       row.append(cell, node("td", "", e.enabled ? power(d?.power || 0) : "OFF"),
-        node("td", "", e.type === "fiber" ? (e.enabled ? power(emitted.get(e.id) || 0) : "OFF") : "—"),
+        node("td", "", e.type === "fiber" ? (e.enabled ? power(emitted.get(e.id) || 0) : "OFF") :
+          e.type === "fluorescent" ? (e.enabled ? power(d?.emittedPower || 0) : "OFF") : "—"),
         node("td", "", String(d?.acceptedHits || 0)), node("td", "", d?.acceptedHits ? String(num(S.toDisplay(d.span, scene.unit), 4)) : "—"));
       body.append(row);
     }
     table.append(body);
-    $("detector-readout").replaceChildren(detectors.length ? table : node("p", "subtle", "スクリーン・カメラ・ファイバーを光路に置くと受光を確認できます。"));
+    $("detector-readout").replaceChildren(detectors.length ? table : node("p", "subtle", "スクリーン・カメラ・蛍光板・ファイバーを光路に置くと受光を確認できます。"));
     const e = selected(), output = $("selected-output"); output.replaceChildren();
     if (!e) return;
     if (isSource(e)) {
@@ -462,6 +476,11 @@
           output.append(node("p", "", "重心 X " + display(d.centroid.x) + " / Y " + display(d.centroid.y) + " " + scene.unit));
           for (const [wavelength, p] of Object.entries(d.powerByWavelength || {})) output.append(node("p", "", V.formatWavelength(Number(wavelength)) + " nm : P " + power(p)));
         }
+      } else if (e.type === "fluorescent") {
+        output.append(node("strong", "", e.enabled ? "蛍光変換" : "無効の部品"),
+          node("p", "", "励起 P = " + power(d?.power || 0) + " / 入射 P = " + power(d?.incidentPower || 0)),
+          node("p", "", "蛍光 P = " + power(d?.emittedPower || 0) + " / 発光線 " + (d?.emittedHits || 0) + " 本"),
+          node("p", "", `λ ≤ ${V.formatWavelength(e.cutoff)} nm → ${V.formatWavelength(e.wavelength)} nm・無偏光`));
       } else if (e.type === "pbs") output.append(node("p", "", "分岐前後の光路をクリックして偏光を確認できます。透過pはQ/I = −1、反射sはQ/I = +1（光がある場合）。"));
       else if (["polarizer", "waveplate", "halfwave"].includes(e.type)) output.append(node("p", "", "素子の前後の光路をクリックして、偏光楕円・Q/I・U/I・V/Iを確認できます。"));
     }
@@ -809,9 +828,9 @@
 
   const groups = [
     ["光源", ["laser", "point"]],
-    ["光路", ["mirror", "concave", "lens", "objective", "iris", "blocker", "filter", "dichroic", "splitter", "pbs"]],
-    ["偏光・位相", ["polarizer", "waveplate", "halfwave", "phase"]],
-    ["検出・終端", ["fiber", "camera", "screen"]]
+    ["検出・撮像", ["camera", "screen", "fluorescent"]],
+    ["光路", ["mirror", "concave", "lens", "objective", "iris", "blocker", "filter", "dichroic", "splitter", "pbs", "fiber"]],
+    ["偏光・位相", ["polarizer", "waveplate", "halfwave", "phase"]]
   ];
   for (const [heading, types] of groups) {
     const group = node("div", "palette-group"); group.append(node("h3", "", heading));

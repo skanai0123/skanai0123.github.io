@@ -533,12 +533,21 @@ test('palette parts expose the requested defaults in centimetres', () => {
 test('the beam blocker stays in the optical-path palette group and remains placeable', () => {
   const h=editorHarness(),groups=h.get('palette-buttons').children;
   const optical=groups.find(group=>group.children[0].textContent==='光路');
-  const terminal=groups.find(group=>group.children[0].textContent==='検出・終端');
+  const detection=groups.find(group=>group.children[0].textContent==='検出・撮像');
   const blocker=optical.querySelector('[data-add="blocker"]');
-  assert.ok(blocker);assert.equal(terminal.querySelector('[data-add="blocker"]'),null);
-  assert.equal(groups.flatMap(group=>group.querySelectorAll('.part-button')).length,19);
+  assert.ok(blocker);assert.equal(detection.querySelector('[data-add="blocker"]'),null);
+  assert.equal(groups.flatMap(group=>group.querySelectorAll('.part-button')).length,20);
   h.click('new-scene');h.fire('click',blocker);
   assert.equal(h.selected().type,'blocker');assert.match(h.get('status').textContent,/ビームブロッカー/);
+});
+
+test('camera, screen and fluorescent plate stay in the second palette group and are directly placeable', () => {
+  const h=editorHarness(),groups=h.get('palette-buttons').children,detection=groups[1];
+  assert.equal(detection.children[0].textContent,'検出・撮像');
+  for(const type of ['camera','screen','fluorescent'])assert.ok(detection.querySelector('[data-add="'+type+'"]'),type);
+  h.click('new-scene');h.fire('click',detection.querySelector('[data-add="camera"]'));assert.equal(h.selected().type,'camera');
+  h.fire('click',detection.querySelector('[data-add="fluorescent"]'));assert.equal(h.selected().type,'fluorescent');
+  assert.match(h.get('status').textContent,/蛍光板/);
 });
 
 test('the 450 nm shortcut updates either source, beam spectrum and swatch as one undo step', async () => {
@@ -1193,6 +1202,36 @@ test('filter SVG distinguishes spectral modes from ND and shows the configured w
   }
 });
 
+test('fluorescent inspector controls real converted power, wavelength, undo and detector readouts', async () => {
+  const h=editorHarness();
+  await h.load([
+    h.element('laser',1,{x:100,y:300,wavelength:405,beamWidth:0,rayCount:1}),
+    h.element('fluorescent',2,{x:400,y:300,cutoff:450,wavelength:600,transmission:.6,rayCount:1,divergence:1}),
+    h.element('camera',3,{x:700,y:300,aperture:100,autoExposure:false})
+  ]);
+  h.select(2);const camera=()=>h.result().detectors.find(d=>d.id===3),plate=()=>h.result().detectors.find(d=>d.id===2);
+  near(camera().power,.6);near(plate().emittedPower,.6);
+  assert.equal(h.get('param-wavelength').min,'450');assert.equal(h.get('param-cutoff').max,'600');
+  assert.match(h.get('hint-angle').textContent,/発光扇形.*360°/);
+  assert.match(h.get('selected-output').textContent,/励起 P = 1.*蛍光 P = 0.6.*600 nm・無偏光/);
+  const efficiency=h.get('param-transmission');efficiency.value='.5';h.fire('change',efficiency);near(camera().power,.5);
+  h.get('bench').focus();h.key('z');near(camera().power,.6);
+  h.select(2);const cutoff=h.get('param-cutoff');cutoff.value='400';h.fire('change',cutoff);near(camera().power,0);
+  h.get('bench').focus();h.key('z');near(camera().power,.6);
+  h.select(2);const wavelength=h.get('param-wavelength');wavelength.value='620';h.fire('change',wavelength);
+  assert.deepEqual(Object.keys(camera().powerByWavelength),['620']);assert.match(h.get('selected-output').textContent,/620 nm・無偏光/);
+});
+
+test('fluorescent SVG has a distinct glowing plate and displays its conversion settings', () => {
+  const O=require('../optics-bench/optics.js'),S=require('../optics-bench/state.js'),{view,document}=drawingHarness();
+  const plate={...O.createElement('fluorescent',1,400,300),cutoff:450,wavelength:600,transmission:.6};
+  const scene=S.defaultScene([plate]);view.draw(scene,1,O.simulate(scene.elements));
+  const component=document.getElementById('elements').children[0];
+  assert.ok(component.querySelector('[data-fluorescent-plate]'));
+  assert.equal(component.querySelector('.element-info').textContent,'≤450→600 nm · η 60%');
+  assert.ok(component.querySelectorAll('text').some(node=>node.textContent==='✺'));
+});
+
 test('concave focal and radius edits stay linked through units, undo, redo and component copying', async () => {
   const h = editorHarness(); await h.load([h.element('concave', 7)], { unit: 'mm' }); h.select(7);
   assert.equal(h.get('param-focal').value, '100'); assert.equal(h.get('param-radius').value, '200');
@@ -1317,9 +1356,9 @@ test('flat mirror drawing and dragging use the reflective surface centre as the 
   assert.deepEqual({ x: h.selected().x, y: h.selected().y }, { x: 150, y: 280 });
 });
 
-test('drag copies preserve complete component records for all nineteen optical types', async () => {
+test('drag copies preserve complete component records for all twenty optical types', async () => {
   const types = Object.keys(require('../optics-bench/optics.js').TYPES), h = editorHarness();
-  assert.equal(types.length, 19);
+  assert.equal(types.length, 20);
   for (const [index, type] of types.entries()) {
     const source = h.element(type, 31, { angle: 21.3, enabled: false, label: index % 2 ? type + ' component' : '' });
     if (type === 'filter') Object.assign(source,{filterMode:'nd',opticalDensity:1.23,bandLow:450,bandHigh:650,transmission:.7});

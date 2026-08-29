@@ -161,7 +161,7 @@
       azimuth: kind === 'unpolarized' || kind === 'circular' ? null : (Math.atan2(u, q) * 90 / Math.PI + 180) % 180,
       ellipticity: kind === 'unpolarized' ? null : Math.atan2(v, linear) * 90 / Math.PI };
   }
-  const symbols = { laser:'↦', point:'✦', mirror:'╱', concave:')', lens:'↕', iris:'◉', filter:'F', polarizer:'P', waveplate:'¼', halfwave:'½', phase:'φ', dichroic:'╱', objective:'⌁', fiber:'⊙', blocker:'■', splitter:'◇', pbs:'◈', screen:'▥', camera:'▣' };
+  const symbols = { laser:'↦', point:'✦', mirror:'╱', concave:')', lens:'↕', iris:'◉', filter:'F', polarizer:'P', waveplate:'¼', halfwave:'½', phase:'φ', dichroic:'╱', objective:'⌁', fiber:'⊙', blocker:'■', splitter:'◇', pbs:'◈', screen:'▥', camera:'▣', fluorescent:'✺' };
 
   function create(bench, onViewChange = () => {}) {
     const doc = bench.ownerDocument, ns = 'http://www.w3.org/2000/svg';
@@ -209,6 +209,7 @@
       }
       if (e.type === 'mirror') return `表 ${round(O.normalizeAngle(e.angle + 180))}°側`;
       if (e.type === 'camera') return `${e.pixelCount} px · ${length(e.aperture)}`;
+      if (e.type === 'fluorescent') return `≤${round(e.cutoff)}→${round(e.wavelength)} nm · η ${Math.round(e.transmission*100)}%`;
       if (['lens','objective','concave'].includes(e.type)) return `f ${length(e.focal)}${e.type === 'objective' ? ' · NA '+e.na : ''}`;
       if (e.type === 'iris') return `開口 ${length(e.opening)}`;
       if (e.type === 'filter') return e.filterMode === 'nd' ? `ND · OD ${round(e.opticalDensity)}` :
@@ -273,6 +274,12 @@
       } else if (e.type === 'camera') {
         body.append(box(2,-half,26,e.aperture,'#3e4649',c),line([0,-half],[0,half],'#ffe0a4',3),
           box(9,-Math.min(10,half/2),13,Math.min(20,half),'#182a30',c));
+      } else if (e.type === 'fluorescent') {
+        const glow=O.wavelengthColor(e.wavelength);
+        body.append(box(-5,-half,10,e.aperture,'#4b5a3d',glow),
+          make('line',{x1:0,y1:-half,x2:0,y2:half,stroke:glow,'stroke-width':2,'stroke-dasharray':'3 3','data-fluorescent-plate':'true'}),
+          make('circle',{cx:0,cy:0,r:7,fill:glow,'fill-opacity':.18,stroke:glow,'stroke-width':1}),
+          make('text',{x:0,y:4,'text-anchor':'middle',fill:'#fff','font-size':11},'✺'));
       } else if (e.type === 'screen') {
         body.append(box(-4,-half,8,e.aperture,'#344d42','#a6d3a6'));
         for(let y=-half+5;y<half;y+=8)body.append(line([-3,y],[3,y],'#a6d3a6',.8));

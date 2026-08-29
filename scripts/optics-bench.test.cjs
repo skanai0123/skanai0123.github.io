@@ -291,7 +291,7 @@ test('numerical coordinate guards reject unsafe input and invalid view bounds ca
 
 test('all supported part defaults are accepted by the physical simulator', () => {
   const types = ['laser', 'point', 'mirror', 'concave', 'lens', 'iris', 'filter', 'polarizer', 'waveplate',
-    'dichroic', 'objective', 'fiber', 'blocker', 'splitter', 'pbs', 'screen', 'camera', 'halfwave', 'phase'];
+    'dichroic', 'objective', 'fiber', 'blocker', 'splitter', 'pbs', 'screen', 'camera', 'fluorescent', 'halfwave', 'phase'];
   assert.deepEqual(Object.keys(O.TYPES).sort(), types.sort());
   for (const type of types) {
     const result = O.simulate([part('laser', 1, 100, 300), part(type, 2, 400, 300)]);
@@ -353,6 +353,44 @@ test('camera includes both aperture endpoints, misses outside rays, and turns bl
   const scene = P.create('camera-imaging'); scene.elements.push(part('blocker', 10, 600, 300, { aperture: 300 }));
   const result = O.simulate(scene.elements), frame = K.capture(scene.elements[4], result.detectors[0]);
   near(frame.totalPower, 0); near(result.absorbedPower, 3); assert.ok(frame.pixels.every(p=>p.color==='rgb(0,0,0)'));
+});
+
+test('fluorescent plates convert eligible excitation into bounded unpolarized emission with conserved power', () => {
+  const source = part('laser', 1, 100, 300, { wavelength: 405, beamWidth: 0, rayCount: 1, power: 1 });
+  const plate = part('fluorescent', 2, 400, 300, { cutoff: 450, wavelength: 600, transmission: .6, rayCount: 5, divergence: 360 });
+  const result = O.simulate([source, plate]), reading = detector(result, 2);
+  near(reading.power, 1); near(reading.incidentPower, 1); near(reading.emittedPower, .6);
+  assert.equal(reading.acceptedHits, 1); assert.equal(reading.emittedHits, 5); assert.deepEqual(reading.powerByWavelength, { 405: 1 });
+  assert.equal(result.rayCount, 6); near(result.absorbedPower, .4); near(result.escapedPower, .6); near(result.detectedPower, 0);
+  const fluorescence = result.segments.filter(segment => segment.a.x === 400 && segment.a.y === 300);
+  assert.equal(fluorescence.length, 5);
+  for (const segment of fluorescence) {
+    assert.equal(segment.wavelength, 600); near(segment.power, .12);
+    assert.deepEqual(segment.stokes, { I: .12, Q: 0, U: 0, V: 0 });
+  }
+  assert.deepEqual(O.traceRay(source, O.direction(0), [plate]).hits, [2]);
+  bounded(result);
+});
+
+test('fluorescence respects excitation cutoff, finite plate width and ray caps without losing power', () => {
+  const plate = part('fluorescent', 2, 400, 300, { aperture: 100, cutoff: 450, wavelength: 600, transmission: .6, rayCount: 5, divergence: 360 });
+  const long = O.simulate([part('laser', 1, 100, 300, { wavelength: 650, beamWidth: 0, rayCount: 1 }), plate]);
+  near(detector(long, 2).power, 1); near(detector(long, 2).emittedPower, 0); near(long.absorbedPower, 1); assert.equal(long.rayCount, 1);
+  const miss = O.simulate([part('laser', 1, 100, 351, { wavelength: 405, beamWidth: 0, rayCount: 1 }), plate]);
+  near(detector(miss, 2).power, 0); near(miss.escapedPower, 1);
+  const capped = O.simulate([part('laser', 1, 100, 300, { wavelength: 405, beamWidth: 0, rayCount: 1 }), plate], { maxRays: 3 });
+  assert.equal(capped.rayCount, 3); assert.equal(capped.truncated, true); near(capped.absorbedPower, .4);
+  near(capped.escapedPower, .24); near(capped.discardedPower, .36); near(detector(capped, 2).emittedPower, .6); assert.equal(detector(capped, 2).emittedHits, 2);
+  bounded(long); bounded(miss); bounded(capped);
+});
+
+test('fluorescent camera preset forms a measured 600 nm point image from the converted 405 nm beam', () => {
+  const scene = P.create('fluorescent-camera'), result = O.simulate(scene.elements);
+  const plate = detector(result, 2), camera = detector(result, 4), frame = K.capture(scene.elements[3], camera);
+  near(plate.power, 1); near(plate.emittedPower, .6); assert.equal(plate.emittedHits, 61);
+  near(camera.power, 3 / 61); assert.equal(camera.acceptedHits, 5); near(camera.span, 0, 1e-7);
+  assert.deepEqual(Object.keys(camera.powerByWavelength), ['600']); near(frame.totalPower, 3 / 61); assert.equal(frame.hits, 5);
+  assert.equal(result.truncated, false); assert.deepEqual(result.warnings, []); bounded(result);
 });
 
 test('camera imaging preset forms three inverted monochromatic point images and defocus broadens them', () => {

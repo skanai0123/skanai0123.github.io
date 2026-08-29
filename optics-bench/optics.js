@@ -29,7 +29,8 @@
     splitter: { label: "無偏光BS（NPBS）", short: "NPBS", color: "#b4d5fb" },
     pbs: { label: "偏光BS（PBS）", short: "PBS", color: "#f7b6c7" },
     screen: { label: "スクリーン / 検出器", short: "DET", color: "#95e1bf" },
-    camera: { label: "カメラ", short: "CAM", color: "#f1c992" }
+    camera: { label: "カメラ", short: "CAM", color: "#f1c992" },
+    fluorescent: { label: "蛍光板", short: "FL", color: "#dfff79" }
   });
   const PARAM_LIMITS = Object.freeze({
     angle: { min: 0, max: 360 }, polAngle: { min: 0, max: 360 }, axisAngle: { min: 0, max: 360 },
@@ -59,6 +60,7 @@
     waveplate: { axisAngle: 45 }, halfwave: { axisAngle: 22.5 }, dichroic: { angle: 45, aperture: 36 },
     objective: { focal: 50, na: 0.35 }, splitter: { angle: 45, aperture: 36 }, pbs: { angle: 45, aperture: 36 },
     blocker: { aperture: 100 }, screen: { aperture: 100 }, camera: { aperture: 24 },
+    fluorescent: { aperture: 100, wavelength: 600, cutoff: 550, transmission: 0.6, rayCount: 21, divergence: 360 },
     filter: { aperture: 100, transmission: 1 }
   };
   const isSource = element => element.type === "laser" || element.type === "point";
@@ -342,6 +344,7 @@
         !["longpass", "shortpass"].includes(element.mode) || typeof element.enabled !== "boolean" ||
         !FILTER_MODES.includes(element.filterMode) ||
         (element.type === "filter" && element.bandLow >= element.bandHigh) ||
+        (element.type === "fluorescent" && element.wavelength < element.cutoff) ||
         (element.type === "iris" && element.opening > element.aperture) ||
         (element.type === "fiber" && element.coreDiameter > element.aperture) ||
         (element.type === "concave" && !concaveGeometry(element));
@@ -388,7 +391,8 @@
     return { id: element.id, type: element.type, power: 0, incidentPower: 0, hits: 0, acceptedPower: 0,
       acceptedHits: 0, centroid: null, span: 0, stokes: { I: 0, Q: 0, U: 0, V: 0 }, powerByWavelength: {},
       _sumX: 0, _sumY: 0, _min: Infinity, _max: -Infinity,
-      ...(element.type === "camera" ? { samples: [] } : {}) };
+      ...(element.type === "camera" ? { samples: [] } : {}),
+      ...(element.type === "fluorescent" ? { emittedPower: 0, emittedHits: 0 } : {}) };
   }
 
   function recordHit(detector, state, point, height, accepted) {
@@ -415,7 +419,7 @@
     const extent = traceBounds(scene, options.viewBounds);
     const surfaces = scene.filter(element => !isSource(element)).map(opticalSurface);
     const fiberPairs = prepareFiberLinks(options.fiberLinks, prepared, surfaces, warnings);
-    const detectors = scene.filter(element => ["screen", "fiber", "camera"].includes(element.type)).map(detectorRecord);
+    const detectors = scene.filter(element => ["screen", "fiber", "camera", "fluorescent"].includes(element.type)).map(detectorRecord);
     const detectorMap = new Map(detectors.map(detector => [detector.id, detector]));
     const cap = (value, fallback) => Number.isFinite(value) ? clamp(Math.floor(value), 1, fallback) : fallback;
     const maxInteractions = cap(options.maxInteractions, MAX_INTERACTIONS);
@@ -522,6 +526,28 @@
           }
           if (accepted) detectedPower += state.stokes.I;
           else absorbedPower += state.stokes.I;
+          break;
+        }
+        if (element.type === "fluorescent") {
+          const detector = detectorMap.get(element.id);
+          recordHit(detector, state, end, height, true);
+          const emittedPower = state.wavelength <= element.cutoff ? state.stokes.I * element.transmission : 0;
+          absorbedPower += state.stokes.I - emittedPower;
+          detector.emittedPower += emittedPower;
+          if (emittedPower === 0) break;
+          const count = element.rayCount;
+          for (let index = 0; index < count; index++) {
+            const fraction = count === 1 ? 0 : index / (count - 1) - 0.5;
+            const offset = element.divergence === 360 ? (index - Math.floor(count / 2)) * 360 / count : fraction * element.divergence;
+            const power = emittedPower / count;
+            if (rayCount >= maxRays) { discardedPower += power; truncated = true; continue; }
+            rayCount++;
+            detector.emittedHits++;
+            queue.push({ ...state, origin: { ...end }, ray: direction(element.angle + offset),
+              stokes: { I: power, Q: 0, U: 0, V: 0 }, wavelength: element.wavelength,
+              traceKey: `${state.traceKey}F${element.id}:${count}:${index}`, branchId: ++branchCounter,
+              center: index === Math.floor(count / 2), lastIndex: nearest.surface.index });
+          }
           break;
         }
         if (element.type === "blocker") { absorbedPower += state.stokes.I; break; }
@@ -647,7 +673,7 @@
         paraxialWarning ||= result.warning;
         if (!result.ray) return { points, hits, paraxialWarning, limited: false };
         ray = result.ray;
-      } else if (["blocker", "screen", "fiber", "camera"].includes(element.type) || (element.type === "iris" &&
+      } else if (["blocker", "screen", "fiber", "camera", "fluorescent"].includes(element.type) || (element.type === "iris" &&
           (element.opening === 0 || Math.abs(dot({ x: current.x - element.x, y: current.y - element.y }, nearest.surface.tangent)) > element.opening / 2 + EPS))) {
         return { points, hits, paraxialWarning, limited: false };
       }

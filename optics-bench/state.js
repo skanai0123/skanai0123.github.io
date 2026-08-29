@@ -115,6 +115,7 @@
     if (type === "fiber" && element.coreDiameter > element.aperture) fail(`${name}のファイバーコア径は部品径以下にしてください。`);
     if (type === "concave" && !O.concaveGeometry(element)) fail(`${name}の凹面ミラーはfを正にし、有効径を4f（曲率半径Rの2倍）未満にしてください。`);
     if (type === "filter" && element.bandLow >= element.bandHigh) fail(`${name}の透過帯域は下限波長を上限波長より小さくしてください。`);
+    if (type === "fluorescent" && element.wavelength < element.cutoff) fail(`${name}の蛍光波長は励起上限波長以上にしてください。`);
     if (["laser", "point"].includes(type) && !O.validSourceBand(element)) fail(`${name}の光源帯域（中心波長±幅/2）は200〜2500 nm内にしてください。幅が数値精度より小さい場合は0を指定してください。`);
     return element;
   }

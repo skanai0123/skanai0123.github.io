@@ -544,6 +544,23 @@ test('filter validation rejects reversed bands, unknown modes and nonnumeric or 
   assert.throws(()=>S.validateScene({...scene,elements:[{...O.createElement('dichroic',1,0,0),mode:'nd'}]}),/ダイクロイック/);
 });
 
+test('fluorescent settings survive designs, component copies and links while invalid wavelength order is rejected', async () => {
+  const plate = { ...O.createElement('fluorescent', 1, -500.125, 300.25), aperture: 82.5, cutoff: 455.25,
+    wavelength: 612.75, transmission: .4321, rayCount: 37, divergence: 287.5, angle: 22.5, label: '蛍光変換板' };
+  for (const unit of ['mm', 'cm', 'in']) {
+    const scene = S.defaultScene([plate], { unit });
+    assert.deepEqual(S.parse(S.serialize(scene)), scene);
+    assert.deepEqual(S.parseComponent(S.serializeComponent(plate)), plate);
+    assert.deepEqual(await Q.decode(await Q.encode(scene)), scene);
+  }
+  const scene = S.defaultScene([plate]), before = S.serialize(scene);
+  for (const changes of [{ wavelength: 450 }, { cutoff: 700 }]) {
+    assert.throws(() => S.validateScene({ ...scene, elements: [{ ...plate, ...changes }] }), /蛍光波長/);
+    assert.equal(S.serialize(scene), before);
+    assert.ok(O.simulate([{ ...plate, ...changes }]).warnings.some(warning => warning.includes('不正')));
+  }
+});
+
 test('camera settings persist through JSON, units and component clipboard while older records keep their fields', () => {
   const camera = { ...O.createElement('camera', 1, -500, 300), pixelCount: 512, exposure: 2.5, autoExposure: false, aperture: 12.8, angle: 22.5 };
   for (const unit of ['mm','cm','in']) {
@@ -682,7 +699,7 @@ test('browser globals load without Node, DOM access or network APIs', () => {
 });
 
 test('preset factories return independent validated scenes and reject unknown IDs', () => {
-  assert.equal(P.list.length, 27);
+  assert.equal(P.list.length, 28);
   assert.equal(new Set(P.list.map(entry => entry.id)).size, P.list.length);
   const a = P.create('starter'), b = P.create('starter');
   a.elements[0].x += 10;

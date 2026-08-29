@@ -31,6 +31,16 @@
 
   const definitions = [
     {
+      id: "fluorescent-camera", title: "蛍光板をカメラで見る", description: "405 nm励起を600 nmの蛍光へ変換し、レンズでカメラへ結像。",
+      notes: "405 nm・P=1の励起光を、励起上限450 nm・変換効率60%の蛍光板へ入射します。板は600 nm・無偏光の蛍光P=0.6を2D全周へ61本で放出。f=100 mmのレンズを板とカメラから各200 mmに置く2f–2f配置で、5本・P=3/61≃0.04918が板中心へ等倍結像します。蛍光寿命・発光スペクトル・再吸収・散乱・3Dの立体角・回折像は含みません。",
+      elements: () => [
+        part("laser", 1, 100, 300, { wavelength: 405, beamWidth: 0, rayCount: 1, label: "405 nm励起" }),
+        part("fluorescent", 2, 400, 300, { aperture: 80, cutoff: 450, wavelength: 600, transmission: 0.6, rayCount: 61, divergence: 360, label: "600 nm蛍光板" }),
+        part("lens", 3, 600, 300, { focal: 100, aperture: 100, label: "結像レンズ" }),
+        part("camera", 4, 800, 300, { aperture: 100, autoExposure: false, label: "蛍光像カメラ" })
+      ]
+    },
+    {
       id: "broadband-filter", title: "広帯域光から緑を取り出す", description: "中心550 nm・幅300 nmの光を、500〜560 nmのBPで選ぶ。",
       notes: "光源の帯域は400〜700 nm、全帯域の相対P=1。波長を30分割し、405・415…695 nmの代表点を各1/30のパワーで追跡します。空間9本×30波長=270本。BP 500〜560 nmは6波長を透過し、カメラは54本・P=0.2を受光。光源の幅を0にすると550 nmの単色・9本・P=1になります。波長数を増やしても入力Pは一定ですが、狭いフィルターの通過率はサンプル位置で変化します。均一スペクトルの模式モデルで、実測発光スペクトルや線幅による干渉は計算しません。重なる光線は波長色をパワーで合成した表示用の色です。",
       elements: () => [
