@@ -53,10 +53,11 @@
     filterMode: "bandpass", bandLow: 500, bandHigh: 560, opticalDensity: 1
   });
   const TYPE_DEFAULTS = {
+    laser: { beamWidth: 5 },
     point: { polarization: "unpolarized", rayCount: 21, divergence: 30, beamWidth: 0 },
-    mirror: { angle: 45, aperture: 100 }, concave: { focal: 100, aperture: 100 }, lens: { aperture: 100 },
-    waveplate: { axisAngle: 45 }, halfwave: { axisAngle: 22.5 }, dichroic: { angle: 45, aperture: 100 },
-    objective: { focal: 50, na: 0.35 }, splitter: { angle: 45, aperture: 100 }, pbs: { angle: 45, aperture: 100 },
+    mirror: { angle: 45, aperture: 25 }, concave: { focal: 100, aperture: 100 }, lens: { aperture: 100 },
+    waveplate: { axisAngle: 45 }, halfwave: { axisAngle: 22.5 }, dichroic: { angle: 45, aperture: 36 },
+    objective: { focal: 50, na: 0.35 }, splitter: { angle: 45, aperture: 36 }, pbs: { angle: 45, aperture: 36 },
     blocker: { aperture: 100 }, screen: { aperture: 100 }, camera: { aperture: 24 },
     filter: { aperture: 100, transmission: 1 }
   };
@@ -88,7 +89,7 @@
   }
 
   function initialElements() {
-    const laser = { ...createElement("laser", 1, 150, 400), beamWidth: 30, rayCount: 5 };
+    const laser = { ...createElement("laser", 1, 150, 400), beamWidth: 5, rayCount: 5 };
     const mirror = createElement("mirror", 2, 550, 400);
     const lens = { ...createElement("lens", 3, 550, 200), focal: 125, angle: 90 };
     return [laser, mirror, lens];

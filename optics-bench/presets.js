@@ -60,10 +60,10 @@
     },
     {
       id: "concave-focus", title: "凹面ミラーで反射集光", description: "球面ミラーで平行光を集光し、BSで戻り光を取り出す。",
-      notes: "凹面ミラーのf=300 mm、R=600 mm。鏡から200 mm手前の50:50 NPBSで戻り光を下へ曲げ、さらに100 mm先の近軸焦点で検出します。入射P=1のうち検出P=0.25、上のブロッカーで0.5を吸収、左へ0.25が戻ります。ビーム径30 mmでは焦点幅は約0.0094 mm。レーザーのビーム径を広げると球面収差が増えます。鏡の有効径は100 mm。F・Cは鏡単体の軸上位置で、BSによる折返し前の表示です。回折によるスポット径・干渉は未計算。",
+      notes: "凹面ミラーのf=300 mm、R=600 mm。鏡から200 mm手前の50:50 NPBSで戻り光を下へ曲げ、さらに100 mm先の近軸焦点で検出します。入射P=1のうち検出P=0.25、上のブロッカーで0.5を吸収、左へ0.25が戻ります。ビーム径30 mmでは焦点幅は約0.0094 mm。レーザーのビーム径を広げると球面収差が増えます。この比較用にNPBSの分離面と鏡の有効径は100 mm。F・Cは鏡単体の軸上位置で、BSによる折返し前の表示です。回折によるスポット径・干渉は未計算。",
       elements: () => [
         part("laser", 1, 100, 350, { wavelength: 532, beamWidth: 30, rayCount: 17, label: "平行光 30 mm" }),
-        part("splitter", 2, 500, 350, { transmission: 0.5, label: "NPBS" }),
+        part("splitter", 2, 500, 350, { aperture: 100, transmission: 0.5, label: "NPBS" }),
         part("concave", 3, 700, 350, { focal: 300, aperture: 100, label: "球面ミラー" }),
         part("blocker", 4, 500, 100, { angle: 90, aperture: 120, label: "入射の分岐光" }),
         part("screen", 5, 500, 450, { angle: 90, aperture: 80, label: "近軸焦点" })
@@ -73,8 +73,8 @@
       id: "starter", title: "ミラーとレンズ", description: "レーザーを折り返して集光する、最初の配置。",
       notes: "ミラーの角度は面の法線です。45°のミラーで90°折り返し、焦点距離125 mmのレンズでスクリーン上に集光します。ドラッグで位置を変えて光路を確認できます。",
       elements: () => [
-        part("laser", 1, 150, 400, { angle: 0, beamWidth: 30, wavelength: 532, rayCount: 9, label: "入射レーザー" }),
-        part("mirror", 2, 550, 400, { angle: 45, aperture: 100, label: "折返しミラー" }),
+        part("laser", 1, 150, 400, { angle: 0, beamWidth: 5, wavelength: 532, rayCount: 9, label: "入射レーザー" }),
+        part("mirror", 2, 550, 400, { angle: 45, aperture: 25, label: "折返しミラー" }),
         part("lens", 3, 550, 200, { angle: 90, focal: 125, aperture: 100, label: "集光レンズ" }),
         part("screen", 4, 550, 75, { angle: 90, aperture: 100, label: "焦点スクリーン" })
       ]
@@ -211,7 +211,7 @@
       id: "three-polarizers", title: "三枚の偏光子のパラドックス", description: "遮光していた2枚の間に、もう1枚入れると明るくなる。",
       notes: "0°・45°・90°の順で、最終Pは0.25。中央の45°偏光子を無効にすると0になります。中央角度をθにするとP=cos²θ sin²θで、45°が最大。偏光子は単なる向きの選別だけでなく、透過後の偏光状態も変えます。通常の幾何Pと各区間の偏光プローブで確認できます。",
       elements: () => [
-        part("laser", 1, 100, 300, { wavelength: 450, label: "0°線偏光" }),
+        part("laser", 1, 100, 300, { wavelength: 450, beamWidth: 12, label: "0°線偏光" }),
         part("polarizer", 2, 280, 300, { axisAngle: 0, label: "最初 0°" }),
         part("polarizer", 3, 480, 300, { axisAngle: 45, label: "中央 45°" }),
         part("polarizer", 4, 680, 300, { axisAngle: 90, label: "最後 90°" }),
@@ -222,7 +222,7 @@
       id: "malus-law", title: "マリュスの法則", description: "検光子を回すと、明るさはcos²θで変わる。",
       notes: "レーザーは0°線偏光。検光子は初期30°なので受光P=0.75です。0°で1、45°で0.5、90°で0。入力を無偏光や円偏光にすると、検光子を回しても常に0.5になります。透過光はいずれも検光子の向きの線偏光です。",
       elements: () => [
-        part("laser", 1, 150, 300, { wavelength: 633, polAngle: 0, label: "入力偏光" }),
+        part("laser", 1, 150, 300, { wavelength: 633, beamWidth: 12, polAngle: 0, label: "入力偏光" }),
         part("polarizer", 2, 500, 300, { axisAngle: 30, label: "回転する検光子" }),
         part("screen", 3, 850, 300, { label: "透過パワー" })
       ]
@@ -231,7 +231,7 @@
       id: "halfwave-attenuator", title: "λ/2板とPBSの可変分配器", description: "波長板の回転で、偏光を回してパワーを振り分ける。",
       notes: "0°線偏光に対しλ/2板の軸θで偏光が2θ回転します。初期θ=22.5°でPBSの両出力は0.5ずつ。θ=0°でs反射へ1、θ=45°でp透過へ1です。理想系では両出力の和は常に1。波長を設計値532 nmから変えると厳密なλ/2ではなくなります。",
       elements: () => [
-        part("laser", 1, 120, 350, { label: "0°線偏光" }),
+        part("laser", 1, 120, 350, { beamWidth: 12, label: "0°線偏光" }),
         part("halfwave", 2, 330, 350, { axisAngle: 22.5, label: "回転 λ/2板" }),
         part("pbs", 3, 550, 350, { label: "偏光分配" }),
         part("screen", 4, 850, 350, { label: "p透過" }),
@@ -242,7 +242,7 @@
       id: "circular-analyzer", title: "円偏光の向きを見分ける", description: "λ/4板とPBSで、右・左の円偏光を異なるポートへ。",
       notes: "設計波長のλ/4板の速軸は45°。入力V/I=+1はp透過に1、V/I=−1はs反射に1。レーザーの円偏光の向きを切り替えてください。λ/4板を無効にすると、どちらの円偏光も各ポート0.5になり、PBSだけでは区別できません。偏光プローブで円→直線の変換も確認できます。",
       elements: () => [
-        part("laser", 1, 120, 350, { polarization: "right", label: "円偏光源" }),
+        part("laser", 1, 120, 350, { beamWidth: 12, polarization: "right", label: "円偏光源" }),
         part("waveplate", 2, 330, 350, { axisAngle: 45, label: "円→直線 λ/4" }),
         part("pbs", 3, 550, 350, { label: "偏光を読む" }),
         part("screen", 4, 850, 350, { label: "V＋の出力" }),
@@ -253,7 +253,7 @@
       id: "polarizer-chain", title: "少しずつ回す偏光子の列", description: "8段に分けると、90°回しても光が多く残る。",
       notes: "0°線偏光を11.25°ずつ8回投影し、最後は90°。理想透過P=cos¹⁶(11.25°)≃0.733で、直接90°の検光子を置くとP=0です。中間の偏光子を無効にして比較してください。量子Zeno効果に似た連続投影の古典光学アナログですが、ここでは量子系の時間発展・測定過程を計算していません。",
       elements: () => [
-        part("laser", 1, 80, 300, { wavelength: 594, label: "0°線偏光" }),
+        part("laser", 1, 80, 300, { wavelength: 594, beamWidth: 12, label: "0°線偏光" }),
         ...Array.from({ length: 8 }, (_, i) => part("polarizer", i+2, 200+i*90, 300, { aperture: 60, axisAngle: (i+1)*11.25, label: `${(i+1)*11.25}°` })),
         part("screen", 10, 970, 300, { label: "90°まで回った光" })
       ]
@@ -272,8 +272,8 @@
       id: "dichroic-combiner", title: "青と赤を同じ光路へ合波", description: "450 nmと650 nmを、ダイクロイックで1本に重ねる。",
       notes: "境界550 nmのLPミラーは赤650 nmを透過し、下からの青450 nmを右へ反射します。検出器の合計Pは2、各波長は1。光路プローブの重なり選択で2色を別々に確認できます。SPに切り替えると2色とも検出器から外れます。周波数の異なる光の干渉やビートは計算しません。",
       elements: () => [
-        part("laser", 1, 150, 350, { wavelength: 650, label: "赤 650 nm" }),
-        part("laser", 2, 500, 570, { angle: 270, wavelength: 450, label: "青 450 nm" }),
+        part("laser", 1, 150, 350, { wavelength: 650, beamWidth: 12, label: "赤 650 nm" }),
+        part("laser", 2, 500, 570, { angle: 270, wavelength: 450, beamWidth: 12, label: "青 450 nm" }),
         part("dichroic", 3, 500, 350, { cutoff: 550, mode: "longpass", aperture: 80, label: "LP 550 nm" }),
         part("screen", 4, 850, 350, { label: "2色の共通出力" })
       ]
@@ -293,7 +293,7 @@
       elements: () => [405, 532, 650].flatMap((wavelength, i) => {
         const y = 130+i*180, id = i*4+1;
         return [
-          part("laser", id, 120, y, { wavelength, label: `${wavelength} nm` }),
+          part("laser", id, 120, y, { wavelength, beamWidth: 12, label: `${wavelength} nm` }),
           part("waveplate", id+1, 380, y, { axisAngle: 45, designWavelength: 532, label: "532 nm用 λ/4" }),
           part("polarizer", id+2, 600, y, { axisAngle: 90, label: "検光子 90°" }),
           part("screen", id+3, 850, y, { label: `${wavelength} nm検出` })

@@ -82,6 +82,9 @@
     const x = number(input.x, `${name}のX`, -O.COORDINATE_LIMIT, O.COORDINATE_LIMIT);
     const y = number(input.y, `${name}のY`, -O.COORDINATE_LIMIT, O.COORDINATE_LIMIT);
     const element = O.createElement(type, id, x, y);
+    // v0.13.0以前の既定レーザーは12 mmで、保存時に既定値を省略していた。
+    // 新規配置は5 mmだが、古い省略データの物理条件は変えない。
+    if (type === "laser" && !own(input, "beamWidth")) element.beamWidth = O.DEFAULTS.beamWidth;
     // Positions in the file are physical millimetres, not grid indices.
     element.x = x;
     element.y = y;

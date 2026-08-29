@@ -70,9 +70,9 @@ test('only the nearest forward surface within finite aperture affects a ray', ()
   const surfaces = [element('mirror', 2, 600, 300), element('mirror', 3, 400, 300), element('mirror', 4, 50, 300)];
   const ray = O.traceRay({ x: 100, y: 300 }, { x: 1, y: 0 }, surfaces, 1);
   assert.deepEqual(ray.hits, [3]);
-  const miss = O.traceRay({ x: 100, y: 351 }, { x: 1, y: 0 }, surfaces);
+  const miss = O.traceRay({ x: 100, y: 313 }, { x: 1, y: 0 }, surfaces);
   assert.deepEqual(miss.hits, []);
-  const edge = O.traceRay({ x: 100, y: 350 }, { x: 1, y: 0 }, surfaces, 1);
+  const edge = O.traceRay({ x: 100, y: 312.5 }, { x: 1, y: 0 }, surfaces, 1);
   assert.deepEqual(edge.hits, [3]);
 });
 
@@ -162,7 +162,7 @@ test('crossed and collinear surfaces are flagged but separated default parts are
   assert.equal(O.overlapping([element('mirror', 1, 500, 300), element('lens', 2, 500, 325)]), true);
   assert.equal(O.overlapping([element('mirror', 1, 500, 300), element('lens', 2, 525, 300, 90)]), true);
   assert.equal(O.overlapping([element('mirror', 1, 500, 300), element('lens', 2, 600, 300)]), false);
-  assert.equal(O.overlapping([element('mirror', 1, 500, 300), element('lens', 2, 550, 250, 90)]), true);
+  assert.equal(O.overlapping([element('mirror', 1, 500, 300), element('lens', 2, 550, 300, 90)]), true);
 });
 
 test('multiple independent lasers and rotated edge layouts remain bounded', () => {
@@ -252,6 +252,15 @@ test('all supported part defaults are accepted by the physical simulator', () =>
     bounded(result);
   }
   assert.throws(() => O.createElement('__proto__', 1, 100, 100), /Unknown/);
+});
+
+test('new components use the requested centimetre-scale optical defaults', () => {
+  assert.equal(O.createElement('laser',1,0,0).beamWidth,5);
+  assert.equal(O.createElement('mirror',2,0,0).aperture,25);
+  assert.equal(O.createElement('concave',3,0,0).aperture,100);
+  for(const type of ['dichroic','splitter','pbs'])assert.equal(O.createElement(type,4,0,0).aperture,36,type);
+  const initial=O.initialElements();assert.equal(initial[0].beamWidth,5);assert.equal(initial[1].aperture,25);
+  const starter=P.create('starter');assert.equal(starter.elements[0].beamWidth,5);assert.equal(starter.elements[1].aperture,25);
 });
 
 test('laser sampling preserves selected width, wavelength, total power and detector moments', () => {
@@ -1213,9 +1222,9 @@ test('fiber simulation does not mutate elements or links and transfer Stokes are
   assert.deepEqual(O.simulate(scene, options), second);
 });
 
-test('all preset beam splitters share the palette size without rewriting customized apertures', () => {
+test('preset beam splitters use the palette size except the documented wide concave setup', () => {
   for (const preset of P.list) for (const bs of P.create(preset.id).elements.filter(e=>['splitter','pbs'].includes(e.type))) {
-    assert.equal(bs.aperture, O.createElement(bs.type, 99, 0, 0).aperture, preset.id);
+    assert.equal(bs.aperture, preset.id==='concave-focus'?100:36, preset.id);
   }
   const custom = part('splitter', 2, 500, 300, { aperture: 37 });
   const before = JSON.stringify(custom); O.simulate([custom]); assert.equal(JSON.stringify(custom), before);

@@ -521,6 +521,15 @@ test('controller new, palette addition and selection participate in Ctrl/Meta un
   h.key('z'); assert.deepEqual(h.scene(), starter);
 });
 
+test('palette parts expose the requested defaults in centimetres', () => {
+  const h=editorHarness();h.click('new-scene');
+  h.add('laser');assert.equal(h.selected().beamWidth,5);assert.equal(h.get('param-beamWidth').value,'0.5');
+  h.add('mirror');assert.equal(h.selected().aperture,25);assert.equal(h.get('param-aperture').value,'2.5');
+  for(const type of ['dichroic','splitter','pbs']){
+    h.add(type);assert.equal(h.selected().aperture,36,type);assert.equal(h.get('param-aperture').value,'3.6',type);
+  }
+});
+
 test('the 450 nm shortcut updates either source, beam spectrum and swatch as one undo step', async () => {
   const O = require('../optics-bench/optics.js');
   for (const type of ['laser', 'point']) {
@@ -1703,7 +1712,7 @@ test('both beam splitter palette entries support pointer placement, keyboard pla
       button.focus(); h.key('Enter', { ctrlKey: false });
     }
     assert.equal(h.scene().elements.length, 1); assert.equal(h.selected().type, type);
-    assert.equal(h.selected().angle, 45); assert.equal(h.selected().aperture, 100);
+    assert.equal(h.selected().angle, 45); assert.equal(h.selected().aperture, 36);
     assert.match(h.get('hint-aperture').textContent, /厚さ0/); const added = h.scene();
     h.get('bench').focus(); h.key('z'); assert.deepEqual(h.scene(), before);
     h.key('y'); assert.deepEqual(h.scene(), added);

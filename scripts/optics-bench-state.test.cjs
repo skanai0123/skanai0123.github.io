@@ -19,6 +19,14 @@ const detector = (result, id) => {
   assert.ok(found, `detector ${id} exists`);
   return found;
 };
+
+test('new 5 mm lasers serialize explicitly while legacy omitted widths remain 12 mm', () => {
+  const source=O.createElement('laser',1,100,300),saved=S.serialize(S.defaultScene([source]));
+  assert.equal(source.beamWidth,5);assert.equal(JSON.parse(saved).elements[0].beamWidth,5);
+  const legacy=JSON.parse(saved);delete legacy.elements[0].beamWidth;
+  assert.equal(S.parse(JSON.stringify(legacy)).elements[0].beamWidth,12);
+  legacy.elements[0].beamWidth=7.5;assert.equal(S.parse(JSON.stringify(legacy)).elements[0].beamWidth,7.5);
+});
 const endAt = (segment, x, y) => Math.abs(segment.b.x - x) < 1e-7 && Math.abs(segment.b.y - y) < 1e-7;
 
 test('compressed share links round-trip every preset with exact settings and smaller payloads', async () => {
