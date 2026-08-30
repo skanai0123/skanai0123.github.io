@@ -454,7 +454,9 @@
     if (!accepted) return;
     detector.acceptedHits++;
     if (detector.samples) detector.samples.push({ position: height, verticalPosition: state.vertical || 0, power: state.stokes.I,
-      wavelength: state.wavelength, sourceId: state.sourceId, ...(Number.isInteger(state.imagePointId) ? { imagePointId: state.imagePointId } : {}) });
+      wavelength: state.wavelength, sourceId: state.sourceId,
+      ...(typeof state.cameraProfile === "string" ? { cameraProfile: state.cameraProfile } : {}),
+      ...(Number.isInteger(state.imagePointId) ? { imagePointId: state.imagePointId } : {}) });
     detector.power += state.stokes.I;
     detector.acceptedPower = detector.power;
     detector._sumX += state.stokes.I * point.x;
@@ -499,6 +501,7 @@
           rayCount++;
           queue.push({ origin, ray, vertical: 0, verticalSlope: 0, stokes: sourceStokes(source, power), wavelength: sample.wavelength,
             sourceId: source.id, path: options.recordPaths ? [] : null,
+            cameraProfile: source.type === "laser" ? `${source.id}:${j}` : null,
             traceKey: `${source.id}:${count}:${i}` + (spectrum.length > 1 ? `~${spectrum.length}:${j}` : ""),
             branchId: ++branchCounter, center: i === Math.floor(count / 2), lastIndex: -1, interactions: 0,
             pathLength: 0, unmeasuredFiberLinks: 0, parentSegmentKey: null });
@@ -625,7 +628,7 @@
             if (rayCount >= maxRays) { discardedPower += power; truncated = true; continue; }
             rayCount++;
             detector.emittedHits++;
-            queue.push({ ...state, origin: { ...end }, ray: direction(element.angle + offset),
+            queue.push({ ...state, origin: { ...end }, ray: direction(element.angle + offset), cameraProfile: null,
               stokes: { I: power, Q: 0, U: 0, V: 0 }, wavelength: element.wavelength,
               traceKey: `${state.traceKey}F${element.id}:${count}:${index}`, branchId: ++branchCounter,
               center: index === Math.floor(count / 2), lastIndex: nearest.surface.index });
@@ -692,6 +695,7 @@
             if (power === 0) continue;
             const side = sign === 1 ? 'R' : 'T';
             queue.push({ ...state, ray, stokes: { I: power, Q: sign * power, U: 0, V: 0 },
+              cameraProfile: typeof state.cameraProfile === "string" ? state.cameraProfile + side : null,
               path: branchPath(state.path, side), traceKey: state.traceKey + side, branchId: ++branchCounter });
           }
           break;
@@ -699,6 +703,7 @@
           for (const [fraction, ray, side] of [[1 - element.transmission, reflect(state.ray, n), 'R'], [element.transmission, state.ray, 'T']]) {
             if (fraction === 0) continue;
             queue.push({ ...state, ray, stokes: scaleStokes(state.stokes, fraction),
+              cameraProfile: typeof state.cameraProfile === "string" ? state.cameraProfile + side : null,
               path: branchPath(state.path, side), traceKey: state.traceKey + side, branchId: ++branchCounter });
           }
           break;

@@ -7,19 +7,19 @@
   <meta name="description" content="21種類の光学部品をドラッグ・範囲選択で配置し、波長・開口・偏光を調整。画像スクリーン、2Dカメラ像、量子消しゴム・干渉計・4F・共焦点など29種類のプリセット、短縮URL共有に対応。">
   <link rel="icon" href="../shared/icons/general.svg" type="image/svg+xml">
   <link rel="stylesheet" href="../shared/back-to-hub.css">
-  <link rel="stylesheet" href="styles.css?v=0.23.0">
+  <link rel="stylesheet" href="styles.css?v=0.23.1">
   <script defer src="../shared/back-to-hub.js"></script>
-  <script defer src="optics.js?v=0.23.0"></script>
-  <script defer src="camera.js?v=0.23.0"></script>
-  <script defer src="coherence.js?v=0.23.0"></script>
-  <script defer src="state.js?v=0.23.0"></script>
-  <script defer src="share.js?v=0.23.0"></script>
-  <script defer src="presets.js?v=0.23.0"></script>
-  <script defer src="view.js?v=0.23.0"></script>
-  <script defer src="spatial.js?v=0.23.0"></script>
-  <script defer src="script.js?v=0.23.0"></script>
+  <script defer src="optics.js?v=0.23.1"></script>
+  <script defer src="camera.js?v=0.23.1"></script>
+  <script defer src="coherence.js?v=0.23.1"></script>
+  <script defer src="state.js?v=0.23.1"></script>
+  <script defer src="share.js?v=0.23.1"></script>
+  <script defer src="presets.js?v=0.23.1"></script>
+  <script defer src="view.js?v=0.23.1"></script>
+  <script defer src="spatial.js?v=0.23.1"></script>
+  <script defer src="script.js?v=0.23.1"></script>
 </head>
-<body data-page-version="0.23.0" data-page-updated="2026-08-30" data-page-copyright="© 2026 skanai">
+<body data-page-version="0.23.1" data-page-updated="2026-08-30" data-page-copyright="© 2026 skanai">
   <main class="page-shell">
     <header class="hero">
       <div class="eyebrow"><span class="brand-mark" aria-hidden="true">↗</span> OPTICS LAB <span class="prototype">DESIGN STUDIO</span></div>
@@ -190,7 +190,7 @@
       <img id="camera-image" class="camera-image" alt="カメラの2次元センサー像" width="960" height="640">
       <p id="camera-stats" class="camera-stats"></p>
       <p id="camera-status" class="subtle" role="status"></p>
-      <p class="camera-limit">横軸はベンチ面内で計算した実際の受光位置で、正方向はカメラの配置角度＋90°です。画像スクリーンの縦軸はレンズを通る近軸像位置を計算し、通常光源はセンサー中央面へ置きます。XとYは常に同じ物理表示倍率で、1 mmを縦横同じ長さに描くため像を引き伸ばしません。センサー幅・高さ、横列・縦行、表示スポットFWHMをカメラ設定で変更可能。表示スポットは受光Pを変えません。レンズは内蔵せず、像は非干渉です。印刷物の照明・反射、任意方向の3D像、回折PSF、収差、センサーノイズ、実カメラの色応答は含みません。</p>
+      <p class="camera-limit">横軸はベンチ面内で計算した実際の受光位置で、正方向はカメラの配置角度＋90°です。画像スクリーンの縦軸はレンズを通る近軸像位置を計算します。レーザーは面内で得た光線幅を直径とする円形断面を表示用に推定し、横線ではなく丸いビームとして描きます。その他の通常光源はセンサー中央面へ置きます。XとYは常に同じ物理表示倍率で、1 mmを縦横同じ長さに描くため像を引き伸ばしません。センサー幅・高さ、横列・縦行、表示スポットFWHMをカメラ設定で変更可能。円形断面と表示スポットは受光Pを変えません。レンズは内蔵せず、像は非干渉です。印刷物の照明・反射、任意方向の3D像、回折PSF、収差、センサーノイズ、実カメラの色応答は含みません。</p>
     </section>
     <section class="readouts" aria-label="測定系の読み出し">
       <div class="readout-card preset-description"><div class="section-label">SETUP NOTES</div><h2 id="setup-title">配置のメモ</h2><p id="setup-description"></p><p id="setup-notes" class="subtle"></p></div>

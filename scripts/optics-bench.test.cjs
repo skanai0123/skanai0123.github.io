@@ -472,6 +472,32 @@ test('camera makes a finite two-dimensional sensor image without changing receiv
   for (const spotSize of [0,.001,301,NaN]) assert.throws(()=>K.capture({ ...cam, spotSize },detector));
 });
 
+test('camera renders a finite laser slice as a round beam profile instead of a horizontal stripe', () => {
+  const laser = part('laser', 1, 100, 300, { beamWidth:5, rayCount:11, wavelength:532, power:1 });
+  const camera = part('camera', 2, 300, 300, { aperture:24, sensorHeight:18, pixelCount:256, pixelRows:192, spotSize:1 });
+  const reading = detector(O.simulate([laser, camera]), camera.id), frame = K.capture(camera, reading);
+  assert.equal(reading.samples.length, 11);
+  assert.ok(reading.samples.every(sample => sample.cameraProfile === '1:0'));
+  assert.equal(frame.hasVerticalData, false); assert.equal(frame.hasBeamProfile, true); near(frame.totalPower, 1);
+  const activeColumns = [], activeRows = [];
+  frame.imagePower.forEach((power, index) => {
+    if (power >= frame.imagePeakPower * .1) { activeColumns.push(index % frame.columns); activeRows.push(Math.floor(index / frame.columns)); }
+  });
+  const physicalWidth = (Math.max(...activeColumns) - Math.min(...activeColumns) + 1) * frame.pitch;
+  const physicalHeight = (Math.max(...activeRows) - Math.min(...activeRows) + 1) * frame.rowPitch;
+  assert.ok(Math.abs(physicalWidth - physicalHeight) <= Math.max(frame.pitch, frame.rowPitch) * 2,
+    `round profile must use the same physical width and height, got ${physicalWidth} × ${physicalHeight} mm`);
+  assert.match(K.svg(frame, 'レーザー断面'), /Y: beam profile estimate/);
+  const separated = K.capture(camera, { samples:[
+    { position:-5, verticalPosition:0, power:.25, wavelength:532, cameraProfile:'left' },
+    { position:-3, verticalPosition:0, power:.25, wavelength:532, cameraProfile:'left' },
+    { position:3, verticalPosition:0, power:.25, wavelength:532, cameraProfile:'right' },
+    { position:5, verticalPosition:0, power:.25, wavelength:532, cameraProfile:'right' }
+  ] });
+  const centerIndex = Math.floor(separated.rows / 2) * separated.columns + Math.floor(separated.columns / 2);
+  assert.ok(separated.imagePower[centerIndex] < separated.imagePeakPower * 1e-4, 'separate optical paths must not become one wide disk');
+});
+
 test('camera SVG keeps one physical display scale for X and Y at every sensor aspect ratio', () => {
   for (const [width,height] of [[100,75],[100,25],[25,100],[24,18]]) {
     const camera=part('camera',1,500,300,{aperture:width,sensorHeight:height}),frame=K.capture(camera),layout=K.sensorLayout(frame);

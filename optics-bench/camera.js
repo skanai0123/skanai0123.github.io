@@ -55,7 +55,7 @@
         !Number.isFinite(camera.exposure) || camera.exposure < .01 || camera.exposure > 100) throw new Error('カメラ設定が不正です。');
     const width = camera.aperture, pitch = width / camera.pixelCount, rowPitch = sensorHeight / pixelRows;
     const pixels = Array.from({ length: camera.pixelCount }, (_, i) => ({ position: -width / 2 + (i + .5) * pitch, power: 0, rgb: [0, 0, 0] }));
-    const rawPower = new Float64Array(camera.pixelCount * pixelRows), rawRgb = new Float64Array(rawPower.length * 3);
+    const rawPower = new Float64Array(camera.pixelCount * pixelRows), rawRgb = new Float64Array(rawPower.length * 3), beamProfiles = new Map();
     const bin = (value, extent, step, count, reverse = false) => {
       const coordinate = (reverse ? extent / 2 - value : value + extent / 2) / step, rounded = Math.round(coordinate);
       return Math.min(count - 1, Math.max(0, Math.floor(Math.abs(coordinate - rounded) < 1e-8 ? rounded : coordinate)));
@@ -68,11 +68,44 @@
       const column = bin(position, width, pitch, camera.pixelCount), row = bin(verticalPosition, sensorHeight, rowPitch, pixelRows, true);
       const index = row * camera.pixelCount + column, pixel = pixels[column], sampleColor = rgb(wavelength);
       pixel.power += power; sampleColor.forEach((c, i) => { pixel.rgb[i] += power * c; });
-      rawPower[index] += power;
-      sampleColor.forEach((c, channel) => { rawRgb[index * 3 + channel] += power * c; });
+      if (typeof sample.cameraProfile === 'string') {
+        const profile = beamProfiles.get(sample.cameraProfile) || { min: position, max: position, vertical: 0, power: 0, rgb: [0, 0, 0] };
+        profile.min = Math.min(profile.min, position); profile.max = Math.max(profile.max, position);
+        profile.vertical += power * verticalPosition; profile.power += power;
+        sampleColor.forEach((c, channel) => { profile.rgb[channel] += power * c; });
+        beamProfiles.set(sample.cameraProfile, profile);
+      } else {
+        rawPower[index] += power;
+        sampleColor.forEach((c, channel) => { rawRgb[index * 3 + channel] += power * c; });
+      }
       totalPower += power; hits++;
       hasVerticalData ||= Math.abs(verticalPosition) > 1e-9;
       if (wavelength < 380 || wavelength > 780) nonvisiblePower += power;
+    }
+    // A laser is traced as a meridional slice through the table plane. Treating
+    // that slice as the complete 2D sensor image turns a finite beam into a
+    // horizontal stripe. Reconstruct each unsplit laser path as a uniform round
+    // cross-section whose measured in-plane span is its diameter. This is a
+    // display estimate only; the exact 1D bins and detected power stay unchanged.
+    for (const profile of beamProfiles.values()) {
+      const center = (profile.min + profile.max) / 2, verticalCenter = profile.vertical / profile.power;
+      const radius = Math.max(0, (profile.max - profile.min) / 2), indices = [];
+      if (radius > Math.min(pitch, rowPitch) / 2) {
+        const firstColumn = Math.max(0, Math.floor((center - radius + width / 2) / pitch));
+        const lastColumn = Math.min(camera.pixelCount - 1, Math.floor((center + radius + width / 2) / pitch));
+        const firstRow = Math.max(0, Math.floor((sensorHeight / 2 - verticalCenter - radius) / rowPitch));
+        const lastRow = Math.min(pixelRows - 1, Math.floor((sensorHeight / 2 - verticalCenter + radius) / rowPitch));
+        for (let row = firstRow; row <= lastRow; row++) for (let column = firstColumn; column <= lastColumn; column++) {
+          const x = -width / 2 + (column + .5) * pitch, y = sensorHeight / 2 - (row + .5) * rowPitch;
+          if ((x - center) ** 2 + (y - verticalCenter) ** 2 <= radius ** 2 + 1e-12) indices.push(row * camera.pixelCount + column);
+        }
+      }
+      if (!indices.length) indices.push(bin(verticalCenter, sensorHeight, rowPitch, pixelRows, true) * camera.pixelCount + bin(center, width, pitch, camera.pixelCount));
+      const fraction = 1 / indices.length;
+      for (const index of indices) {
+        rawPower[index] += profile.power * fraction;
+        for (let channel = 0; channel < 3; channel++) rawRgb[index * 3 + channel] += profile.rgb[channel] * fraction;
+      }
     }
     const peakPower = Math.max(...pixels.map(p => p.power));
     const reference = camera.autoExposure && peakPower > 0 ? peakPower : 1, columnScale = camera.exposure / reference;
@@ -119,7 +152,8 @@
     }
     return { pixels, imagePower, imageRgb, width, height: sensorHeight, pitch, rowPitch, columns: camera.pixelCount, rows: pixelRows,
       spotSize, totalPower, hits, peakPower, imagePeakPower, reference, imageReference, imageScale, clippedPixels, columnClippedPixels,
-      nonvisiblePower, hasVerticalData, enabled: camera.enabled, exposure: camera.exposure, autoExposure: camera.autoExposure };
+      nonvisiblePower, hasVerticalData, hasBeamProfile: beamProfiles.size > 0,
+      enabled: camera.enabled, exposure: camera.exposure, autoExposure: camera.autoExposure };
   }
   function svg(frame, title = 'カメラ像', unit = 'mm') {
     const unitScale = { mm: 1, cm: 10, in: 25.4 }[unit] || 1;
@@ -127,11 +161,14 @@
     const columnStride = Math.max(1, Math.ceil(frame.columns / 160)), rowStride = Math.max(1, Math.ceil(frame.rows / 120));
     const displayColumns = Math.ceil(frame.columns / columnStride), displayRows = Math.ceil(frame.rows / rowStride);
     const cellWidth = sensorWidth / displayColumns, cellHeight = sensorHeight / displayRows;
+    const verticalDescription = frame.hasVerticalData ? (frame.hasBeamProfile ? '発光スクリーンの近軸像位置とレーザーの円形断面推定' : '発光スクリーンから近軸伝搬した像位置') :
+      (frame.hasBeamProfile ? '面内光線幅から推定したレーザーの円形断面' : '中央面の受光位置');
+    const verticalLabel = frame.hasVerticalData ? (frame.hasBeamProfile ? 'paraxial + beam profile' : 'paraxial image') : (frame.hasBeamProfile ? 'beam profile estimate' : 'center plane');
     const parts = [`<svg xmlns="http://www.w3.org/2000/svg" width="960" height="640" viewBox="0 0 960 640" preserveAspectRatio="xMidYMid meet" role="img">`,
       `<title>${escape(title)}：2Dセンサー像</title>`,
-      `<desc>横方向は面内光線の受光位置。縦方向は${frame.hasVerticalData ? '発光スクリーンから近軸伝搬した像位置' : '中央面の受光位置'}。XとYは同じ物理表示倍率。Gaussian表示スポットFWHM ${number(frame.spotSize)} mm。非干渉。受光P ${number(frame.totalPower)}。表示ゲイン ${frame.exposure}。${frame.autoExposure ? '最大画素を基準に自動表示。' : '固定基準P=1。'}</desc>`,
+      `<desc>横方向は面内光線の受光位置。縦方向は${verticalDescription}。XとYは同じ物理表示倍率。Gaussian表示スポットFWHM ${number(frame.spotSize)} mm。非干渉。受光P ${number(frame.totalPower)}。表示ゲイン ${frame.exposure}。${frame.autoExposure ? '最大画素を基準に自動表示。' : '固定基準P=1。'}</desc>`,
       '<rect width="960" height="640" rx="16" fill="#12242b"/>',
-      `<g fill="#c5d7d9" font-family="sans-serif"><text x="100" y="38" font-size="24">2D SENSOR · ${frame.columns} × ${frame.rows} px</text><text x="860" y="38" text-anchor="end" font-size="17">X/Y SCALE 1:1 · Y: ${frame.hasVerticalData ? 'paraxial image' : 'center plane'}</text></g>`,
+      `<g fill="#c5d7d9" font-family="sans-serif"><text x="100" y="38" font-size="24">2D SENSOR · ${frame.columns} × ${frame.rows} px</text><text x="860" y="38" text-anchor="end" font-size="17">X/Y SCALE 1:1 · Y: ${verticalLabel}</text></g>`,
       `<rect x="${sensorX}" y="${sensorY}" width="${sensorWidth}" height="${sensorHeight}" data-physical-scale="${number(layout.scale)}" fill="#000" stroke="#7f9aa0" stroke-width="2"/>`];
     for (let displayRow = 0; displayRow < displayRows; displayRow++) for (let displayColumn = 0; displayColumn < displayColumns; displayColumn++) {
       const firstRow = displayRow * rowStride, lastRow = Math.min(frame.rows, firstRow + rowStride);
