@@ -504,6 +504,10 @@ test('async share creation or restoration cannot overwrite intervening edits or 
 test('controller new, palette addition and selection participate in Ctrl/Meta undo and redo', () => {
   const h = editorHarness(), starter = h.scene();
   assert.ok(starter.elements.length >= 3);
+  assert.equal(h.get('element-select').getAttribute('size'), '6');
+  assert.equal(h.get('element-select').children.length, starter.elements.length);
+  assert.equal(h.get('component-list-count').textContent, starter.elements.length + '個');
+  assert.match(h.get('element-select').children[0].textContent, /· X .*\/ Y .* cm/);
   assert.equal(h.get('undo').disabled, true);
   h.click('new-scene'); assert.equal(h.scene().elements.length, 0);
   h.add('laser'); const laser = h.selected(); h.add('mirror'); const both = h.scene();
@@ -521,13 +525,90 @@ test('controller new, palette addition and selection participate in Ctrl/Meta un
   h.key('z'); assert.deepEqual(h.scene(), starter);
 });
 
+test('the visible component list selects parts and follows movement, units, addition and deletion', () => {
+  const h = editorHarness(), list = h.get('element-select'), initialCount = h.scene().elements.length;
+  list.value = '1'; h.fire('change', list); assert.equal(h.selectedId(), 1);
+  h.fire('pointerdown', h.component(1), { pointerId: 6, clientX: 150, clientY: 400 });
+  h.fire('pointermove', h.document, { pointerId: 6, clientX: 230, clientY: 460 });
+  h.fire('pointerup', h.document, { pointerId: 6, clientX: 230, clientY: 460 });
+  assert.match(list.children[0].textContent, /· X 23 \/ Y 46 cm/);
+  h.get('unit').value = 'mm'; h.fire('change', h.get('unit'));
+  assert.match(list.children[0].textContent, /· X 230 \/ Y 460 mm/);
+  h.add('iris'); assert.equal(list.children.length, initialCount + 1);
+  assert.equal(h.get('component-list-count').textContent, initialCount + 1 + '個');
+  h.click('delete'); assert.equal(list.children.length, initialCount);
+  assert.equal(h.get('component-list-count').textContent, initialCount + '個');
+});
+
 test('palette parts expose the requested defaults in centimetres', () => {
   const h=editorHarness();h.click('new-scene');
   h.add('laser');assert.equal(h.selected().beamWidth,5);assert.equal(h.get('param-beamWidth').value,'0.5');
   h.add('mirror');assert.equal(h.selected().aperture,25);assert.equal(h.get('param-aperture').value,'2.5');
-  for(const type of ['dichroic','splitter','pbs']){
-    h.add(type);assert.equal(h.selected().aperture,36,type);assert.equal(h.get('param-aperture').value,'3.6',type);
+  h.add('lens');assert.equal(h.selected().focal,76.2);assert.equal(h.selected().aperture,25.4);
+  assert.equal(h.get('param-focal').value,'7.62');assert.equal(h.get('param-aperture').value,'2.54');
+  h.add('objective');assert.equal(h.selected().aperture,10);assert.equal(h.get('param-aperture').value,'1');
+  h.add('fiber');assert.equal(h.selected().aperture,10);assert.equal(h.get('param-aperture').value,'1');
+  for(const type of ['filter','polarizer','waveplate','halfwave','phase']){
+    h.add(type);assert.equal(h.selected().aperture,25.4,type);assert.equal(h.get('param-aperture').value,'2.54',type);
   }
+  h.get('unit').value='in';h.fire('change',h.get('unit'));
+  assert.equal(h.get('param-aperture').value,'1');
+  h.add('objective');assert.equal(h.get('param-aperture').value,'0.39370079');
+  h.add('fiber');assert.equal(h.get('param-aperture').value,'0.39370079');
+  h.add('lens');assert.equal(h.get('param-focal').value,'3');assert.equal(h.get('param-aperture').value,'1');
+  for(const type of ['dichroic','splitter','pbs']){
+    h.add(type);assert.equal(h.selected().aperture,36,type);assert.equal(h.get('param-aperture').value,'1.41732283',type);
+  }
+});
+
+test('white source is a visible palette part with editable full-band defaults and a distinct body', () => {
+  const h=editorHarness(),groups=h.get('palette-buttons').children,sourceGroup=groups[0];
+  assert.equal(sourceGroup.children[0].textContent,'光源');
+  assert.deepEqual(sourceGroup.querySelectorAll('.part-button').map(button=>button.dataset.add),['laser','white','point']);
+  h.click('new-scene');h.fire('click',sourceGroup.querySelector('[data-add="white"]'));
+  const source=h.selected();assert.equal(source.type,'white');
+  assert.deepEqual({wavelength:source.wavelength,wavelengthWidth:source.wavelengthWidth,spectralSamples:source.spectralSamples,
+    polarization:source.polarization,rayCount:source.rayCount,divergence:source.divergence},
+    {wavelength:550,wavelengthWidth:300,spectralSamples:31,polarization:'unpolarized',rayCount:21,divergence:30});
+  assert.match(h.get('source-spectrum-summary').textContent,/400–700 nm.*空間 21 × 波長 31 = 651 本/);
+  assert.equal(h.get('param-polarization').value,'unpolarized');assert.ok(h.get('param-divergence'));
+  assert.equal(h.get('param-beamWidth'),null);assert.equal(h.result().rayCount,651);
+  const {document,view}=drawingHarness(),scene=require('../optics-bench/state.js').defaultScene([source]);
+  view.draw(scene,source.id,require('../optics-bench/optics.js').simulate(scene.elements));
+  assert.ok(document.querySelector('[data-white-source="true"]'));
+  assert.match(h.get('status').textContent,/白色光源/);
+});
+
+test('the source readout selects and reorders drawing layers without moving non-source slots', async () => {
+  const h=editorHarness();
+  const laser=(id,wavelength)=>h.element('laser',id,{x:100,y:300,beamWidth:0,rayCount:1,wavelength,label:`L${id}`});
+  await h.load([laser(1,450),h.element('blocker',9,{x:400,y:600}),laser(2,532),h.element('screen',8,{x:800,y:600}),laser(3,650)]);
+  const sourceOrder=()=>h.get('source-readout').querySelectorAll('[data-select]').map(button=>Number(button.dataset.select));
+  const segmentOrder=()=>h.result().segments.map(segment=>segment.sourceId);
+  assert.deepEqual(sourceOrder(),[1,2,3]);assert.deepEqual(segmentOrder(),[1,2,3]);
+  h.fire('click',h.get('source-readout').querySelectorAll('[data-select]')[1]);
+  assert.equal(h.selectedId(),2);assert.equal(h.get('source-readout').querySelectorAll('.source-row')[1].classList.contains('is-selected'),true);
+  assert.equal(h.get('source-order-back').disabled,false);assert.equal(h.get('source-order-front').disabled,false);
+  const before=h.scene(),power=h.result().sourcePower;h.click('source-order-front');const reordered=h.scene();
+  assert.deepEqual(sourceOrder(),[1,3,2]);assert.deepEqual(reordered.elements.map(element=>element.id),[1,9,3,8,2]);
+  assert.deepEqual(segmentOrder(),[1,3,2]);
+  assert.equal(h.result().sourcePower,power);assert.equal(h.selectedId(),2);assert.equal(h.get('source-order-front').disabled,true);
+  assert.match(h.get('status').textContent,/1段手前/);h.key('z');assert.deepEqual(h.scene(),before);assert.deepEqual(sourceOrder(),[1,2,3]);
+  h.key('y');assert.deepEqual(h.scene(),reordered);assert.deepEqual(sourceOrder(),[1,3,2]);
+  h.click('source-order-back');assert.deepEqual(h.scene(),before);assert.deepEqual(sourceOrder(),[1,2,3]);assert.match(h.get('status').textContent,/1段奥/);
+  h.key('z');assert.deepEqual(h.scene(),reordered);h.key('y');assert.deepEqual(h.scene(),before);
+  h.fire('click',h.get('source-readout').querySelectorAll('[data-select]')[0]);assert.equal(h.get('source-order-back').disabled,true);
+});
+
+test('SVG ray strokes follow source array order so later sources draw in front', () => {
+  const O=require('../optics-bench/optics.js'),S=require('../optics-bench/state.js'),{document,view}=drawingHarness();
+  const laser=(id,wavelength)=>({...O.createElement('laser',id,100,300),beamWidth:0,rayCount:1,wavelength});
+  const scene=S.defaultScene([laser(1,450),laser(2,532),laser(3,650)]);
+  const colors=()=>document.getElementById('rays').children.map(line=>line.getAttribute('stroke'));
+  const draw=()=>view.draw(scene,null,O.simulate(scene.elements,{viewBounds:{x:0,y:0,width:1000,height:600}}));
+  draw();assert.deepEqual(colors(),[450,532,650].map(O.wavelengthColor));
+  [scene.elements[1],scene.elements[2]]=[scene.elements[2],scene.elements[1]];
+  draw();assert.deepEqual(colors(),[450,650,532].map(O.wavelengthColor));
 });
 
 test('the beam blocker stays in the optical-path palette group and remains placeable', () => {
@@ -536,7 +617,7 @@ test('the beam blocker stays in the optical-path palette group and remains place
   const detection=groups.find(group=>group.children[0].textContent==='検出・撮像');
   const blocker=optical.querySelector('[data-add="blocker"]');
   assert.ok(blocker);assert.equal(detection.querySelector('[data-add="blocker"]'),null);
-  assert.equal(groups.flatMap(group=>group.querySelectorAll('.part-button')).length,20);
+  assert.equal(groups.flatMap(group=>group.querySelectorAll('.part-button')).length,21);
   h.click('new-scene');h.fire('click',blocker);
   assert.equal(h.selected().type,'blocker');assert.match(h.get('status').textContent,/ビームブロッカー/);
 });
@@ -811,28 +892,33 @@ test('Ctrl-drag previews a full-parameter copy and commits exactly one new compo
   h.key('y'); assert.deepEqual(h.scene(), after); assert.equal(h.selectedId(), copied.id);
 });
 
-test('Ctrl and Meta drag-copy modes stay latched after the modifier key is released', () => {
-  for (const modifier of ['ctrlKey', 'metaKey']) {
-    const h = editorHarness(); h.click('new-scene'); h.add('mirror');
-    const source = h.selected(), before = h.scene();
-    h.fire('pointerdown', h.component(source.id), { pointerId: 8, [modifier]: true, clientX: source.x, clientY: source.y });
-    h.fire('pointermove', h.document, { pointerId: 8, ctrlKey: false, metaKey: false, clientX: source.x + 80, clientY: source.y + 60 });
-    h.windowEvent('resize'); assert.deepEqual(h.scene(), before, modifier);
-    h.fire('pointerup', h.document, { pointerId: 8, ctrlKey: false, metaKey: false, clientX: source.x + 80, clientY: source.y + 60 });
-    assert.equal(h.scene().elements.length, 2, modifier);
-    assert.deepEqual(h.scene().elements[0], source);
-    assert.deepEqual({ x: h.selected().x, y: h.selected().y }, { x: source.x + 80, y: source.y + 60 });
-  }
+test('Ctrl drag-copy stays latched while Meta or the Windows key alone performs an ordinary move', () => {
+  const h = editorHarness(); h.click('new-scene'); h.add('mirror');
+  const source = h.selected(), before = h.scene();
+  h.fire('pointerdown', h.component(source.id), { pointerId: 8, ctrlKey: true, clientX: source.x, clientY: source.y });
+  h.fire('pointermove', h.document, { pointerId: 8, ctrlKey: false, clientX: source.x + 80, clientY: source.y + 60 });
+  h.windowEvent('resize'); assert.deepEqual(h.scene(), before);
+  h.fire('pointerup', h.document, { pointerId: 8, ctrlKey: false, clientX: source.x + 80, clientY: source.y + 60 });
+  assert.equal(h.scene().elements.length, 2);
+  assert.deepEqual(h.scene().elements[0], source);
+  assert.deepEqual({ x: h.selected().x, y: h.selected().y }, { x: source.x + 80, y: source.y + 60 });
+
+  const m = editorHarness(); m.click('new-scene'); m.add('mirror'); const original = m.selected();
+  m.fire('pointerdown', m.component(original.id), { pointerId: 9, metaKey: true, clientX: original.x, clientY: original.y });
+  m.fire('pointermove', m.document, { pointerId: 9, metaKey: true, clientX: original.x + 80, clientY: original.y + 60 });
+  m.fire('pointerup', m.document, { pointerId: 9, metaKey: true, clientX: original.x + 80, clientY: original.y + 60 });
+  assert.equal(m.scene().elements.length, 1);
+  assert.deepEqual({ x: m.selected().x, y: m.selected().y }, { x: original.x + 80, y: original.y + 60 });
 });
 
-test('pressing a modifier after ordinary pointerdown keeps the gesture as a move', () => {
+test('pressing Ctrl after ordinary pointerdown switches the gesture to a copy', () => {
   const h = editorHarness(); h.click('new-scene'); h.add('mirror');
   const source = h.selected(), before = h.scene();
   h.fire('pointerdown', h.component(source.id), { pointerId: 9, clientX: source.x + 7, clientY: source.y - 3 });
   h.fire('pointermove', h.document, { pointerId: 9, ctrlKey: true, metaKey: true, clientX: source.x + 107, clientY: source.y + 57 });
-  assert.equal(h.scene().elements.length, 1); assert.equal(h.preview(), null);
-  h.fire('pointerup', h.document, { pointerId: 9, ctrlKey: true, metaKey: true, clientX: source.x + 107, clientY: source.y + 57 });
-  assert.deepEqual(h.scene().elements, [{ ...source, x: source.x + 100, y: source.y + 60 }]);
+  assert.deepEqual(h.scene(),before);assert.deepEqual(h.preview(),{...source,x:source.x+100,y:source.y+60});
+  h.fire('pointerup', h.document, { pointerId: 9, clientX: source.x + 107, clientY: source.y + 57 });
+  assert.deepEqual(h.scene().elements,[source,{...source,id:2,x:source.x+100,y:source.y+60}]);
   h.key('z'); assert.deepEqual(h.scene(), before);
 });
 
@@ -869,12 +955,12 @@ test('drag copies apply grab offsets, inch snapping and free placement across ol
     const h = editorHarness(), source = h.element('lens', 14, { x: 400.125, y: 250.875, angle: 17.321 });
     const { end, ...sceneSettings } = settings, offset = { x: 12.5, y: -7.25 };
     await h.load([source], sceneSettings); const before = h.scene();
-    h.fire('pointerdown', h.component(source.id), { pointerId: 14, metaKey: true, clientX: source.x + offset.x, clientY: source.y + offset.y });
-    h.fire('pointermove', h.document, { pointerId: 14, metaKey: true, clientX: end.x, clientY: end.y });
+    h.fire('pointerdown', h.component(source.id), { pointerId: 14, ctrlKey: true, clientX: source.x + offset.x, clientY: source.y + offset.y });
+    h.fire('pointermove', h.document, { pointerId: 14, ctrlKey: true, clientX: end.x, clientY: end.y });
     const expected = V.place(end.x - offset.x, end.y - offset.y, settings.gridStep, settings.snap);
     assert.deepEqual({ x: h.preview().x, y: h.preview().y }, expected);
     h.windowEvent('resize'); assert.deepEqual(h.scene(), before);
-    h.fire('pointerup', h.document, { pointerId: 14, metaKey: true, clientX: end.x, clientY: end.y });
+    h.fire('pointerup', h.document, { pointerId: 14, ctrlKey: true, clientX: end.x, clientY: end.y });
     assert.deepEqual({ x: h.selected().x, y: h.selected().y }, expected);
     assert.deepEqual({ ...h.selected(), id: source.id, x: source.x, y: source.y }, source);
   }
@@ -931,18 +1017,23 @@ test('Escape, pointer cancellation, lost capture, window blur and Ctrl+Z cancel 
   }
 });
 
-test('Ctrl and Meta copy drags at the 80-component limit do not fall back to moving the source', async () => {
-  for (const modifier of ['ctrlKey', 'metaKey']) {
-    const h = editorHarness();
-    await h.load(Array.from({ length: 80 }, (_, i) => h.element('blocker', i + 1, { x: 50 + i % 16 * 50, y: 50 + Math.floor(i / 16) * 100 })));
-    h.click('rotate'); const later = h.scene(); h.key('z'); const before = h.scene(), source = h.selected();
-    h.fire('pointerdown', h.component(source.id), { pointerId: 18, [modifier]: true, clientX: source.x, clientY: source.y });
-    h.fire('pointermove', h.document, { pointerId: 18, [modifier]: true, clientX: source.x + 100, clientY: source.y + 80 });
-    h.fire('pointerup', h.document, { pointerId: 18, [modifier]: true, clientX: source.x + 100, clientY: source.y + 80 });
-    h.windowEvent('resize');
-    assert.deepEqual(h.scene(), before, modifier); assert.equal(h.preview(), null);
-    assert.equal(h.get('redo').disabled, false); h.key('y'); assert.deepEqual(h.scene(), later);
-  }
+test('Ctrl copy drags at the 80-component limit do not fall back to moving the source', async () => {
+  const h = editorHarness();
+  await h.load(Array.from({ length: 80 }, (_, i) => h.element('blocker', i + 1, { x: 50 + i % 16 * 50, y: 50 + Math.floor(i / 16) * 100 })));
+  h.click('rotate'); const later = h.scene(); h.key('z'); const before = h.scene(), source = h.selected();
+  h.fire('pointerdown', h.component(source.id), { pointerId: 18, ctrlKey: true, clientX: source.x, clientY: source.y });
+  h.fire('pointermove', h.document, { pointerId: 18, ctrlKey: true, clientX: source.x + 100, clientY: source.y + 80 });
+  h.fire('pointerup', h.document, { pointerId: 18, ctrlKey: true, clientX: source.x + 100, clientY: source.y + 80 });
+  h.windowEvent('resize');
+  assert.deepEqual(h.scene(), before); assert.equal(h.preview(), null);
+  assert.equal(h.get('redo').disabled, false); h.key('y'); assert.deepEqual(h.scene(), later);
+  h.key('z');assert.deepEqual(h.scene(),before);
+  h.fire('pointerdown',h.component(source.id),{pointerId:181,clientX:source.x,clientY:source.y});
+  h.fire('pointermove',h.document,{pointerId:181,clientX:source.x+40,clientY:source.y+20});assert.notDeepEqual(h.scene(),before);
+  h.fire('pointermove',h.document,{pointerId:181,ctrlKey:true,clientX:source.x+100,clientY:source.y+80});
+  assert.deepEqual(h.scene(),before);assert.equal(h.preview(),null);assert.equal(h.get('bench').hasPointerCapture(181),false);
+  assert.match(h.get('status').textContent,/最大80個/);h.fire('pointerup',h.document,{pointerId:181,clientX:source.x+100,clientY:source.y+80});
+  assert.deepEqual(h.scene(),before);h.key('y');assert.deepEqual(h.scene(),later);
 });
 
 test('a committed Ctrl-drag replaces redo with one copy transaction and ignores duplicate pointerup', () => {
@@ -1024,9 +1115,33 @@ test('dragging a selection moves every member once and Shift locks the dominant 
   h.fire('pointerdown',h.component(2),{pointerId:51,shiftKey:true,clientX:550,clientY:400});h.fire('pointerup',h.document,{pointerId:51,shiftKey:true,clientX:550,clientY:400});
   const before=h.scene();h.fire('pointerdown',h.component(2),{pointerId:52,shiftKey:true,clientX:550,clientY:400});
   h.fire('pointermove',h.document,{pointerId:52,shiftKey:false,clientX:632,clientY:437});h.fire('pointerup',h.document,{pointerId:52,shiftKey:false,clientX:632,clientY:437});
-  const moved=h.scene();assert.deepEqual(h.selectedIds(),[3,2]);assert.deepEqual(moved.elements.map(e=>[e.id,e.x,e.y]),[[1,150,400],[2,630,400],[3,630,200],[4,550,75]]);
+  const moved=h.scene();assert.deepEqual(h.selectedIds(),[3,2]);assert.deepEqual(moved.elements.map(e=>[e.id,e.x,e.y]),[[1,150,400],[2,630,400],[3,630,200],[4,550,123.8]]);
   assert.match(h.get('status').textContent,/2個の部品を移動/);h.key('z');assert.deepEqual(h.scene(),before);assert.deepEqual(h.selectedIds(),[3,2]);
   h.key('y');assert.deepEqual(h.scene(),moved);assert.deepEqual(h.selectedIds(),[3,2]);
+});
+
+test('Shift pressed after a move starts locks the dominant axis and stays latched', () => {
+  const h=editorHarness();h.click('new-scene');h.add('mirror');const source=h.selected(),before=h.scene();
+  h.fire('pointerdown',h.component(source.id),{pointerId:521,clientX:source.x,clientY:source.y});
+  h.fire('pointermove',h.document,{pointerId:521,clientX:source.x+30,clientY:source.y+20});
+  assert.deepEqual({x:h.selected().x,y:h.selected().y},{x:source.x+30,y:source.y+20});
+  h.fire('pointermove',h.document,{pointerId:521,shiftKey:true,clientX:source.x+82,clientY:source.y+37});
+  h.fire('pointerup',h.document,{pointerId:521,clientX:source.x+82,clientY:source.y+37});
+  assert.deepEqual({x:h.selected().x,y:h.selected().y},{x:source.x+80,y:source.y});
+  h.key('z');assert.deepEqual(h.scene(),before);
+});
+
+test('Ctrl and Shift pressed after a drag starts switch it to an axis-locked copy', () => {
+  const h=editorHarness();h.click('new-scene');h.add('laser');const source=h.selected(),before=h.scene();
+  h.fire('pointerdown',h.component(source.id),{pointerId:53,clientX:source.x,clientY:source.y});
+  h.fire('pointermove',h.document,{pointerId:53,clientX:source.x+30,clientY:source.y+20});
+  assert.notDeepEqual(h.scene(),before);assert.equal(h.preview(),null);
+  h.fire('pointermove',h.document,{pointerId:53,ctrlKey:true,shiftKey:true,clientX:source.x+82,clientY:source.y+37});
+  assert.deepEqual(h.scene(),before);assert.deepEqual(h.preview(),{...source,x:source.x+80,y:source.y});
+  h.fire('pointerup',h.document,{pointerId:53,clientX:source.x+82,clientY:source.y+37});
+  const after=h.scene();assert.equal(after.elements.length,2);assert.deepEqual(after.elements[0],source);
+  assert.deepEqual({...after.elements[1],id:source.id},{...source,x:source.x+80,y:source.y});
+  assert.match(h.get('status').textContent,/複製/);h.key('z');assert.deepEqual(h.scene(),before);
 });
 
 test('group clipboard, deletion and Ctrl-drag preserve internal fiber connections and are undoable', async () => {
@@ -1095,7 +1210,7 @@ test('invalid source bands and sample counts preserve the last valid scene and c
 });
 
 test('source bandwidth is retained by clipboard, history and shared-link restoration', async () => {
-  for(const type of ['laser','point']) {
+  for(const type of ['laser','point','white']) {
     const h=editorHarness(), source=h.element(type,1,{wavelength:550.25,wavelengthWidth:300.5,spectralSamples:30});
     await h.load([source]);h.select(1);
     const copy=h.clipboard('copy').data.get('text/plain');assert.deepEqual(h.parseComponent(copy),source);
@@ -1356,13 +1471,13 @@ test('flat mirror drawing and dragging use the reflective surface centre as the 
   assert.deepEqual({ x: h.selected().x, y: h.selected().y }, { x: 150, y: 280 });
 });
 
-test('drag copies preserve complete component records for all twenty optical types', async () => {
+test('drag copies preserve complete component records for all twenty-one optical types', async () => {
   const types = Object.keys(require('../optics-bench/optics.js').TYPES), h = editorHarness();
-  assert.equal(types.length, 20);
+  assert.equal(types.length, 21);
   for (const [index, type] of types.entries()) {
     const source = h.element(type, 31, { angle: 21.3, enabled: false, label: index % 2 ? type + ' component' : '' });
     if (type === 'filter') Object.assign(source,{filterMode:'nd',opticalDensity:1.23,bandLow:450,bandHigh:650,transmission:.7});
-    if (type === 'laser' || type === 'point') Object.assign(source,{wavelength:550,wavelengthWidth:300,spectralSamples:30});
+    if (['laser','point','white'].includes(type)) Object.assign(source,{wavelength:550,wavelengthWidth:300,spectralSamples:30});
     await h.load([source], { unit: 'mm', snap: false });
     const before = h.scene();
     h.fire('pointerdown', h.component(source.id), { pointerId: 23, ctrlKey: true, clientX: source.x + 5, clientY: source.y - 8 });
@@ -1631,8 +1746,8 @@ test('small click jitter selects a ray while marquee, Space-pan, cancellation an
 test('the visible distance tool measures a clicked path and keeps Ctrl-drag duplication available', () => {
   const h = editorHarness(), before = h.scene();
   const html = fs.readFileSync(path.join(__dirname, '../optics-bench/index.html'), 'utf8');
-  assert.match(html, /id="interaction-hints">Ctrl／⌘＋部品ドラッグ：複製/);
-  assert.match(h.get('selection-summary').textContent, /Ctrl／⌘＋ドラッグで複製/);
+  assert.match(html, /id="interaction-hints">Ctrl＋部品ドラッグ：複製/);
+  assert.match(h.get('selection-summary').textContent, /Ctrl＋ドラッグで複製/);
 
   h.click('measure-tool');
   assert.equal(h.get('measure-tool').getAttribute('aria-pressed'), 'true');

@@ -45,7 +45,7 @@
   const label = e => view.title(e);
   const display = v => num(S.toDisplay(v, scene.unit), 8);
   const announce = message => { $("status").textContent = message; };
-  const isSource = e => e.type === "laser" || e.type === "point";
+  const isSource = e => ["laser", "point", "white"].includes(e.type);
   const fieldByKey = key => $("parameter-fields").querySelector('[data-key="' + key + '"]:not([type="range"])');
   const fieldValue = (element, key) => key === "radius" ? 2 * element.focal : element[key];
   const allocateId = () => { const ids = new Set(scene.elements.map(e => e.id)); let id = 1; while (ids.has(id)) id++; return id; };
@@ -94,14 +94,15 @@
   }
   function requestRender() { if (!frame) frame = requestAnimationFrame(() => { frame = 0; render(); }); }
   function updateOptions() {
-    const key = JSON.stringify(scene.elements.map(e => [e.id, label(e), e.enabled]));
+    const key = JSON.stringify([scene.unit, scene.elements.map(e => [e.id, label(e), e.enabled, e.x, e.y])]);
     if (key !== optionsKey) {
       optionsKey = key;
       $("element-select").replaceChildren(...scene.elements.map(e => {
-        const option = node("option", "", label(e) + (e.enabled ? "" : "（無効）"));
+        const option = node("option", "", label(e) + (e.enabled ? "" : "（無効）") + " · X " + display(e.x) + " / Y " + display(e.y) + " " + scene.unit);
         option.value = String(e.id); return option;
       }));
     }
+    $("component-list-count").textContent = scene.elements.length + "個";
     $("element-select").value = selected() ? String(selectedId) : "";
     $("element-select").disabled = !scene.elements.length;
   }
@@ -292,7 +293,7 @@
     if (force || key !== inspectorKey) { inspectorKey = key; buildInspector(e); $("input-error").textContent = ""; }
     $("properties").hidden = !e; $("empty-selection").hidden = Boolean(e);
     $("selected-kind").textContent = e ? O.TYPES[e.type].short : "";
-    $("selection-summary").textContent = selectedIds.length > 1 ? selectedIds.length + "個選択中 · 主選択：" + label(e) + "。Ctrl／⌘＋部品ドラッグでまとめて複製できます。" : e ? "1個選択中 · Ctrl／⌘＋ドラッグで複製 · Shift＋クリックで追加・解除" : "空白をドラッグして範囲選択できます。";
+    $("selection-summary").textContent = selectedIds.length > 1 ? selectedIds.length + "個選択中 · 主選択：" + label(e) + "。Ctrl＋部品ドラッグでまとめて複製できます。" : e ? "1個選択中 · Ctrl＋ドラッグで複製 · Shift＋クリックで追加・解除" : "空白をドラッグして範囲選択できます。";
     $("clear-selection").disabled = !selectedIds.length;
     $("select-all").disabled = !scene.elements.length;
     $("duplicate").textContent = selectedIds.length > 1 ? "複製（" + selectedIds.length + "）" : "複製";
@@ -411,6 +412,17 @@
     checkpoint(); setSelection(scene.elements.map(e=>e.id),selectedId); rememberSelection();
     syncInspector(); render(); bench.focus({preventScroll:true});
   }
+  function moveSelectedSource(step) {
+    if (pending || ![-1, 1].includes(step)) return;
+    const slots = [], sources = [];
+    scene.elements.forEach((element, index) => { if (isSource(element)) { slots.push(index); sources.push(element); } });
+    const from = sources.findIndex(source => source.id === selectedId), to = from + step;
+    if (from < 0 || to < 0 || to >= sources.length) return;
+    checkpoint();
+    [scene.elements[slots[from]], scene.elements[slots[to]]] = [scene.elements[slots[to]], scene.elements[slots[from]]];
+    markEdited(); checkpoint(); syncInspector(); render();
+    announce(label(selected()) + (step > 0 ? "を1段手前へ移しました。" : "を1段奥へ移しました。") + "「戻す」で取り消せます。");
+  }
   function stokesText(s) {
     if (!s || s.I <= 1e-12) return "受光がないため偏光は未定義";
     return "Q/I " + num(s.Q / s.I, 3) + " · U/I " + num(s.U / s.I, 3) + " · V/I " + num(s.V / s.I, 3);
@@ -420,14 +432,19 @@
     $("setup-title").textContent = (scene.title || "自由配置") + (edited ? "（編集済み）" : "");
     $("setup-description").textContent = preset?.description || "部品を自由に配置して設計します。設定はJSONで保存・再開できます。";
     $("setup-notes").textContent = preset ? (edited ? "元のプリセット「" + preset.title + "」の説明： " : "") + preset.notes : "数値は幾何光学の目安です。実機設計では素子の仕様・収差・回折などを別途確認してください。";
-    const sourceRows = scene.elements.filter(isSource).map(e => {
+    const sources = scene.elements.filter(isSource), sourceIndex = sources.findIndex(source => source.id === selectedId);
+    const sourceRows = sources.map((e, index) => {
       const row = node("div", "source-row"), swatch = node("span", "wave-swatch");
+      if (e.id === selectedId) row.classList.add("is-selected");
       swatch.style.background = V.spectrumSwatch(e); swatch.setAttribute("aria-hidden", "true");
       const button = node("button", "", label(e)); button.type = "button"; button.dataset.select = String(e.id);
+      button.setAttribute("aria-pressed", String(e.id === selectedId)); button.title = `描画順 ${index + 1}/${sources.length}（上ほど奥）`;
       row.append(swatch, button, node("span", "source-details", V.spectrumLabel(e) + " · " + (e.enabled ? "P " + power(e.power) : "OFF")));
       return row;
     });
     $("source-readout").replaceChildren(...(sourceRows.length ? sourceRows : [node("p", "subtle", "光源を配置してください。")]));
+    $("source-order-back").disabled = sourceIndex <= 0;
+    $("source-order-front").disabled = sourceIndex < 0 || sourceIndex >= sources.length - 1;
     const detectors = scene.elements.filter(e => ["fiber", "screen", "camera", "fluorescent"].includes(e.type)), emitted = new Map(), forwarded = new Map();
     for (const transfer of result.fiberTransfers || []) {
       emitted.set(transfer.toId, (emitted.get(transfer.toId) || 0) + transfer.power);
@@ -829,7 +846,7 @@
   }
 
   const groups = [
-    ["光源", ["laser", "point"]],
+    ["光源", ["laser", "white", "point"]],
     ["検出・撮像", ["camera", "screen", "fluorescent"]],
     ["光路", ["mirror", "concave", "lens", "objective", "iris", "blocker", "filter", "dichroic", "splitter", "pbs", "fiber"]],
     ["偏光・位相", ["polarizer", "waveplate", "halfwave", "phase"]]
@@ -868,6 +885,22 @@
     }
     $("palette-buttons").append(group);
   }
+  function switchMoveToCopy(p) {
+    if (p.kind !== "move") return true;
+    if (scene.elements.length + p.sources.length > O.MAX_ELEMENTS) {
+      finishInteraction(true); announce("部品は最大" + O.MAX_ELEMENTS + "個までです。"); return false;
+    }
+    for (const before of p.before) {
+      const member = scene.elements.find(item => item.id === before.id);
+      if (member) Object.assign(member, { x: before.x, y: before.y, angle: before.angle });
+    }
+    const ids = new Set(p.sources.map(source => source.id));
+    p.kind = "copy"; p.links = scene.fiberLinks.filter(link => ids.has(link.a) && ids.has(link.b)); p.inside = false;
+    bench.classList.add("is-copying");
+    $("placement-cursor").textContent = label(p.sources.find(source => source.id === p.id) || p.sources[0]) + "の複製をテーブルへ";
+    syncInspector(); requestRender();
+    return true;
+  }
   function updateInteraction(event) {
     if (!pending || pending.pointerId !== event.pointerId) return;
     const p = pending;
@@ -891,6 +924,8 @@
     }
     if (!p.moved && Math.hypot(event.clientX - p.startX, event.clientY - p.startY) < 4) return;
     p.moved = true;
+    if ((p.kind === "move" || p.kind === "copy") && event.shiftKey) p.shiftKey = true;
+    if (p.kind === "move" && event.ctrlKey && !switchMoveToCopy(p)) return;
     const point = view.point(event);
     if (p.kind === "marquee") {
       p.point=point;
@@ -969,19 +1004,19 @@
   bench.addEventListener("pointerdown", event => {
     if (event.button !== 0 || event.isPrimary === false || pending) return;
     const target = event.target.closest("[data-element-id]");
-    if (pointerTool === "measure" && !(target && (event.ctrlKey || event.metaKey))) {
+    if (pointerTool === "measure" && !(target && event.ctrlKey)) {
       event.preventDefault(); window.getSelection()?.removeAllRanges(); inspectPoint(view.point(event)); bench.focus({ preventScroll: true }); return;
     }
     event.preventDefault(); checkpoint();
     window.getSelection()?.removeAllRanges();
     if (target) {
       const id = Number(target.dataset.elementId), previousIds=[...selectedIds], previousPrimary=selectedId;
-      const rotating=Boolean(event.target.closest("[data-rotate]")), copying=!rotating&&(event.ctrlKey||event.metaKey);
+      const rotating=Boolean(event.target.closest("[data-rotate]")), copying=!rotating&&event.ctrlKey;
       const clickIds=event.shiftKey&&!copying?(previousIds.includes(id)?previousIds.filter(i=>i!==id):[...previousIds,id]):[id];
       if(previousIds.includes(id)&&!rotating)setSelection(previousIds,id);else setSelection([...previousIds.filter(i=>event.shiftKey&&!copying),id],id);
       syncInspector();render();view.focus(id);
       const e = selected(), p = view.point(event);
-      // Latch the gesture when grabbed; releasing Ctrl before dropping still copies.
+      // Modifiers latch once detected. They may already be held here or be pressed during pointer movement.
       const kind = rotating ? "rotate" : copying ? "copy" : "move", sources=selectedElements();
       if (kind === "copy" && scene.elements.length+sources.length>O.MAX_ELEMENTS) { announce("部品は最大" + O.MAX_ELEMENTS + "個までです。");setSelection(previousIds,previousPrimary);return; }
       pending = { kind, id, owner: bench, pointerId: event.pointerId,
@@ -1124,7 +1159,7 @@
     if (focus) bench.focus({ preventScroll: true });
   }
   $("select-tool").addEventListener("click",()=>setPointerTool("select"));
-  $("measure-tool").addEventListener("click",()=>{setPointerTool("measure");announce("距離測定：光路上の測りたい位置をクリックしてください。Ctrl／⌘＋部品ドラッグの複製はこのモードでも使えます。");});
+  $("measure-tool").addEventListener("click",()=>{setPointerTool("measure");announce("距離測定：光路上の測りたい位置をクリックしてください。Ctrl＋部品ドラッグの複製はこのモードでも使えます。");});
   $("pan-tool").addEventListener("click",()=>setPointerTool("pan"));
   $("select-all").addEventListener("click",selectAll);
   $("clear-selection").addEventListener("click",()=>{checkpoint();setSelection([]);rememberSelection();syncInspector();render();bench.focus({preventScroll:true});});
@@ -1132,6 +1167,8 @@
   $("duplicate").addEventListener("click", duplicateSelected);
   $("delete").addEventListener("click", deleteSelected);
   $("source-readout").addEventListener("click", event => { const b = event.target.closest("[data-select]"); if (b) select(Number(b.dataset.select), true); });
+  $("source-order-back").addEventListener("click", () => moveSelectedSource(-1));
+  $("source-order-front").addEventListener("click", () => moveSelectedSource(1));
   $("detector-readout").addEventListener("click", event => { const b = event.target.closest("[data-select]"); if (b) select(Number(b.dataset.select), true); });
   $("undo").addEventListener("click", () => undo(-1)); $("redo").addEventListener("click", () => undo(1));
   $("zoom-in").addEventListener("click", () => view.zoom(1.25)); $("zoom-out").addEventListener("click", () => view.zoom(1 / 1.25));

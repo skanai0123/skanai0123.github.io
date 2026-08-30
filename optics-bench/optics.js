@@ -13,6 +13,7 @@
   const TYPES = Object.freeze({
     laser: { label: "レーザー", short: "LAS", color: "#ff8279" },
     point: { label: "点光源", short: "PT", color: "#ffba73" },
+    white: { label: "白色光源", short: "WHITE", color: "#fff1b8" },
     mirror: { label: "ミラー", short: "M", color: "#a8becf" },
     concave: { label: "凹面ミラー", short: "CM", color: "#bdd0ec" },
     lens: { label: "レンズ", short: "L", color: "#70d5ee" },
@@ -56,14 +57,17 @@
   const TYPE_DEFAULTS = {
     laser: { beamWidth: 5 },
     point: { polarization: "unpolarized", rayCount: 21, divergence: 30, beamWidth: 0 },
-    mirror: { angle: 45, aperture: 25 }, concave: { focal: 100, aperture: 100 }, lens: { aperture: 100 },
-    waveplate: { axisAngle: 45 }, halfwave: { axisAngle: 22.5 }, dichroic: { angle: 45, aperture: 36 },
-    objective: { focal: 50, na: 0.35 }, splitter: { angle: 45, aperture: 36 }, pbs: { angle: 45, aperture: 36 },
+    white: { wavelength: 550, wavelengthWidth: 300, spectralSamples: 31, polarization: "unpolarized", rayCount: 21, divergence: 30, beamWidth: 0 },
+    mirror: { angle: 45, aperture: 25 }, concave: { focal: 100, aperture: 100 }, lens: { focal: 76.2, aperture: 25.4 },
+    polarizer: { aperture: 25.4 }, waveplate: { axisAngle: 45, aperture: 25.4 }, halfwave: { axisAngle: 22.5, aperture: 25.4 },
+    phase: { aperture: 25.4 }, dichroic: { angle: 45, aperture: 36 },
+    objective: { focal: 50, aperture: 10, na: 0.35 }, fiber: { aperture: 10 },
+    splitter: { angle: 45, aperture: 36 }, pbs: { angle: 45, aperture: 36 },
     blocker: { aperture: 100 }, screen: { aperture: 100 }, camera: { aperture: 24 },
     fluorescent: { aperture: 100, wavelength: 600, cutoff: 550, transmission: 0.6, rayCount: 21, divergence: 360 },
-    filter: { aperture: 100, transmission: 1 }
+    filter: { aperture: 25.4, transmission: 1 }
   };
-  const isSource = element => element.type === "laser" || element.type === "point";
+  const isSource = element => ["laser", "point", "white"].includes(element.type);
   const dot = (a, b) => a.x * b.x + a.y * b.y;
   const cross = (a, b) => a.x * b.y - a.y * b.x;
   const add = (a, b, scale = 1) => ({ x: a.x + b.x * scale, y: a.y + b.y * scale });
@@ -93,7 +97,7 @@
   function initialElements() {
     const laser = { ...createElement("laser", 1, 150, 400), beamWidth: 5, rayCount: 5 };
     const mirror = createElement("mirror", 2, 550, 400);
-    const lens = { ...createElement("lens", 3, 550, 200), focal: 125, angle: 90 };
+    const lens = { ...createElement("lens", 3, 550, 200), angle: 90 };
     return [laser, mirror, lens];
   }
 
@@ -438,7 +442,7 @@
         const fraction = count === 1 ? 0 : i / (count - 1) - 0.5;
         const origin = source.type === "laser" ? add(source, tangent, fraction * source.beamWidth) : { x: source.x, y: source.y };
         const offset = source.divergence === 360 ? (i - Math.floor(count / 2)) * 360 / count : fraction * source.divergence;
-        const ray = source.type === "point" ? direction(source.angle + offset) : base;
+        const ray = source.type === "laser" ? base : direction(source.angle + offset);
         for (let j = 0; j < spectrum.length; j++) {
           const sample = spectrum[j], power = source.power * sample.weight / count;
           if (rayCount >= maxRays) { discardedPower += power; truncated = true; continue; }

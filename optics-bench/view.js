@@ -161,7 +161,7 @@
       azimuth: kind === 'unpolarized' || kind === 'circular' ? null : (Math.atan2(u, q) * 90 / Math.PI + 180) % 180,
       ellipticity: kind === 'unpolarized' ? null : Math.atan2(v, linear) * 90 / Math.PI };
   }
-  const symbols = { laser:'↦', point:'✦', mirror:'╱', concave:')', lens:'↕', iris:'◉', filter:'F', polarizer:'P', waveplate:'¼', halfwave:'½', phase:'φ', dichroic:'╱', objective:'⌁', fiber:'⊙', blocker:'■', splitter:'◇', pbs:'◈', screen:'▥', camera:'▣', fluorescent:'✺' };
+  const symbols = { laser:'↦', point:'✦', white:'☀', mirror:'╱', concave:')', lens:'↕', iris:'◉', filter:'F', polarizer:'P', waveplate:'¼', halfwave:'½', phase:'φ', dichroic:'╱', objective:'⌁', fiber:'⊙', blocker:'■', splitter:'◇', pbs:'◈', screen:'▥', camera:'▣', fluorescent:'✺' };
 
   function create(bench, onViewChange = () => {}) {
     const doc = bench.ownerDocument, ns = 'http://www.w3.org/2000/svg';
@@ -202,8 +202,8 @@
     function information(e) {
       const unit = cache?.[0]?.unit || 'mm', scale = unit === 'cm' ? 10 : unit === 'in' ? 25.4 : 1;
       const length = value => round(value / scale) + ' ' + unit;
-      if (['laser','point'].includes(e.type) && !(e.wavelengthWidth > 0) && e.label === `${e.wavelength} nm` && e.wavelength >= 380 && e.wavelength <= 780) return '';
-      if (['laser','point'].includes(e.type)) {
+      if (['laser','point','white'].includes(e.type) && !(e.wavelengthWidth > 0) && e.label === `${e.wavelength} nm` && e.wavelength >= 380 && e.wavelength <= 780) return '';
+      if (['laser','point','white'].includes(e.type)) {
         const band=O.sourceBand(e);
         return spectrumLabel(e)+(band.min<380?' · UV':'')+(band.max>780?' · IR':'');
       }
@@ -226,12 +226,15 @@
       const body = make('g'), half = e.aperture / 2, c = O.TYPES[e.type].color || '#bdd5d3';
       const line = (a,b,color=c,width=2) => make('line',{x1:a[0],y1:a[1],x2:b[0],y2:b[1],stroke:color,'stroke-width':width});
       const box = (x,y,w,h,fill=c,stroke=c) => make('rect',{x,y,width:w,height:h,rx:2,fill,stroke,'stroke-width':1.3});
-      const color = ['laser','point'].includes(e.type) ? O.wavelengthColor(e.wavelength) : c;
+      const color = e.type === 'white' ? c : ['laser','point'].includes(e.type) ? O.wavelengthColor(e.wavelength) : c;
       if (e.type === 'laser') {
         const h = Math.max(12, Math.min(65, e.beamWidth / 2 + 5));
         body.append(box(-33,-h,33,h*2,'#2b454c',color), box(-2,-Math.max(3,e.beamWidth/2),4,Math.max(6,e.beamWidth),color), line([-24,-h+4],[-24,h-4],'#8eaca4',1),line([-18,-h+4],[-18,h-4],'#8eaca4',1));
       } else if (e.type === 'point') {
         body.append(make('circle',{r:5,fill:color,stroke:'#eee','stroke-width':1}),make('circle',{r:10,fill:'none',stroke:color,'stroke-dasharray':'2 3'}),line([13,0],[22,0],color,1.5));
+      } else if (e.type === 'white') {
+        body.append(make('circle',{r:7,fill:'#fffdf2',stroke:color,'stroke-width':2,'data-white-source':'true'}),make('circle',{r:12,fill:'none',stroke:color,'stroke-dasharray':'1.5 2.5'}));
+        for(let angle=0;angle<360;angle+=45){const d=O.direction(angle);body.append(line([d.x*14,d.y*14],[d.x*20,d.y*20],color,1.5));}
       } else if (e.type === 'mirror') {
         // The optical surface and snap anchor are both local (0,0). The body
         // extends only along +X, the angle direction, so front/back stay clear.
@@ -294,7 +297,7 @@
         entry={node};
         if(!isPreview){nodes.set(e.id,entry);byId('elements').append(node);}
       }
-      const n=entry.node,k=pixel(),half=['laser','point'].includes(e.type)?Math.max(18,Math.min(65,e.beamWidth/2+4)):e.aperture/2;
+      const n=entry.node,k=pixel(),half=['laser','point','white'].includes(e.type)?Math.max(18,Math.min(65,e.beamWidth/2+4)):e.aperture/2;
       n.setAttribute('transform',`translate(${e.x} ${e.y})`);
       n.classList.toggle('is-selected',selectedIds.includes(e.id));
       n.classList.toggle('is-primary',e.id===selectedId);
@@ -312,7 +315,7 @@
       }
       if(showLabels||isPreview&&previewLabel){
         const name=isPreview?previewLabel:!e.label&&['splitter','pbs'].includes(e.type)?`${O.TYPES[e.type].short} ${e.id}`:title(e);
-        const axis=O.direction(e.angle),sideLabel=Math.abs(axis.y)>.65&&!['laser','splitter','pbs'].includes(e.type),side=e.enabled?1:-1;
+        const axis=O.direction(e.angle),sideLabel=Math.abs(axis.y)>.65&&!['laser','white','splitter','pbs'].includes(e.type),side=e.enabled?1:-1;
         const above=e.type==='concave'||e.type==='fiber'&&fiberMate(e)&&!isPreview;
         const extentY=half*(isBS?Math.max(Math.abs(axis.x),Math.abs(axis.y)):Math.abs(axis.x));
         const tx=sideLabel?side*(half*Math.abs(axis.y)+14*k):0,ty=sideLabel?-4*k:(above?-1:1)*(extentY+17*k);

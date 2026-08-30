@@ -38,7 +38,7 @@ test('compressed share links round-trip every preset with exact settings and sma
 });
 
 test('source bandwidth and sampling survive design, component and compressed-link round trips', async () => {
-  for (const type of ['laser','point']) {
+  for (const type of ['laser','point','white']) {
     const source={...O.createElement(type,1,100,300),wavelength:550.125,wavelengthWidth:300.25,spectralSamples:30};
     const scene=S.defaultScene([source],{unit:'in'});
     assert.deepEqual(S.parse(S.serialize(scene)),scene);
@@ -70,7 +70,7 @@ test('legacy source records stay monochromatic and omit default spectral fields 
 });
 
 test('source bands reject out-of-domain edges and invalid sampling without changing valid input', () => {
-  for (const type of ['laser','point']) {
+  for (const type of ['laser','point','white']) {
     const source=O.createElement(type,1,100,300);
     for (const changes of [{wavelengthWidth:-.1},{wavelengthWidth:2301},{wavelengthWidth:1e-15},
       {wavelength:200,wavelengthWidth:1},{wavelength:2500,wavelengthWidth:1},{spectralSamples:2},
@@ -791,9 +791,9 @@ for (const preset of P.list) test(`preset ${preset.id}: finite rays reach a usef
 test('starter rays pass the mirror and lens and meet on the focal screen', () => {
   const scene = P.create('starter'), result = simulate(scene), screen = detector(result, 4);
   near(screen.power, 1);
-  near(screen.centroid.x, 550); near(screen.centroid.y, 75); near(screen.span, 0);
+  near(screen.centroid.x, 550); near(screen.centroid.y, 123.8); near(screen.span, 0);
   assert.equal(screen.acceptedHits, scene.elements[0].rayCount);
-  assert.equal(result.segments.filter(segment => endAt(segment, 550, 75)).length, scene.elements[0].rayCount);
+  assert.equal(result.segments.filter(segment => endAt(segment, 550, 123.8)).length, scene.elements[0].rayCount);
 });
 
 test('4F preset has the correct conjugate and Fourier spacings and inverted unit magnification', () => {

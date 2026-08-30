@@ -124,7 +124,7 @@ test('parallel and self intersections do not create spurious hits', () => {
 
 test('convex lens focuses collimated light at f, from either side', () => {
   for (const sign of [-1, 1]) for (const f of [25, 125, 500]) {
-    const lens = element('lens', 2, 500, 300, 0, f);
+    const lens = { ...element('lens', 2, 500, 300, 0, f), aperture: 100 };
     for (const offset of [-15, 0, 15]) {
       const ray = O.traceRay({ x: 500 - sign * 200, y: 300 + offset }, { x: sign, y: 0 }, [lens]);
       assert.deepEqual(ray.hits, [2]);
@@ -168,7 +168,7 @@ test('default laser-mirror-lens layout reaches the indicated focus', () => {
   for (const ray of rays) {
     assert.deepEqual(ray.hits, [2, 3]);
     const a = ray.points.at(-2), b = ray.points.at(-1);
-    near(a.x + (b.x - a.x) * (75 - a.y) / (b.y - a.y), 550);
+    near(a.x + (b.x - a.x) * (123.8 - a.y) / (b.y - a.y), 550);
     assert.equal(ray.paraxialWarning, false);
     assert.equal(ray.limited, false);
   }
@@ -200,10 +200,10 @@ test('grid snapping and free placement support negative and distant positions', 
 
 test('crossed and collinear surfaces are flagged but separated default parts are not', () => {
   assert.equal(O.overlapping(O.initialElements()), false);
-  assert.equal(O.overlapping([element('mirror', 1, 500, 300), element('lens', 2, 500, 325)]), true);
-  assert.equal(O.overlapping([element('mirror', 1, 500, 300), element('lens', 2, 525, 300, 90)]), true);
+  assert.equal(O.overlapping([element('mirror', 1, 500, 300), { ...element('lens', 2, 500, 325), aperture: 100 }]), true);
+  assert.equal(O.overlapping([element('mirror', 1, 500, 300), { ...element('lens', 2, 525, 300, 90), aperture: 100 }]), true);
   assert.equal(O.overlapping([element('mirror', 1, 500, 300), element('lens', 2, 600, 300)]), false);
-  assert.equal(O.overlapping([element('mirror', 1, 500, 300), element('lens', 2, 550, 300, 90)]), true);
+  assert.equal(O.overlapping([element('mirror', 1, 500, 300), { ...element('lens', 2, 550, 300, 90), aperture: 100 }]), true);
 });
 
 test('multiple independent lasers and rotated edge layouts remain bounded', () => {
@@ -290,7 +290,7 @@ test('numerical coordinate guards reject unsafe input and invalid view bounds ca
 });
 
 test('all supported part defaults are accepted by the physical simulator', () => {
-  const types = ['laser', 'point', 'mirror', 'concave', 'lens', 'iris', 'filter', 'polarizer', 'waveplate',
+  const types = ['laser', 'point', 'white', 'mirror', 'concave', 'lens', 'iris', 'filter', 'polarizer', 'waveplate',
     'dichroic', 'objective', 'fiber', 'blocker', 'splitter', 'pbs', 'screen', 'camera', 'fluorescent', 'halfwave', 'phase'];
   assert.deepEqual(Object.keys(O.TYPES).sort(), types.sort());
   for (const type of types) {
@@ -306,8 +306,18 @@ test('new components use the requested centimetre-scale optical defaults', () =>
   assert.equal(O.createElement('mirror',2,0,0).aperture,25);
   assert.equal(O.createElement('concave',3,0,0).aperture,100);
   for(const type of ['dichroic','splitter','pbs'])assert.equal(O.createElement(type,4,0,0).aperture,36,type);
+  const lens=O.createElement('lens',5,0,0);assert.equal(lens.focal,76.2);assert.equal(lens.aperture,25.4);
+  assert.equal(O.createElement('objective',6,0,0).aperture,10);
+  assert.equal(O.createElement('fiber',8,0,0).aperture,10);
+  for(const type of ['filter','polarizer','waveplate','halfwave','phase'])assert.equal(O.createElement(type,7,0,0).aperture,25.4,type);
   const initial=O.initialElements();assert.equal(initial[0].beamWidth,5);assert.equal(initial[1].aperture,25);
+  assert.equal(initial[2].focal,76.2);assert.equal(initial[2].aperture,25.4);
   const starter=P.create('starter');assert.equal(starter.elements[0].beamWidth,5);assert.equal(starter.elements[1].aperture,25);
+  assert.equal(starter.elements[2].focal,76.2);assert.equal(starter.elements[2].aperture,25.4);
+  assert.equal(P.create('confocal').elements.find(element=>element.type==='objective').aperture,50);
+  assert.equal(P.create('fiber-coupling').elements.find(element=>element.type==='fiber').aperture,30);
+  assert.ok(P.create('fiber-link').elements.filter(element=>element.type==='fiber').every(element=>element.aperture===30));
+  assert.equal(P.create('broadband-filter').elements.find(element=>element.type==='filter').aperture,100);
 });
 
 test('laser sampling preserves selected width, wavelength, total power and detector moments', () => {
@@ -711,8 +721,8 @@ test('source bands use uniform midpoint samples and preserve the monochromatic l
   }
 });
 
-test('laser and point spectra repeat the spatial samples without multiplying total power', () => {
-  for (const type of ['laser','point']) for (const spectralSamples of [3,17,61]) {
+test('laser, point and white spectra repeat the spatial samples without multiplying total power', () => {
+  for (const type of ['laser','point','white']) for (const spectralSamples of [3,17,61]) {
     const source=part(type,1,100,300,{power:2.4,rayCount:5,beamWidth:20,divergence:10,
       wavelength:550,wavelengthWidth:300,spectralSamples,polarization:'right'});
     const result=O.simulate([source]); assert.equal(result.rayCount,5*spectralSamples);
@@ -728,6 +738,18 @@ test('laser and point spectra repeat the spatial samples without multiplying tot
   const modern=part('laser',1,100,300,{spectralSamples:61}), legacy={...modern};
   delete legacy.wavelengthWidth; delete legacy.spectralSamples;
   assert.deepEqual(O.simulate([modern]),O.simulate([legacy]));
+});
+
+test('white source defaults to an unpolarized 400–700 nm fan with conserved total power', () => {
+  const source=O.createElement('white',1,100,300),screen=part('screen',2,500,300,{aperture:300});
+  assert.deepEqual({wavelength:source.wavelength,wavelengthWidth:source.wavelengthWidth,spectralSamples:source.spectralSamples,
+    polarization:source.polarization,rayCount:source.rayCount,divergence:source.divergence},
+    {wavelength:550,wavelengthWidth:300,spectralSamples:31,polarization:'unpolarized',rayCount:21,divergence:30});
+  assert.deepEqual(O.sourceBand(source),{min:400,max:700});
+  const result=O.simulate([source,screen]),record=detector(result,2);
+  assert.equal(result.rayCount,651);assert.equal(record.acceptedHits,651);assert.equal(Object.keys(record.powerByWavelength).length,31);
+  near(result.sourcePower,1);near(record.power,1);near(result.detectedPower,1);near(result.absorbedPower,0);
+  near(record.stokes.Q,0);near(record.stokes.U,0);near(record.stokes.V,0);bounded(result);
 });
 
 test('broadband filter preset has measured spectral throughput and a monochromatic limit', () => {
@@ -927,7 +949,7 @@ test('fiber acceptance uses sin of incidence angle in air and only the entrance 
 test('objective NA clips rays outside the approximate acceptance cone', () => {
   const source = part('laser', 1, 100, 300, { beamWidth: 20, rayCount: 5 });
   for (const [na, expected] of [[0.25, 0.6], [1, 1]]) {
-    const result = O.simulate([source, part('objective', 2, 400, 300, { focal: 20, na }),
+    const result = O.simulate([source, part('objective', 2, 400, 300, { focal: 20, aperture: 100, na }),
       part('screen', 3, 500, 300)]);
     near(detector(result, 3).power, expected);
     assert.equal(result.warnings.some(warning => warning.includes('NA')), na === 0.25);
@@ -1019,8 +1041,8 @@ test('angle snapping uses 22.5 degree intervals and the position helper accepts 
 
 const relayScene = () => [
   part('laser', 1, 100, 400, { beamWidth: 2, rayCount: 5 }),
-  part('fiber', 2, 300, 400, { angle: 0, coreDiameter: 4, na: 0.3 }),
-  part('fiber', 3, 650, 200, { angle: 180, coreDiameter: 4, na: 0.3 }),
+  part('fiber', 2, 300, 400, { angle: 0, aperture: 50, coreDiameter: 4, na: 0.3 }),
+  part('fiber', 3, 650, 200, { angle: 180, aperture: 50, coreDiameter: 4, na: 0.3 }),
   part('screen', 4, 850, 200)
 ];
 const relayOptions = { fiberLinks: [{ a: 2, b: 3 }] };

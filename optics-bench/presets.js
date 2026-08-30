@@ -45,7 +45,7 @@
       notes: "光源の帯域は400〜700 nm、全帯域の相対P=1。波長を30分割し、405・415…695 nmの代表点を各1/30のパワーで追跡します。空間9本×30波長=270本。BP 500〜560 nmは6波長を透過し、カメラは54本・P=0.2を受光。光源の幅を0にすると550 nmの単色・9本・P=1になります。波長数を増やしても入力Pは一定ですが、狭いフィルターの通過率はサンプル位置で変化します。均一スペクトルの模式モデルで、実測発光スペクトルや線幅による干渉は計算しません。重なる光線は波長色をパワーで合成した表示用の色です。",
       elements: () => [
         part("point", 1, 100, 300, { wavelength: 550, wavelengthWidth: 300, spectralSamples: 30, rayCount: 9, divergence: 8, label: "広帯域光源" }),
-        part("filter", 2, 450, 300, { label: "緑を通すBP" }),
+        part("filter", 2, 450, 300, { aperture: 100, label: "緑を通すBP" }),
         part("camera", 3, 800, 300, { aperture: 120, autoExposure: false, label: "透過光のカメラ" })
       ]
     },
@@ -81,12 +81,12 @@
     },
     {
       id: "starter", title: "ミラーとレンズ", description: "レーザーを折り返して集光する、最初の配置。",
-      notes: "ミラーの角度は反射面から裏面へ向かう法線です。45°のミラーで右向きの光を上へ90°折り返し、焦点距離125 mmのレンズでスクリーン上に集光します。裏面へ入射すると吸収されます。ドラッグで位置を変えて光路を確認できます。",
+      notes: "ミラーの角度は反射面から裏面へ向かう法線です。45°のミラーで右向きの光を上へ90°折り返し、標準の焦点距離3 inch（76.2 mm）・有効径1 inch（25.4 mm）のレンズでスクリーン上に集光します。裏面へ入射すると吸収されます。ドラッグで位置を変えて光路を確認できます。",
       elements: () => [
         part("laser", 1, 150, 400, { angle: 0, beamWidth: 5, wavelength: 532, rayCount: 9, label: "入射レーザー" }),
         part("mirror", 2, 550, 400, { angle: 45, aperture: 25, label: "折返しミラー" }),
-        part("lens", 3, 550, 200, { angle: 90, focal: 125, aperture: 100, label: "集光レンズ" }),
-        part("screen", 4, 550, 75, { angle: 90, aperture: 100, label: "焦点スクリーン" })
+        part("lens", 3, 550, 200, { angle: 90, focal: 76.2, aperture: 25.4, label: "集光レンズ" }),
+        part("screen", 4, 550, 123.8, { angle: 90, aperture: 100, label: "焦点スクリーン" })
       ]
     },
     {
