@@ -161,7 +161,7 @@
     const columnStride = Math.max(1, Math.ceil(frame.columns / 160)), rowStride = Math.max(1, Math.ceil(frame.rows / 120));
     const displayColumns = Math.ceil(frame.columns / columnStride), displayRows = Math.ceil(frame.rows / rowStride);
     const cellWidth = sensorWidth / displayColumns, cellHeight = sensorHeight / displayRows;
-    const verticalDescription = frame.hasVerticalData ? (frame.hasBeamProfile ? '発光スクリーンの近軸像位置とレーザーの円形断面推定' : '発光スクリーンから近軸伝搬した像位置') :
+    const verticalDescription = frame.hasVerticalData ? (frame.hasBeamProfile ? '画像ターゲットの近軸像位置とレーザーの円形断面推定' : '画像ターゲットから近軸伝搬した像位置') :
       (frame.hasBeamProfile ? '面内光線幅から推定したレーザーの円形断面' : '中央面の受光位置');
     const verticalLabel = frame.hasVerticalData ? (frame.hasBeamProfile ? 'paraxial + beam profile' : 'paraxial image') : (frame.hasBeamProfile ? 'beam profile estimate' : 'center plane');
     const parts = [`<svg xmlns="http://www.w3.org/2000/svg" width="960" height="640" viewBox="0 0 960 640" preserveAspectRatio="xMidYMid meet" role="img">`,

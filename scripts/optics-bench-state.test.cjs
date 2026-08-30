@@ -629,24 +629,16 @@ test('screen target images persist through scenes, components and sharing while 
   assert.ok(ordinary.elements.every(element => !Object.hasOwn(element,'screenHeight') && !Object.hasOwn(element,'screenPattern')));
 });
 
-test('standalone luminous dolls preserve their physical target and emission settings in every save route', async () => {
-  const defaults=O.createElement('doll',1,100,200);
-  assert.deepEqual({aperture:defaults.aperture,screenHeight:defaults.screenHeight,screenPattern:defaults.screenPattern,
-    power:defaults.power,rayCount:defaults.rayCount,divergence:defaults.divergence,polarization:defaults.polarization},
-    {aperture:60,screenHeight:90,screenPattern:'doll',power:1,rayCount:9,divergence:20,polarization:'unpolarized'});
-  const doll={...defaults,aperture:72.5,screenHeight:100,power:2.25,rayCount:13,divergence:35.5,angle:22.5,label:'発光人形'};
+test('passive image reflectance persists while removed luminous-doll records are rejected', async () => {
+  const target={...O.createElement('screen',1,100,200),screenPattern:'doll',transmission:.72,screenHeight:90,rayCount:13,divergence:35.5,label:'受動人形ターゲット'};
   for(const unit of ['mm','cm','in']){
-    const scene=S.defaultScene([doll],{unit});assert.deepEqual(S.parse(S.serialize(scene)),scene);
-    assert.deepEqual(S.parseComponent(S.serializeComponent(doll)),doll);
+    const scene=S.defaultScene([target],{unit});assert.deepEqual(S.parse(S.serialize(scene)),scene);
+    assert.deepEqual(S.parseComponent(S.serializeComponent(target)),target);
     assert.deepEqual(await Q.decode(await Q.encode(scene)),scene);
   }
-  const compact=JSON.parse(S.serialize(S.defaultScene([defaults]))).elements[0];
-  assert.equal(Object.hasOwn(compact,'screenHeight'),false);assert.equal(Object.hasOwn(compact,'screenPattern'),false);
-  assert.deepEqual(S.parse(S.serialize(S.defaultScene([defaults]))).elements[0],defaults);
-  for(const changes of [{screenPattern:'none'},{screenPattern:'duck'},{screenHeight:0},{screenHeight:301}]){
-    const bad={...defaults,...changes};assert.throws(()=>S.defaultScene([bad]));
-    assert.ok(O.simulate([bad]).warnings.some(warning=>warning.includes('不正')));
-  }
+  assert.equal(O.createElement('screen',2,100,200).transmission,1);
+  assert.throws(()=>O.createElement('doll',1,100,200),/Unknown/);
+  assert.throws(()=>S.validateScene({...S.defaultScene(),elements:[{id:1,type:'doll',x:100,y:200}]}),/部品種別/);
 });
 
 test('invalid screen target images and heights are rejected without affecting valid screens', () => {

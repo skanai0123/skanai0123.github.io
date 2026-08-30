@@ -10,12 +10,10 @@
   const formatWavelength = value => String(Number(value.toPrecision(10)));
   const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
   function spectrumLabel(source) {
-    if (source.type === 'doll') return '450 / 620 / 650 nm';
     const band = O.sourceBand(source);
     return (source.wavelengthWidth ?? 0) > 0 ? `${formatWavelength(band.min)}–${formatWavelength(band.max)} nm` : `${source.wavelength} nm`;
   }
   function spectrumSwatch(source) {
-    if (source.type === 'doll') return 'linear-gradient(90deg, rgb(0, 70, 255), rgb(255, 98, 0), rgb(255, 0, 0))';
     if (!(source.wavelengthWidth > 0)) return O.wavelengthColor(source.wavelength);
     const band = O.sourceBand(source);
     return 'linear-gradient(90deg,' + Array.from({length:5},(_,i)=>O.wavelengthColor(band.min+(band.max-band.min)*i/4)).join(',') + ')';
@@ -163,7 +161,7 @@
       azimuth: kind === 'unpolarized' || kind === 'circular' ? null : (Math.atan2(u, q) * 90 / Math.PI + 180) % 180,
       ellipticity: kind === 'unpolarized' ? null : Math.atan2(v, linear) * 90 / Math.PI };
   }
-  const symbols = { laser:'↦', point:'✦', white:'☀', doll:'人', mirror:'╱', concave:')', lens:'↕', iris:'◉', filter:'F', polarizer:'P', waveplate:'¼', halfwave:'½', phase:'φ', dichroic:'╱', objective:'⌁', fiber:'⊙', blocker:'■', splitter:'◇', pbs:'◈', screen:'▥', camera:'▣', fluorescent:'✺' };
+  const symbols = { laser:'↦', point:'✦', white:'☀', mirror:'╱', concave:')', lens:'↕', iris:'◉', filter:'F', polarizer:'P', waveplate:'¼', halfwave:'½', phase:'φ', dichroic:'╱', objective:'⌁', fiber:'⊙', blocker:'■', splitter:'◇', pbs:'◈', screen:'▥', camera:'▣', fluorescent:'✺' };
 
   function create(bench, onViewChange = () => {}) {
     const doc = bench.ownerDocument, ns = 'http://www.w3.org/2000/svg';
@@ -209,7 +207,6 @@
         const band=O.sourceBand(e);
         return spectrumLabel(e)+(band.min<380?' · UV':'')+(band.max>780?' · IR':'');
       }
-      if (e.type === 'doll') return `450/620/650 nm · ${length(e.aperture)}×${length(e.screenHeight)}`;
       if (e.type === 'mirror') return `表 ${round(O.normalizeAngle(e.angle + 180))}°側`;
       if (e.type === 'camera') return `${e.pixelCount}×${e.pixelRows} px · ${length(e.aperture)}×${length(e.sensorHeight)}`;
       if (e.type === 'screen' && e.screenPattern !== 'none') return `${{duck:'アヒル',doll:'人形',checker:'市松模様',bars:'3色バー'}[e.screenPattern]} · ${length(e.aperture)}×${length(e.screenHeight)}`;
@@ -239,16 +236,6 @@
       } else if (e.type === 'white') {
         body.append(make('circle',{r:7,fill:'#fffdf2',stroke:color,'stroke-width':2,'data-white-source':'true'}),make('circle',{r:12,fill:'none',stroke:color,'stroke-dasharray':'1.5 2.5'}));
         for(let angle=0;angle<360;angle+=45){const d=O.direction(angle);body.append(line([d.x*14,d.y*14],[d.x*20,d.y*20],color,1.5));}
-      } else if (e.type === 'doll') {
-        const scale=Math.max(.55,Math.min(1.25,e.aperture/60)),figure=make('g',{transform:`scale(${scale})`,'data-luminous-doll':'true'});
-        figure.append(
-          make('circle',{cx:0,cy:-14,r:7,fill:'#efad79',stroke:'#ffcc9e','stroke-width':1.5}),
-          make('circle',{cx:-2.4,cy:-15,r:.9,fill:'#21333c'}),make('circle',{cx:2.4,cy:-15,r:.9,fill:'#21333c'}),
-          make('path',{d:'M -7 -5 L 7 -5 L 9 11 L -9 11 Z',fill:'#5a8fd8',stroke:'#9bc5ff','stroke-width':1.5}),
-          make('path',{d:'M -7 -2 L -18 5 M 7 -2 L 18 5',fill:'none',stroke:'#efad79','stroke-width':4,'stroke-linecap':'round'}),
-          make('path',{d:'M -5 11 L -9 27 M 5 11 L 9 27',fill:'none',stroke:'#e16d69','stroke-width':5,'stroke-linecap':'round'}),
-          make('circle',{r:24,fill:'none',stroke:'#86b9ff','stroke-width':1.2,'stroke-dasharray':'2 4','data-doll-glow':'true'}));
-        body.append(figure);
       } else if (e.type === 'mirror') {
         // The optical surface and snap anchor are both local (0,0). The body
         // extends only along +X, the angle direction, so front/back stay clear.

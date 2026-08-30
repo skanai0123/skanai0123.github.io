@@ -47,7 +47,7 @@
   const label = e => view.title(e);
   const display = v => num(S.toDisplay(v, scene.unit), 8);
   const announce = message => { $("status").textContent = message; };
-  const isSource = e => ["laser", "point", "white", "doll"].includes(e.type);
+  const isSource = e => ["laser", "point", "white"].includes(e.type);
   const isSpectralSource = e => ["laser", "point", "white"].includes(e.type);
   const fieldByKey = key => $("parameter-fields").querySelector('[data-key="' + key + '"]:not([type="range"])');
   const fieldValue = (element, key) => key === "radius" ? 2 * element.focal : element[key];
@@ -60,7 +60,6 @@
   const componentPolarizationName = value => ({ linear: "直線偏光", right: "右円偏光", left: "左円偏光", unpolarized: "無偏光" })[value] || value;
   function componentSpecification(e) {
     const length = value => display(value) + " " + scene.unit, diameter = () => "D " + length(e.aperture);
-    if (e.type === "doll") return `${length(e.aperture)}×${length(e.screenHeight)}; 450/620/650 nm; P ${power(e.power)}; ${O.screenPatternSamples(e).length}画点×${e.rayCount}本; 無偏光`;
     if (isSpectralSource(e)) return `${V.spectrumLabel(e)}; P ${power(e.power)}; ${e.type === "laser" ? "ビーム " + length(e.beamWidth) : "発光角 " + num(e.divergence, 4) + "°"}; ${e.rayCount}本; ${componentPolarizationName(e.polarization)}`;
     if (e.type === "mirror") return `${diameter()}; 反射面 ${num(O.normalizeAngle(e.angle + 180), 4)}°側`;
     if (e.type === "concave") return `${diameter()}; f ${length(e.focal)}; R ${length(2 * e.focal)}`;
@@ -76,7 +75,7 @@
     if (e.type === "blocker") return diameter();
     if (e.type === "splitter") return `${diameter()}; NPBS T ${e.transmission}`;
     if (e.type === "pbs") return `${diameter()}; PBS p透過 / s反射`;
-    if (e.type === "screen") return e.screenPattern === "none" ? `${diameter()}; 検出スクリーン` : `${length(e.aperture)}×${length(e.screenHeight)}; ${componentPatternName(e.screenPattern)}; P ${power(e.power)}; ${O.screenPatternSamples(e).length}画点×${e.rayCount}本`;
+    if (e.type === "screen") return e.screenPattern === "none" ? `${diameter()}; 検出スクリーン` : `${length(e.aperture)}×${length(e.screenHeight)}; ${componentPatternName(e.screenPattern)}; 反射率 ${power(e.transmission)}; ${O.screenPatternSamples(e).length}画点×${e.rayCount}本`;
     if (e.type === "camera") return `${length(e.aperture)}×${length(e.sensorHeight)}; ${e.pixelCount}×${e.pixelRows} px; spot ${length(e.spotSize)}`;
     if (e.type === "fluorescent") return `${diameter()}; ≤${e.cutoff}→${e.wavelength} nm; η ${e.transmission}; ${e.rayCount}本`;
     return diameter();
@@ -188,7 +187,7 @@
     input.max = String(length ? S.toDisplay(limits.max, scene.unit) : limits.max);
     input.step = input.type === "range" && angles.has(key) ? String(scene.angleSnap ? 22.5 : 0.1) : ["rayCount", "spectralSamples", "pixelCount", "pixelRows"].includes(key) || (key === "phase" && input.type === "range") ? "1" : key === "opticalDensity" && input.type === "range" ? "0.01" : "any";
     input.disabled = (key === "polAngle" && e.polarization !== "linear") || (key === "spectralSamples" && e.wavelengthWidth === 0) ||
-      (e.type === "screen" && e.screenPattern === "none" && ["screenHeight", "power", "divergence", "rayCount"].includes(key)) || Boolean(input.closest("[data-filter-modes]")?.hidden);
+      (e.type === "screen" && e.screenPattern === "none" && ["screenHeight", "transmission", "divergence", "rayCount"].includes(key)) || Boolean(input.closest("[data-filter-modes]")?.hidden);
   }
   function makeField(key, options = {}) {
     const e = selected(), title = options.title || names[key];
@@ -236,7 +235,7 @@
       e.type === "fiber" ? "入射する光の進行方向。0°＝右向き入射。接続時の出射は反対向き（＋180°）。" :
       e.type === "concave" ? "頂点の法線。0°は凹面が左向き、180°は右向き。裏面は吸収。" :
       e.type === "camera" ? "受光する光の進行方向。0°は右向き入射を受光。裏面は吸収。" :
-      e.type === "screen" && e.screenPattern !== "none" ? "発光画像の正面方向。0°は右向きへ画像光を出射。検出面の法線も兼ねます。" :
+      e.type === "screen" && e.screenPattern !== "none" ? "画像面の正面方向。0°は右向きへ拡散反射光を出射。照明はこの正面側から入射させます。" :
       e.type === "fluorescent" ? "板面の法線と蛍光の発光扇形の中心。発光角360°では両側へ放出。" :
       e.type === "mirror" ? "反射面から裏面へ向かう法線。0°は表面が左向き、180°は右向き。裏面入射は吸収。45°で右向きの光を上へ反射。" :
       ["dichroic", "splitter", "pbs"].includes(e.type) ? "面の法線。45°で右向きの光を上へ反射。" : "光軸 / 面の法線。0°＝水平な光路。";
@@ -259,15 +258,6 @@
       fields.append(makeField("rayCount", { hint: "空間方向の本数。各波長で同じビーム幅・発光角をサンプルします。" }), makeField("polarization", { choices: [
         ["linear", "直線偏光"], ["right", "円偏光（V / I = +1）"], ["left", "円偏光（V / I = −1）"], ["unpolarized", "無偏光"]
       ] }), makeField("polAngle", { hint: "偏光の0°はベンチ面に垂直な方向。配置角度とは別です。" }));
-    } else if (e.type === "doll") {
-      fields.append(
-        makeField("aperture", { title: "人形の幅", hint: "2〜300 mm。発光点が並ぶ物体の横寸法。" }),
-        makeField("screenHeight", { title: "人形の高さ", hint: "2〜300 mm。3D表示とカメラ像の縦寸法。" }),
-        makeField("power", { title: "人形の相対輝度", hint: "人形全体から出る相対パワー。60画点と各方向へ均等配分します。" }),
-        makeField("divergence", { title: "発光角（全角）", hint: "水平・垂直の近軸角度範囲。レンズへ届く範囲を調整します。" }),
-        makeField("rayCount", { title: "1画点あたりの光線数", hint: "各発光点から出す方向サンプル数。標準では60画点×9本です。" }),
-        node("p", "param-note", "顔・手620 nm、服450 nm、脚650 nmの自己発光する平面テスト物体です。無偏光で、レンズを通したカラー像をカメラで確認できます。物体の奥行き・表面反射・遮蔽は未計算です。")
-      );
     } else {
       const isBS = ["splitter", "pbs"].includes(e.type);
       fields.append(makeField("aperture", { title: e.type === "camera" ? "センサー幅" : e.type === "fluorescent" ? "蛍光板の幅" : isBS ? "分離面の長さ" : names.aperture,
@@ -285,15 +275,15 @@
         check.setAttribute("aria-label", "カメラ像の明るさを自動調整");
         auto.append(check, document.createTextNode("像の明るさを自動調整"));
         fields.append(auto, makeField("exposure", { hint: "表示だけの倍率。自動OFFでは1画素P=1が基準。露光時間・感度・受光パワー自体は変えません。" }));
-        fields.append(node("p", "param-note", "レンズを内蔵しない2Dセンサーです。通常光源は中央面、画像スクリーンは縦方向も近軸追跡して表示します。表示スポットは回折PSFではありません。干渉・ノイズは未計算。"));
+        fields.append(node("p", "param-note", "レンズを内蔵しない理想2D CCD/CMOSセンサー面です。通常光源は中央面、画像スクリーンは縦方向も近軸追跡して表示します。表示スポットは回折PSFではありません。Bayer配列、量子効率、干渉、ノイズは未計算。"));
       }
       if (e.type === "screen") fields.append(
-        makeField("screenPattern", { choices: [["none", "画像なし（検出のみ）"], ["duck", "アヒル"], ["doll", "人形（テスト物体）"], ["checker", "市松模様"], ["bars", "青・緑・赤バー"]], hint: "画像や人形を選ぶと、スクリーンがカメラ撮影用の発光テストターゲットになります。" }),
+        makeField("screenPattern", { choices: [["none", "画像なし（検出のみ）"], ["duck", "アヒル"], ["doll", "人形（テスト物体）"], ["checker", "市松模様"], ["bars", "青・緑・赤バー"]], hint: "画像や人形を選ぶと、照明を受けたときだけ反射するカメラ撮影用ターゲットになります。" }),
         makeField("screenHeight", { hint: "2〜300 mm。画像の縦寸法と3D表示のパネル高さ。" }),
-        makeField("power", { title: "画像の相対輝度", hint: "画像全体から出る相対パワー。受光表示とは別です。" }),
-        makeField("divergence", { title: "画像光の発光角（全角）", hint: "水平・垂直の近軸角度範囲。レンズへ届く範囲を調整します。" }),
-        makeField("rayCount", { title: "1画点あたりの光線数", hint: "画像の各発光点から出す2D角度サンプル数。全体は画像点数との積になります。" }),
-        node("p", "param-note", "画像は自己発光する離散テストターゲットです。印刷物の照明・反射・質感は扱いません。レンズで横・縦とも近軸結像し、カメラで確認できます。画像なしでは従来どおり入射光を吸収する検出スクリーンです。")
+        makeField("transmission", { title: "画像の拡散反射率", hint: "0〜1。入射した照明Pのうち、理想色拡散ターゲットから画像光として返す割合。" }),
+        makeField("divergence", { title: "画像光の拡散角（全角）", hint: "水平・垂直の近軸角度範囲。レンズへ届く範囲を調整します。" }),
+        makeField("rayCount", { title: "1画点・1波長あたりの光線数", hint: "照明スペクトルごとに画像の各点から出す2D角度サンプル数。" }),
+        node("p", "param-note", "画像は受動的な理想色拡散ターゲットです。表面へ照明光が入ったときだけ、その波長を保って反射します。照明なしでは画像光は出ません。色は3帯域の模式反射率で、実物のインク・紙・質感・散乱分布は未計算です。")
       );
       if (e.type === "fluorescent") {
         fields.append(
@@ -534,7 +524,7 @@
       row.append(cell, node("td", "", e.enabled ? power(d?.power || 0) : "OFF"),
         node("td", "", e.type === "fiber" ? (e.enabled ? power(emitted.get(e.id) || 0) : "OFF") :
           e.type === "fluorescent" ? (e.enabled ? power(d?.emittedPower || 0) : "OFF") :
-          e.type === "screen" && e.screenPattern !== "none" ? (e.enabled ? power(e.power) : "OFF") : "—"),
+          e.type === "screen" && e.screenPattern !== "none" ? (e.enabled ? power(d?.emittedPower || 0) : "OFF") : "—"),
         node("td", "", String(d?.acceptedHits || 0)), node("td", "", d?.acceptedHits ? String(num(S.toDisplay(d.span, scene.unit), 4)) : "—"));
       body.append(row);
     }
@@ -543,14 +533,7 @@
     const e = selected(), output = $("selected-output"); output.replaceChildren();
     if (!e) return;
     if (isSource(e)) {
-      if (e.type === "doll") {
-        output.append(node("strong", "", "光る人形の出射"),
-          node("p", "stokes", stokesText({ I:e.power, Q:0, U:0, V:0 })),
-          node("p", "", `出射 P = ${power(e.power)} / ${O.screenPatternSamples(e).length}画点 × ${e.rayCount}本`),
-          node("p", "", `450 / 620 / 650 nm · ${display(e.aperture)}×${display(e.screenHeight)} ${scene.unit}`));
-      } else {
       output.append(node("strong", "", "光源の設定偏光"), node("p", "stokes", stokesText(O.sourceStokes(e))));
-      }
     } else {
       const d = result.detectors.find(item => item.id === e.id);
       if (["fiber", "screen", "camera"].includes(e.type)) {
@@ -573,7 +556,7 @@
           }
         }
         if (e.type === "screen" && e.screenPattern !== "none") output.append(
-          node("p", "", `画像出射 P = ${power(e.power)} / ${O.screenPatternSamples(e).length}画点 × ${e.rayCount}本`),
+          node("p", "", `照明反射 P = ${power(d?.emittedPower || 0)} / ${d?.emittedHits || 0}本（反射率 ${power(e.transmission)}）`),
           node("p", "", `画像：${componentPatternName(e.screenPattern)} / ${display(e.aperture)}×${display(e.screenHeight)} ${scene.unit}`)
         );
         if (d?.acceptedHits) {
@@ -695,13 +678,13 @@
     cameraSvg = K.svg(frame, label(camera), scene.unit);
     $("camera-image").src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(cameraSvg);
     $("camera-image").alt = label(camera) + "の2次元センサー像。横は実受光位置、縦は" +
-      (frame.hasVerticalData ? "発光スクリーンから近軸伝搬した像位置" : "中央面の表示スポット") +
+      (frame.hasVerticalData ? "画像ターゲットから近軸伝搬した像位置" : "中央面の表示スポット") +
       "。非干渉の受光P " + power(frame.totalPower) + "、" + frame.hits + "本。";
     $("camera-stats").textContent = `受光P ${power(frame.totalPower)} · ${frame.hits}本 · ${frame.columns}×${frame.rows}画素 · センサー ${display(frame.width)}×${display(frame.height)} ${scene.unit} · XY表示倍率 1:1 · 画素 ${display(frame.pitch)}×${display(frame.rowPitch)} ${scene.unit} · 最大P/画素 ${power(frame.imagePeakPower)}`;
     $("camera-status").textContent = (!camera.enabled ? "カメラはOFFです。" : !frame.hits ? "光が届いていません。位置・向き・センサー幅と、手前の光学部品を確認してください。" :
       camera.autoExposure ? "明るさ自動：現在の最大画素を基準に表示。パワー比較には自動OFFを使用してください。" : "明るさ固定：1画素P=1を基準に表示。") +
       ` 表示ゲイン ×${camera.exposure}。` + (frame.clippedPixels ? ` 表示上限を超える画素：${frame.clippedPixels}。` : "") +
-      (frame.hasVerticalData ? " 発光スクリーンの縦像位置を近軸追跡しています。" : "") +
+      (frame.hasVerticalData ? " 画像ターゲットの縦像位置を近軸追跡しています。" : "") +
       (frame.nonvisiblePower ? " UV・IRは識別用の疑似色です。" : "") + (result.truncated ? " 光線追跡の打切りがあるため、像は未完の集計です。" : "");
   }
   $("camera-select").addEventListener("change", event => select(Number(event.target.value)));
@@ -1017,7 +1000,7 @@
   }
 
   const groups = [
-    ["光源", ["laser", "white", "point", "doll"]],
+    ["光源", ["laser", "white", "point"]],
     ["検出・撮像", ["camera", "screen", "fluorescent"]],
     ["光路", ["mirror", "concave", "lens", "objective", "iris", "blocker", "filter", "dichroic", "splitter", "pbs", "fiber"]],
     ["偏光・位相", ["polarizer", "waveplate", "halfwave", "phase"]]

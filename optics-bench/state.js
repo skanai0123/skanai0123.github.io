@@ -112,7 +112,6 @@
       if (!O.SCREEN_PATTERNS.includes(input.screenPattern)) fail(`${name}のスクリーン画像に対応していません。`);
       element.screenPattern = input.screenPattern;
     }
-    if (type === "doll" && element.screenPattern !== "doll") fail(`${name}の光る人形は固定の人形発光パターンを使用します。`);
     if (own(input, "enabled")) element.enabled = boolean(input.enabled, `${name}の有効状態`);
     if (own(input, "autoExposure")) element.autoExposure = boolean(input.autoExposure, `${name}の自動明るさ`);
     if (own(input, "label")) element.label = safeText(input.label, `${name}の名前`, 100);
@@ -203,13 +202,13 @@
       if (record.type === "camera") for (const key of ["pixelRows", "sensorHeight", "spotSize"]) {
         if (record[key] === O.DEFAULTS[key]) delete record[key];
       }
-      if (["screen", "doll"].includes(record.type)) for (const key of ["screenHeight", "screenPattern"]) {
+      if (record.type === "screen") for (const key of ["screenHeight", "screenPattern"]) {
         if (record[key] === O.createElement(record.type, 1, 0, 0)[key]) delete record[key];
       }
       if (record.type !== "camera") for (const key of ["pixelCount", "pixelRows", "sensorHeight", "spotSize", "exposure", "autoExposure"]) {
         if (record[key] === O.DEFAULTS[key]) delete record[key];
       }
-      if (!["screen", "doll"].includes(record.type)) for (const key of ["screenHeight", "screenPattern"]) {
+      if (record.type !== "screen") for (const key of ["screenHeight", "screenPattern"]) {
         if (record[key] === O.DEFAULTS[key]) delete record[key];
       }
       if (record.type !== "filter") for (const key of ["filterMode", "bandLow", "bandHigh", "opticalDensity"]) {

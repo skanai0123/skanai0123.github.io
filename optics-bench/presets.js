@@ -31,12 +31,13 @@
 
   const definitions = [
     {
-      id: "duck-camera", title: "アヒルをカメラで撮る", description: "発光スクリーンのアヒルをレンズで2Dカメラへ等倍・倒立結像。",
-      notes: "100×75 mmのスクリーンに83画点のアヒルを表示し、各点から9本、合計747本の無偏光画像光を出します。f=300 mmのレンズを物体・像面から各600 mmに置く2f–2f配置で、横と縦をともに約−1倍へ倒立結像し、カメラP=1を受光します。スクリーン画像は自己発光する離散テストターゲットです。印刷物の照明・反射、回折PSF、収差、奥行きのある物体、実センサー応答は含みません。",
+      id: "duck-camera", title: "照明したアヒルをCCDで結像", description: "白色光で照明した受動ターゲットを、外部レンズでCCDへ等倍・倒立結像。",
+      notes: "白色点光源（450／550／650 nmの3帯域、P=1）をアヒル面のカメラ側から斜めに当てます。アヒルは自己発光せず、照明を受けたときだけ入射波長を保った理想色拡散光を返します。f=300 mmのレンズを物体・CCD面から各600 mmに置く2f–2f配置で、横と縦をともに約−1倍へ倒立結像します。カメラはレンズを内蔵しない理想CCD面です。色は3帯域の模式反射率で、実物のインク・紙の反射スペクトル、照度分布、回折PSF、収差、Bayer配列、量子効率、ノイズは含みません。",
       elements: () => [
-        part("screen", 1, 100, 300, { aperture: 100, screenHeight: 75, screenPattern: "duck", power: 1, rayCount: 9, divergence: 6, label: "アヒル画像" }),
+        part("screen", 1, 100, 300, { aperture: 100, screenHeight: 75, screenPattern: "duck", transmission: 1, rayCount: 9, divergence: 6, label: "受動アヒルターゲット" }),
         part("lens", 2, 700, 300, { focal: 300, aperture: 300, label: "2f結像レンズ" }),
-        part("camera", 3, 1300, 300, { aperture: 100, sensorHeight: 75, spotSize: 2.5, label: "アヒル撮影カメラ" })
+        part("camera", 3, 1300, 300, { aperture: 100, sensorHeight: 75, spotSize: 2.5, label: "CCD像面" }),
+        part("white", 4, 350, 500, { angle: 218.65980825409008, divergence: 14, rayCount: 15, spectralSamples: 3, power: 1, label: "3帯域の白色照明" })
       ]
     },
     {

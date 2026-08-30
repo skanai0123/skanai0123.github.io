@@ -14,7 +14,6 @@
     laser: { label: "レーザー", short: "LAS", color: "#ff8279" },
     point: { label: "点光源", short: "PT", color: "#ffba73" },
     white: { label: "白色光源", short: "WHITE", color: "#fff1b8" },
-    doll: { label: "光る人形", short: "DOLL", color: "#86b9ff" },
     mirror: { label: "ミラー", short: "M", color: "#a8becf" },
     concave: { label: "凹面ミラー", short: "CM", color: "#bdd0ec" },
     lens: { label: "レンズ", short: "L", color: "#70d5ee" },
@@ -62,19 +61,18 @@
     laser: { beamWidth: 5 },
     point: { polarization: "unpolarized", rayCount: 21, divergence: 30, beamWidth: 0 },
     white: { wavelength: 550, wavelengthWidth: 300, spectralSamples: 31, polarization: "unpolarized", rayCount: 21, divergence: 30, beamWidth: 0 },
-    doll: { aperture: 60, screenHeight: 90, screenPattern: "doll", polarization: "unpolarized", rayCount: 9, divergence: 20, beamWidth: 0 },
     mirror: { angle: 45, aperture: 25 }, concave: { focal: 100, aperture: 100 }, lens: { focal: 76.2, aperture: 25.4 },
     polarizer: { aperture: 25.4 }, waveplate: { axisAngle: 45, aperture: 25.4 }, halfwave: { axisAngle: 22.5, aperture: 25.4 },
     phase: { aperture: 25.4 }, dichroic: { angle: 45, aperture: 36 },
     objective: { focal: 50, aperture: 10, na: 0.35 }, fiber: { aperture: 10 },
     splitter: { angle: 45, aperture: 36 }, pbs: { angle: 45, aperture: 36 },
-    blocker: { aperture: 100 }, screen: { aperture: 100, screenHeight: 100, screenPattern: "none" }, camera: { aperture: 24, sensorHeight: 18, pixelRows: 192, spotSize: 1 },
+    blocker: { aperture: 100 }, screen: { aperture: 100, screenHeight: 100, screenPattern: "none", transmission: 1 }, camera: { aperture: 24, sensorHeight: 18, pixelRows: 192, spotSize: 1 },
     fluorescent: { aperture: 100, wavelength: 600, cutoff: 550, transmission: 0.6, rayCount: 21, divergence: 360 },
     filter: { aperture: 25.4, transmission: 1 }
   };
-  const isSource = element => ["laser", "point", "white", "doll"].includes(element.type);
+  const isSource = element => ["laser", "point", "white"].includes(element.type);
   const isSpectralSource = element => ["laser", "point", "white"].includes(element.type);
-  const isPatternSource = element => element.type === "doll" || element.type === "screen" && element.screenPattern !== "none";
+  const isPatternScreen = element => element.type === "screen" && element.screenPattern !== "none";
   const SCREEN_PATTERNS = Object.freeze(["none", "duck", "doll", "checker", "bars"]);
   const PATTERN_MAPS = Object.freeze({
     duck: Object.freeze([
@@ -154,16 +152,35 @@
     if (!rows?.length) return [];
     const columns = rows[0].length, samples = [];
     for (let row = 0; row < rows.length; row++) for (let column = 0; column < columns; column++) {
-      const wavelength = PATTERN_WAVELENGTHS[rows[row][column]];
+      const code = rows[row][column], wavelength = PATTERN_WAVELENGTHS[code];
       if (!wavelength) continue;
       samples.push({
         u: (column + .5 - columns / 2) / columns * screen.aperture * .82,
         v: (rows.length / 2 - row - .5) / rows.length * screen.screenHeight * .82,
-        wavelength
+        wavelength, code
       });
     }
     const weight = samples.length ? 1 / samples.length : 0;
     return samples.map(sample => ({ ...sample, weight }));
+  }
+
+  // Ideal diffuse colour target. It preserves the incident wavelength and
+  // applies a broad three-band reflectance to each coloured picture cell.
+  // This is deliberately simpler than measured ink/paper spectra, but unlike
+  // the former self-emitting target it produces no image light without input.
+  function patternReflectance(code, wavelength) {
+    if (!Number.isFinite(wavelength)) return 0;
+    const bands = {
+      y: [0.04, 0.9, 0.68], o: [0.02, 0.42, 0.96], c: [0.78, 0.88, 0.05],
+      w: [0.9, 0.9, 0.9], b: [0.96, 0.12, 0.02], g: [0.08, 0.96, 0.08], r: [0.02, 0.08, 0.96]
+    }[code];
+    if (!bands) return 0;
+    const anchors = [450, 550, 650];
+    if (wavelength <= anchors[0]) return bands[0];
+    if (wavelength >= anchors[2]) return bands[2];
+    const index = wavelength <= anchors[1] ? 0 : 1;
+    const fraction = (wavelength - anchors[index]) / (anchors[index + 1] - anchors[index]);
+    return bands[index] + (bands[index + 1] - bands[index]) * fraction;
   }
 
   function patternDirections(count, divergence) {
@@ -405,7 +422,6 @@
         !["linear", "right", "left", "unpolarized"].includes(element.polarization) ||
         !["longpass", "shortpass"].includes(element.mode) || typeof element.enabled !== "boolean" ||
         !FILTER_MODES.includes(element.filterMode) || !SCREEN_PATTERNS.includes(element.screenPattern) ||
-        (element.type === "doll" && element.screenPattern !== "doll") ||
         (element.type === "filter" && element.bandLow >= element.bandHigh) ||
         (element.type === "fluorescent" && element.wavelength < element.cutoff) ||
         (element.type === "iris" && element.opening > element.aperture) ||
@@ -455,7 +471,7 @@
       acceptedHits: 0, centroid: null, span: 0, stokes: { I: 0, Q: 0, U: 0, V: 0 }, powerByWavelength: {},
       _sumX: 0, _sumY: 0, _min: Infinity, _max: -Infinity,
       ...(element.type === "camera" ? { samples: [] } : {}),
-      ...(element.type === "fluorescent" ? { emittedPower: 0, emittedHits: 0 } : {}) };
+      ...(element.type === "fluorescent" || isPatternScreen(element) ? { emittedPower: 0, emittedHits: 0 } : {}) };
   }
 
   function recordHit(detector, state, point, height, accepted) {
@@ -492,9 +508,52 @@
     const maxSegments = cap(options.maxSegments, MAX_SEGMENTS), maxRays = cap(options.maxRays, MAX_RAYS);
     const minPower = Number.isFinite(options.minPower) ? clamp(options.minPower, 0, 1) : MIN_POWER;
     const segments = [], fiberTransfers = [], detectedPaths = [], queue = [];
+    const patternIllumination = new Map(), emittedPatterns = new Set();
     let rayCount = 0, hitCount = 0, branchCounter = 0, truncated = Array.isArray(elements) && elements.length > MAX_ELEMENTS;
     let sourcePower = 0, escapedPower = 0, absorbedPower = 0, detectedPower = 0, discardedPower = 0;
     let clippedByIris = false, clippedByNA = false, clippedByFiberOutput = false, paraxialWarning = false;
+
+    function collectPatternIllumination(screen, state) {
+      let entry = patternIllumination.get(screen.id);
+      if (!entry) {
+        entry = { screen, spectrum: new Map() };
+        patternIllumination.set(screen.id, entry);
+      }
+      entry.spectrum.set(state.wavelength, (entry.spectrum.get(state.wavelength) || 0) + state.stokes.I);
+    }
+
+    function enqueuePatternEmission(screen, spectrum) {
+      const samples = screenPatternSamples(screen), directions = patternDirections(screen.rayCount, screen.divergence);
+      const detector = detectorMap.get(screen.id), surface = surfaces.find(candidate => candidate.element.id === screen.id);
+      const incidentPower = [...spectrum.values()].reduce((sum, power) => sum + power, 0);
+      let emittedPower = 0, emissionIndex = 0;
+      if (samples.length && directions.length && screen.transmission > 0) {
+        const base = direction(screen.angle), tangent = { x: -base.y, y: base.x };
+        for (let sampleIndex = 0; sampleIndex < samples.length; sampleIndex++) {
+          const sample = samples[sampleIndex], origin = add(screen, tangent, sample.u);
+          for (const [wavelength, spectralPower] of spectrum) {
+            const reflected = spectralPower * screen.transmission * sample.weight * patternReflectance(sample.code, wavelength);
+            emittedPower += reflected;
+            if (reflected <= minPower) { discardedPower += reflected; continue; }
+            for (let directionIndex = 0; directionIndex < directions.length; directionIndex++) {
+              const emitted = directions[directionIndex], power = reflected / directions.length;
+              if (rayCount >= maxRays) { discardedPower += power; truncated = true; continue; }
+              rayCount++;
+              detector.emittedHits++;
+              queue.push({ origin, ray: direction(screen.angle + emitted.angle), vertical: sample.v, verticalSlope: emitted.verticalSlope,
+                stokes: { I: power, Q: 0, U: 0, V: 0 }, wavelength, sourceId: screen.id,
+                imagePointId: sampleIndex, path: options.recordPaths ? [] : null,
+                traceKey: `${screen.id}R:${sampleIndex}:${emissionIndex}:${directionIndex}`,
+                branchId: ++branchCounter, center: emitted.angle === 0 && emitted.verticalSlope === 0,
+                lastIndex: surface?.index ?? -1, interactions: 0, pathLength: 0, unmeasuredFiberLinks: 0, parentSegmentKey: null });
+            }
+            emissionIndex++;
+          }
+        }
+      }
+      detector.emittedPower += emittedPower;
+      absorbedPower += Math.max(0, incidentPower - emittedPower);
+    }
 
     for (const source of scene.filter(isSpectralSource)) {
       sourcePower += source.power;
@@ -519,29 +578,22 @@
       }
     }
 
-    for (const source of scene.filter(isPatternSource)) {
-      const samples = screenPatternSamples(source), directions = patternDirections(source.rayCount, source.divergence);
-      sourcePower += source.power;
-      if (source.power === 0 || !samples.length || !directions.length) continue;
-      const base = direction(source.angle), tangent = { x: -base.y, y: base.x };
-      const surface = surfaces.find(candidate => candidate.element.id === source.id);
-      for (let sampleIndex = 0; sampleIndex < samples.length; sampleIndex++) {
-        const sample = samples[sampleIndex], origin = add(source, tangent, sample.u);
-        for (let directionIndex = 0; directionIndex < directions.length; directionIndex++) {
-          const emitted = directions[directionIndex], power = source.power * sample.weight / directions.length;
-          if (rayCount >= maxRays) { discardedPower += power; truncated = true; continue; }
-          rayCount++;
-          queue.push({ origin, ray: direction(source.angle + emitted.angle), vertical: sample.v, verticalSlope: emitted.verticalSlope,
-            stokes: { I: power, Q: 0, U: 0, V: 0 }, wavelength: sample.wavelength, sourceId: source.id,
-            imagePointId: sampleIndex, path: options.recordPaths ? [] : null, traceKey: `${source.id}P:${sampleIndex}:${directionIndex}`,
-            branchId: ++branchCounter, center: emitted.angle === 0 && emitted.verticalSlope === 0,
-            lastIndex: surface?.index ?? -1, interactions: 0, pathLength: 0, unmeasuredFiberLinks: 0, parentSegmentKey: null });
-        }
-      }
-    }
-
     queue.reverse();
-    while (queue.length) {
+    while (queue.length || patternIllumination.size) {
+      if (!queue.length) {
+        const pending = [...patternIllumination.values()];
+        patternIllumination.clear();
+        for (const entry of pending) {
+          if (emittedPatterns.has(entry.screen.id)) {
+            absorbedPower += [...entry.spectrum.values()].reduce((sum, power) => sum + power, 0);
+            continue;
+          }
+          emittedPatterns.add(entry.screen.id);
+          enqueuePatternEmission(entry.screen, entry.spectrum);
+        }
+        queue.reverse();
+        if (!queue.length) break;
+      }
       const state = queue.pop();
       while (true) {
         if (state.stokes.I <= minPower) { discardedPower += state.stokes.I; break; }
@@ -593,6 +645,14 @@
             dot(state.ray, n) > EPS && Math.hypot(cross(state.ray, n), state.verticalSlope || 0) <= element.na + EPS);
           if (element.type === "camera" && !accepted) warnings.add("カメラの裏面に当たった光は吸収しました。配置角度は受光する光の進行方向です。");
           recordHit(detectorMap.get(element.id), state, end, height, accepted);
+          if (element.type === "screen" && element.screenPattern !== "none") {
+            if (dot(state.ray, n) < -EPS && !emittedPatterns.has(element.id)) collectPatternIllumination(element, state);
+            else {
+              absorbedPower += state.stokes.I;
+              if (dot(state.ray, n) >= -EPS) warnings.add("画像スクリーンの裏面に当たった照明光は吸収しました。画像をカメラ側へ向けてください。");
+            }
+            break;
+          }
           if (accepted && state.path && element.type === "screen") detectedPaths.push({
             sourceId: state.sourceId, detectorId: element.id, steps: state.path, direction: { ...state.ray }
           });
@@ -861,7 +921,7 @@
   const api = { WIDTH, HEIGHT, GRID, MARGIN, COORDINATE_LIMIT, MAX_ELEMENTS, MAX_FIBER_LINKS, MAX_INTERACTIONS, MAX_SEGMENTS, MAX_RAYS,
     TYPES, DEFAULTS, PARAM_LIMITS, FILTER_MODES, direction, normalizeAngle, snapAngle, position,
     createElement, initialElements, elementBounds, traceBounds, segment, intersect, concaveGeometry, intersectConcave, reflect, refract, traceRay, traceScene, overlapping,
-    simulate, sourceStokes, sourceBand, validSourceBand, sourceSpectrum, screenPatternSamples, SCREEN_PATTERNS,
+    simulate, sourceStokes, sourceBand, validSourceBand, sourceSpectrum, screenPatternSamples, patternReflectance, SCREEN_PATTERNS,
     polarize, retard, wavelengthColor, filterTransmission };
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.Optics = api;

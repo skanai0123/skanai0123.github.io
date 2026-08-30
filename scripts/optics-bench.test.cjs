@@ -295,7 +295,7 @@ test('numerical coordinate guards reject unsafe input and invalid view bounds ca
 });
 
 test('all supported part defaults are accepted by the physical simulator', () => {
-  const types = ['laser', 'point', 'white', 'doll', 'mirror', 'concave', 'lens', 'iris', 'filter', 'polarizer', 'waveplate',
+  const types = ['laser', 'point', 'white', 'mirror', 'concave', 'lens', 'iris', 'filter', 'polarizer', 'waveplate',
     'dichroic', 'objective', 'fiber', 'blocker', 'splitter', 'pbs', 'screen', 'camera', 'fluorescent', 'halfwave', 'phase'];
   assert.deepEqual(Object.keys(O.TYPES).sort(), types.sort());
   for (const type of types) {
@@ -522,54 +522,53 @@ test('screen image patterns expose normalized physical color samples', () => {
   assert.deepEqual(O.SCREEN_PATTERNS, ['none','duck','doll','checker','bars']);
 });
 
-test('doll target forms a colored inverted 2D camera image through the existing lens model', () => {
+test('a passively illuminated doll target forms a colored inverted 2D camera image', () => {
   const scene = P.create('duck-camera'), screen = scene.elements[0], camera = scene.elements[2];
   screen.screenPattern = 'doll'; screen.label = '人形ターゲット'; camera.label = '人形撮影カメラ';
   const cells = O.screenPatternSamples(screen), result = O.simulate(scene.elements), reading = detector(result, camera.id);
-  assert.equal(cells.length, 60); assert.equal(reading.samples.length, 540); near(reading.power, 1);
+  assert.equal(cells.length, 60); assert.equal(reading.samples.length, 1620); near(reading.power, .37395555555556453);
   for (const sample of reading.samples) {
     const source = cells[sample.imagePointId]; near(sample.position, -source.u, 1e-7); near(sample.verticalPosition, -source.v, 1.1);
   }
-  assert.deepEqual([...new Set(reading.samples.map(sample => sample.wavelength))].sort((a,b)=>a-b), [450,620,650]);
+  assert.deepEqual([...new Set(reading.samples.map(sample => sample.wavelength))].sort((a,b)=>a-b), [450,550,650]);
   const frame = K.capture(camera, reading), rows = new Set(), columns = new Set();
   frame.imagePower.forEach((power,index)=>{if(power>1e-12){rows.add(Math.floor(index/frame.columns));columns.add(index%frame.columns);}});
-  assert.ok(rows.size > 20 && columns.size > 20); near(frame.imagePower.reduce((sum,power)=>sum+power,0),1,1e-10);
+  assert.ok(rows.size > 20 && columns.size > 20); near(frame.imagePower.reduce((sum,power)=>sum+power,0),reading.power,1e-10);
   assert.match(K.svg(frame, '人形の倒立像'), /Y: paraxial image/);
 });
 
-test('a standalone luminous doll is a normalized colored source and forms the same inverted camera image', () => {
-  const scene=P.create('duck-camera'),oldTarget=scene.elements[0],camera=scene.elements[2];
-  const doll={...O.createElement('doll',oldTarget.id,oldTarget.x,oldTarget.y),angle:oldTarget.angle,aperture:oldTarget.aperture,
-    screenHeight:oldTarget.screenHeight,power:oldTarget.power,rayCount:oldTarget.rayCount,divergence:oldTarget.divergence,label:'光る人形'};
-  scene.elements[0]=doll;
-  const cells=O.screenPatternSamples(doll),result=O.simulate(scene.elements),reading=detector(result,camera.id);
-  assert.equal(cells.length,60);assert.equal(result.rayCount,540);assert.equal(reading.samples.length,540);
-  near(result.sourcePower,1);near(reading.power,1);assert.deepEqual(result.warnings,[]);
-  assert.deepEqual([...new Set(reading.samples.map(sample=>sample.wavelength))].sort((a,b)=>a-b),[450,620,650]);
-  assert.ok(reading.samples.every(sample=>sample.sourceId===doll.id&&Number.isInteger(sample.imagePointId)));
-  for(const sample of reading.samples){const source=cells[sample.imagePointId];near(sample.position,-source.u,1e-7);near(sample.verticalPosition,-source.v,1.1);}
-  near(K.capture(camera,reading).totalPower,1);
+test('image screens stay dark without front illumination and the standalone luminous doll type is removed', () => {
+  const scene=P.create('duck-camera'),screen=scene.elements[0],camera=scene.elements[2];
+  const dark=O.simulate(scene.elements.filter(element=>element.type!=='white'));
+  near(dark.sourcePower,0);near(detector(dark,screen.id).emittedPower,0);near(detector(dark,camera.id).power,0);assert.equal(dark.rayCount,0);
+  const backlight=part('white',9,-150,300,{angle:0,wavelengthWidth:0,spectralSamples:17,rayCount:1,beamWidth:0});
+  const wrongSide=O.simulate([...scene.elements.filter(element=>element.type!=='white'),backlight]);
+  near(detector(wrongSide,screen.id).emittedPower,0);near(detector(wrongSide,camera.id).power,0);
+  assert.ok(wrongSide.warnings.some(warning=>warning.includes('画像スクリーンの裏面')));
+  assert.throws(()=>O.createElement('doll',1,100,100),/Unknown/);
 });
 
 test('duck screen preset forms a measured inverted 2D image and defocus broadens its sampled points', () => {
   const scene = P.create('duck-camera'), screen = scene.elements[0], camera = scene.elements[2];
   const cells = O.screenPatternSamples(screen), result = O.simulate(scene.elements), reading = detector(result, camera.id);
-  assert.equal(result.rayCount, cells.length * screen.rayCount); assert.equal(reading.acceptedHits, 747);
-  near(reading.power, 1); near(result.sourcePower, 1); assert.equal(result.truncated, false); assert.deepEqual(result.warnings, []);
-  assert.equal(reading.samples.length, 747); assert.ok(reading.samples.every(sample => Number.isInteger(sample.imagePointId)));
+  const target = detector(result, screen.id);
+  assert.equal(result.rayCount, 2286); assert.equal(target.acceptedHits, 42); near(target.power, 14/15); near(target.emittedPower, .5023507362784488);
+  assert.equal(reading.acceptedHits, 2241); near(reading.power, target.emittedPower); near(result.sourcePower, 1); assert.equal(result.truncated, false); assert.deepEqual(result.warnings, []);
+  assert.equal(reading.samples.length, 2241); assert.ok(reading.samples.every(sample => Number.isInteger(sample.imagePointId)));
   for (const sample of reading.samples) {
     const source = cells[sample.imagePointId];
     near(sample.position, -source.u, 1e-7);
     near(sample.verticalPosition, -source.v, 1.1);
   }
-  const orange = reading.samples.filter(sample => sample.wavelength === 620);
-  assert.ok(orange.length > 0 && orange.every(sample => sample.position < 0), 'the right-side beak must form on the left');
+  const beakIds = new Set(cells.map((cell,index)=>cell.code==='o'?index:null).filter(index=>index!==null));
+  const beak = reading.samples.filter(sample => beakIds.has(sample.imagePointId));
+  assert.ok(beak.length > 0 && beak.every(sample => sample.position < 0), 'the right-side beak must form on the left');
   const focusedSpread = Math.max(...cells.map((_, id) => {
     const values = reading.samples.filter(sample => sample.imagePointId === id).map(sample => sample.verticalPosition);
     return Math.max(...values) - Math.min(...values);
   }));
   assert.ok(focusedSpread < 1.2);
-  const frame = K.capture(camera, reading); near(frame.totalPower, 1); assert.equal(frame.hits, 747); assert.equal(frame.hasVerticalData, true);
+  const frame = K.capture(camera, reading); near(frame.totalPower, target.emittedPower); assert.equal(frame.hits, 2241); assert.equal(frame.hasVerticalData, true);
   const activeRows = new Set(), activeColumns = new Set();
   frame.imagePower.forEach((value, index) => { if (value > 1e-12) { activeRows.add(Math.floor(index / frame.columns)); activeColumns.add(index % frame.columns); } });
   assert.ok(activeRows.size > 20 && activeColumns.size > 20, 'the duck must occupy a two-dimensional sensor area');
@@ -581,7 +580,7 @@ test('duck screen preset forms a measured inverted 2D image and defocus broadens
     const values = defocusedReading.samples.filter(sample => sample.imagePointId === id).map(sample => sample.verticalPosition);
     return values.length ? Math.max(...values) - Math.min(...values) : 0;
   }));
-  assert.ok(defocusedSpread > 10); assert.ok(defocusedReading.power > .98 && defocusedReading.power < 1);
+  assert.ok(defocusedSpread > 10); assert.ok(defocusedReading.power > .49 && defocusedReading.power < target.emittedPower);
   bounded(result); bounded(defocused);
 });
 
