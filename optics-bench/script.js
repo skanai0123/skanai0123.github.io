@@ -31,7 +31,7 @@
   let selectedIds = [3], pointerTool = "select", spaceHeld = false;
   let result, pending = null, suppressedClick = null, frame = 0, inspectorKey = "", optionsKey = "";
   let history = [], historyIndex = -1;
-  let probe = null, probeHits = [];
+  let probe = null, probeHits = [], measurementStart = null, measurementEnd = null;
   let coherence = null, phaseId = null, phaseOptionsKey = "";
   let cameraId = null, cameraOptionsKey = "", cameraSvg = "";
   let designRevision = 0, shareJob = 0, hashJob = 0, hashLoading = false;
@@ -746,15 +746,50 @@
     const button = event.target.closest("[data-select]"); if (button) select(Number(button.dataset.select), true);
   });
 
+  function probeReference(segment, t) {
+    return { key: segment.key, t, distance: segment.hitId === null ? t * Math.hypot(segment.b.x - segment.a.x, segment.b.y - segment.a.y) : null };
+  }
+  function resolveProbe(reference) {
+    if (!reference) return null;
+    const index = result.segments.findIndex(segment => segment.key === reference.key), segment = result.segments[index];
+    if (!segment) return null;
+    const length = Math.hypot(segment.b.x - segment.a.x, segment.b.y - segment.a.y);
+    const t = reference.distance === null ? reference.t : length ? reference.distance / length : 0;
+    const localDistance = reference.distance === null ? Math.max(0, t * length) : Math.max(0, reference.distance);
+    return { reference, index, segment, length, t, localDistance,
+      cumulative: (Number.isFinite(segment.pathLengthStart) ? segment.pathLengthStart : 0) + localDistance,
+      fiberLinks: Number.isSafeInteger(segment.unmeasuredFiberLinks) ? segment.unmeasuredFiberLinks : 0,
+      point: { x: segment.a.x + t * (segment.b.x - segment.a.x), y: segment.a.y + t * (segment.b.y - segment.a.y) } };
+  }
+  function segmentChain(upstream, downstream) {
+    const byKey = new Map(result.segments.map(segment => [segment.key, segment])), reversed = [];
+    let current = downstream.segment;
+    while (current) {
+      reversed.push(current);
+      if (current.key === upstream.segment.key) return reversed.reverse();
+      current = current.parentKey ? byKey.get(current.parentKey) : null;
+    }
+    return null;
+  }
+  function measurementBetween(startReference, endReference) {
+    const start = resolveProbe(startReference), end = resolveProbe(endReference);
+    if (!start || !end) return null;
+    let upstream = start, downstream = end, segments = segmentChain(start, end);
+    if (!segments) { upstream = end; downstream = start; segments = segmentChain(end, start); }
+    if (!segments) return null;
+    const route = segments.length === 1 ? [{ segment: segments[0], from: Math.min(start.t, end.t), to: Math.max(start.t, end.t) }] :
+      segments.map((segment, index) => ({ segment, from: index === 0 ? upstream.t : 0, to: index === segments.length - 1 ? downstream.t : 1 }));
+    return { start, end, route, distance: Math.abs(end.cumulative - start.cumulative), fiberLinks: Math.abs(end.fiberLinks - start.fiberLinks) };
+  }
   function probeIndex() { return probe ? result.segments.findIndex(s => s.key === probe.key) : -1; }
   function clearProbe(focus = false) {
     const hadFocus = $("ray-inspector").contains(document.activeElement);
-    probe = null; renderProbe();
+    probe = null; measurementStart = null; measurementEnd = null; renderProbe();
     if (focus || hadFocus) bench.focus({ preventScroll: true });
   }
   function chooseProbe(index, t = .5, focus = false) {
     const segment = result.segments[index]; if (!segment) return;
-    probe = { key: segment.key, t, distance: segment.hitId === null ? t * Math.hypot(segment.b.x - segment.a.x, segment.b.y - segment.a.y) : null }; renderProbe();
+    measurementStart = null; measurementEnd = null; probe = probeReference(segment, t); renderProbe();
     $("ray-inspector").parentNode.scrollTop = 0;
     if (focus) $("probe-close").focus();
     announce("クリック位置までの光路距離と状態を表示しました。別の光路をクリックして比較できます。");
@@ -764,14 +799,39 @@
     if (hits.length) chooseProbe(hits[0].index, hits[0].t);
     else clearProbe();
   }
+  function measurePoint(point) {
+    const hits = V.pickSegments(result.segments, point, 6 * view.worldPerPixel());
+    if (!hits.length) { clearProbe(); announce("距離測定を解除しました。始点Aは光路上をクリックして指定します。"); return; }
+    if (measurementStart && !measurementEnd) {
+      const candidate = hits.map(hit => probeReference(result.segments[hit.index], hit.t))
+        .map(reference => ({ reference, range: measurementBetween(measurementStart, reference) }))
+        .find(item => item.range);
+      if (!candidate) {
+        announce("その点は始点Aと同じ連続光路上にありません。分岐後の別の枝ではなく、Aからたどれる光路をクリックしてください。");
+        return;
+      }
+      measurementEnd = candidate.reference; probe = candidate.reference; renderProbe();
+      $("ray-inspector").parentNode.scrollTop = 0;
+      announce(`終点Bを設定しました。AからBまで ${distance(candidate.range.distance)}${candidate.range.fiberLinks ? ` と長さ未設定のファイバー${candidate.range.fiberLinks}区間` : ""}です。`);
+      return;
+    }
+    const hit = hits[0];
+    measurementStart = probeReference(result.segments[hit.index], hit.t); measurementEnd = null; probe = measurementStart; renderProbe();
+    $("ray-inspector").parentNode.scrollTop = 0;
+    announce("始点Aを設定しました。同じ光路上の終点Bをクリックしてください。");
+  }
   function renderProbe() {
     $("inspect-ray").disabled = !result.segments.length;
     $("measure-tool").disabled = !result.segments.length;
     if (!result.segments.length && pointerTool === "measure") setPointerTool("select", false);
     $("inspect-ray").setAttribute("aria-expanded", String(Boolean(probe)));
     $("ray-inspector").hidden = !probe;
-    if (!probe) { probeHits = []; view.markProbe(null); return; }
-    const index = probeIndex(), s = result.segments[index];
+    if (!probe) { probeHits = []; $("probe-range").hidden = true; view.markProbe(null); return; }
+    let index = probeIndex(), s = result.segments[index];
+    if (!s && measurementStart) {
+      const start = resolveProbe(measurementStart);
+      if (start) { measurementEnd = null; probe = measurementStart; index = start.index; s = start.segment; }
+    }
     $("probe-data").hidden = !s;
     $("probe-index").textContent = (s ? index + 1 : "—") + " / " + result.segments.length;
     $("probe-prev").disabled = !result.segments.length || index === 0;
@@ -783,10 +843,7 @@
     }
     // Escaping rays extend with the viewport; keep their probe at a physical
     // distance from the last surface instead of moving it when zooming/panning.
-    const segmentLength = Math.hypot(s.b.x - s.a.x, s.b.y - s.a.y);
-    const t = probe.distance === null ? probe.t : probe.distance / segmentLength;
-    const segmentDistance = probe.distance === null ? Math.max(0, t * segmentLength) : Math.max(0, probe.distance);
-    const at = { x: s.a.x + t * (s.b.x - s.a.x), y: s.a.y + t * (s.b.y - s.a.y) };
+    const resolved = resolveProbe(probe), t = resolved.t, segmentDistance = resolved.localDistance, at = resolved.point;
     probeHits = V.pickSegments(result.segments, at, 6 * view.worldPerPixel());
     $("probe-overlap-label").hidden = probeHits.length < 2;
     $("probe-overlap").replaceChildren(...probeHits.map(hit => {
@@ -827,7 +884,24 @@
     $("probe-position").textContent = "X " + num(display(at.x), 3) + " / Y " + num(display(at.y), 3) + " " + scene.unit;
     $("probe-direction").textContent = num(O.normalizeAngle(Math.atan2(s.b.y - s.a.y, s.b.x - s.a.x) * 180 / Math.PI), 2) + "°（右0°・下90°）";
     $("probe-stokes").textContent = stokesText(s.stokes);
-    view.markProbe({ segment: s, t });
+    let start = resolveProbe(measurementStart), end = resolveProbe(measurementEnd), range = null;
+    if (measurementStart && !start) { measurementStart = null; measurementEnd = null; }
+    if (measurementEnd && !end) measurementEnd = null;
+    start = resolveProbe(measurementStart); end = resolveProbe(measurementEnd);
+    if (start && end) {
+      range = measurementBetween(measurementStart, measurementEnd);
+      if (!range) { measurementEnd = null; end = null; }
+    }
+    $("probe-range").hidden = !start;
+    if (start) {
+      $("probe-range-start").textContent = `区間${start.index + 1} · 光源から ${distance(start.cumulative)}`;
+      $("probe-range-end").textContent = end ? `区間${end.index + 1} · 光源から ${distance(end.cumulative)}` : "同じ光路上をクリック";
+      $("probe-range-distance").textContent = range ? `A–B  ${distance(range.distance)}${range.fiberLinks ? ` + ファイバー${range.fiberLinks}区間` : ""}` : "終点Bを指定してください";
+      $("probe-range-status").textContent = range ? (range.fiberLinks ?
+        `空気中の経路だけを加算。A–B間のファイバー${range.fiberLinks}区間は内部長と屈折率が未設定です。` :
+        "強調表示した同一の追跡光路に沿う幾何距離です。") : "Aを設定済みです。反射・屈折・分岐前後をまたいでBを選べます。";
+    }
+    view.markProbe({ segment: s, t, range: start ? { start, end, route: range?.route || [] } : null });
   }
   function freeSpot() {
     const v = view.getView(), center = V.place(v.x + v.width / 2, v.y + v.height / 2, scene.gridStep, scene.snap);
@@ -1084,7 +1158,7 @@
     if (event.button !== 0 || event.isPrimary === false || pending) return;
     const target = event.target.closest("[data-element-id]");
     if (pointerTool === "measure" && !(target && event.ctrlKey)) {
-      event.preventDefault(); window.getSelection()?.removeAllRanges(); inspectPoint(view.point(event)); bench.focus({ preventScroll: true }); return;
+      event.preventDefault(); window.getSelection()?.removeAllRanges(); measurePoint(view.point(event)); bench.focus({ preventScroll: true }); return;
     }
     event.preventDefault(); checkpoint();
     window.getSelection()?.removeAllRanges();
@@ -1180,6 +1254,10 @@
     chooseProbe(index < 0 ? 0 : index, .5, true);
   });
   $("probe-close").addEventListener("click", () => clearProbe(true));
+  $("probe-range-restart").addEventListener("click", () => {
+    probe = null; measurementStart = null; measurementEnd = null; renderProbe(); bench.focus({ preventScroll: true });
+    announce("2点間の距離測定をリセットしました。光路上の始点Aをクリックしてください。");
+  });
   $("probe-prev").addEventListener("click", () => chooseProbe(Math.max(0, probeIndex() - 1)));
   $("probe-next").addEventListener("click", () => chooseProbe(probeIndex() + 1));
   $("probe-overlap").addEventListener("change", () => {
@@ -1238,7 +1316,10 @@
     if (focus) bench.focus({ preventScroll: true });
   }
   $("select-tool").addEventListener("click",()=>setPointerTool("select"));
-  $("measure-tool").addEventListener("click",()=>{setPointerTool("measure");announce("距離測定：光路上の測りたい位置をクリックしてください。Ctrl＋部品ドラッグの複製はこのモードでも使えます。");});
+  $("measure-tool").addEventListener("click",()=>{
+    measurementStart = null; measurementEnd = null; renderProbe(); setPointerTool("measure");
+    announce("距離測定：光路上の始点A、終点Bの順にクリックしてください。Ctrl＋部品ドラッグの複製はこのモードでも使えます。");
+  });
   $("pan-tool").addEventListener("click",()=>setPointerTool("pan"));
   $("select-all").addEventListener("click",selectAll);
   $("clear-selection").addEventListener("click",()=>{checkpoint();setSelection([]);rememberSelection();syncInspector();render();bench.focus({preventScroll:true});});

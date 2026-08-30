@@ -1987,6 +1987,90 @@ test('the ray probe measures cumulative distance along reflected paths and flags
   assert.equal(h.probe().segment.unmeasuredFiberLinks, 1);
 });
 
+test('the distance tool measures between A and B across reflections in either click order and starts a new range on the third click', async () => {
+  const h = editorHarness();
+  await h.load([
+    h.element('laser', 1, { x: 100, y: 300, beamWidth: 0, rayCount: 1 }),
+    h.element('mirror', 2, { x: 400, y: 300, angle: 45 }),
+    h.element('screen', 3, { x: 400, y: 100, angle: 90 })
+  ]);
+  const before = h.scene(); h.click('measure-tool');
+  probeClick(h, 200, 300);
+  assert.equal(h.get('probe-range').hidden, false);
+  assert.match(h.get('probe-range-start').textContent, /光源から 10 cm/);
+  assert.equal(h.get('probe-range-end').textContent, '同じ光路上をクリック');
+  assert.equal(h.probe().range.end, null);
+
+  probeClick(h, 300, 300);
+  assert.equal(h.get('probe-range-distance').textContent, 'A–B  10 cm');
+  assert.equal(h.probe().range.route.length, 1);
+  probeClick(h, 200, 300);
+  assert.equal(h.probe().range.end, null);
+  probeClick(h, 400, 150);
+  assert.equal(h.get('probe-range-distance').textContent, 'A–B  35 cm');
+  assert.equal(h.probe().range.route.length, 2);
+  assert.match(h.get('probe-range-end').textContent, /光源から 45 cm/);
+  assert.deepEqual(h.scene(), before);
+
+  probeClick(h, 400, 150);
+  assert.equal(h.probe().range.end, null);
+  assert.match(h.get('probe-range-start').textContent, /光源から 45 cm/);
+  probeClick(h, 200, 300);
+  assert.equal(h.get('probe-range-distance').textContent, 'A–B  35 cm');
+  assert.equal(h.probe().range.route.length, 2);
+  h.click('probe-range-restart');
+  assert.equal(h.probe(), null); assert.equal(h.get('ray-inspector').hidden, true);
+});
+
+test('two-point distance rejects sibling splitter branches and flags unmeasured fiber sections', async () => {
+  const h = editorHarness();
+  await h.load([
+    h.element('laser', 1, { x: 100, y: 300, beamWidth: 0, rayCount: 1 }),
+    h.element('splitter', 2, { x: 400, y: 300, angle: 45 }),
+    h.element('screen', 3, { x: 700, y: 300 }),
+    h.element('screen', 4, { x: 400, y: 100, angle: 90 })
+  ]);
+  h.click('measure-tool'); probeClick(h, 400, 200); const startKey = h.probe().segment.key;
+  probeClick(h, 600, 300);
+  assert.equal(h.probe().segment.key, startKey);
+  assert.equal(h.probe().range.end, null);
+  assert.equal(h.get('probe-range-end').textContent, '同じ光路上をクリック');
+  probeClick(h, 200, 300);
+  assert.equal(h.get('probe-range-distance').textContent, 'A–B  30 cm');
+
+  await h.load([
+    h.element('laser', 1, { x: 100, y: 300, beamWidth: 0, rayCount: 1 }),
+    h.element('fiber', 2, { x: 300, y: 300, angle: 0 }),
+    h.element('fiber', 3, { x: 600, y: 300, angle: 180 }),
+    h.element('screen', 4, { x: 800, y: 300 })
+  ], { fiberLinks: [{ a: 2, b: 3 }] });
+  h.click('measure-tool'); probeClick(h, 200, 300); probeClick(h, 700, 300);
+  assert.equal(h.get('probe-range-distance').textContent, 'A–B  20 cm + ファイバー1区間');
+  assert.match(h.get('probe-range-status').textContent, /内部長と屈折率が未設定/);
+  assert.equal(h.probe().range.route.length, 2);
+});
+
+test('the SVG probe draws the full A-to-B route with labeled endpoints', () => {
+  const O = require('../optics-bench/optics.js'), S = require('../optics-bench/state.js');
+  const { document, view } = drawingHarness();
+  const scene = S.defaultScene([
+    { ...O.createElement('laser', 1, 100, 300), beamWidth: 0, rayCount: 1 },
+    { ...O.createElement('mirror', 2, 400, 300), angle: 45 },
+    { ...O.createElement('screen', 3, 400, 100), angle: 90 }
+  ]);
+  const result = O.simulate(scene.elements), [first, second] = result.segments;
+  const start = { segment: first, t: 1 / 3, point: { x: 200, y: 300 } };
+  const end = { segment: second, t: .75, point: { x: 400, y: 150 } };
+  view.draw(scene, 1, result); view.markProbe({ segment: second, t: .75, range: {
+    start, end, route: [{ segment: first, from: 1 / 3, to: 1 }, { segment: second, from: 0, to: .75 }]
+  } });
+  const group = document.getElementById('ray-probe');
+  assert.equal(group.querySelectorAll('[data-probe-route="true"]').length, 4);
+  assert.equal(group.querySelector('[data-probe-point="A"] text').textContent, 'A');
+  assert.equal(group.querySelector('[data-probe-point="B"] text').textContent, 'B');
+  assert.equal(group.querySelectorAll('path').length, 1);
+});
+
 test('SVG export removes the probe marker without mutating the live optical diagram', () => {
   const O = require('../optics-bench/optics.js'), S = require('../optics-bench/state.js');
   const { document, view } = drawingHarness(), scene = S.defaultScene([O.createElement('laser', 1, 100, 300)]);

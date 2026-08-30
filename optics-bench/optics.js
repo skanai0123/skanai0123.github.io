@@ -501,7 +501,7 @@
             sourceId: source.id, path: options.recordPaths ? [] : null,
             traceKey: `${source.id}:${count}:${i}` + (spectrum.length > 1 ? `~${spectrum.length}:${j}` : ""),
             branchId: ++branchCounter, center: i === Math.floor(count / 2), lastIndex: -1, interactions: 0,
-            pathLength: 0, unmeasuredFiberLinks: 0 });
+            pathLength: 0, unmeasuredFiberLinks: 0, parentSegmentKey: null });
         }
       }
     }
@@ -522,7 +522,7 @@
             stokes: { I: power, Q: 0, U: 0, V: 0 }, wavelength: sample.wavelength, sourceId: screen.id,
             imagePointId: sampleIndex, path: options.recordPaths ? [] : null, traceKey: `${screen.id}P:${sampleIndex}:${directionIndex}`,
             branchId: ++branchCounter, center: emitted.angle === 0 && emitted.verticalSlope === 0,
-            lastIndex: surface?.index ?? -1, interactions: 0, pathLength: 0, unmeasuredFiberLinks: 0 });
+            lastIndex: surface?.index ?? -1, interactions: 0, pathLength: 0, unmeasuredFiberLinks: 0, parentSegmentKey: null });
         }
       }
     }
@@ -546,15 +546,17 @@
         const verticalStart = state.vertical || 0, verticalEnd = verticalStart + (state.verticalSlope || 0) * segmentLength;
         const pathLengthStart = state.pathLength;
         state.pathLength += segmentLength;
+        const segmentKey = `${state.traceKey}->${nearest ? nearest.element.id : 'edge'}`;
         segments.push({ a: { ...state.origin }, b: { ...end }, wavelength: state.wavelength,
           power: state.stokes.I, stokes: { ...state.stokes }, sourceId: state.sourceId,
-          key: `${state.traceKey}->${nearest ? nearest.element.id : 'edge'}`,
+          key: segmentKey, parentKey: state.parentSegmentKey,
           branchId: state.branchId, center: state.center, hitId: nearest ? nearest.element.id : null,
           // Millimetres along the traced centre line. Ideal thin surfaces add no
           // thickness; linked fibers are flagged separately because their length
           // and refractive index are not part of the current scene model.
           pathLengthStart, pathLengthEnd: state.pathLength, unmeasuredFiberLinks: state.unmeasuredFiberLinks,
           verticalStart, verticalEnd });
+        state.parentSegmentKey = segmentKey;
         if (!nearest) { escapedPower += state.stokes.I; break; }
         hitCount++;
         state.interactions++;

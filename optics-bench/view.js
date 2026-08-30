@@ -390,6 +390,30 @@
       const { segment: s, t } = probe, k = pixel(), dx = s.b.x - s.a.x, dy = s.b.y - s.a.y, length = Math.hypot(dx, dy);
       if (!length) return;
       const x = s.a.x + t * dx, y = s.a.y + t * dy, ux = dx / length, uy = dy / length;
+      if (probe.range) {
+        const { start, end, route } = probe.range;
+        const parts = route.length ? route : [{ segment: start.segment, from: 0, to: 1, waiting: true }];
+        for (const part of parts) {
+          const sx=part.segment.a.x+(part.segment.b.x-part.segment.a.x)*part.from, sy=part.segment.a.y+(part.segment.b.y-part.segment.a.y)*part.from;
+          const ex=part.segment.a.x+(part.segment.b.x-part.segment.a.x)*part.to, ey=part.segment.a.y+(part.segment.b.y-part.segment.a.y)*part.to;
+          const line={x1:sx,y1:sy,x2:ex,y2:ey,'vector-effect':'non-scaling-stroke','data-probe-route':'true'};
+          group.append(make('line',{...line,stroke:'#10252d','stroke-width':7}),
+            make('line',{...line,stroke:part.waiting?'#f5ffe0':'#ffd66b','stroke-width':2.5,...(part.waiting?{'stroke-dasharray':'5 4'}:{})}));
+        }
+        const marker=(resolved,label,color)=>{
+          if(!resolved)return null;
+          const point=resolved.point||{x:resolved.segment.a.x+resolved.t*(resolved.segment.b.x-resolved.segment.a.x),y:resolved.segment.a.y+resolved.t*(resolved.segment.b.y-resolved.segment.a.y)};
+          const node=make('g',{'data-probe-point':label});
+          node.append(
+            make('circle',{cx:point.x,cy:point.y,r:8*k,fill:'#142831',stroke:color,'stroke-width':2.5*k}),
+            make('text',{x:point.x,y:point.y+3.5*k,'text-anchor':'middle','font-size':10*k,'font-weight':700,fill:'#fff'},label));
+          return node;
+        };
+        group.append(marker(start,'A','#55d8ad'));
+        if(end)group.append(marker(end,'B','#ffd66b'));
+        group.append(make('path',{d:`M ${x+(10*ux-4*uy)*k} ${y+(10*uy+4*ux)*k} L ${x+16*ux*k} ${y+16*uy*k} L ${x+(10*ux+4*uy)*k} ${y+(10*uy-4*ux)*k}`,fill:'none',stroke:'#f5ffe0','stroke-width':2*k}));
+        return;
+      }
       const line = { x1: s.a.x, y1: s.a.y, x2: s.b.x, y2: s.b.y, 'vector-effect': 'non-scaling-stroke' };
       group.append(make('line', { ...line, stroke: '#10252d', 'stroke-width': 6 }),
         make('line', { ...line, stroke: '#f5ffe0', 'stroke-width': 2, 'stroke-dasharray': '5 4' }),

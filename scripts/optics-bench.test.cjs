@@ -46,6 +46,7 @@ test('ray segments accumulate geometric path distance through reflection and spl
   ]);
   assert.deepEqual(reflected.segments.map(segment => segment.hitId), [2, 3]);
   assert.deepEqual(reflected.segments.map(segment => [segment.pathLengthStart, segment.pathLengthEnd]), [[0, 300], [300, 500]]);
+  assert.deepEqual(reflected.segments.map(segment => segment.parentKey), [null, reflected.segments[0].key]);
   assert.ok(reflected.segments.every(segment => segment.unmeasuredFiberLinks === 0));
 
   const split = O.simulate([
@@ -58,6 +59,9 @@ test('ray segments accumulate geometric path distance through reflection and spl
   assert.deepEqual([input.pathLengthStart, input.pathLengthEnd], [0, 300]);
   assert.deepEqual([transmitted.pathLengthStart, transmitted.pathLengthEnd], [300, 600]);
   assert.deepEqual([branchReflected.pathLengthStart, branchReflected.pathLengthEnd], [300, 500]);
+  assert.equal(transmitted.parentKey, input.key);
+  assert.equal(branchReflected.parentKey, input.key);
+  assert.notEqual(transmitted.key, branchReflected.key);
 });
 
 test('five parallel laser rays reach the edge; no laser produces no rays', () => {
@@ -1169,6 +1173,7 @@ test('linked fibers retain the input monitor without double-counting terminal de
     near(segment.a.x, 650); near(segment.b.x, 850);
     near(segment.pathLengthStart, 200); near(segment.pathLengthEnd, 400);
     assert.equal(segment.unmeasuredFiberLinks, 1);
+    assert.ok(result.segments.some(parent => parent.key === segment.parentKey && parent.hitId === 2));
   }
   boundedRelay(result);
 });
