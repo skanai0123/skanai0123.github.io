@@ -376,7 +376,7 @@ function editorHarness(options = {}) {
   get('bench').append(get('elements'));
   for (const id of ['probe-close', 'probe-prev', 'probe-next', 'probe-overlap']) get('ray-inspector').append(get(id));
   const frames = new Map(), windowListeners = new Map();
-  const location = new URL(options.href || 'https://skanai0123.github.io/optics-bench/'), sharedCopies = [], downloads = [];
+  const location = new URL(options.href || 'https://skanai0123.github.io/optics-bench/'), sharedCopies = [], downloads = [], shortRequests = [];
   class HarnessURL extends URL {
     static createObjectURL(blob) { downloads.push(blob); return 'blob:optics-bench-' + downloads.length; }
     static revokeObjectURL() {}
@@ -388,6 +388,11 @@ function editorHarness(options = {}) {
     navigator: { clipboard: options.noClipboard ? undefined : { async writeText(text) {
       if (options.denyClipboard) throw new Error('Permission denied'); sharedCopies.push(text);
     } } },
+    fetch: options.shortUrl || options.shortenerFailure ? async (url, request) => {
+      shortRequests.push({ url, request });
+      if (options.shortenerFailure) throw new Error('offline');
+      return { ok: true, status: 201, json: async () => ({ url: options.shortUrl }) };
+    } : undefined,
     requestAnimationFrame(callback) { const id = nextFrame++; frames.set(id, callback); return id; },
     cancelAnimationFrame(id) { frames.delete(id); },
     setTimeout() { return 1; }, clearTimeout() {},
@@ -434,7 +439,7 @@ function editorHarness(options = {}) {
   return {
     document, get, fire, scene: () => clone(lastScene), result: () => clone(lastResult), selectedId: () => selectedId, selectedIds: () => clone(lastSelectedIds),
     preview: () => clone(lastPreview), marquee: () => clone(lastMarquee), viewport: () => clone(viewport), probe: () => clone(lastProbe),
-    location, sharedCopies, downloads,
+    location, sharedCopies, downloads, shortRequests,
     async ready() {
       for (let i = 0; get('share-panel').getAttribute('aria-busy') === 'true' && i < 1000; i++) await new Promise(resolve => setTimeout(resolve, 1));
       assert.notEqual(get('share-panel').getAttribute('aria-busy'), 'true'); flush();
@@ -491,10 +496,28 @@ test('clipboard denial or missing API leaves a selectable URL and normal text-co
   }
 });
 
+test('share button prefers a hosted short URL and falls back to a long URL when unavailable', async () => {
+  const Q = require('../optics-bench/share.js');
+  const short = 'https://optics-bench-links.shun-kanai-a7.workers.dev/Abcdefgh_123';
+  const online = editorHarness({ shortUrl: short });
+  await online.click('share-copy').done;
+  assert.equal(online.get('share-url').value, short);
+  assert.equal(online.sharedCopies.at(-1), short);
+  assert.match(online.get('share-status').textContent, /短縮共有リンク/);
+  assert.equal(online.shortRequests.length, 1);
+  assert.equal(online.shortRequests[0].url, Q.SHORT_LINK_API);
+  assert.match(online.shortRequests[0].request.body, /^\{"hash":"#ob1=/);
+
+  const offline = editorHarness({ shortenerFailure: true });
+  await offline.click('share-copy').done;
+  assert.match(offline.get('share-url').value, /^https:\/\/skanai0123\.github\.io\/optics-bench\/#ob1=/);
+  assert.match(offline.get('share-status').textContent, /長いURLに切り替え/);
+});
+
 test('local sharing produces a public URL with an explicit publication warning and blocks invalid inputs', async () => {
   const h=editorHarness({href:'http://127.0.0.1:8877/optics-bench/?temporary=1'});
   await h.click('share-copy').done;assert.match(h.sharedCopies[0],/^https:\/\/skanai0123.github.io\/optics-bench\/#ob1=/);
-  assert.match(h.get('share-status').textContent,/公開するまで/);assert.ok(!h.sharedCopies[0].includes('temporary'));
+  assert.match(h.get('share-status').textContent,/公開サイト用/);assert.ok(!h.sharedCopies[0].includes('temporary'));
   h.get('scene-title').value='<bad>';h.fire('input',h.get('scene-title'));await h.click('share-copy').done;
   assert.equal(h.sharedCopies.length,1);assert.match(h.get('status').textContent,/入力エラー/);
 });

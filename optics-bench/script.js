@@ -1473,17 +1473,26 @@
       const destination = Q.target(window.location.href), hash = await Q.encode(scene);
       if (token !== shareJob || revision !== designRevision) return;
       if (pending) { $("share-status").textContent = "操作が始まったため共有リンクの生成を取り消しました。操作後に作り直してください。"; return; }
-      const url = destination.url + hash;
+      $("share-status").textContent = "短縮共有リンクを発行しています…";
+      let url, shortened = false, fallback = "";
+      try { url = await Q.shorten(hash); shortened = true; }
+      catch (error) {
+        url = destination.url + hash;
+        fallback = " 短縮URLを作れなかったため、圧縮データを含む長いURLに切り替えました。" + error.message;
+      }
+      if (token !== shareJob || revision !== designRevision) return;
+      if (pending) { $("share-status").textContent = "操作が始まったため共有リンクの生成を取り消しました。操作後に作り直してください。"; return; }
       $("share-url").value = url; $("share-result").hidden = false;
-      const warning = (destination.local ? " ローカル版から公開サイト用URLを作りました。この機能を公開するまでは相手側で復元できません。" : "") +
-        (url.length > 8000 ? " 長いURLです。貼り付け先によっては途中で切れるため、開けることを確認してください。" : "");
+      const warning = fallback + (destination.local ? " ローカル版から公開サイト用の共有先を作りました。" : "") +
+        (!shortened && url.length > 8000 ? " 長いURLです。貼り付け先によっては途中で切れるため、開けることを確認してください。" : "");
+      const kind = shortened ? "短縮共有リンク" : "共有リンク";
       try {
         if (!navigator.clipboard?.writeText) throw new Error('Clipboard unavailable');
         await navigator.clipboard.writeText(url);
-        if (token === shareJob) $("share-status").textContent = `共有リンクをコピーしました（${url.length.toLocaleString()}文字）。` + warning;
+        if (token === shareJob) $("share-status").textContent = `${kind}をコピーしました（${url.length.toLocaleString()}文字）。` + warning;
       } catch (_) {
         if (token === shareJob) {
-          $("share-status").textContent = `自動コピーできませんでした（${url.length.toLocaleString()}文字）。下のURLを選択してCtrl+C／⌘Cでコピーしてください。` + warning;
+          $("share-status").textContent = `${kind}を自動コピーできませんでした（${url.length.toLocaleString()}文字）。下のURLを選択してCtrl+C／⌘Cでコピーしてください。` + warning;
           $("share-url").focus(); $("share-url").select();
         }
       }

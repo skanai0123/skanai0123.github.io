@@ -131,6 +131,31 @@ test('share URL targets the published page from local files and loopback without
   assert.throws(()=>Q.target('javascript:alert(1)'));
 });
 
+test('short-link client sends only the compressed hash and accepts the configured service URL', async () => {
+  const hash = await Q.encode(basic()), calls = [];
+  const short = 'https://optics-bench-links.shun-kanai-a7.workers.dev/Abcdefgh_123';
+  const result = await Q.shorten(hash, async (url, options) => {
+    calls.push({ url, options });
+    return { ok: true, status: 201, json: async () => ({ url: short }) };
+  });
+  assert.equal(result, short);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].url, Q.SHORT_LINK_API);
+  assert.equal(calls[0].options.method, 'POST');
+  assert.equal(calls[0].options.headers['Content-Type'], 'application/json');
+  assert.deepEqual(JSON.parse(calls[0].options.body), { hash });
+  assert.equal(typeof calls[0].options.signal, 'object');
+});
+
+test('short-link client rejects throttling, foreign redirects and malformed responses', async () => {
+  const hash = await Q.encode(basic());
+  await assert.rejects(Q.shorten(hash, async () => ({ ok: false, status: 429, json: async () => ({ error: 'rate_limited' }) })), /1分/);
+  await assert.rejects(Q.shorten(hash, async () => ({ ok: true, status: 201, json: async () => ({ url: 'https://example.org/Abcdefgh_123' }) })), /不正な応答/);
+  await assert.rejects(Q.shorten(hash, async () => ({ ok: true, status: 201, json: async () => ({ url: Q.SHORT_LINK_API + '?id=abc' }) })), /不正な応答/);
+  await assert.rejects(Q.shorten(hash, async () => ({ ok: true, status: 201, json: async () => ({ url: 'not a URL' }) })), /不正な応答/);
+  await assert.rejects(Q.shorten('#ob1=bad', null), /接続できません/);
+});
+
 test('missing native compression support produces an actionable error without corrupting a scene', async () => {
   const sandbox={OpticsState:S,TextEncoder,TextDecoder,atob,btoa};sandbox.window=sandbox;
   vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../optics-bench/share.js'),'utf8'),sandbox);

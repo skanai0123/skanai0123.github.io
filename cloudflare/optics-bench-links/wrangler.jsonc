@@ -1,0 +1,26 @@
+{
+  "$schema": "https://raw.githubusercontent.com/cloudflare/workers-sdk/main/packages/wrangler/config-schema.json",
+  "name": "optics-bench-links",
+  "main": "worker.mjs",
+  "compatibility_date": "2026-08-30",
+  "workers_dev": true,
+  "observability": {
+    "enabled": true
+  },
+  "kv_namespaces": [
+    {
+      "binding": "LINKS",
+      "id": "595c2f5b82fa4896a9b1a255f82e5a83"
+    }
+  ],
+  "ratelimits": [
+    {
+      "name": "LINK_LIMITER",
+      "namespace_id": "220001",
+      "simple": {
+        "limit": 30,
+        "period": 60
+      }
+    }
+  ]
+}

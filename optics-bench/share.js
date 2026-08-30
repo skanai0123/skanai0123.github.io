@@ -6,6 +6,7 @@
   // ob1 = UTF-8 scene JSON, one gzip member, unpadded base64url.
   const PREFIX = '#ob1=', MAX_HASH_CHARS = 65536;
   const PUBLIC_URL = 'https://skanai0123.github.io/optics-bench/';
+  const SHORT_LINK_API = 'https://optics-bench-links.shun-kanai-a7.workers.dev/api/links';
   const fail = message => { throw new Error(message); };
   function base64(bytes) {
     let binary = '';
@@ -73,5 +74,33 @@
     current.hash = ''; current.search = '';
     return { url: local ? PUBLIC_URL : current.href, local };
   }
-  return Object.freeze({ PREFIX, MAX_HASH_CHARS, PUBLIC_URL, encode, decode, isShareHash, target });
+  async function shorten(hash, request = globalThis.fetch) {
+    if (typeof hash !== 'string' || !hash.startsWith(PREFIX) || hash.length > MAX_HASH_CHARS) fail('短縮する共有データが不正です。');
+    if (typeof request !== 'function') fail('短縮URLサービスへ接続できません。');
+    const controller = typeof AbortController === 'function' ? new AbortController() : null;
+    const timer = controller ? setTimeout(() => controller.abort(), 10000) : null;
+    let response, data;
+    try {
+      response = await request(SHORT_LINK_API, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ hash }),
+        ...(controller ? { signal: controller.signal } : {})
+      });
+      data = await response.json();
+    } catch (_) { fail('短縮URLサービスへ接続できません。'); }
+    finally { if (timer !== null) clearTimeout(timer); }
+    if (!response.ok) {
+      if (response.status === 429) fail('短縮URLの作成回数が上限に達しました。1分ほど待ってください。');
+      if (response.status === 400 || response.status === 413) fail('この設計データは短縮URLにできません。');
+      fail('短縮URLサービスが一時的に利用できません。');
+    }
+    let url;
+    try { url = new URL(data?.url); }
+    catch (_) { fail('短縮URLサービスから不正な応答が返りました。'); }
+    const service = new URL(SHORT_LINK_API);
+    if (url.origin !== service.origin || url.search || url.hash || !/^\/[A-Za-z0-9_-]{12,43}$/.test(url.pathname)) {
+      fail('短縮URLサービスから不正な応答が返りました。');
+    }
+    return url.href;
+  }
+  return Object.freeze({ PREFIX, MAX_HASH_CHARS, PUBLIC_URL, SHORT_LINK_API, encode, decode, isShareHash, target, shorten });
 });
