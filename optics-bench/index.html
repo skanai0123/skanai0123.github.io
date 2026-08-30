@@ -4,21 +4,22 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Optics Bench — 光学系デザインツール</title>
-  <meta name="description" content="21種類の光学部品をドラッグ・範囲選択で配置し、波長・開口・偏光を調整。400〜700 nmの白色光源、カメラ、蛍光板、カメラ像・量子消しゴム・干渉計・4F・共焦点など28種類のプリセット、圧縮URL共有に対応。">
+  <meta name="description" content="21種類の光学部品をドラッグ・範囲選択で配置し、波長・開口・偏光を調整。画像スクリーン、2Dカメラ像、量子消しゴム・干渉計・4F・共焦点など29種類のプリセット、圧縮URL共有に対応。">
   <link rel="icon" href="../shared/icons/general.svg" type="image/svg+xml">
   <link rel="stylesheet" href="../shared/back-to-hub.css">
-  <link rel="stylesheet" href="styles.css?v=0.18.0">
+  <link rel="stylesheet" href="styles.css?v=0.21.3">
   <script defer src="../shared/back-to-hub.js"></script>
-  <script defer src="optics.js?v=0.18.0"></script>
-  <script defer src="camera.js?v=0.18.0"></script>
-  <script defer src="coherence.js?v=0.18.0"></script>
-  <script defer src="state.js?v=0.18.0"></script>
-  <script defer src="share.js?v=0.18.0"></script>
-  <script defer src="presets.js?v=0.18.0"></script>
-  <script defer src="view.js?v=0.18.0"></script>
-  <script defer src="script.js?v=0.18.0"></script>
+  <script defer src="optics.js?v=0.21.3"></script>
+  <script defer src="camera.js?v=0.21.3"></script>
+  <script defer src="coherence.js?v=0.21.3"></script>
+  <script defer src="state.js?v=0.21.3"></script>
+  <script defer src="share.js?v=0.21.3"></script>
+  <script defer src="presets.js?v=0.21.3"></script>
+  <script defer src="view.js?v=0.21.3"></script>
+  <script defer src="spatial.js?v=0.21.3"></script>
+  <script defer src="script.js?v=0.21.3"></script>
 </head>
-<body data-page-version="0.18.0" data-page-updated="2026-08-30" data-page-copyright="© 2026 skanai">
+<body data-page-version="0.21.3" data-page-updated="2026-08-30" data-page-copyright="© 2026 skanai">
   <main class="page-shell">
     <header class="hero">
       <div class="eyebrow"><span class="brand-mark" aria-hidden="true">↗</span> OPTICS LAB <span class="prototype">DESIGN STUDIO</span></div>
@@ -116,6 +117,9 @@
           <div class="section-label">INSPECTOR</div>
           <div class="inspector-heading"><h2 id="inspector-title">素子の設定</h2><span id="selected-kind" class="kind-badge"></span></div>
           <label class="field component-list-field"><span>配置済み部品リスト <output id="component-list-count">0個</output></span><select id="element-select" class="component-list" size="6" aria-label="配置済み部品リスト"></select></label>
+          <div class="component-list-actions"><button id="component-list-copy" type="button">表をコピー</button><a id="component-list-save" class="download-link" href="#">CSV保存</a></div>
+          <textarea id="component-list-copy-fallback" class="component-list-fallback" readonly hidden aria-label="コピー用の部品リスト"></textarea>
+          <p id="component-list-status" class="component-list-status" role="status" aria-live="polite"></p>
           <div class="selection-tools"><button id="select-all" type="button" title="すべて選択 Ctrl+A">すべて選択</button><button id="clear-selection" type="button">選択解除</button></div>
           <p id="selection-summary" class="selection-summary" role="status" aria-live="polite"></p>
           <p id="empty-selection">部品をクリックするか、空白をドラッグして選択してください。</p>
@@ -129,6 +133,20 @@
       </div>
       <div class="status-row"><p id="status" role="status" aria-live="polite">部品をパレットからグリッドへドラッグしてください。</p><span id="ray-stats"></span></div>
       <div id="trace-warning" class="trace-warning" role="status" hidden></div>
+    </section>
+    <section id="spatial-panel" class="spatial-panel" aria-labelledby="spatial-title">
+      <div class="section-label">SPATIAL PREVIEW · ORTHOGRAPHIC</div>
+      <div class="spatial-heading"><div><h2 id="spatial-title">斜めから見る3D光学系</h2><p class="subtle">2D配置と同じ光路を、光学テーブル上の立体図として同期表示します。</p></div><span id="spatial-stats"></span></div>
+      <div class="spatial-toolbar">
+        <label>方位角<input id="spatial-azimuth" type="range" min="0" max="359" step="1" value="35" aria-label="3D表示の方位角"><output id="spatial-azimuth-value" for="spatial-azimuth">35°</output></label>
+        <label>仰角<input id="spatial-elevation" type="range" min="10" max="80" step="1" value="30" aria-label="3D表示の仰角"><output id="spatial-elevation-value" for="spatial-elevation">30°</output></label>
+        <label>拡大<input id="spatial-zoom" type="range" min="50" max="400" step="5" value="100" aria-label="3D表示の拡大率"><output id="spatial-zoom-value" for="spatial-zoom">100%</output></label>
+        <div class="spatial-zoom-buttons" role="group" aria-label="3D表示の拡大縮小"><button id="spatial-zoom-out" type="button" aria-label="3D表示を縮小">−</button><button id="spatial-zoom-in" type="button" aria-label="3D表示を拡大">＋</button></div>
+        <button id="spatial-reset" type="button">標準視点</button>
+        <a id="spatial-save" class="download-link" href="#">3D図をSVG保存</a>
+      </div>
+      <div class="spatial-viewport"><svg id="spatial-view" viewBox="-100 -60 200 120" role="img" aria-label="斜視3D光学図"></svg></div>
+      <p class="spatial-limit">拡大スライダー、＋／−、または3D図上のShift＋ホイールで50〜400%に拡大縮小できます。部品をクリックすると2D編集画面でも選択します。通常光源はX/Y平面の2D光線計算を立体表示し、画像スクリーンだけは上下の近軸像位置も表示します。カメラ面は設定したセンサー幅×高さ、その他の部品の支持台とZ座標は表示用。任意方向の3D光線、上下方向の部品調整、実際のマウント形状はまだ計算しません。</p>
     </section>
     <section id="coherence-panel" class="coherence-panel" aria-labelledby="coherence-title" hidden>
       <div class="section-label">INTERFERENCE LAB · IDEAL SINGLE MODE</div>
@@ -155,7 +173,7 @@
       <p class="coherence-limit">量子消しゴムはレーザーで示せる偏光の光学アナログです。もつれ光子対・同時計数・遅延選択のシミュレーションではありません。未対応の部品や追跡の打ち切りがある系では干渉解析を停止します。</p>
     </section>
     <section id="camera-panel" class="camera-panel" aria-labelledby="camera-title" hidden>
-      <div class="section-label">CAMERA VIEW · 1D SENSOR</div>
+      <div class="section-label">CAMERA VIEW · 2D SENSOR</div>
       <h2 id="camera-title">カメラに届く像</h2>
       <p class="subtle">センサーへ届いた光線を位置ごとに集計。カメラやレンズを動かすと、像の位置・色・ピントずれが変わります。</p>
       <div class="camera-toolbar">
@@ -163,10 +181,10 @@
         <button id="camera-edit" type="button">カメラの設定</button>
         <a id="camera-save" class="download-link" href="#">像をSVG保存</a>
       </div>
-      <img id="camera-image" class="camera-image" alt="カメラの1列分の像" width="960" height="450">
+      <img id="camera-image" class="camera-image" alt="カメラの2次元センサー像" width="960" height="640">
       <p id="camera-stats" class="camera-stats"></p>
       <p id="camera-status" class="subtle" role="status"></p>
-      <p class="camera-limit">2D光学系の断面なので、計算するのは1列分です。上の帯はその列を縦に引き伸ばした表示で、縦方向の像は未計算。横軸の正方向はカメラの配置角度＋90°です。グラフの縦軸は毎回最大Pに合わせます。レンズは内蔵しません。像・グラフは非干渉で、回折・3D画像・センサーノイズ・実カメラの色応答は含みません。</p>
+      <p class="camera-limit">横軸はベンチ面内で計算した実際の受光位置で、正方向はカメラの配置角度＋90°です。画像スクリーンの縦軸はレンズを通る近軸像位置を計算し、通常光源はセンサー中央面へ置きます。XとYは常に同じ物理表示倍率で、1 mmを縦横同じ長さに描くため像を引き伸ばしません。センサー幅・高さ、横列・縦行、表示スポットFWHMをカメラ設定で変更可能。表示スポットは受光Pを変えません。レンズは内蔵せず、像は非干渉です。印刷物の照明・反射、任意方向の3D像、回折PSF、収差、センサーノイズ、実カメラの色応答は含みません。</p>
     </section>
     <section class="readouts" aria-label="測定系の読み出し">
       <div class="readout-card preset-description"><div class="section-label">SETUP NOTES</div><h2 id="setup-title">配置のメモ</h2><p id="setup-description"></p><p id="setup-notes" class="subtle"></p></div>
@@ -182,7 +200,7 @@
         <section><h3>操作</h3><p id="keyboard-help">空白ドラッグで範囲選択、Shift＋クリック／範囲で追加・解除。選択中の部品はまとめてドラッグでき、Shiftはドラッグ開始後に押しても移動量が大きいXまたはYだけへ固定します。Ctrl+Aですべて選択、Escで選択解除。Ctrlはドラッグ開始後に押しても選択全体の複製へ切り替わり、Windowsキーは使いません。「手」またはSpace＋空白ドラッグでパン、Shift＋ホイール／＋−でズームします。丸いハンドル・R／Shift+Rと数値設定は主選択だけ、矢印移動・Delete・Ctrl+C／X／V／Dは選択全体へ作用します。Ctrl+Zで元に戻す、Ctrl+Y／Ctrl+Shift+Zでやり直す。Macではキーボードショートカットに⌘も使えますが、ドラッグ複製はCtrlです。文字入力中は通常の文字編集を優先し、ドラッグ中はEsc／Ctrl+Zで取り消します。</p><p>複数コピーは全パラメーター・相対位置・選択内のファイバー接続を保持し、別の設計にも貼り付けられます。貼り付け先で中心が重なる場合は、全体を同じ量だけ近くへずらします。選択外の接続は持ち出しません。Ctrlドラッグは画面内で離すと確定、外で離すと取消。一括移動・削除・貼り付け・複製はいずれも1回のUndoで戻せます。</p><p>単位の変更は表示とグリッドだけを切り替え、物理的な配置・焦点距離は維持します。原点は座標(0,0)で、右が＋X、下が＋Y。負の座標にも配置できます。配置角度は光軸／面の法線方向を時計回りで表します。平面ミラーでは反射面から裏面へ向かう法線で、0°は表面が左向き、180°は右向きです。</p></section>
         <section><h3>幾何光学＋理想偏光素子</h3><p>2次元の光線とStokesベクトルを追跡します。平面ミラーは片面だけが反射し、裏面入射は吸収します。X/Y座標と位置吸着の基準は反射面の中心です。凹面ミラーは球面上で反射し、球面収差を含みます。fとRはR=2fで連動し、0°では凹面が左向き。Fは近軸焦点、Cは曲率中心で、裏面は吸収します。レンズ・対物は近軸の薄レンズ近似、ダイクロイックは理想的なカットオフ、偏光子とλ/4・λ/2板は理想素子。偏光の0°はベンチ面に垂直な基準方向で、配置角度とは別です。Q/U/Vの検出表示を用意し、ポアンカレ球ビューは将来の拡張です。</p><p>蛍光板は励起上限以下の入射光を吸収し、設定効率分を別の単一波長・無偏光として2Dの発光扇形へ再放出します。残りは吸収として集計。発光波長・効率・角度・光線数を変更でき、レンズやカメラへ届く光を追跡します。</p><p>無偏光BS（NPBS）は偏光に依存しない比率で分岐し、入力の偏光状態を保ちます。偏光BS（PBS）はp偏光（90°）を透過、s偏光（0°）を反射。無偏光や円偏光は各50%に分かれ、出力はそれぞれ直線偏光になります。</p><p>通常の光線表示は非干渉です。干渉は別欄の理想モード解析に限ります。回折・レンズの収差・蛍光寿命／スペクトル／再吸収・PSF・高NA対物の厳密な結像・ファイバーのモード重なりは計算しません。実BSの消光比・損失・波長や入射角への依存、ミラーやコーティングのs/p位相差も未計算です。既存の共焦点プリセットの蛍光は独立した点光源による模式モデルです。</p></section>
         <section><h3>干渉と量子消しゴム</h3><p>位相シフターを含む配置では「干渉解析」が現れます。レーザーは光線数1・ビーム径0・波長幅0で、1本の主光線が理想空間モードを表します。実際に通った経路の長さ・偏光・BSの複素振幅・追加位相から、検出器の干渉Pを計算します。同じレーザーの同じ検出位置・方向だけを合成し、片腕の遮断や光軸ずれも反映します。点光源・白色光源・レンズ・凹面ミラー・対物・ファイバー・ダイクロイック・カメラ・蛍光板が有効な系、部品が重なる系、追跡が打ち切られた系には未対応。各光路長は1 km以下です。</p><p>φは1回通過あたりの位相で、往復では2回作用します。位相の値と偏光素子のON/OFFは保存・Undo対象。光線図・光路プローブ・幾何Pには干渉を反映しないので、暗い出力でも幾何光線は残ります。量子消しゴムは偏光で経路を区別し、検光子で干渉を復元する光学アナログ。もつれ光子対・同時計数・遅延選択・量子検出統計は扱いません。</p></section>
-        <section><h3>設計データ・ファイバー</h3><p>JSON保存と読み込みは、このページの形式に対応します。接続も保存する形式v2で書き出し、以前のv1も読み込めます。数値範囲・素子数・形式を検証し、不正なファイルでは現在の設計を変更しません。新規作成・プリセット・読み込みも「戻す」で復元できます。共有リンクでも同じ設計を復元できます。自動保存はしないため、必要な配置は共有リンクかJSONで保存してください。</p><p>ファイバーを2つ置き、設定欄の「接続先のファイバー」で相手を選ぶと接続。移動・回転してもケーブルが追従し、切断・削除・再接続も元に戻せます。単一部品のコピーでは接続を複製しません。接続された両端を複数選択したコピー・複製では、選択内の接続だけを新しいIDへ引き継ぎます。</p><p>受け入れた光は相手の配置角度＋180°へ出射します。両端のコア径・NAで制限する理想的な幾何伝送です。実ファイバーの曲げ損失・モード変化・偏光変化は計算せず、ケーブルは接続関係だけを表します。</p><p><a href="README.md">モデルの詳細</a> · <a href="DESIGN_PLAN.md">設計・検証計画</a> · <a href="../poincare-sphere/" target="_blank" rel="noopener">既存のポアンカレ球ツール</a></p></section>
+        <section><h3>設計データ・ファイバー</h3><p>JSON保存と読み込みは、このページの形式に対応します。接続も保存する形式v2で書き出し、以前のv1も読み込めます。数値範囲・素子数・形式を検証し、不正なファイルでは現在の設計を変更しません。新規作成・プリセット・読み込みも「戻す」で復元できます。共有リンクでも同じ設計を復元できます。自動保存はしないため、必要な配置は共有リンクかJSONで保存してください。</p><p>配置済み部品リストは、表計算ソフト向けに表コピーまたはCSV保存できます。現在単位の座標・角度・主要仕様・ファイバー接続先を含みますが、再読み込み用ではありません。</p><p>ファイバーを2つ置き、設定欄の「接続先のファイバー」で相手を選ぶと接続。移動・回転してもケーブルが追従し、切断・削除・再接続も元に戻せます。単一部品のコピーでは接続を複製しません。接続された両端を複数選択したコピー・複製では、選択内の接続だけを新しいIDへ引き継ぎます。</p><p>受け入れた光は相手の配置角度＋180°へ出射します。両端のコア径・NAで制限する理想的な幾何伝送です。実ファイバーの曲げ損失・モード変化・偏光変化は計算せず、ケーブルは接続関係だけを表します。</p><p><a href="README.md">モデルの詳細</a> · <a href="DESIGN_PLAN.md">設計・検証計画</a> · <a href="../poincare-sphere/" target="_blank" rel="noopener">既存のポアンカレ球ツール</a></p></section>
       </div>
     </details>
     <noscript><p class="input-error">このツールにはJavaScriptが必要です。</p></noscript>

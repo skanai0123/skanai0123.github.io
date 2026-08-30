@@ -230,6 +230,7 @@ const conserve = result => near(result.sourcePower,
 const bounded = result => {
   for (const segment of result.segments) {
     assert.ok(segment.power >= 0 && Number.isFinite(segment.power));
+    assert.ok(Number.isFinite(segment.verticalStart) && Number.isFinite(segment.verticalEnd));
     assert.ok(Number.isFinite(segment.pathLengthStart) && Number.isFinite(segment.pathLengthEnd));
     assert.ok(segment.pathLengthStart >= 0 && segment.pathLengthEnd >= segment.pathLengthStart);
     // Subtracting large cumulative lengths can lose a few low bits for sources
@@ -309,6 +310,8 @@ test('new components use the requested centimetre-scale optical defaults', () =>
   const lens=O.createElement('lens',5,0,0);assert.equal(lens.focal,76.2);assert.equal(lens.aperture,25.4);
   assert.equal(O.createElement('objective',6,0,0).aperture,10);
   assert.equal(O.createElement('fiber',8,0,0).aperture,10);
+  const camera=O.createElement('camera',9,0,0);assert.equal(camera.aperture,24);assert.equal(camera.sensorHeight,18);
+  assert.equal(camera.pixelCount,256);assert.equal(camera.pixelRows,192);assert.equal(camera.spotSize,1);
   for(const type of ['filter','polarizer','waveplate','halfwave','phase'])assert.equal(O.createElement(type,7,0,0).aperture,25.4,type);
   const initial=O.initialElements();assert.equal(initial[0].beamWidth,5);assert.equal(initial[1].aperture,25);
   assert.equal(initial[2].focal,76.2);assert.equal(initial[2].aperture,25.4);
@@ -430,7 +433,7 @@ test('camera brightness, color mixing and clipping are display-only and do not a
   const cam = part('camera', 1, 500, 300, { autoExposure: false, exposure: 1, pixelCount: 24 });
   const d = { samples: [{ position: 0, power: .25, wavelength: 450 }, { position: 0, power: .75, wavelength: 650 }] };
   const before = JSON.stringify(d), frame = K.capture(cam, d), gain = K.capture({ ...cam, exposure: 10 }, d);
-  near(frame.totalPower, 1); near(gain.totalPower, 1); assert.equal(frame.clippedPixels, 0); assert.equal(gain.clippedPixels, 1);
+  near(frame.totalPower, 1); near(gain.totalPower, 1); assert.equal(frame.clippedPixels, 0); assert.equal(gain.columnClippedPixels, 1);
   assert.notEqual(frame.pixels[12].color, gain.pixels[12].color);
   const dim = { samples: d.samples.map(s=>({ ...s, power:s.power/10 })) };
   assert.notEqual(K.capture(cam, dim).pixels[12].color, frame.pixels[12].color);
@@ -448,12 +451,83 @@ test('camera pixel resolution redistributes the same finite ray power without in
   for (const pixelCount of [-1, 1, 1025, 1e9, 16.5, NaN]) assert.throws(()=>K.capture({ ...cam, pixelCount }, d));
 });
 
+test('camera makes a finite two-dimensional sensor image without changing received power', () => {
+  const cam = part('camera', 1, 500, 300, { aperture:24, sensorHeight:18, pixelCount:64, pixelRows:48, spotSize:1 });
+  const detector = { samples:[{ position:-4,power:.25,wavelength:450 },{ position:4,power:.75,wavelength:650 }] };
+  const frame = K.capture(cam, detector);
+  assert.equal(frame.columns,64); assert.equal(frame.rows,48); assert.equal(frame.imagePower.length,64*48); assert.equal(frame.imageRgb.length,64*48*3);
+  near(frame.width,24); near(frame.height,18); near(frame.pitch,24/64); near(frame.rowPitch,18/48); near(frame.spotSize,1);
+  near(frame.imagePower.reduce((sum,value)=>sum+value,0),1,1e-10);
+  const activeRows = new Set();
+  frame.imagePower.forEach((value,index)=>{ if(value>1e-12) activeRows.add(Math.floor(index/frame.columns)); });
+  assert.ok(activeRows.size > 2); assert.ok(frame.imagePeakPower > 0); assert.ok(frame.imagePeakPower < frame.peakPower);
+  const wide = K.capture({ ...cam, spotSize:4 }, detector);
+  assert.ok(wide.imagePeakPower < frame.imagePeakPower); near(wide.imagePower.reduce((sum,value)=>sum+value,0),1,1e-10);
+  for (const pixelRows of [-1,15,513,16.5,NaN]) assert.throws(()=>K.capture({ ...cam, pixelRows },detector));
+  for (const sensorHeight of [1,301,NaN]) assert.throws(()=>K.capture({ ...cam, sensorHeight },detector));
+  for (const spotSize of [0,.001,301,NaN]) assert.throws(()=>K.capture({ ...cam, spotSize },detector));
+});
+
+test('camera SVG keeps one physical display scale for X and Y at every sensor aspect ratio', () => {
+  for (const [width,height] of [[100,75],[100,25],[25,100],[24,18]]) {
+    const camera=part('camera',1,500,300,{aperture:width,sensorHeight:height}),frame=K.capture(camera),layout=K.sensorLayout(frame);
+    near(layout.width/width,layout.height/height); assert.ok(layout.width<=760+1e-9); assert.ok(layout.height<=430+1e-9);
+    assert.ok(layout.x>=100-1e-9 && layout.y>=72-1e-9);
+    const svg=K.svg(frame,'比率確認');
+    assert.match(svg,/preserveAspectRatio="xMidYMid meet"/); assert.match(svg,/X\/Y SCALE 1:1/); assert.match(svg,/data-physical-scale=/);
+  }
+  assert.throws(()=>K.sensorLayout({width:0,height:10})); assert.throws(()=>K.sensorLayout({width:10,height:NaN}));
+});
+
+test('screen image patterns expose normalized physical color samples', () => {
+  const screen = part('screen', 1, 100, 300, { aperture:100, screenHeight:75, screenPattern:'duck' });
+  const samples = O.screenPatternSamples(screen);
+  assert.equal(samples.length, 83); near(samples.reduce((sum, sample) => sum + sample.weight, 0), 1);
+  assert.deepEqual([...new Set(samples.map(sample => sample.wavelength))].sort((a,b)=>a-b), [590,620]);
+  assert.ok(samples.every(sample => Math.abs(sample.u) < screen.aperture*.41 && Math.abs(sample.v) < screen.screenHeight*.41));
+  assert.deepEqual(O.screenPatternSamples({ ...screen, screenPattern:'none' }), []);
+});
+
+test('duck screen preset forms a measured inverted 2D image and defocus broadens its sampled points', () => {
+  const scene = P.create('duck-camera'), screen = scene.elements[0], camera = scene.elements[2];
+  const cells = O.screenPatternSamples(screen), result = O.simulate(scene.elements), reading = detector(result, camera.id);
+  assert.equal(result.rayCount, cells.length * screen.rayCount); assert.equal(reading.acceptedHits, 747);
+  near(reading.power, 1); near(result.sourcePower, 1); assert.equal(result.truncated, false); assert.deepEqual(result.warnings, []);
+  assert.equal(reading.samples.length, 747); assert.ok(reading.samples.every(sample => Number.isInteger(sample.imagePointId)));
+  for (const sample of reading.samples) {
+    const source = cells[sample.imagePointId];
+    near(sample.position, -source.u, 1e-7);
+    near(sample.verticalPosition, -source.v, 1.1);
+  }
+  const orange = reading.samples.filter(sample => sample.wavelength === 620);
+  assert.ok(orange.length > 0 && orange.every(sample => sample.position < 0), 'the right-side beak must form on the left');
+  const focusedSpread = Math.max(...cells.map((_, id) => {
+    const values = reading.samples.filter(sample => sample.imagePointId === id).map(sample => sample.verticalPosition);
+    return Math.max(...values) - Math.min(...values);
+  }));
+  assert.ok(focusedSpread < 1.2);
+  const frame = K.capture(camera, reading); near(frame.totalPower, 1); assert.equal(frame.hits, 747); assert.equal(frame.hasVerticalData, true);
+  const activeRows = new Set(), activeColumns = new Set();
+  frame.imagePower.forEach((value, index) => { if (value > 1e-12) { activeRows.add(Math.floor(index / frame.columns)); activeColumns.add(index % frame.columns); } });
+  assert.ok(activeRows.size > 20 && activeColumns.size > 20, 'the duck must occupy a two-dimensional sensor area');
+  assert.match(K.svg(frame, 'アヒル'), /Y: paraxial image/);
+
+  camera.x = 1400;
+  const defocused = O.simulate(scene.elements), defocusedReading = detector(defocused, camera.id);
+  const defocusedSpread = Math.max(...cells.map((_, id) => {
+    const values = defocusedReading.samples.filter(sample => sample.imagePointId === id).map(sample => sample.verticalPosition);
+    return values.length ? Math.max(...values) - Math.min(...values) : 0;
+  }));
+  assert.ok(defocusedSpread > 10); assert.ok(defocusedReading.power > .98 && defocusedReading.power < 1);
+  bounded(result); bounded(defocused);
+});
+
 test('camera SVG exports the calculated sensor colors, calibrated positions and escaped titles', () => {
   const cam = part('camera', 1, 500, 300), frame = K.capture(cam, { samples: [{ position:0,power:1,wavelength:532 }] });
   const svg = K.svg(frame, '</title><script>alert(1)</script>', 'cm');
   assert.match(svg, /&lt;\/title&gt;&lt;script&gt;/); assert.ok(!svg.includes('<script>'));
-  assert.match(svg, /1D/); assert.match(svg, /-1.2 cm/); assert.match(svg, /1.2 cm/);
-  assert.ok(svg.includes(frame.pixels[128].color)); assert.ok(!/NaN|Infinity/.test(svg));
+  assert.match(svg, /2D SENSOR/); assert.match(svg, /256 × 192 px/); assert.match(svg, /-1.2 cm/); assert.match(svg, /1.2 cm/);
+  assert.match(svg, /-0.9 cm/); assert.match(svg, /0.9 cm/); assert.match(svg, /Gaussian表示スポット/); assert.match(svg, /Y: center plane/); assert.ok(!/NaN|Infinity/.test(svg));
   assert.ok(!/NaN|Infinity/.test(K.svg(K.capture(cam), 'empty')));
 });
 

@@ -208,7 +208,8 @@
         return spectrumLabel(e)+(band.min<380?' · UV':'')+(band.max>780?' · IR':'');
       }
       if (e.type === 'mirror') return `表 ${round(O.normalizeAngle(e.angle + 180))}°側`;
-      if (e.type === 'camera') return `${e.pixelCount} px · ${length(e.aperture)}`;
+      if (e.type === 'camera') return `${e.pixelCount}×${e.pixelRows} px · ${length(e.aperture)}×${length(e.sensorHeight)}`;
+      if (e.type === 'screen' && e.screenPattern !== 'none') return `${{duck:'アヒル',checker:'市松模様',bars:'3色バー'}[e.screenPattern]} · ${length(e.aperture)}×${length(e.screenHeight)}`;
       if (e.type === 'fluorescent') return `≤${round(e.cutoff)}→${round(e.wavelength)} nm · η ${Math.round(e.transmission*100)}%`;
       if (['lens','objective','concave'].includes(e.type)) return `f ${length(e.focal)}${e.type === 'objective' ? ' · NA '+e.na : ''}`;
       if (e.type === 'iris') return `開口 ${length(e.opening)}`;
@@ -286,6 +287,10 @@
       } else if (e.type === 'screen') {
         body.append(box(-4,-half,8,e.aperture,'#344d42','#a6d3a6'));
         for(let y=-half+5;y<half;y+=8)body.append(line([-3,y],[3,y],'#a6d3a6',.8));
+        if(e.screenPattern==='duck')body.append(make('ellipse',{cx:12,cy:4,rx:9,ry:6,fill:'#ffd85d',stroke:'#7c6424','stroke-width':1}),
+          make('circle',{cx:18,cy:-3,r:5,fill:'#ffd85d',stroke:'#7c6424','stroke-width':1}),
+          make('circle',{cx:19,cy:-4,r:1,fill:'#17242a'}),make('polygon',{points:'22,-3 29,0 22,2',fill:'#f1873d'}));
+        else if(e.screenPattern!=='none')body.append(make('text',{x:13,y:4,'text-anchor':'middle',fill:'#fff','font-size':9,'font-weight':700},e.screenPattern==='checker'?'▦':'RGB'));
       } else if (e.type === 'blocker') body.append(box(-7,-half,14,e.aperture,'#2c3539','#a9afb0'));
       else body.append(box(-4,-half,8,e.aperture,'#82745b','#e3cda5'),line([-4,-half],[-4,half],'#f7e7c4',2));
       return body;

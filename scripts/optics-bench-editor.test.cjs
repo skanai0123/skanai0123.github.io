@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const V = require('../optics-bench/view.js');
+const D = require('../optics-bench/spatial.js');
 
 const near = (actual, expected, tolerance = 1e-9) => {
   assert.ok(Math.abs(actual - expected) <= tolerance, `${actual} != ${expected}`);
@@ -215,6 +216,26 @@ test('a crowded coarse grid still has room beyond the former table', () => {
   assert.equal(JSON.stringify(occupied), before);
 });
 
+test('spatial projection keeps bench coordinates orthographic and clips escaping rays to its table', () => {
+  const flat = D.project({ x: 100, y: 0, z: 0 }, { azimuth: 0, elevation: 30 });
+  near(flat.x, 100); near(flat.y, 0); near(flat.depth, 0);
+  const depth = D.project({ x: 0, y: 100, z: 0 }, { azimuth: 0, elevation: 30 });
+  near(depth.x, 0); near(depth.y, 50); near(depth.depth, 100);
+  const raised = D.project({ x: 0, y: 100, z: 40 }, { azimuth: 0, elevation: 30 });
+  near(raised.x, 0); near(raised.y, 50 - 20 * Math.sqrt(3));
+  const turned = D.project({ x: 100, y: 0, z: 0 }, { azimuth: 90, elevation: 30 });
+  near(turned.x, 0); near(turned.y, 50); near(turned.depth, 100);
+  assert.deepEqual(D.camera({ azimuth: -10, elevation: 99 }), { azimuth: 350, elevation: 80 });
+  const bounds = { x: 0, y: 0, width: 100, height: 80 };
+  assert.deepEqual(D.clipSegment({ a: { x: -50, y: 40 }, b: { x: 150, y: 40 }, sourceId: 7 }, bounds),
+    { a: { x: 0, y: 40 }, b: { x: 100, y: 40 }, sourceId: 7 });
+  assert.equal(D.clipSegment({ a: { x: -10, y: -20 }, b: { x: 110, y: -20 } }, bounds), null);
+  assert.equal(D.niceStep(43), 50); assert.equal(D.niceStep(0.43), 0.5);
+  assert.deepEqual(D.zoomArea({x:10,y:20,width:200,height:100},2),{x:60,y:45,width:100,height:50});
+  assert.deepEqual(D.zoomArea({x:10,y:20,width:200,height:100},99),{x:85,y:57.5,width:50,height:25});
+  assert.deepEqual(D.zoomArea({x:10,y:20,width:200,height:100},0),{x:-90,y:-30,width:400,height:200});
+});
+
 // This double supplies event bubbling, focus, selectors and pointer capture only.
 // The real controller, state codec, presets and optics run in one browser-like VM;
 // only SVG drawing is replaced. Native clipboard events are dispatched explicitly
@@ -355,10 +376,14 @@ function editorHarness(options = {}) {
   get('bench').append(get('elements'));
   for (const id of ['probe-close', 'probe-prev', 'probe-next', 'probe-overlap']) get('ray-inspector').append(get(id));
   const frames = new Map(), windowListeners = new Map();
-  const location = new URL(options.href || 'https://skanai0123.github.io/optics-bench/'), sharedCopies = [];
+  const location = new URL(options.href || 'https://skanai0123.github.io/optics-bench/'), sharedCopies = [], downloads = [];
+  class HarnessURL extends URL {
+    static createObjectURL(blob) { downloads.push(blob); return 'blob:optics-bench-' + downloads.length; }
+    static revokeObjectURL() {}
+  }
   let nextFrame = 1, lastScene, lastResult, selectedId, lastSelectedIds = [], selectionText = '', lastPreview = null, lastProbe = null, lastMarquee = null;
   const context = vm.createContext({
-    document, console, performance: { now: () => 100 }, location, URL,
+    document, console, performance: { now: () => 100 }, location, URL: HarnessURL, Blob,
     TextEncoder, TextDecoder, ReadableStream, CompressionStream, DecompressionStream, btoa, atob,
     navigator: { clipboard: options.noClipboard ? undefined : { async writeText(text) {
       if (options.denyClipboard) throw new Error('Permission denied'); sharedCopies.push(text);
@@ -373,7 +398,7 @@ function editorHarness(options = {}) {
     getSelection: () => ({ toString: () => selectionText, removeAllRanges() { selectionText = ''; } })
   });
   context.window = context;
-  for (const file of ['optics.js', 'camera.js', 'coherence.js', 'state.js', 'share.js', 'presets.js', 'view.js']) {
+  for (const file of ['optics.js', 'camera.js', 'coherence.js', 'state.js', 'share.js', 'presets.js', 'view.js', 'spatial.js']) {
     vm.runInContext(fs.readFileSync(path.join(directory, file), 'utf8'), context, { filename: file });
   }
   const componentNodes = new Map(); let viewport = { ...context.OpticsView.BASE_VIEW };
@@ -409,7 +434,7 @@ function editorHarness(options = {}) {
   return {
     document, get, fire, scene: () => clone(lastScene), result: () => clone(lastResult), selectedId: () => selectedId, selectedIds: () => clone(lastSelectedIds),
     preview: () => clone(lastPreview), marquee: () => clone(lastMarquee), viewport: () => clone(viewport), probe: () => clone(lastProbe),
-    location, sharedCopies,
+    location, sharedCopies, downloads,
     async ready() {
       for (let i = 0; get('share-panel').getAttribute('aria-busy') === 'true' && i < 1000; i++) await new Promise(resolve => setTimeout(resolve, 1));
       assert.notEqual(get('share-panel').getAttribute('aria-busy'), 'true'); flush();
@@ -540,6 +565,45 @@ test('the visible component list selects parts and follows movement, units, addi
   assert.equal(h.get('component-list-count').textContent, initialCount + '個');
 });
 
+test('the component list copies a spreadsheet-safe current-unit table and saves the same snapshot as CSV', async () => {
+  const h=editorHarness(),elements=[
+    h.element('laser',1,{x:25.4,y:-50.8,angle:22.5,label:'=SUM(1,1)'}),
+    h.element('lens',2,{x:76.2,y:50.8,angle:45,label:'Lens, "A"',focal:76.2,aperture:25.4}),
+    h.element('fiber',3,{x:101.6,y:0,label:'Input fiber'}),
+    h.element('fiber',4,{x:152.4,y:0,label:'Output fiber'})
+  ];
+  await h.load(elements,{title:'Export / test',unit:'in',fiberLinks:[{a:3,b:4}]});
+  const before=h.scene(),undoDisabled=h.get('undo').disabled;
+  await h.click('component-list-copy').done;
+  const table=h.sharedCopies.at(-1),rows=table.trimEnd().split('\r\n').map(row=>row.split('\t'));
+  assert.deepEqual(rows[0],['ID','部品名','種類','状態','X (in)','Y (in)','角度 (deg)','主要仕様','接続先']);
+  assert.equal(rows[1][1],"'=SUM(1,1)");assert.equal(rows[1][5],'-2');assert.equal(rows[1][6],'22.5');
+  assert.match(rows[2][7],/D 1 in; f 3 in/);assert.equal(rows[3][8],'Output fiber');assert.equal(rows[4][8],'Input fiber');
+  assert.match(h.get('component-list-status').textContent,/4個.*コピー/);assert.match(h.get('status').textContent,/Google Sheets/);
+  assert.deepEqual(h.scene(),before);assert.equal(h.get('undo').disabled,undoDisabled);
+
+  h.click('component-list-save');
+  assert.equal(h.downloads.length,1);assert.equal(h.downloads[0].type,'text/csv;charset=utf-8');
+  const csvBytes=Buffer.from(await h.downloads[0].arrayBuffer());assert.deepEqual([...csvBytes.subarray(0,3)],[0xef,0xbb,0xbf]);
+  const csv=csvBytes.toString('utf8');
+  assert.match(csv,/^\ufeff"ID","部品名","種類","状態","X \(in\)"/);
+  assert.match(csv,/"'=SUM\(1,1\)"/);assert.match(csv,/"Lens, ""A"""/);assert.match(csv,/"D 1 in; f 3 in"/);
+  assert.equal(h.get('component-list-save').download,'Export - test-parts.csv');
+  assert.match(h.get('component-list-status').textContent,/4個.*CSV/);assert.deepEqual(h.scene(),before);
+});
+
+test('component-list copy provides a selectable fallback and empty lists disable both exports', async () => {
+  const h=editorHarness({denyClipboard:true}),before=h.scene();
+  await h.click('component-list-copy').done;
+  const fallback=h.get('component-list-copy-fallback');
+  assert.equal(fallback.hidden,false);assert.match(fallback.value,/^ID\t部品名\t種類/);
+  assert.equal(h.document.activeElement,fallback);assert.equal(fallback.selectionStart,0);assert.equal(fallback.selectionEnd,fallback.value.length);
+  assert.match(h.get('component-list-status').textContent,/Ctrl\+C/);assert.deepEqual(h.scene(),before);
+  h.click('new-scene');assert.equal(h.get('component-list-copy').disabled,true);
+  assert.equal(h.get('component-list-save').getAttribute('aria-disabled'),'true');assert.equal(fallback.hidden,true);
+  const save=h.click('component-list-save');assert.equal(save.defaultPrevented,true);assert.equal(h.downloads.length,0);
+});
+
 test('palette parts expose the requested defaults in centimetres', () => {
   const h=editorHarness();h.click('new-scene');
   h.add('laser');assert.equal(h.selected().beamWidth,5);assert.equal(h.get('param-beamWidth').value,'0.5');
@@ -579,6 +643,15 @@ test('white source is a visible palette part with editable full-band defaults an
   assert.match(h.get('status').textContent,/白色光源/);
 });
 
+test('the bench draws a recognizable vector duck on an image screen', () => {
+  const O=require('../optics-bench/optics.js'),S=require('../optics-bench/state.js'),{document,view}=drawingHarness();
+  const screen={...O.createElement('screen',1,300,300),screenPattern:'duck',screenHeight:75,label:'アヒル画像'};
+  const scene=S.defaultScene([screen]); view.draw(scene,1,O.simulate(scene.elements));
+  const node=document.querySelector('[data-element-id="1"]');
+  assert.equal(node.querySelectorAll('ellipse').length,1); assert.ok(node.querySelectorAll('circle').length>=2);
+  assert.equal(node.querySelectorAll('polygon').length,1); assert.match(node.textContent,/アヒル/);
+});
+
 test('the source readout selects and reorders drawing layers without moving non-source slots', async () => {
   const h=editorHarness();
   const laser=(id,wavelength)=>h.element('laser',id,{x:100,y:300,beamWidth:0,rayCount:1,wavelength,label:`L${id}`});
@@ -609,6 +682,55 @@ test('SVG ray strokes follow source array order so later sources draw in front',
   draw();assert.deepEqual(colors(),[450,532,650].map(O.wavelengthColor));
   [scene.elements[1],scene.elements[2]]=[scene.elements[2],scene.elements[1]];
   draw();assert.deepEqual(colors(),[450,650,532].map(O.wavelengthColor));
+});
+
+test('the synchronized spatial preview changes viewpoint and zoom without editing the design', async () => {
+  const h=editorHarness(),laser=h.element('laser',1,{x:100,y:300,beamWidth:0,rayCount:1,wavelength:450});
+  await h.load([laser,h.element('lens',2,{x:400,y:300}),h.element('mirror',3,{x:650,y:300,angle:45})]);
+  const svg=h.get('spatial-view'),table=()=>svg.querySelector('[data-spatial-table]').querySelector('path').getAttribute('d');
+  const area=()=>svg.getAttribute('viewBox').split(/\s+/).map(Number);
+  assert.ok(svg.querySelector('[data-spatial-grid]'));assert.ok(svg.querySelector('[data-spatial-axes]'));
+  assert.equal(svg.querySelectorAll('[data-spatial-element-id]').length,3);assert.ok(svg.querySelectorAll('[data-spatial-ray]').length>=1);
+  assert.match(h.get('spatial-stats').textContent,/3 parts.*100%/);assert.equal(svg.querySelectorAll('.spatial-label').length,3);
+  const before=h.scene(),undo=h.get('undo').disabled,redo=h.get('redo').disabled,initialTable=table();
+  const azimuth=h.get('spatial-azimuth');azimuth.value='120';h.fire('input',azimuth);
+  assert.equal(h.get('spatial-azimuth-value').value,'120°');assert.notEqual(table(),initialTable);assert.deepEqual(h.scene(),before);
+  const fitted=area(),zoom=h.get('spatial-zoom');zoom.value='200';h.fire('input',zoom);
+  near(area()[2],fitted[2]/2,1e-3);near(area()[3],fitted[3]/2,1e-3);assert.equal(h.get('spatial-zoom-value').value,'200%');
+  assert.match(svg.getAttribute('aria-label'),/拡大率200%/);assert.match(h.get('spatial-stats').textContent,/200%/);
+  h.click('spatial-zoom-out');assert.equal(zoom.value,'160');h.click('spatial-zoom-in');assert.equal(zoom.value,'200');
+  const ordinary=h.fire('wheel',svg,{shiftKey:false,deltaY:-120});assert.equal(ordinary.defaultPrevented,false);assert.equal(zoom.value,'200');
+  const wheel=h.fire('wheel',svg,{shiftKey:true,deltaY:-120});assert.equal(wheel.defaultPrevented,true);assert.equal(zoom.value,'240');
+  zoom.value='400';h.fire('input',zoom);near(area()[2],fitted[2]/4,1e-3);assert.equal(h.get('spatial-zoom-in').disabled,true);
+  zoom.value='50';h.fire('input',zoom);near(area()[2],fitted[2]*2,1e-3);assert.equal(h.get('spatial-zoom-out').disabled,true);
+  assert.equal(h.get('undo').disabled,undo);assert.equal(h.get('redo').disabled,redo);
+  h.fire('click',svg.querySelector('[data-spatial-element-id="2"]'));assert.equal(h.selectedId(),2);assert.deepEqual(h.scene(),before);
+  h.get('show-labels').checked=false;h.fire('change',h.get('show-labels'));assert.equal(svg.querySelectorAll('.spatial-label').length,0);
+  h.click('spatial-reset');assert.equal(azimuth.value,'35');assert.equal(h.get('spatial-elevation').value,'30');
+  assert.equal(zoom.value,'100');assert.equal(h.get('spatial-zoom-value').value,'100%');
+  assert.match(h.get('status').textContent,/Undo履歴は変更していません/);assert.deepEqual(h.scene(),before);
+});
+
+test('the spatial SVG draws table depth, wavelength rays, fiber cable and an export without editor selection', () => {
+  const O=require('../optics-bench/optics.js'),S=require('../optics-bench/state.js'),{svg,view,selected}=spatialHarness();
+  const scene=S.defaultScene([
+    {...O.createElement('laser',1,100,300),beamWidth:0,rayCount:1,wavelength:450},
+    O.createElement('lens',2,400,300),O.createElement('fiber',3,650,300),{...O.createElement('fiber',4,800,420),angle:180}
+  ],{fiberLinks:[{a:3,b:4}]});
+  const result=O.simulate(scene.elements,{fiberLinks:scene.fiberLinks,viewBounds:{x:0,y:0,width:1000,height:600}});
+  const stats=view.draw(scene,result,2,true,{azimuth:35,elevation:30});
+  assert.deepEqual({elements:stats.elements,shown:stats.segmentsShown,total:stats.segmentsTotal},{elements:4,shown:stats.segmentsTotal,total:stats.segmentsTotal});
+  assert.ok(svg.querySelector('[data-spatial-table]'));assert.ok(svg.querySelector('[data-spatial-fibers] path'));
+  assert.equal(svg.querySelectorAll('[data-spatial-element-id]').length,4);assert.ok(svg.querySelectorAll('[data-spatial-ray]').length>=1);
+  assert.equal(svg.querySelector('[data-spatial-element-id="2"]').classList.contains('is-selected'),true);
+  assert.ok(svg.querySelectorAll('[data-spatial-ray]').some(line=>line.getAttribute('stroke')===O.wavelengthColor(450)));
+  assert.ok(svg.getAttribute('viewBox').split(/\s+/).map(Number).every(Number.isFinite));
+  svg.querySelector('[data-spatial-element-id="3"]').dispatch('click');assert.equal(selected(),3);
+  const previous=global.XMLSerializer;let exported;
+  global.XMLSerializer=class{serializeToString(node){exported=node;return '<svg/>';}};
+  try{assert.equal(view.exportSvg(scene.title),'<svg/>');}finally{if(previous===undefined)delete global.XMLSerializer;else global.XMLSerializer=previous;}
+  assert.equal(exported.querySelector('.spatial-selection'),null);assert.equal(exported.getAttribute('width'),'1400');
+  assert.match(exported.children[0].textContent,/斜視3D光学図/);
 });
 
 test('the beam blocker stays in the optical-path palette group and remains placeable', () => {
@@ -1368,7 +1490,8 @@ test('concave focal and radius edits stay linked through units, undo, redo and c
 test('camera view follows real lens and sensor edits, persists while another part is selected, and undoes defocus', async () => {
   const P = require('../optics-bench/presets.js'), h = editorHarness(); await h.load(P.create('camera-imaging').elements, { unit:'mm' });
   assert.equal(h.get('camera-panel').hidden, false); assert.equal(h.get('camera-select').value, '5');
-  assert.match(h.get('camera-stats').textContent, /受光P 3 · 183本/);
+  assert.match(h.get('camera-stats').textContent, /受光P 3 · 183本 · 256×192画素/);
+  assert.match(decodeURIComponent(h.get('camera-image').src), /2D SENSOR/);
   const focused = h.get('camera-image').src;
   h.select(5); h.get('param-x').value = '1400'; h.fire('change', h.get('param-x'));
   assert.notEqual(h.get('camera-image').src, focused); assert.match(h.get('camera-stats').textContent, /受光P 3/);
@@ -1381,18 +1504,42 @@ test('camera view follows real lens and sensor edits, persists while another par
   assert.match(h.get('camera-stats').textContent, /受光P 3/);
 });
 
-test('camera inspector rejects invalid resolution and preserves brightness settings through undo and copy', async () => {
+test('camera inspector edits a 2D sensor, rejects invalid resolution and preserves settings through undo and copy', async () => {
   const h = editorHarness(); await h.load([h.element('laser',1,{x:100,y:300}),h.element('camera',2,{x:500,y:300})],{unit:'mm'}); h.select(2);
+  const cameraPath=()=>h.get('spatial-view').querySelector('[data-spatial-element-id="2"]').querySelector('path').getAttribute('d'), initialCameraPath=cameraPath();
   const pixels = h.get('param-pixelCount'); pixels.value='16.5'; h.fire('change',pixels);
   assert.equal(pixels.getAttribute('aria-invalid'),'true'); assert.equal(h.selected().pixelCount,256);
   pixels.value='64'; h.fire('change',pixels); assert.equal(pixels.hasAttribute('aria-invalid'),false);
+  const rows=h.get('param-pixelRows'); rows.value='48'; h.fire('change',rows); assert.equal(h.selected().pixelRows,48);
+  const height=h.get('param-sensorHeight'); height.value='12'; h.fire('change',height); assert.equal(h.selected().sensorHeight,12); assert.notEqual(cameraPath(),initialCameraPath);
+  const spot=h.get('param-spotSize'); spot.value='2'; h.fire('change',spot); assert.equal(h.selected().spotSize,2);
+  assert.match(h.get('camera-stats').textContent,/64×48画素 · センサー 24×12 mm · XY表示倍率 1:1/);
   const raw = h.result(); const auto=h.get('param-autoExposure'); auto.checked=false; h.fire('change',auto);
   h.get('param-exposure').value='3'; h.fire('change',h.get('param-exposure'));
   assert.deepEqual(h.result(),raw); assert.match(h.get('camera-status').textContent,/明るさ固定/);
   const copy=h.parseComponent(h.clipboard('copy').data.get('text/plain'));
-  assert.equal(copy.pixelCount,64); assert.equal(copy.exposure,3); assert.equal(copy.autoExposure,false);
+  assert.equal(copy.pixelCount,64); assert.equal(copy.pixelRows,48); assert.equal(copy.sensorHeight,12); assert.equal(copy.spotSize,2);
+  assert.equal(copy.exposure,3); assert.equal(copy.autoExposure,false);
   h.key('z'); assert.equal(h.selected().exposure,1);
   h.key('z'); assert.equal(h.selected().autoExposure,true);
+});
+
+test('screen image controls drive a real paraxial 2D camera preview and can return to detector-only mode', async () => {
+  const P=require('../optics-bench/presets.js'),h=editorHarness(); await h.load(P.create('duck-camera').elements,{unit:'mm'}); h.select(1);
+  assert.equal(h.get('param-screenPattern').value,'duck'); assert.equal(h.get('param-screenHeight').disabled,false);
+  assert.equal(h.get('param-power').disabled,false); assert.match(h.get('selected-output').textContent,/83画点 × 9本/);
+  assert.match(h.get('camera-stats').textContent,/受光P 1 · 747本/);
+  assert.match(decodeURIComponent(h.get('camera-image').src),/Y: paraxial image/);
+  assert.match(h.get('camera-status').textContent,/縦像位置を近軸追跡/);
+  const screenPath=()=>h.get('spatial-view').querySelector('[data-spatial-element-id="1"]').querySelector('path').getAttribute('d');
+  const initialPath=screenPath(),height=h.get('param-screenHeight'); height.value='60'; h.fire('change',height);
+  assert.equal(h.selected().screenHeight,60); assert.notEqual(screenPath(),initialPath);
+  const pattern=h.get('param-screenPattern'); pattern.value='none'; h.fire('change',pattern);
+  assert.equal(h.selected().screenPattern,'none'); assert.equal(h.get('param-screenHeight').disabled,true); assert.equal(h.get('param-power').disabled,true);
+  assert.match(h.get('camera-stats').textContent,/受光P 0 · 0本/);
+  h.get('bench').focus(); h.key('z'); assert.equal(h.selected().screenPattern,'duck'); assert.match(h.get('camera-stats').textContent,/受光P 1/);
+  const copy=h.parseComponent(h.clipboard('copy').data.get('text/plain'));
+  assert.equal(copy.screenPattern,'duck'); assert.equal(copy.screenHeight,60);
 });
 
 test('multiple cameras can be switched, disabled and deleted without retaining the previous image', async () => {
@@ -1508,6 +1655,14 @@ test('copy release rechecks the component cap after another action fills the las
   h.key('z'); assert.deepEqual(h.scene(), before);
   h.key('y'); assert.deepEqual(h.scene(), full);
 });
+
+function spatialHarness() {
+  const document=new EditorNode('#document');document.ownerDocument=document;
+  document.createElementNS=(_,tag)=>new EditorNode(tag,document);
+  const svg=document.createElementNS('','svg');svg.id='spatial-view';document.append(svg);
+  let selectedId=null;const view=D.create(svg,id=>{selectedId=id;});
+  return {document,svg,view,selected:()=>selectedId};
+}
 
 function drawingHarness() {
   const document = new EditorNode('#document'); document.ownerDocument = document;

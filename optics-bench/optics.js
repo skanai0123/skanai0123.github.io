@@ -42,7 +42,9 @@
     divergence: { min: 1, max: 360 }, designWavelength: { min: 200, max: 2500 },
     opening: { min: 0, max: 300 }, coreDiameter: { min: 0.01, max: 200 },
     na: { min: 0.01, max: 1 }, transmission: { min: 0, max: 1 }, cutoff: { min: 200, max: 2500 },
-    phase: { min: 0, max: 360 }, pixelCount: { min: 16, max: 1024 }, exposure: { min: 0.01, max: 100 },
+    phase: { min: 0, max: 360 }, pixelCount: { min: 16, max: 1024 }, pixelRows: { min: 16, max: 512 },
+    sensorHeight: { min: 2, max: 300 }, spotSize: { min: 0.01, max: 300 }, exposure: { min: 0.01, max: 100 },
+    screenHeight: { min: 2, max: 300 },
     bandLow: { min: 200, max: 2500 }, bandHigh: { min: 200, max: 2500 }, opticalDensity: { min: 0, max: 6 }
   });
   const FILTER_MODES = Object.freeze(["longpass", "shortpass", "bandpass", "nd"]);
@@ -51,7 +53,8 @@
     power: 1, rayCount: 9, divergence: 20, polarization: "linear", polAngle: 0,
     axisAngle: 0, designWavelength: 532, opening: 20, coreDiameter: 1, na: 0.22,
     transmission: 0.5, cutoff: 600, mode: "longpass", phase: 0, enabled: true, label: "",
-    pixelCount: 256, exposure: 1, autoExposure: true,
+    pixelCount: 256, pixelRows: 192, sensorHeight: 18, spotSize: 1, exposure: 1, autoExposure: true,
+    screenHeight: 100, screenPattern: "none",
     filterMode: "bandpass", bandLow: 500, bandHigh: 560, opticalDensity: 1
   });
   const TYPE_DEFAULTS = {
@@ -63,11 +66,22 @@
     phase: { aperture: 25.4 }, dichroic: { angle: 45, aperture: 36 },
     objective: { focal: 50, aperture: 10, na: 0.35 }, fiber: { aperture: 10 },
     splitter: { angle: 45, aperture: 36 }, pbs: { angle: 45, aperture: 36 },
-    blocker: { aperture: 100 }, screen: { aperture: 100 }, camera: { aperture: 24 },
+    blocker: { aperture: 100 }, screen: { aperture: 100, screenHeight: 100, screenPattern: "none" }, camera: { aperture: 24, sensorHeight: 18, pixelRows: 192, spotSize: 1 },
     fluorescent: { aperture: 100, wavelength: 600, cutoff: 550, transmission: 0.6, rayCount: 21, divergence: 360 },
     filter: { aperture: 25.4, transmission: 1 }
   };
   const isSource = element => ["laser", "point", "white"].includes(element.type);
+  const SCREEN_PATTERNS = Object.freeze(["none", "duck", "checker", "bars"]);
+  const PATTERN_MAPS = Object.freeze({
+    duck: Object.freeze([
+      "................", "..........yyyy..", ".........yyyyyy.", ".........yyy.yoo",
+      "..yyy...yyyyyyy.", ".yyyyy.yyyyyyyy.", ".yyyyyyyyyyyyy..", "..yyyyyyyyyyy...",
+      "...yyyyyyyyy....", "....yyyyyyy.....", ".....yy..yy.....", "................"
+    ]),
+    checker: Object.freeze(["ccwwccwwccww", "ccwwccwwccww", "wwccwwccwwcc", "wwccwwccwwcc", "ccwwccwwccww", "ccwwccwwccww", "wwccwwccwwcc", "wwccwwccwwcc"]),
+    bars: Object.freeze(["bbbgggrrr", "bbbgggrrr", "bbbgggrrr", "bbbgggrrr", "bbbgggrrr", "bbbgggrrr"])
+  });
+  const PATTERN_WAVELENGTHS = Object.freeze({ y: 590, o: 620, c: 488, w: 550, b: 450, g: 532, r: 650 });
   const dot = (a, b) => a.x * b.x + a.y * b.y;
   const cross = (a, b) => a.x * b.y - a.y * b.x;
   const add = (a, b, scale = 1) => ({ x: a.x + b.x * scale, y: a.y + b.y * scale });
@@ -124,6 +138,34 @@
     return Array.from({ length: count }, (_, i) => ({
       wavelength: source.wavelength + ((i + .5) / count - .5) * width, weight: 1 / count
     }));
+  }
+
+  function screenPatternSamples(screen) {
+    const rows = PATTERN_MAPS[screen?.screenPattern];
+    if (!rows?.length) return [];
+    const columns = rows[0].length, samples = [];
+    for (let row = 0; row < rows.length; row++) for (let column = 0; column < columns; column++) {
+      const wavelength = PATTERN_WAVELENGTHS[rows[row][column]];
+      if (!wavelength) continue;
+      samples.push({
+        u: (column + .5 - columns / 2) / columns * screen.aperture * .82,
+        v: (rows.length / 2 - row - .5) / rows.length * screen.screenHeight * .82,
+        wavelength
+      });
+    }
+    const weight = samples.length ? 1 / samples.length : 0;
+    return samples.map(sample => ({ ...sample, weight }));
+  }
+
+  function patternDirections(count, divergence) {
+    const side = Math.ceil(Math.sqrt(count)), coordinates = [];
+    for (let row = 0; row < side; row++) for (let column = 0; column < side; column++) {
+      const x = side === 1 ? 0 : column / (side - 1) - .5;
+      const y = side === 1 ? 0 : .5 - row / (side - 1);
+      coordinates.push({ x, y, radius: x * x + y * y, order: row * side + column });
+    }
+    coordinates.sort((a, b) => a.radius - b.radius || a.order - b.order);
+    return coordinates.slice(0, count).map(({ x, y }) => ({ angle: x * divergence, verticalSlope: Math.tan(y * divergence * Math.PI / 180) }));
   }
 
   // Ideal, polarization-independent intensity transmission. Spectral edges
@@ -310,12 +352,19 @@
     return `rgb(${channel(r)}, ${channel(g)}, ${channel(b)})`;
   }
 
-  function nearestHit(origin, ray, surfaces, lastIndex, boundary) {
+  function surfaceVerticalHalf(element) {
+    if (element.type === "camera") return element.sensorHeight / 2;
+    if (element.type === "screen") return element.screenHeight / 2;
+    return element.aperture / 2;
+  }
+
+  function nearestHit(origin, ray, surfaces, lastIndex, boundary, verticalStart, verticalSlope = 0) {
     let nearest = null;
     for (const surface of surfaces) {
       // A deep spherical cap can be struck twice; only discard its zero root.
       if (surface.index === lastIndex && !surface.arc) continue;
       const hit = surface.arc ? intersectConcave(origin, ray, surface.arc) : intersect(origin, ray, surface.a, surface.b);
+      if (hit && Number.isFinite(verticalStart) && Math.abs(verticalStart + verticalSlope * hit.distance) > surfaceVerticalHalf(surface.element) + EPS) continue;
       if (hit && hit.distance < boundary - EPS && (!nearest || hit.distance < nearest.distance)) {
         nearest = { ...hit, surface, element: surface.element };
       }
@@ -342,11 +391,11 @@
         if (["angle", "polAngle", "axisAngle"].includes(key)) element[key] = normalizeAngle(element[key]);
         else if (element[key] < limits.min || element[key] > limits.max) { invalid = true; break; }
       }
-      invalid ||= !Number.isInteger(element.rayCount) || !Number.isInteger(element.spectralSamples) || !Number.isInteger(element.pixelCount) || typeof element.autoExposure !== "boolean" || Math.abs(element.focal) < 1 ||
+      invalid ||= !Number.isInteger(element.rayCount) || !Number.isInteger(element.spectralSamples) || !Number.isInteger(element.pixelCount) || !Number.isInteger(element.pixelRows) || typeof element.autoExposure !== "boolean" || Math.abs(element.focal) < 1 ||
         (isSource(element) && !validSourceBand(element)) ||
         !["linear", "right", "left", "unpolarized"].includes(element.polarization) ||
         !["longpass", "shortpass"].includes(element.mode) || typeof element.enabled !== "boolean" ||
-        !FILTER_MODES.includes(element.filterMode) ||
+        !FILTER_MODES.includes(element.filterMode) || !SCREEN_PATTERNS.includes(element.screenPattern) ||
         (element.type === "filter" && element.bandLow >= element.bandHigh) ||
         (element.type === "fluorescent" && element.wavelength < element.cutoff) ||
         (element.type === "iris" && element.opening > element.aperture) ||
@@ -404,7 +453,8 @@
     detector.incidentPower += state.stokes.I;
     if (!accepted) return;
     detector.acceptedHits++;
-    if (detector.samples) detector.samples.push({ position: height, power: state.stokes.I, wavelength: state.wavelength, sourceId: state.sourceId });
+    if (detector.samples) detector.samples.push({ position: height, verticalPosition: state.vertical || 0, power: state.stokes.I,
+      wavelength: state.wavelength, sourceId: state.sourceId, ...(Number.isInteger(state.imagePointId) ? { imagePointId: state.imagePointId } : {}) });
     detector.power += state.stokes.I;
     detector.acceptedPower = detector.power;
     detector._sumX += state.stokes.I * point.x;
@@ -447,11 +497,32 @@
           const sample = spectrum[j], power = source.power * sample.weight / count;
           if (rayCount >= maxRays) { discardedPower += power; truncated = true; continue; }
           rayCount++;
-          queue.push({ origin, ray, stokes: sourceStokes(source, power), wavelength: sample.wavelength,
+          queue.push({ origin, ray, vertical: 0, verticalSlope: 0, stokes: sourceStokes(source, power), wavelength: sample.wavelength,
             sourceId: source.id, path: options.recordPaths ? [] : null,
             traceKey: `${source.id}:${count}:${i}` + (spectrum.length > 1 ? `~${spectrum.length}:${j}` : ""),
             branchId: ++branchCounter, center: i === Math.floor(count / 2), lastIndex: -1, interactions: 0,
             pathLength: 0, unmeasuredFiberLinks: 0 });
+        }
+      }
+    }
+
+    for (const screen of scene.filter(element => element.type === "screen" && element.screenPattern !== "none")) {
+      const samples = screenPatternSamples(screen), directions = patternDirections(screen.rayCount, screen.divergence);
+      sourcePower += screen.power;
+      if (screen.power === 0 || !samples.length || !directions.length) continue;
+      const base = direction(screen.angle), tangent = { x: -base.y, y: base.x };
+      const surface = surfaces.find(candidate => candidate.element.id === screen.id);
+      for (let sampleIndex = 0; sampleIndex < samples.length; sampleIndex++) {
+        const sample = samples[sampleIndex], origin = add(screen, tangent, sample.u);
+        for (let directionIndex = 0; directionIndex < directions.length; directionIndex++) {
+          const emitted = directions[directionIndex], power = screen.power * sample.weight / directions.length;
+          if (rayCount >= maxRays) { discardedPower += power; truncated = true; continue; }
+          rayCount++;
+          queue.push({ origin, ray: direction(screen.angle + emitted.angle), vertical: sample.v, verticalSlope: emitted.verticalSlope,
+            stokes: { I: power, Q: 0, U: 0, V: 0 }, wavelength: sample.wavelength, sourceId: screen.id,
+            imagePointId: sampleIndex, path: options.recordPaths ? [] : null, traceKey: `${screen.id}P:${sampleIndex}:${directionIndex}`,
+            branchId: ++branchCounter, center: emitted.angle === 0 && emitted.verticalSlope === 0,
+            lastIndex: surface?.index ?? -1, interactions: 0, pathLength: 0, unmeasuredFiberLinks: 0 });
         }
       }
     }
@@ -469,9 +540,10 @@
         const boundary = boundaryDistance(state.origin, state.ray, extent);
         // Trace every optical surface, including those outside the viewport.
         // The finite extent only chooses where to draw an otherwise escaping ray.
-        const nearest = nearestHit(state.origin, state.ray, surfaces, state.lastIndex, Infinity);
+        const nearest = nearestHit(state.origin, state.ray, surfaces, state.lastIndex, Infinity, state.vertical, state.verticalSlope);
         const end = nearest ? nearest.point : add(state.origin, state.ray, boundary);
         const segmentLength = Math.hypot(end.x - state.origin.x, end.y - state.origin.y);
+        const verticalStart = state.vertical || 0, verticalEnd = verticalStart + (state.verticalSlope || 0) * segmentLength;
         const pathLengthStart = state.pathLength;
         state.pathLength += segmentLength;
         segments.push({ a: { ...state.origin }, b: { ...end }, wavelength: state.wavelength,
@@ -481,11 +553,13 @@
           // Millimetres along the traced centre line. Ideal thin surfaces add no
           // thickness; linked fibers are flagged separately because their length
           // and refractive index are not part of the current scene model.
-          pathLengthStart, pathLengthEnd: state.pathLength, unmeasuredFiberLinks: state.unmeasuredFiberLinks });
+          pathLengthStart, pathLengthEnd: state.pathLength, unmeasuredFiberLinks: state.unmeasuredFiberLinks,
+          verticalStart, verticalEnd });
         if (!nearest) { escapedPower += state.stokes.I; break; }
         hitCount++;
         state.interactions++;
         state.origin = end;
+        state.vertical = verticalEnd;
         state.lastIndex = nearest.surface.index;
         const element = nearest.element, n = nearest.normal || nearest.surface.n;
         // Probe identity follows the sampled ray and its optical path, not the
@@ -500,7 +574,8 @@
           // Fiber angle is accepted propagation direction; air NA=sin(half-angle).
           // This is a geometric acceptance model, not single-mode overlap efficiency.
           const accepted = element.type === "screen" || (element.type === "camera" ? dot(state.ray, n) > EPS :
-            Math.abs(height) <= element.coreDiameter / 2 + EPS && dot(state.ray, n) > EPS && Math.abs(cross(state.ray, n)) <= element.na + EPS);
+            Math.abs(height) <= element.coreDiameter / 2 + EPS && Math.abs(state.vertical || 0) <= element.coreDiameter / 2 + EPS &&
+            dot(state.ray, n) > EPS && Math.hypot(cross(state.ray, n), state.verticalSlope || 0) <= element.na + EPS);
           if (element.type === "camera" && !accepted) warnings.add("カメラの裏面に当たった光は吸収しました。配置角度は受光する光の進行方向です。");
           recordHit(detectorMap.get(element.id), state, end, height, accepted);
           if (accepted && state.path && element.type === "screen") detectedPaths.push({
@@ -513,7 +588,8 @@
             // modal overlap, delay, bend loss, or polarization transformation.
             // The partner's receiving axis is reversed to obtain its output axis.
             const axial = dot(state.ray, n), transverse = dot(state.ray, nearest.surface.tangent);
-            if (Math.abs(height) > output.element.coreDiameter / 2 + EPS || Math.abs(transverse) > output.element.na + EPS) {
+            if (Math.abs(height) > output.element.coreDiameter / 2 + EPS || Math.abs(state.vertical || 0) > output.element.coreDiameter / 2 + EPS ||
+                Math.hypot(transverse, state.verticalSlope || 0) > output.element.na + EPS) {
               absorbedPower += state.stokes.I; clippedByFiberOutput = true; break;
             }
             const forward = { x: -output.n.x, y: -output.n.y }, tangent = { x: -forward.y, y: forward.x };
@@ -556,7 +632,7 @@
         }
         if (element.type === "blocker") { absorbedPower += state.stokes.I; break; }
         if (element.type === "iris") {
-          if (element.opening === 0 || Math.abs(height) > element.opening / 2 + EPS) {
+          if (element.opening === 0 || Math.abs(height) > element.opening / 2 + EPS || Math.abs(state.vertical || 0) > element.opening / 2 + EPS) {
             absorbedPower += state.stokes.I; clippedByIris = true; break;
           }
         } else if (element.type === "concave") {
@@ -566,6 +642,7 @@
             break;
           }
           state.ray = reflect(state.ray, n);
+          state.verticalSlope -= (state.vertical || 0) / element.focal;
         } else if (element.type === "mirror") {
           // n points from the reflective plane into the backing. Rays arriving
           // from the front travel broadly along +n; backside incidence stops.
@@ -590,10 +667,12 @@
           paraxialWarning ||= result.warning;
           if (!result.ray) { absorbedPower += state.stokes.I; break; }
           if (element.type === "objective" && (Math.abs(cross(state.ray, n)) > element.na + EPS ||
-              Math.abs(cross(result.ray, n)) > element.na + EPS)) {
+              Math.abs(cross(result.ray, n)) > element.na + EPS || Math.abs(state.verticalSlope || 0) > element.na + EPS ||
+              Math.abs((state.verticalSlope || 0) - (state.vertical || 0) / element.focal) > element.na + EPS)) {
             absorbedPower += state.stokes.I; clippedByNA = true; break;
           }
           state.ray = result.ray;
+          state.verticalSlope -= (state.vertical || 0) / element.focal;
         } else if (element.type === "polarizer") {
           const after = polarize(state.stokes, element.axisAngle);
           absorbedPower += state.stokes.I - after.I;
@@ -765,7 +844,8 @@
   const api = { WIDTH, HEIGHT, GRID, MARGIN, COORDINATE_LIMIT, MAX_ELEMENTS, MAX_FIBER_LINKS, MAX_INTERACTIONS, MAX_SEGMENTS, MAX_RAYS,
     TYPES, DEFAULTS, PARAM_LIMITS, FILTER_MODES, direction, normalizeAngle, snapAngle, position,
     createElement, initialElements, elementBounds, traceBounds, segment, intersect, concaveGeometry, intersectConcave, reflect, refract, traceRay, traceScene, overlapping,
-    simulate, sourceStokes, sourceBand, validSourceBand, sourceSpectrum, polarize, retard, wavelengthColor, filterTransmission };
+    simulate, sourceStokes, sourceBand, validSourceBand, sourceSpectrum, screenPatternSamples, SCREEN_PATTERNS,
+    polarize, retard, wavelengthColor, filterTransmission };
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.Optics = api;
 })(typeof window === "undefined" ? this : window);

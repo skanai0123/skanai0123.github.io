@@ -31,6 +31,15 @@
 
   const definitions = [
     {
+      id: "duck-camera", title: "アヒルをカメラで撮る", description: "発光スクリーンのアヒルをレンズで2Dカメラへ等倍・倒立結像。",
+      notes: "100×75 mmのスクリーンに83画点のアヒルを表示し、各点から9本、合計747本の無偏光画像光を出します。f=300 mmのレンズを物体・像面から各600 mmに置く2f–2f配置で、横と縦をともに約−1倍へ倒立結像し、カメラP=1を受光します。スクリーン画像は自己発光する離散テストターゲットです。印刷物の照明・反射、回折PSF、収差、奥行きのある物体、実センサー応答は含みません。",
+      elements: () => [
+        part("screen", 1, 100, 300, { aperture: 100, screenHeight: 75, screenPattern: "duck", power: 1, rayCount: 9, divergence: 6, label: "アヒル画像" }),
+        part("lens", 2, 700, 300, { focal: 300, aperture: 300, label: "2f結像レンズ" }),
+        part("camera", 3, 1300, 300, { aperture: 100, sensorHeight: 75, spotSize: 2.5, label: "アヒル撮影カメラ" })
+      ]
+    },
+    {
       id: "fluorescent-camera", title: "蛍光板をカメラで見る", description: "405 nm励起を600 nmの蛍光へ変換し、レンズでカメラへ結像。",
       notes: "405 nm・P=1の励起光を、励起上限450 nm・変換効率60%の蛍光板へ入射します。板は600 nm・無偏光の蛍光P=0.6を2D全周へ61本で放出。f=100 mmのレンズを板とカメラから各200 mmに置く2f–2f配置で、5本・P=3/61≃0.04918が板中心へ等倍結像します。蛍光寿命・発光スペクトル・再吸収・散乱・3Dの立体角・回折像は含みません。",
       elements: () => [

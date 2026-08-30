@@ -13,9 +13,9 @@
   const UNITS = Object.freeze({ mm: 1, cm: 10, in: 25.4 });
   const SCENE_KEYS = new Set(["format", "schemaVersion", "title", "unit", "gridStep", "snap", "angleSnap", "elements", "fiberLinks"]);
   const FIBER_LINK_KEYS = new Set(["a", "b"]);
-  const ELEMENT_KEYS = new Set(["id", "type", "x", "y", "angle", "aperture", "focal", "beamWidth", "wavelength", "wavelengthWidth", "spectralSamples", "power", "rayCount", "divergence", "polarization", "polAngle", "axisAngle", "designWavelength", "opening", "coreDiameter", "na", "transmission", "cutoff", "mode", "phase", "enabled", "label", "pixelCount", "exposure", "autoExposure", "filterMode", "bandLow", "bandHigh", "opticalDensity"]);
+  const ELEMENT_KEYS = new Set(["id", "type", "x", "y", "angle", "aperture", "focal", "beamWidth", "wavelength", "wavelengthWidth", "spectralSamples", "power", "rayCount", "divergence", "polarization", "polAngle", "axisAngle", "designWavelength", "opening", "coreDiameter", "na", "transmission", "cutoff", "mode", "phase", "enabled", "label", "pixelCount", "pixelRows", "sensorHeight", "spotSize", "exposure", "autoExposure", "screenHeight", "screenPattern", "filterMode", "bandLow", "bandHigh", "opticalDensity"]);
   const ANGLE_KEYS = new Set(["angle", "polAngle", "axisAngle"]);
-  const NUMERIC_KEYS = ["angle", "aperture", "focal", "beamWidth", "wavelength", "wavelengthWidth", "spectralSamples", "power", "rayCount", "divergence", "polAngle", "axisAngle", "designWavelength", "opening", "coreDiameter", "na", "transmission", "cutoff", "phase", "pixelCount", "exposure", "bandLow", "bandHigh", "opticalDensity"];
+  const NUMERIC_KEYS = ["angle", "aperture", "focal", "beamWidth", "wavelength", "wavelengthWidth", "spectralSamples", "power", "rayCount", "divergence", "polAngle", "axisAngle", "designWavelength", "opening", "coreDiameter", "na", "transmission", "cutoff", "phase", "pixelCount", "pixelRows", "sensorHeight", "spotSize", "exposure", "screenHeight", "bandLow", "bandHigh", "opticalDensity"];
   const POLARIZATIONS = new Set(["linear", "right", "left", "unpolarized"]);
   const MODES = new Set(["longpass", "shortpass"]);
   const own = (value, key) => Object.prototype.hasOwnProperty.call(value, key);
@@ -91,7 +91,7 @@
     for (const key of NUMERIC_KEYS) {
       if (!own(input, key)) continue;
       const limit = O.PARAM_LIMITS[key];
-      const value = number(input[key], `${name}の${key}`, limit.min, limit.max, ["rayCount", "spectralSamples", "pixelCount"].includes(key));
+      const value = number(input[key], `${name}の${key}`, limit.min, limit.max, ["rayCount", "spectralSamples", "pixelCount", "pixelRows"].includes(key));
       if (key === "focal" && Math.abs(value) < 1) fail(`${name}の焦点距離の絶対値は1 mm以上にしてください。`);
       // The range is already checked; avoid modulo rounding of valid decimal angles.
       element[key] = ANGLE_KEYS.has(key) && value === 360 ? 0 : value;
@@ -107,6 +107,10 @@
     if (own(input, "filterMode")) {
       if (!O.FILTER_MODES.includes(input.filterMode)) fail(`${name}のフィルター種別に対応していません。`);
       element.filterMode = input.filterMode;
+    }
+    if (own(input, "screenPattern")) {
+      if (!O.SCREEN_PATTERNS.includes(input.screenPattern)) fail(`${name}のスクリーン画像に対応していません。`);
+      element.screenPattern = input.screenPattern;
     }
     if (own(input, "enabled")) element.enabled = boolean(input.enabled, `${name}の有効状態`);
     if (own(input, "autoExposure")) element.autoExposure = boolean(input.autoExposure, `${name}の自動明るさ`);
@@ -195,7 +199,16 @@
       if (record.type !== "white" && record.wavelengthWidth === 0) delete record.wavelengthWidth;
       if (record.type !== "white" && record.spectralSamples === O.DEFAULTS.spectralSamples) delete record.spectralSamples;
       if (record.type !== "phase" && record.phase === 0) delete record.phase;
-      if (record.type !== "camera") for (const key of ["pixelCount", "exposure", "autoExposure"]) {
+      if (record.type === "camera") for (const key of ["pixelRows", "sensorHeight", "spotSize"]) {
+        if (record[key] === O.DEFAULTS[key]) delete record[key];
+      }
+      if (record.type === "screen") for (const key of ["screenHeight", "screenPattern"]) {
+        if (record[key] === O.DEFAULTS[key]) delete record[key];
+      }
+      if (record.type !== "camera") for (const key of ["pixelCount", "pixelRows", "sensorHeight", "spotSize", "exposure", "autoExposure"]) {
+        if (record[key] === O.DEFAULTS[key]) delete record[key];
+      }
+      if (record.type !== "screen") for (const key of ["screenHeight", "screenPattern"]) {
         if (record[key] === O.DEFAULTS[key]) delete record[key];
       }
       if (record.type !== "filter") for (const key of ["filterMode", "bandLow", "bandHigh", "opticalDensity"]) {

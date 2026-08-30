@@ -1,8 +1,9 @@
 (function () {
   "use strict";
-  const O = window.Optics, S = window.OpticsState, P = window.OpticsPresets, V = window.OpticsView, C = window.OpticsCoherence, K = window.OpticsCamera, Q = window.OpticsShare;
+  const O = window.Optics, S = window.OpticsState, P = window.OpticsPresets, V = window.OpticsView, D = window.OpticsSpatial, C = window.OpticsCoherence, K = window.OpticsCamera, Q = window.OpticsShare;
   const $ = id => document.getElementById(id), bench = $("bench"), view = V.create(bench, () => requestRender());
-  const lengths = new Set(["x", "y", "aperture", "focal", "radius", "beamWidth", "opening", "coreDiameter"]);
+  const spatial = D.create($("spatial-view"), id => select(id, true));
+  const lengths = new Set(["x", "y", "aperture", "focal", "radius", "beamWidth", "opening", "coreDiameter", "sensorHeight", "spotSize", "screenHeight"]);
   const angles = new Set(["angle", "polAngle", "axisAngle"]);
   const names = {
     x: "X", y: "Y", angle: "配置角度", aperture: "部品径 / 有効径", focal: "焦点距離 f", radius: "曲率半径 R",
@@ -10,7 +11,8 @@
     divergence: "発光角（全角）", polarization: "偏光状態", polAngle: "偏光角",
     axisAngle: "軸角度", designWavelength: "設計波長", phase: "追加位相 φ", opening: "開口直径",
     coreDiameter: "コア直径", na: "開口数 NA", transmission: "透過率 T", cutoff: "境界波長", mode: "透過側", label: "部品名",
-    pixelCount: "計算画素数", exposure: "表示ゲイン", filterMode: "フィルター種別",
+    pixelCount: "横の計算画素数", pixelRows: "縦の計算画素数", sensorHeight: "センサー高さ", spotSize: "表示スポット径 FWHM", exposure: "表示ゲイン", filterMode: "フィルター種別",
+    screenHeight: "スクリーン高さ", screenPattern: "表示する画像",
     bandLow: "透過帯域の下限", bandHigh: "透過帯域の上限", opticalDensity: "光学濃度 OD"
   };
   const num = (v, digits = 6) => Number(v.toFixed(digits));
@@ -53,6 +55,48 @@
     const link = (scene.fiberLinks || []).find(item => item.a === id || item.b === id);
     return link ? (link.a === id ? link.b : link.a) : null;
   };
+  const componentPatternName = value => ({ none: "画像なし", duck: "アヒル", checker: "市松模様", bars: "青・緑・赤バー" })[value] || value;
+  const componentPolarizationName = value => ({ linear: "直線偏光", right: "右円偏光", left: "左円偏光", unpolarized: "無偏光" })[value] || value;
+  function componentSpecification(e) {
+    const length = value => display(value) + " " + scene.unit, diameter = () => "D " + length(e.aperture);
+    if (isSource(e)) return `${V.spectrumLabel(e)}; P ${power(e.power)}; ${e.type === "laser" ? "ビーム " + length(e.beamWidth) : "発光角 " + num(e.divergence, 4) + "°"}; ${e.rayCount}本; ${componentPolarizationName(e.polarization)}`;
+    if (e.type === "mirror") return `${diameter()}; 反射面 ${num(O.normalizeAngle(e.angle + 180), 4)}°側`;
+    if (e.type === "concave") return `${diameter()}; f ${length(e.focal)}; R ${length(2 * e.focal)}`;
+    if (e.type === "lens") return `${diameter()}; f ${length(e.focal)}`;
+    if (e.type === "objective") return `${diameter()}; f ${length(e.focal)}; NA ${e.na}`;
+    if (e.type === "iris") return `${diameter()}; 開口 ${length(e.opening)}`;
+    if (e.type === "filter") return `${diameter()}; ${e.filterMode === "nd" ? "ND OD " + e.opticalDensity : e.filterMode === "bandpass" ? "BP " + e.bandLow + "–" + e.bandHigh + " nm; T " + e.transmission : (e.filterMode === "longpass" ? "LP " : "SP ") + e.cutoff + " nm; T " + e.transmission}`;
+    if (e.type === "polarizer") return `${diameter()}; 透過軸 ${num(e.axisAngle, 4)}°`;
+    if (e.type === "waveplate" || e.type === "halfwave") return `${diameter()}; 速軸 ${num(e.axisAngle, 4)}°; 設計 ${e.designWavelength} nm`;
+    if (e.type === "phase") return `${diameter()}; φ ${num(e.phase, 4)}°`;
+    if (e.type === "dichroic") return `${diameter()}; ${e.mode === "longpass" ? "LP" : "SP"} ${e.cutoff} nm`;
+    if (e.type === "fiber") return `外径 ${length(e.aperture)}; core ${length(e.coreDiameter)}; NA ${e.na}`;
+    if (e.type === "blocker") return diameter();
+    if (e.type === "splitter") return `${diameter()}; NPBS T ${e.transmission}`;
+    if (e.type === "pbs") return `${diameter()}; PBS p透過 / s反射`;
+    if (e.type === "screen") return e.screenPattern === "none" ? `${diameter()}; 検出スクリーン` : `${length(e.aperture)}×${length(e.screenHeight)}; ${componentPatternName(e.screenPattern)}; P ${power(e.power)}; ${O.screenPatternSamples(e).length}画点×${e.rayCount}本`;
+    if (e.type === "camera") return `${length(e.aperture)}×${length(e.sensorHeight)}; ${e.pixelCount}×${e.pixelRows} px; spot ${length(e.spotSize)}`;
+    if (e.type === "fluorescent") return `${diameter()}; ≤${e.cutoff}→${e.wavelength} nm; η ${e.transmission}; ${e.rayCount}本`;
+    return diameter();
+  }
+  function componentListRows() {
+    return scene.elements.map(e => {
+      const partnerId = fiberPartnerId(e.id), partnerElement = scene.elements.find(item => item.id === partnerId);
+      const partner = partnerElement ? label(partnerElement) : "";
+      return [e.id, label(e), O.TYPES[e.type].label, e.enabled ? "ON" : "OFF", display(e.x), display(e.y), num(e.angle, 4), componentSpecification(e), partner];
+    });
+  }
+  function componentListText(format = "tsv") {
+    const rows = [["ID", "部品名", "種類", "状態", `X (${scene.unit})`, `Y (${scene.unit})`, "角度 (deg)", "主要仕様", "接続先"], ...componentListRows()];
+    const numeric = new Set([0, 4, 5, 6]);
+    const safe = (value, column) => {
+      let text = String(value).replace(/[\t\r\n]+/g, " ");
+      if (!numeric.has(column) && /^[=+\-@]/.test(text)) text = "'" + text;
+      return text;
+    };
+    if (format === "csv") return rows.map(row => row.map((value, column) => `"${safe(value, column).replace(/"/g, '""')}"`).join(",")).join("\r\n") + "\r\n";
+    return rows.map(row => row.map(safe).join("\t")).join("\r\n") + "\r\n";
+  }
   function isTextEditing(target) {
     if (!target?.closest) return false;
     const input = target.closest("input,select,textarea");
@@ -94,17 +138,22 @@
   }
   function requestRender() { if (!frame) frame = requestAnimationFrame(() => { frame = 0; render(); }); }
   function updateOptions() {
-    const key = JSON.stringify([scene.unit, scene.elements.map(e => [e.id, label(e), e.enabled, e.x, e.y])]);
+    const key = JSON.stringify([scene.unit, scene.elements.map(e => [e.id, label(e), e.enabled, e.x, e.y, e.angle, componentSpecification(e), fiberPartnerId(e.id)])]);
     if (key !== optionsKey) {
       optionsKey = key;
       $("element-select").replaceChildren(...scene.elements.map(e => {
         const option = node("option", "", label(e) + (e.enabled ? "" : "（無効）") + " · X " + display(e.x) + " / Y " + display(e.y) + " " + scene.unit);
         option.value = String(e.id); return option;
       }));
+      $("component-list-status").textContent = "";
+      $("component-list-copy-fallback").value = "";
+      $("component-list-copy-fallback").hidden = true;
     }
     $("component-list-count").textContent = scene.elements.length + "個";
     $("element-select").value = selected() ? String(selectedId) : "";
     $("element-select").disabled = !scene.elements.length;
+    $("component-list-copy").disabled = !scene.elements.length;
+    $("component-list-save").setAttribute("aria-disabled", String(!scene.elements.length));
   }
   function syncControls() {
     $("scene-title").value = scene.title;
@@ -131,12 +180,13 @@
   }
   function configureInput(input, e) {
     const key = input.dataset.key;
-    if (["label", "enabled", "autoExposure", "polarization", "mode", "filterMode"].includes(key)) return;
+    if (["label", "enabled", "autoExposure", "polarization", "mode", "filterMode", "screenPattern"].includes(key)) return;
     const limits = bounds(key, e), length = lengths.has(key);
     input.min = String(length ? S.toDisplay(limits.min, scene.unit) : limits.min);
     input.max = String(length ? S.toDisplay(limits.max, scene.unit) : limits.max);
-    input.step = input.type === "range" && angles.has(key) ? String(scene.angleSnap ? 22.5 : 0.1) : ["rayCount", "spectralSamples", "pixelCount"].includes(key) || (key === "phase" && input.type === "range") ? "1" : key === "opticalDensity" && input.type === "range" ? "0.01" : "any";
-    input.disabled = (key === "polAngle" && e.polarization !== "linear") || (key === "spectralSamples" && e.wavelengthWidth === 0) || Boolean(input.closest("[data-filter-modes]")?.hidden);
+    input.step = input.type === "range" && angles.has(key) ? String(scene.angleSnap ? 22.5 : 0.1) : ["rayCount", "spectralSamples", "pixelCount", "pixelRows"].includes(key) || (key === "phase" && input.type === "range") ? "1" : key === "opticalDensity" && input.type === "range" ? "0.01" : "any";
+    input.disabled = (key === "polAngle" && e.polarization !== "linear") || (key === "spectralSamples" && e.wavelengthWidth === 0) ||
+      (e.type === "screen" && e.screenPattern === "none" && ["screenHeight", "power", "divergence", "rayCount"].includes(key)) || Boolean(input.closest("[data-filter-modes]")?.hidden);
   }
   function makeField(key, options = {}) {
     const e = selected(), title = options.title || names[key];
@@ -184,6 +234,7 @@
       e.type === "fiber" ? "入射する光の進行方向。0°＝右向き入射。接続時の出射は反対向き（＋180°）。" :
       e.type === "concave" ? "頂点の法線。0°は凹面が左向き、180°は右向き。裏面は吸収。" :
       e.type === "camera" ? "受光する光の進行方向。0°は右向き入射を受光。裏面は吸収。" :
+      e.type === "screen" && e.screenPattern !== "none" ? "発光画像の正面方向。0°は右向きへ画像光を出射。検出面の法線も兼ねます。" :
       e.type === "fluorescent" ? "板面の法線と蛍光の発光扇形の中心。発光角360°では両側へ放出。" :
       e.type === "mirror" ? "反射面から裏面へ向かう法線。0°は表面が左向き、180°は右向き。裏面入射は吸収。45°で右向きの光を上へ反射。" :
       ["dichroic", "splitter", "pbs"].includes(e.type) ? "面の法線。45°で右向きの光を上へ反射。" : "光軸 / 面の法線。0°＝水平な光路。";
@@ -212,14 +263,27 @@
         hint: isBS ? "プリズム中央の対角線の長さ。標準36 mm。外形は表示用で、光は厚さ0の分離面だけで反射・透過します。屈折・光路長の追加はありません。" :
           e.type === "mirror" ? "X/Y座標は反射面の中心です。位置吸着時はこの中心がグリッド交点に合い、この幅の外側を通る光線は当たりません。" : "この幅の外側を通る光線は部品に当たりません。" }));
       if (e.type === "camera") {
-        fields.append(makeField("pixelCount", { hint: "16〜1024画素。1列分の受光位置を集計。光源のサンプル数とは別です。" }));
+        fields.append(
+          makeField("sensorHeight", { hint: "2〜300 mm。画像スクリーンの上下近軸光線はこの範囲内だけ受光し、通常光源は中央面へ置きます。" }),
+          makeField("pixelCount", { hint: "16〜1024列。横方向の実際の受光位置を集計。光源のサンプル数とは別です。" }),
+          makeField("pixelRows", { hint: "16〜512行。2Dカメラ表示の縦方向をサンプルします。" }),
+          makeField("spotSize", { hint: "0.01〜300 mm。各受光位置を2D表示するGaussianスポットの半値全幅です。受光Pは変えません。" })
+        );
         const auto = node("label", "element-enabled"), check = node("input");
         check.id = "param-autoExposure"; check.type = "checkbox"; check.dataset.key = "autoExposure";
         check.setAttribute("aria-label", "カメラ像の明るさを自動調整");
         auto.append(check, document.createTextNode("像の明るさを自動調整"));
         fields.append(auto, makeField("exposure", { hint: "表示だけの倍率。自動OFFでは1画素P=1が基準。露光時間・感度・受光パワー自体は変えません。" }));
-        fields.append(node("p", "param-note", "レンズを内蔵しないセンサー面です。外付けレンズで結像させ、下のカメラビューで像を確認できます。縦方向・回折・干渉・ノイズは未計算。"));
+        fields.append(node("p", "param-note", "レンズを内蔵しない2Dセンサーです。通常光源は中央面、画像スクリーンは縦方向も近軸追跡して表示します。表示スポットは回折PSFではありません。干渉・ノイズは未計算。"));
       }
+      if (e.type === "screen") fields.append(
+        makeField("screenPattern", { choices: [["none", "画像なし（検出のみ）"], ["duck", "アヒル"], ["checker", "市松模様"], ["bars", "青・緑・赤バー"]], hint: "画像を選ぶと、スクリーンがカメラ撮影用の発光テストターゲットになります。" }),
+        makeField("screenHeight", { hint: "2〜300 mm。画像の縦寸法と3D表示のパネル高さ。" }),
+        makeField("power", { title: "画像の相対輝度", hint: "画像全体から出る相対パワー。受光表示とは別です。" }),
+        makeField("divergence", { title: "画像光の発光角（全角）", hint: "水平・垂直の近軸角度範囲。レンズへ届く範囲を調整します。" }),
+        makeField("rayCount", { title: "1画点あたりの光線数", hint: "画像の各発光点から出す2D角度サンプル数。全体は画像点数との積になります。" }),
+        node("p", "param-note", "画像は自己発光する離散テストターゲットです。印刷物の照明・反射・質感は扱いません。レンズで横・縦とも近軸結像し、カメラで確認できます。画像なしでは従来どおり入射光を吸収する検出スクリーンです。")
+      );
       if (e.type === "fluorescent") {
         fields.append(
           makeField("cutoff", { title: "励起波長の上限", hint: "この波長以下の入射光を蛍光へ変換。長波長側は吸収し、蛍光を出しません。" }),
@@ -284,7 +348,7 @@
           node("p", "", "無偏光・円偏光は各50%。線偏光は偏光角で分配します。理想素子のため損失・漏れ・位相差は含みません。"));
         fields.append(note);
       }
-      if (e.type === "screen") fields.append(node("p", "param-note", "入射光を吸収して相対パワー・受光幅・偏光を読み出します。"));
+      if (e.type === "screen" && e.screenPattern === "none") fields.append(node("p", "param-note", "入射光を吸収して相対パワー・受光幅・偏光を読み出します。"));
       if (e.type === "blocker") fields.append(node("p", "param-note", "部品径の範囲に当たった光線を止めます。"));
     }
   }
@@ -374,13 +438,13 @@
   function readField(input, e) {
     const key = input.dataset.key;
     if (input.type === "checkbox") return input.checked;
-    if (["label", "polarization", "mode", "filterMode"].includes(key)) return input.value;
+    if (["label", "polarization", "mode", "filterMode", "screenPattern"].includes(key)) return input.value;
     let value = Number(input.value);
     if (input.value.trim() === "" || !Number.isFinite(value)) throw new Error((names[key] || key) + "を数値で入力してください。");
     if (lengths.has(key)) value = S.fromDisplay(value, scene.unit);
     const limits = bounds(key, e);
-    if (value < limits.min - 1e-7 || value > limits.max + 1e-7 || ["rayCount", "spectralSamples", "pixelCount"].includes(key) && !Number.isInteger(value)) {
-      throw new Error((names[key] || key) + "は " + input.min + "〜" + input.max + (["rayCount", "spectralSamples", "pixelCount"].includes(key) ? " の整数" : " の数値") + "を入力してください。");
+    if (value < limits.min - 1e-7 || value > limits.max + 1e-7 || ["rayCount", "spectralSamples", "pixelCount", "pixelRows"].includes(key) && !Number.isInteger(value)) {
+      throw new Error((names[key] || key) + "は " + input.min + "〜" + input.max + (["rayCount", "spectralSamples", "pixelCount", "pixelRows"].includes(key) ? " の整数" : " の数値") + "を入力してください。");
     }
     value = Math.max(limits.min, Math.min(limits.max, value));
     if (key === "focal" && Math.abs(value) < 1) throw new Error("焦点距離の絶対値は " + display(1) + " " + scene.unit + " 以上にしてください。");
@@ -458,7 +522,8 @@
       const b = node("button", "", label(e)); b.type = "button"; b.dataset.select = String(e.id); cell.append(b);
       row.append(cell, node("td", "", e.enabled ? power(d?.power || 0) : "OFF"),
         node("td", "", e.type === "fiber" ? (e.enabled ? power(emitted.get(e.id) || 0) : "OFF") :
-          e.type === "fluorescent" ? (e.enabled ? power(d?.emittedPower || 0) : "OFF") : "—"),
+          e.type === "fluorescent" ? (e.enabled ? power(d?.emittedPower || 0) : "OFF") :
+          e.type === "screen" && e.screenPattern !== "none" ? (e.enabled ? power(e.power) : "OFF") : "—"),
         node("td", "", String(d?.acceptedHits || 0)), node("td", "", d?.acceptedHits ? String(num(S.toDisplay(d.span, scene.unit), 4)) : "—"));
       body.append(row);
     }
@@ -489,6 +554,10 @@
             for (const [wavelength, p] of wavelengths) output.append(node("p", "", "出射 " + V.formatWavelength(wavelength) + " nm : P " + power(p)));
           }
         }
+        if (e.type === "screen" && e.screenPattern !== "none") output.append(
+          node("p", "", `画像出射 P = ${power(e.power)} / ${O.screenPatternSamples(e).length}画点 × ${e.rayCount}本`),
+          node("p", "", `画像：${{duck:"アヒル",checker:"市松模様",bars:"青・緑・赤バー"}[e.screenPattern]} / ${display(e.aperture)}×${display(e.screenHeight)} ${scene.unit}`)
+        );
         if (d?.acceptedHits) {
           output.append(node("p", "", "重心 X " + display(d.centroid.x) + " / Y " + display(d.centroid.y) + " " + scene.unit));
           for (const [wavelength, p] of Object.entries(d.powerByWavelength || {})) output.append(node("p", "", V.formatWavelength(Number(wavelength)) + " nm : P " + power(p)));
@@ -506,6 +575,13 @@
     result = O.simulate(scene.elements, { fiberLinks: scene.fiberLinks || [], viewBounds: view.visibleBounds(), recordPaths: scene.elements.some(e => e.type === "phase") });
     coherence = C.analyze(scene.elements, result, phaseId);
     view.draw(scene, selectedId, result, $("show-labels").checked, selectedIds);
+    const spatialStats = spatial.draw(scene, result, selectedId, $("show-labels").checked, {
+      azimuth: Number($("spatial-azimuth").value), elevation: Number($("spatial-elevation").value), zoom: Number($("spatial-zoom").value) / 100
+    });
+    const spatialRayStats = spatialStats.segmentsShown === spatialStats.segmentsTotal
+      ? `${spatialStats.elements} parts · ${spatialStats.segmentsShown} rays`
+      : `${spatialStats.elements} parts · ${spatialStats.segmentsShown}/${spatialStats.segmentsTotal} rays`;
+    $("spatial-stats").textContent = `${spatialRayStats} · ${Math.round(spatialStats.zoom * 100)}%`;
     if (pending && (pending.kind === "move" || pending.kind === "rotate")) {
       for (const id of pending.kind === "move" ? selectedIds : [pending.id]) bench.querySelector('[data-element-id="' + id + '"]')?.classList.add("is-dragging");
     }
@@ -600,11 +676,14 @@
     const frame = K.capture(camera, result.detectors.find(d => d.id === cameraId));
     cameraSvg = K.svg(frame, label(camera), scene.unit);
     $("camera-image").src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(cameraSvg);
-    $("camera-image").alt = label(camera) + "の1列分の像。非干渉の受光P " + power(frame.totalPower) + "、" + frame.hits + "本。";
-    $("camera-stats").textContent = `受光P ${power(frame.totalPower)} · ${frame.hits}本 · ${camera.pixelCount}画素 · 1画素 ${display(frame.pitch)} ${scene.unit} · 最大P/画素 ${power(frame.peakPower)}`;
+    $("camera-image").alt = label(camera) + "の2次元センサー像。横は実受光位置、縦は" +
+      (frame.hasVerticalData ? "発光スクリーンから近軸伝搬した像位置" : "中央面の表示スポット") +
+      "。非干渉の受光P " + power(frame.totalPower) + "、" + frame.hits + "本。";
+    $("camera-stats").textContent = `受光P ${power(frame.totalPower)} · ${frame.hits}本 · ${frame.columns}×${frame.rows}画素 · センサー ${display(frame.width)}×${display(frame.height)} ${scene.unit} · XY表示倍率 1:1 · 画素 ${display(frame.pitch)}×${display(frame.rowPitch)} ${scene.unit} · 最大P/画素 ${power(frame.imagePeakPower)}`;
     $("camera-status").textContent = (!camera.enabled ? "カメラはOFFです。" : !frame.hits ? "光が届いていません。位置・向き・センサー幅と、手前の光学部品を確認してください。" :
       camera.autoExposure ? "明るさ自動：現在の最大画素を基準に表示。パワー比較には自動OFFを使用してください。" : "明るさ固定：1画素P=1を基準に表示。") +
       ` 表示ゲイン ×${camera.exposure}。` + (frame.clippedPixels ? ` 表示上限を超える画素：${frame.clippedPixels}。` : "") +
+      (frame.hasVerticalData ? " 発光スクリーンの縦像位置を近軸追跡しています。" : "") +
       (frame.nonvisiblePower ? " UV・IRは識別用の疑似色です。" : "") + (result.truncated ? " 光線追跡の打切りがあるため、像は未完の集計です。" : "");
   }
   $("camera-select").addEventListener("change", event => select(Number(event.target.value)));
@@ -1174,6 +1253,35 @@
   $("zoom-in").addEventListener("click", () => view.zoom(1.25)); $("zoom-out").addEventListener("click", () => view.zoom(1 / 1.25));
   $("fit").addEventListener("click", () => view.fit());
   $("show-labels").addEventListener("change", render);
+  function updateSpatialControl(input, output) {
+    output.value = `${Number(input.value)}°`; requestRender();
+  }
+  function setSpatialZoom(value, redraw = true) {
+    const input = $("spatial-zoom"), low = Number(input.min), high = Number(input.max), step = Number(input.step) || 1;
+    const numeric = Number(value), next = Math.max(low, Math.min(high, Math.round((Number.isFinite(numeric) ? numeric : 100) / step) * step));
+    input.value = String(next); $("spatial-zoom-value").value = `${next}%`;
+    $("spatial-zoom-out").disabled = next <= low; $("spatial-zoom-in").disabled = next >= high;
+    if (redraw) requestRender();
+  }
+  $("spatial-azimuth").addEventListener("input", () => updateSpatialControl($("spatial-azimuth"), $("spatial-azimuth-value")));
+  $("spatial-elevation").addEventListener("input", () => updateSpatialControl($("spatial-elevation"), $("spatial-elevation-value")));
+  $("spatial-zoom").addEventListener("input", event => setSpatialZoom(Number(event.target.value)));
+  $("spatial-zoom-out").addEventListener("click", () => setSpatialZoom(Number($("spatial-zoom").value) / 1.25));
+  $("spatial-zoom-in").addEventListener("click", () => setSpatialZoom(Number($("spatial-zoom").value) * 1.25));
+  $("spatial-view").addEventListener("wheel", event => {
+    if (!event.shiftKey || pending) return;
+    const delta = event.deltaY || event.deltaX;
+    if (!delta) return;
+    event.preventDefault();
+    setSpatialZoom(Number($("spatial-zoom").value) * Math.exp(-delta * .0015));
+  }, { passive: false });
+  $("spatial-reset").addEventListener("click", () => {
+    $("spatial-azimuth").value = String(D.DEFAULT_VIEW.azimuth); $("spatial-elevation").value = String(D.DEFAULT_VIEW.elevation);
+    setSpatialZoom(100);
+    updateSpatialControl($("spatial-azimuth"), $("spatial-azimuth-value")); updateSpatialControl($("spatial-elevation"), $("spatial-elevation-value"));
+    announce("3D表示を標準視点・100%へ戻しました。設計データとUndo履歴は変更していません。");
+  });
+  setSpatialZoom(100, false);
   $("unit").addEventListener("change", event => {
     checkpoint(); scene = S.switchUnit(scene, event.target.value); markEdited(); checkpoint();
     syncControls(); syncInspector(true); render();
@@ -1219,6 +1327,29 @@
     // Keep the user's actual link click as the download gesture.
     setTimeout(() => URL.revokeObjectURL(url), 10000);
   }
+  $("component-list-copy").addEventListener("click", async () => {
+    if (!scene.elements.length) return;
+    const count = scene.elements.length, text = componentListText("tsv");
+    const button = $("component-list-copy"), fallback = $("component-list-copy-fallback"), status = $("component-list-status");
+    button.disabled = true; fallback.value = ""; fallback.hidden = true;
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error("Clipboard unavailable");
+      await navigator.clipboard.writeText(text);
+      status.textContent = count + "個の部品リストを表形式でコピーしました。";
+      announce("部品リストをコピーしました。Google Sheetsなどへ貼り付けられます。");
+    } catch {
+      fallback.value = text; fallback.hidden = false; fallback.focus(); fallback.select();
+      status.textContent = "自動コピーできませんでした。下の表をCtrl+C／⌘Cでコピーしてください。";
+      announce("部品リストを手動でコピーしてください。");
+    } finally { button.disabled = !scene.elements.length; }
+  });
+  $("component-list-save").addEventListener("click", event => {
+    if (!scene.elements.length) { event.preventDefault(); return; }
+    const count = scene.elements.length;
+    download("\ufeff" + componentListText("csv"), "text/csv;charset=utf-8", "-parts.csv", event.currentTarget);
+    $("component-list-status").textContent = count + "個の部品リストをCSVで保存します。";
+    announce("部品リストのCSVダウンロードを開始しました。設計を再開する場合はJSON保存を使用してください。");
+  });
   $("export").addEventListener("click", event => {
     checkpoint(); download(S.serialize(scene), "application/json;charset=utf-8", ".json", event.currentTarget);
     announce("設計JSONのダウンロードを開始しました。部品と全パラメーターを保存します。");
@@ -1226,6 +1357,10 @@
   $("export-svg").addEventListener("click", event => {
     render(); download(view.exportSvg(scene.title), "image/svg+xml;charset=utf-8", ".svg", event.currentTarget);
     announce("表示中の光学図をSVGでダウンロードします。編集用データはJSON保存してください。");
+  });
+  $("spatial-save").addEventListener("click", event => {
+    render(); download(spatial.exportSvg(scene.title), "image/svg+xml;charset=utf-8", "-3d.svg", event.currentTarget);
+    announce("斜視3D光学図をSVGでダウンロードします。3D視点は表示専用で、編集用データには含めません。");
   });
   $("import").addEventListener("click", () => { $("import-file").value = ""; $("import-file").click(); });
   $("import-file").addEventListener("change", async event => {

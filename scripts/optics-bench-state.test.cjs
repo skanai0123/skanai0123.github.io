@@ -561,25 +561,56 @@ test('fluorescent settings survive designs, component copies and links while inv
   }
 });
 
-test('camera settings persist through JSON, units and component clipboard while older records keep their fields', () => {
-  const camera = { ...O.createElement('camera', 1, -500, 300), pixelCount: 512, exposure: 2.5, autoExposure: false, aperture: 12.8, angle: 22.5 };
+test('camera 2D sensor settings persist through JSON, units and component clipboard while older records keep their fields', () => {
+  const camera = { ...O.createElement('camera', 1, -500, 300), pixelCount: 512, pixelRows: 320, sensorHeight:9.6, spotSize:.8, exposure: 2.5, autoExposure: false, aperture: 12.8, angle: 22.5 };
   for (const unit of ['mm','cm','in']) {
     const scene = S.defaultScene([camera], { unit }); assert.deepEqual(S.parse(S.serialize(scene)), scene);
     assert.deepEqual(S.parseComponent(S.serializeComponent(camera)), camera);
   }
   const ordinary = JSON.parse(S.serialize(P.create('starter')));
-  assert.ok(ordinary.elements.every(e=>['pixelCount','exposure','autoExposure'].every(k=>!Object.hasOwn(e,k))));
+  assert.ok(ordinary.elements.every(e=>['pixelCount','pixelRows','sensorHeight','spotSize','exposure','autoExposure'].every(k=>!Object.hasOwn(e,k))));
   const sparse = { id:1,type:'camera',x:100,y:100 };
   const restored = S.validateScene({ ...S.defaultScene(), elements:[sparse] }).elements[0];
-  assert.equal(restored.pixelCount,256); assert.equal(restored.exposure,1); assert.equal(restored.autoExposure,true);
+  assert.equal(restored.pixelCount,256); assert.equal(restored.pixelRows,192); assert.equal(restored.sensorHeight,18); assert.equal(restored.spotSize,1);
+  assert.equal(restored.exposure,1); assert.equal(restored.autoExposure,true);
+  const compatible=JSON.parse(S.serialize(S.defaultScene([O.createElement('camera',1,100,100)]))).elements[0];
+  assert.ok(['pixelRows','sensorHeight','spotSize'].every(key=>!Object.hasOwn(compatible,key)));
 });
 
-test('camera malformed pixel counts, display gains and booleans are rejected without accepting unsafe allocations', () => {
+test('camera malformed 2D sensor sizes, pixel counts, display gains and booleans are rejected without unsafe allocations', () => {
   const camera = O.createElement('camera',1,500,300), scene = S.defaultScene([camera]);
-  for (const changes of [{pixelCount:1e9},{pixelCount:16.5},{pixelCount:0},{exposure:0},{exposure:101},{exposure:NaN},{autoExposure:'false'}]) {
+  for (const changes of [{pixelCount:1e9},{pixelCount:16.5},{pixelCount:0},{pixelRows:1e9},{pixelRows:16.5},{pixelRows:0},
+    {sensorHeight:0},{sensorHeight:301},{spotSize:0},{spotSize:301},{exposure:0},{exposure:101},{exposure:NaN},{autoExposure:'false'}]) {
     const bad = { ...camera,...changes }; assert.throws(()=>S.validateScene({ ...scene,elements:[bad] }));
     assert.throws(()=>S.serializeComponent(bad));
     assert.ok(O.simulate([bad]).warnings.some(w=>w.includes('不正')));
+  }
+});
+
+test('screen target images persist through scenes, components and sharing while old detector screens stay compatible', async () => {
+  const screen = { ...O.createElement('screen', 1, -250, 300), aperture:88.5, screenHeight:66.25, screenPattern:'duck', power:2.5, rayCount:9, divergence:7.5, angle:22.5 };
+  for (const unit of ['mm','cm','in']) {
+    const scene = S.defaultScene([screen], { unit });
+    assert.deepEqual(S.parse(S.serialize(scene)), scene);
+    assert.deepEqual(S.parseComponent(S.serializeComponent(screen)), screen);
+    assert.deepEqual(await Q.decode(await Q.encode(scene)), scene);
+  }
+  const sparse = { id:1,type:'screen',x:100,y:100 };
+  const restored = S.validateScene({ ...S.defaultScene(), elements:[sparse] }).elements[0];
+  assert.equal(restored.screenHeight,100); assert.equal(restored.screenPattern,'none');
+  const compatible = JSON.parse(S.serialize(S.defaultScene([O.createElement('screen',1,100,100)]))).elements[0];
+  assert.equal(Object.hasOwn(compatible,'screenHeight'),false); assert.equal(Object.hasOwn(compatible,'screenPattern'),false);
+  const ordinary = JSON.parse(S.serialize(P.create('starter')));
+  assert.ok(ordinary.elements.every(element => !Object.hasOwn(element,'screenHeight') && !Object.hasOwn(element,'screenPattern')));
+});
+
+test('invalid screen target images and heights are rejected without affecting valid screens', () => {
+  const screen = O.createElement('screen',1,500,300), scene = S.defaultScene([screen]);
+  for (const changes of [{screenHeight:0},{screenHeight:301},{screenHeight:NaN},{screenPattern:'cat'},{screenPattern:1}]) {
+    const bad = { ...screen,...changes };
+    assert.throws(()=>S.validateScene({ ...scene,elements:[bad] }));
+    assert.throws(()=>S.serializeComponent(bad));
+    assert.ok(O.simulate([bad]).warnings.some(warning=>warning.includes('不正')));
   }
 });
 
@@ -699,7 +730,7 @@ test('browser globals load without Node, DOM access or network APIs', () => {
 });
 
 test('preset factories return independent validated scenes and reject unknown IDs', () => {
-  assert.equal(P.list.length, 28);
+  assert.equal(P.list.length, 29);
   assert.equal(new Set(P.list.map(entry => entry.id)).size, P.list.length);
   const a = P.create('starter'), b = P.create('starter');
   a.elements[0].x += 10;
