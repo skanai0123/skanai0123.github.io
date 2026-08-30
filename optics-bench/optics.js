@@ -14,6 +14,7 @@
     laser: { label: "レーザー", short: "LAS", color: "#ff8279" },
     point: { label: "点光源", short: "PT", color: "#ffba73" },
     white: { label: "白色光源", short: "WHITE", color: "#fff1b8" },
+    doll: { label: "光る人形", short: "DOLL", color: "#86b9ff" },
     mirror: { label: "ミラー", short: "M", color: "#a8becf" },
     concave: { label: "凹面ミラー", short: "CM", color: "#bdd0ec" },
     lens: { label: "レンズ", short: "L", color: "#70d5ee" },
@@ -61,6 +62,7 @@
     laser: { beamWidth: 5 },
     point: { polarization: "unpolarized", rayCount: 21, divergence: 30, beamWidth: 0 },
     white: { wavelength: 550, wavelengthWidth: 300, spectralSamples: 31, polarization: "unpolarized", rayCount: 21, divergence: 30, beamWidth: 0 },
+    doll: { aperture: 60, screenHeight: 90, screenPattern: "doll", polarization: "unpolarized", rayCount: 9, divergence: 20, beamWidth: 0 },
     mirror: { angle: 45, aperture: 25 }, concave: { focal: 100, aperture: 100 }, lens: { focal: 76.2, aperture: 25.4 },
     polarizer: { aperture: 25.4 }, waveplate: { axisAngle: 45, aperture: 25.4 }, halfwave: { axisAngle: 22.5, aperture: 25.4 },
     phase: { aperture: 25.4 }, dichroic: { angle: 45, aperture: 36 },
@@ -70,13 +72,20 @@
     fluorescent: { aperture: 100, wavelength: 600, cutoff: 550, transmission: 0.6, rayCount: 21, divergence: 360 },
     filter: { aperture: 25.4, transmission: 1 }
   };
-  const isSource = element => ["laser", "point", "white"].includes(element.type);
-  const SCREEN_PATTERNS = Object.freeze(["none", "duck", "checker", "bars"]);
+  const isSource = element => ["laser", "point", "white", "doll"].includes(element.type);
+  const isSpectralSource = element => ["laser", "point", "white"].includes(element.type);
+  const isPatternSource = element => element.type === "doll" || element.type === "screen" && element.screenPattern !== "none";
+  const SCREEN_PATTERNS = Object.freeze(["none", "duck", "doll", "checker", "bars"]);
   const PATTERN_MAPS = Object.freeze({
     duck: Object.freeze([
       "................", "..........yyyy..", ".........yyyyyy.", ".........yyy.yoo",
       "..yyy...yyyyyyy.", ".yyyyy.yyyyyyyy.", ".yyyyyyyyyyyyy..", "..yyyyyyyyyyy...",
       "...yyyyyyyyy....", "....yyyyyyy.....", ".....yy..yy.....", "................"
+    ]),
+    doll: Object.freeze([
+      "......oooo......", ".....oooooo.....", ".....o.oo.o.....", "......oooo......",
+      ".......oo.......", "....bbbbbbbb....", "..o.bbbbbbbb.o..", ".....bbbbbb.....",
+      "......bbbb......", ".....rr..rr.....", "....rr....rr....", "...rr......rr..."
     ]),
     checker: Object.freeze(["ccwwccwwccww", "ccwwccwwccww", "wwccwwccwwcc", "wwccwwccwwcc", "ccwwccwwccww", "ccwwccwwccww", "wwccwwccwwcc", "wwccwwccwwcc"]),
     bars: Object.freeze(["bbbgggrrr", "bbbgggrrr", "bbbgggrrr", "bbbgggrrr", "bbbgggrrr", "bbbgggrrr"])
@@ -392,10 +401,11 @@
         else if (element[key] < limits.min || element[key] > limits.max) { invalid = true; break; }
       }
       invalid ||= !Number.isInteger(element.rayCount) || !Number.isInteger(element.spectralSamples) || !Number.isInteger(element.pixelCount) || !Number.isInteger(element.pixelRows) || typeof element.autoExposure !== "boolean" || Math.abs(element.focal) < 1 ||
-        (isSource(element) && !validSourceBand(element)) ||
+        (isSpectralSource(element) && !validSourceBand(element)) ||
         !["linear", "right", "left", "unpolarized"].includes(element.polarization) ||
         !["longpass", "shortpass"].includes(element.mode) || typeof element.enabled !== "boolean" ||
         !FILTER_MODES.includes(element.filterMode) || !SCREEN_PATTERNS.includes(element.screenPattern) ||
+        (element.type === "doll" && element.screenPattern !== "doll") ||
         (element.type === "filter" && element.bandLow >= element.bandHigh) ||
         (element.type === "fluorescent" && element.wavelength < element.cutoff) ||
         (element.type === "iris" && element.opening > element.aperture) ||
@@ -486,7 +496,7 @@
     let sourcePower = 0, escapedPower = 0, absorbedPower = 0, detectedPower = 0, discardedPower = 0;
     let clippedByIris = false, clippedByNA = false, clippedByFiberOutput = false, paraxialWarning = false;
 
-    for (const source of scene.filter(isSource)) {
+    for (const source of scene.filter(isSpectralSource)) {
       sourcePower += source.power;
       if (source.power === 0) continue;
       const count = source.rayCount, spectrum = sourceSpectrum(source), base = direction(source.angle), tangent = { x: -base.y, y: base.x };
@@ -509,21 +519,21 @@
       }
     }
 
-    for (const screen of scene.filter(element => element.type === "screen" && element.screenPattern !== "none")) {
-      const samples = screenPatternSamples(screen), directions = patternDirections(screen.rayCount, screen.divergence);
-      sourcePower += screen.power;
-      if (screen.power === 0 || !samples.length || !directions.length) continue;
-      const base = direction(screen.angle), tangent = { x: -base.y, y: base.x };
-      const surface = surfaces.find(candidate => candidate.element.id === screen.id);
+    for (const source of scene.filter(isPatternSource)) {
+      const samples = screenPatternSamples(source), directions = patternDirections(source.rayCount, source.divergence);
+      sourcePower += source.power;
+      if (source.power === 0 || !samples.length || !directions.length) continue;
+      const base = direction(source.angle), tangent = { x: -base.y, y: base.x };
+      const surface = surfaces.find(candidate => candidate.element.id === source.id);
       for (let sampleIndex = 0; sampleIndex < samples.length; sampleIndex++) {
-        const sample = samples[sampleIndex], origin = add(screen, tangent, sample.u);
+        const sample = samples[sampleIndex], origin = add(source, tangent, sample.u);
         for (let directionIndex = 0; directionIndex < directions.length; directionIndex++) {
-          const emitted = directions[directionIndex], power = screen.power * sample.weight / directions.length;
+          const emitted = directions[directionIndex], power = source.power * sample.weight / directions.length;
           if (rayCount >= maxRays) { discardedPower += power; truncated = true; continue; }
           rayCount++;
-          queue.push({ origin, ray: direction(screen.angle + emitted.angle), vertical: sample.v, verticalSlope: emitted.verticalSlope,
-            stokes: { I: power, Q: 0, U: 0, V: 0 }, wavelength: sample.wavelength, sourceId: screen.id,
-            imagePointId: sampleIndex, path: options.recordPaths ? [] : null, traceKey: `${screen.id}P:${sampleIndex}:${directionIndex}`,
+          queue.push({ origin, ray: direction(source.angle + emitted.angle), vertical: sample.v, verticalSlope: emitted.verticalSlope,
+            stokes: { I: power, Q: 0, U: 0, V: 0 }, wavelength: sample.wavelength, sourceId: source.id,
+            imagePointId: sampleIndex, path: options.recordPaths ? [] : null, traceKey: `${source.id}P:${sampleIndex}:${directionIndex}`,
             branchId: ++branchCounter, center: emitted.angle === 0 && emitted.verticalSlope === 0,
             lastIndex: surface?.index ?? -1, interactions: 0, pathLength: 0, unmeasuredFiberLinks: 0, parentSegmentKey: null });
         }

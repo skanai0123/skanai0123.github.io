@@ -651,7 +651,7 @@ test('palette parts expose the requested defaults in centimetres', () => {
 test('white source is a visible palette part with editable full-band defaults and a distinct body', () => {
   const h=editorHarness(),groups=h.get('palette-buttons').children,sourceGroup=groups[0];
   assert.equal(sourceGroup.children[0].textContent,'光源');
-  assert.deepEqual(sourceGroup.querySelectorAll('.part-button').map(button=>button.dataset.add),['laser','white','point']);
+  assert.deepEqual(sourceGroup.querySelectorAll('.part-button').map(button=>button.dataset.add),['laser','white','point','doll']);
   h.click('new-scene');h.fire('click',sourceGroup.querySelector('[data-add="white"]'));
   const source=h.selected();assert.equal(source.type,'white');
   assert.deepEqual({wavelength:source.wavelength,wavelengthWidth:source.wavelengthWidth,spectralSamples:source.spectralSamples,
@@ -666,13 +666,32 @@ test('white source is a visible palette part with editable full-band defaults an
   assert.match(h.get('status').textContent,/白色光源/);
 });
 
-test('the bench draws a recognizable vector duck on an image screen', () => {
+test('a luminous doll is directly placeable, editable and distinct in 2D, 3D and the source list', () => {
+  const h=editorHarness();h.click('new-scene');h.add('doll');const doll=h.selected();
+  assert.deepEqual({type:doll.type,aperture:doll.aperture,screenHeight:doll.screenHeight,screenPattern:doll.screenPattern,
+    power:doll.power,rayCount:doll.rayCount,divergence:doll.divergence,polarization:doll.polarization},
+    {type:'doll',aperture:60,screenHeight:90,screenPattern:'doll',power:1,rayCount:9,divergence:20,polarization:'unpolarized'});
+  assert.equal(h.get('param-aperture').value,'6');assert.equal(h.get('param-screenHeight').value,'9');
+  assert.equal(h.get('param-wavelength'),null);assert.match(h.get('selected-output').textContent,/60画点 × 9本.*450 \/ 620 \/ 650 nm/s);
+  assert.equal(h.result().rayCount,540);assert.equal(h.result().sourcePower,1);
+  assert.match(h.get('source-readout').textContent,/光る人形.*450 \/ 620 \/ 650 nm.*P 1/s);
+  const drawn=drawingHarness(),drawScene=require('../optics-bench/state.js').defaultScene([doll]);
+  drawn.view.draw(drawScene,doll.id,require('../optics-bench/optics.js').simulate(drawScene.elements));
+  assert.ok(drawn.document.querySelector('[data-luminous-doll="true"]'));
+  assert.ok(h.get('spatial-view').querySelector('[data-spatial-doll="true"]'));
+  const height=h.get('param-screenHeight');height.value='12';h.fire('change',height);assert.equal(h.selected().screenHeight,120);
+  h.get('bench').focus();h.key('z');assert.equal(h.selected().screenHeight,90);
+});
+
+test('the bench draws recognizable vector duck and doll targets on an image screen', () => {
   const O=require('../optics-bench/optics.js'),S=require('../optics-bench/state.js'),{document,view}=drawingHarness();
   const screen={...O.createElement('screen',1,300,300),screenPattern:'duck',screenHeight:75,label:'アヒル画像'};
   const scene=S.defaultScene([screen]); view.draw(scene,1,O.simulate(scene.elements));
   const node=document.querySelector('[data-element-id="1"]');
   assert.equal(node.querySelectorAll('ellipse').length,1); assert.ok(node.querySelectorAll('circle').length>=2);
   assert.equal(node.querySelectorAll('polygon').length,1); assert.match(node.textContent,/アヒル/);
+  scene.elements[0].screenPattern='doll';scene.elements[0].label='人形ターゲット';view.draw(scene,1,O.simulate(scene.elements));
+  assert.ok(node.querySelector('[data-doll-target="true"]')); assert.ok(node.querySelectorAll('path').length>=2); assert.match(node.textContent,/人形/);
 });
 
 test('the source readout selects and reorders drawing layers without moving non-source slots', async () => {
@@ -762,7 +781,7 @@ test('the beam blocker stays in the optical-path palette group and remains place
   const detection=groups.find(group=>group.children[0].textContent==='検出・撮像');
   const blocker=optical.querySelector('[data-add="blocker"]');
   assert.ok(blocker);assert.equal(detection.querySelector('[data-add="blocker"]'),null);
-  assert.equal(groups.flatMap(group=>group.querySelectorAll('.part-button')).length,21);
+  assert.equal(groups.flatMap(group=>group.querySelectorAll('.part-button')).length,22);
   h.click('new-scene');h.fire('click',blocker);
   assert.equal(h.selected().type,'blocker');assert.match(h.get('status').textContent,/ビームブロッカー/);
 });
@@ -1557,12 +1576,16 @@ test('screen image controls drive a real paraxial 2D camera preview and can retu
   const screenPath=()=>h.get('spatial-view').querySelector('[data-spatial-element-id="1"]').querySelector('path').getAttribute('d');
   const initialPath=screenPath(),height=h.get('param-screenHeight'); height.value='60'; h.fire('change',height);
   assert.equal(h.selected().screenHeight,60); assert.notEqual(screenPath(),initialPath);
-  const pattern=h.get('param-screenPattern'); pattern.value='none'; h.fire('change',pattern);
+  const pattern=h.get('param-screenPattern');assert.ok(pattern.children.some(option=>option.value==='doll'&&/人形/.test(option.textContent)));
+  pattern.value='doll';h.fire('change',pattern);assert.equal(h.selected().screenPattern,'doll');assert.match(h.get('selected-output').textContent,/60画点 × 9本/);
+  assert.match(h.get('camera-stats').textContent,/受光P 1 · 540本/);
+  assert.match(h.get('spatial-view').querySelector('[data-spatial-element-id="1"]').textContent,/人/);
+  pattern.value='none'; h.fire('change',pattern);
   assert.equal(h.selected().screenPattern,'none'); assert.equal(h.get('param-screenHeight').disabled,true); assert.equal(h.get('param-power').disabled,true);
   assert.match(h.get('camera-stats').textContent,/受光P 0 · 0本/);
-  h.get('bench').focus(); h.key('z'); assert.equal(h.selected().screenPattern,'duck'); assert.match(h.get('camera-stats').textContent,/受光P 1/);
+  h.get('bench').focus(); h.key('z'); assert.equal(h.selected().screenPattern,'doll'); assert.match(h.get('camera-stats').textContent,/受光P 1/);
   const copy=h.parseComponent(h.clipboard('copy').data.get('text/plain'));
-  assert.equal(copy.screenPattern,'duck'); assert.equal(copy.screenHeight,60);
+  assert.equal(copy.screenPattern,'doll'); assert.equal(copy.screenHeight,60);
 });
 
 test('multiple cameras can be switched, disabled and deleted without retaining the previous image', async () => {
@@ -1641,9 +1664,9 @@ test('flat mirror drawing and dragging use the reflective surface centre as the 
   assert.deepEqual({ x: h.selected().x, y: h.selected().y }, { x: 150, y: 280 });
 });
 
-test('drag copies preserve complete component records for all twenty-one optical types', async () => {
+test('drag copies preserve complete component records for all twenty-two optical types', async () => {
   const types = Object.keys(require('../optics-bench/optics.js').TYPES), h = editorHarness();
-  assert.equal(types.length, 21);
+  assert.equal(types.length, 22);
   for (const [index, type] of types.entries()) {
     const source = h.element(type, 31, { angle: 21.3, enabled: false, label: index % 2 ? type + ' component' : '' });
     if (type === 'filter') Object.assign(source,{filterMode:'nd',opticalDensity:1.23,bandLow:450,bandHigh:650,transmission:.7});

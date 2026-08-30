@@ -78,7 +78,7 @@
 
   function displayHeightRadius(element) {
     if (element.type === 'camera') return Math.max(finite(element.sensorHeight, 18) / 2, 7);
-    if (element.type === 'screen') return Math.max(finite(element.screenHeight, 100) / 2, 7);
+    if (element.type === 'screen' || element.type === 'doll') return Math.max(finite(element.screenHeight, 100) / 2, 7);
     return displayRadius(element);
   }
 
@@ -211,7 +211,7 @@
       }
 
       const palette = {
-        laser: '#8dc9ad', point: '#efca75', white: '#f7f0c8', mirror: '#b8d7df', concave: '#9fc7d2', lens: '#63c9e4',
+        laser: '#8dc9ad', point: '#efca75', white: '#f7f0c8', doll: '#76a8e9', mirror: '#b8d7df', concave: '#9fc7d2', lens: '#63c9e4',
         objective: '#74b8da', iris: '#9ba9a7', filter: '#75b99b', polarizer: '#d4a36e', waveplate: '#aa91d1', halfwave: '#9277bf',
         phase: '#d18baa', dichroic: '#d6a96c', splitter: '#9bc3d6', pbs: '#bb9fd7', fiber: '#a88cd2', blocker: '#536168',
         screen: '#e2dca8', camera: '#6e8794', fluorescent: '#d8a5cb'
@@ -255,6 +255,22 @@
             });
             group.append(make('path', { d: pathData(hole), fill: '#17323b', stroke: '#c7d8d3', 'stroke-width': 1.2, 'vector-effect': 'non-scaling-stroke' }));
           }
+        } else if (element.type === 'doll') {
+          const local = (u, z) => projected({ x:element.x + tangent.x*u, y:element.y + tangent.y*u, z:centerZ + z });
+          const h=heightRadius, w=radius, headCenter=h*.55, headRadius=Math.min(w*.22,h*.18);
+          const silhouette = [
+            local(0,h*.92),local(headRadius*.7,h*.82),local(headRadius,headCenter),local(headRadius*.7,h*.33),
+            local(w*.28,h*.2),local(w*.82,-h*.05),local(w*.72,-h*.18),local(w*.25,0),
+            local(w*.22,-h*.2),local(w*.42,-h*.9),local(w*.16,-h*.95),local(0,-h*.35),
+            local(-w*.16,-h*.95),local(-w*.42,-h*.9),local(-w*.22,-h*.2),local(-w*.25,0),
+            local(-w*.72,-h*.18),local(-w*.82,-h*.05),local(-w*.28,h*.2),local(-headRadius*.7,h*.33),
+            local(-headRadius,headCenter),local(-headRadius*.7,h*.82)
+          ];
+          body=make('path',{d:pathData(silhouette)+' Z',fill:color,'fill-opacity':.75,stroke:'#d7edff','stroke-width':2,'vector-effect':'non-scaling-stroke','data-spatial-doll':'true'});
+          group.append(make('path',{d:pathData(silhouette)+' Z',fill:'none',stroke:'#86b9ff','stroke-width':8,opacity:.2,'vector-effect':'non-scaling-stroke'}),body);
+          const face=local(0,headCenter),chest=local(0,0);
+          group.append(make('circle',{cx:fmt(face.x),cy:fmt(face.y),r:4.5,fill:'#efad79',stroke:'#ffd0aa','stroke-width':1,'vector-effect':'non-scaling-stroke'}),
+            make('circle',{cx:fmt(chest.x),cy:fmt(chest.y),r:3.5,fill:'#5a8fd8',stroke:'#b9d5ff','stroke-width':1,'vector-effect':'non-scaling-stroke'}));
         } else if (sourceTypes.has(element.type)) {
           const base = projected({ x: element.x, y: element.y, z: 0 }), top = projected({ x: element.x, y: element.y, z: centerZ });
           const sourceColor = element.type === 'fiber' ? color : element.type === 'white' ? '#fff6cd' : O.wavelengthColor(element.wavelength);
@@ -271,7 +287,8 @@
           }
         }
         const center = projected({ x: element.x, y: element.y, z: centerZ });
-        group.append(make('text', { x: fmt(center.x), y: fmt(center.y + 4), fill: '#f4f7ee', 'font-size': 10, 'font-weight': 700, 'text-anchor': 'middle', 'paint-order': 'stroke', stroke: '#17323b', 'stroke-width': 3 }, V.symbols[element.type] || '•'));
+        group.append(make('text', { x: fmt(center.x), y: fmt(center.y + 4), fill: '#f4f7ee', 'font-size': 10, 'font-weight': 700, 'text-anchor': 'middle', 'paint-order': 'stroke', stroke: '#17323b', 'stroke-width': 3 },
+          element.type === 'screen' && element.screenPattern === 'doll' ? '人' : V.symbols[element.type] || '•'));
         if (element.id === selectedId) {
           const selection = sourceTypes.has(element.type)
             ? make('circle', { cx: fmt(center.x), cy: fmt(center.y), r: 10, fill: 'none', stroke: '#e9f7b8', 'stroke-width': 2.5, 'stroke-dasharray': '5 3', 'vector-effect': 'non-scaling-stroke', class: 'spatial-selection' })
