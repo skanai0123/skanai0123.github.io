@@ -8,7 +8,6 @@
   const FORMAT = "optics-bench", SCHEMA_VERSION = 2, MAX_BYTES = 256 * 1024;
   const COMPONENT_PREFIX = "Optics Bench component v1\n";
   const SELECTION_PREFIX = "Optics Bench selection v1\n";
-  const MAX_ELEMENTS = O.MAX_ELEMENTS, MAX_FIBER_LINKS = O.MAX_FIBER_LINKS;
   const DEFAULTS = Object.freeze({ format: FORMAT, schemaVersion: SCHEMA_VERSION, title: "無題の光学系", unit: "cm", gridStep: 10, snap: true, angleSnap: true });
   const UNITS = Object.freeze({ mm: 1, cm: 10, in: 25.4 });
   const SCENE_KEYS = new Set(["format", "schemaVersion", "title", "unit", "gridStep", "snap", "angleSnap", "elements", "fiberLinks"]);
@@ -142,7 +141,7 @@
       elements: [],
       fiberLinks: []
     };
-    if (!Array.isArray(input.elements) || input.elements.length > MAX_ELEMENTS) fail(`部品は${MAX_ELEMENTS}個以下の配列で指定してください。`);
+    if (!Array.isArray(input.elements)) fail("部品は配列で指定してください。");
     const ids = new Set();
     for (let index = 0; index < input.elements.length; index++) {
       scene.elements.push(validateElement(input.elements[index], index, ids));
@@ -152,7 +151,7 @@
   }
 
   function validateFiberLinks(input, elements) {
-    if (!Array.isArray(input) || input.length > MAX_FIBER_LINKS) fail(`ファイバー接続は${MAX_FIBER_LINKS}本以下の配列で指定してください。`);
+    if (!Array.isArray(input)) fail("ファイバー接続は配列で指定してください。");
     const fibers = new Set(elements.filter(element => element.type === "fiber").map(element => element.id));
     const occupied = new Set(), links = [];
     for (let index = 0; index < input.length; index++) {
@@ -274,6 +273,6 @@
     return validateScene({ ...scene, unit, gridStep: defaultGridStep(unit) });
   }
 
-  return Object.freeze({ FORMAT, SCHEMA_VERSION, COMPONENT_PREFIX, SELECTION_PREFIX, MAX_BYTES, MAX_ELEMENTS, MAX_FIBER_LINKS, DEFAULTS, defaults: DEFAULTS, UNITS,
+  return Object.freeze({ FORMAT, SCHEMA_VERSION, COMPONENT_PREFIX, SELECTION_PREFIX, MAX_BYTES, DEFAULTS, defaults: DEFAULTS, UNITS,
     validateScene, parse, serialize, serializeComponent, parseComponent, serializeSelection, parseSelection, defaultScene, unitScale, defaultGridStep, fromDisplay, toDisplay, switchUnit });
 });

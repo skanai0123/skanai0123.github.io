@@ -880,14 +880,37 @@ test('ordinary text and malformed component pastes do not consume redo or change
   h.key('y'); assert.deepEqual(h.scene(), later);
 });
 
-test('the 80-component paste limit rejects without losing history', async () => {
+test('pasting beyond 80 components preserves the existing parts and supports undo and redo', async () => {
   const h = editorHarness();
   await h.load(Array.from({ length: 80 }, (_, i) => h.element('blocker', i + 1, { x: 50 + i % 16 * 50, y: 50 + Math.floor(i / 16) * 100 })));
-  h.click('rotate'); const later = h.scene(); h.key('z'); const before = h.scene();
+  const before = h.scene();
   const text = h.clipboard('copy').data.get('text/plain'); h.clipboard('paste', text);
-  assert.deepEqual(h.scene(), before); assert.equal(h.get('redo').disabled, false);
-  assert.match(h.get('status').textContent, /80/);
-  h.key('y'); assert.deepEqual(h.scene(), later);
+  const pasted = h.scene(); assert.equal(pasted.elements.length, 81);
+  assert.deepEqual(pasted.elements.slice(0, 80), before.elements);
+  h.key('z'); assert.deepEqual(h.scene(), before); h.key('y'); assert.deepEqual(h.scene(), pasted);
+  h.click('select-all'); const group = h.clipboard('copy').data.get('text/plain');
+  h.clipboard('paste', group); const doubled = h.scene();
+  assert.equal(doubled.elements.length, 162); assert.equal(h.selectedIds().length, 81);
+  h.key('z'); assert.deepEqual(h.scene(), pasted); h.key('y'); assert.deepEqual(h.scene(), doubled);
+});
+
+test('large designs remain editable and undoable beyond the external file byte limit', async () => {
+  const h = editorHarness();
+  await h.load(Array.from({ length: 600 }, (_, i) => ({ type: 'blocker', id: i + 1, x: i * 30, y: 100 })));
+  const before = h.scene(); assert.ok(Buffer.byteLength(JSON.stringify(before)) > 256 * 1024);
+  assert.equal(h.get('palette-buttons').querySelector('[data-add="mirror"]').disabled, false);
+  h.add('mirror'); const added = h.scene(); assert.equal(added.elements.length, 601);
+  h.click('duplicate'); const copied = h.scene(); assert.equal(copied.elements.length, 602);
+  h.key('z'); assert.deepEqual(h.scene(), added); h.key('y'); assert.deepEqual(h.scene(), copied);
+  const slider = h.get('param-angle-slider');
+  h.fire('pointerdown', slider, { pointerId: 602, clientX: 100, clientY: 0 });
+  h.fire('pointermove', h.document, { pointerId: 602, clientX: 180, clientY: 0 });
+  assert.notDeepEqual(h.scene(), copied);
+  h.key('z'); assert.deepEqual(h.scene(), copied);
+  const exported = h.click('export');
+  assert.equal(exported.defaultPrevented, true); assert.equal(h.downloads.length, 0);
+  assert.match(h.get('status').textContent, /256 KiB/); assert.deepEqual(h.scene(), copied);
+  h.key('z'); h.key('z'); assert.deepEqual(h.scene(), before);
 });
 
 test('pasting beyond a crowded coarse grid is one undo step', async () => {
@@ -1171,23 +1194,25 @@ test('Escape, pointer cancellation, lost capture, window blur and Ctrl+Z cancel 
   }
 });
 
-test('Ctrl copy drags at the 80-component limit do not fall back to moving the source', async () => {
+test('Ctrl copy drags exceed 80 components, including Ctrl pressed during movement', async () => {
   const h = editorHarness();
   await h.load(Array.from({ length: 80 }, (_, i) => h.element('blocker', i + 1, { x: 50 + i % 16 * 50, y: 50 + Math.floor(i / 16) * 100 })));
-  h.click('rotate'); const later = h.scene(); h.key('z'); const before = h.scene(), source = h.selected();
+  const before = h.scene(), source = h.selected();
   h.fire('pointerdown', h.component(source.id), { pointerId: 18, ctrlKey: true, clientX: source.x, clientY: source.y });
   h.fire('pointermove', h.document, { pointerId: 18, ctrlKey: true, clientX: source.x + 100, clientY: source.y + 80 });
   h.fire('pointerup', h.document, { pointerId: 18, ctrlKey: true, clientX: source.x + 100, clientY: source.y + 80 });
   h.windowEvent('resize');
-  assert.deepEqual(h.scene(), before); assert.equal(h.preview(), null);
-  assert.equal(h.get('redo').disabled, false); h.key('y'); assert.deepEqual(h.scene(), later);
+  const copied = h.scene(); assert.equal(copied.elements.length, 81); assert.equal(h.preview(), null);
+  assert.deepEqual(copied.elements.slice(0, 80), before.elements);
+  h.key('z'); assert.deepEqual(h.scene(), before); h.key('y'); assert.deepEqual(h.scene(), copied);
   h.key('z');assert.deepEqual(h.scene(),before);
   h.fire('pointerdown',h.component(source.id),{pointerId:181,clientX:source.x,clientY:source.y});
   h.fire('pointermove',h.document,{pointerId:181,clientX:source.x+40,clientY:source.y+20});assert.notDeepEqual(h.scene(),before);
   h.fire('pointermove',h.document,{pointerId:181,ctrlKey:true,clientX:source.x+100,clientY:source.y+80});
-  assert.deepEqual(h.scene(),before);assert.equal(h.preview(),null);assert.equal(h.get('bench').hasPointerCapture(181),false);
-  assert.match(h.get('status').textContent,/最大80個/);h.fire('pointerup',h.document,{pointerId:181,clientX:source.x+100,clientY:source.y+80});
-  assert.deepEqual(h.scene(),before);h.key('y');assert.deepEqual(h.scene(),later);
+  assert.deepEqual(h.scene(),before);assert.ok(h.preview());assert.equal(h.get('bench').hasPointerCapture(181),true);
+  h.fire('pointerup',h.document,{pointerId:181,clientX:source.x+100,clientY:source.y+80});
+  assert.equal(h.scene().elements.length,81);assert.deepEqual(h.scene().elements.slice(0,80),before.elements);
+  h.key('z');assert.deepEqual(h.scene(),before);
 });
 
 test('a committed Ctrl-drag replaces redo with one copy transaction and ignores duplicate pointerup', () => {
@@ -1675,7 +1700,7 @@ test('drag copies preserve complete component records for all twenty-one optical
   }
 });
 
-test('copy release rechecks the component cap after another action fills the last slot', async () => {
+test('copy release still inserts when another action crosses the former component cap', async () => {
   const h = editorHarness();
   await h.load(Array.from({ length: 79 }, (_, i) => h.element('blocker', i + 1, { x: 50 + i % 16 * 50, y: 50 + Math.floor(i / 16) * 100 })));
   const before = h.scene(), source = h.selected();
@@ -1685,11 +1710,11 @@ test('copy release rechecks the component cap after another action fills the las
   // A separate button action can occur while pointer capture is still active.
   h.click('duplicate'); const full = h.scene(); assert.equal(full.elements.length, 80);
   h.fire('pointerup', h.document, { pointerId: 24, ctrlKey: true, clientX: source.x + 100, clientY: source.y + 80 });
-  h.windowEvent('resize'); assert.deepEqual(h.scene(), full);
+  h.windowEvent('resize'); const after = h.scene(); assert.equal(after.elements.length, 81);
   assert.equal(h.preview(), null); assert.equal(h.get('bench').hasPointerCapture(24), false);
   assert.deepEqual(h.scene().elements[0], source);
-  h.key('z'); assert.deepEqual(h.scene(), before);
-  h.key('y'); assert.deepEqual(h.scene(), full);
+  h.key('z'); assert.deepEqual(h.scene(), full); h.key('z'); assert.deepEqual(h.scene(), before);
+  h.key('y'); assert.deepEqual(h.scene(), full); h.key('y'); assert.deepEqual(h.scene(), after);
 });
 
 function spatialHarness() {
@@ -1712,7 +1737,7 @@ function drawingHarness() {
   return { document, bench, view: V.create(bench) };
 }
 
-test('fit includes remote rotated bodies, disabled components and fiber control points at desktop and mobile aspect ratios', () => {
+test('fit includes remote rotated bodies, disabled components and fiber control points at desktop, mobile and extreme aspect ratios', () => {
   const O = require('../optics-bench/optics.js');
   const elements = [
     { ...O.createElement('lens', 1, -30000, -20000), aperture: 300, angle: 22.5 },
@@ -1720,7 +1745,7 @@ test('fit includes remote rotated bodies, disabled components and fiber control 
     { ...O.createElement('fiber', 3, -30100, -20000), angle: 180 },
     { ...O.createElement('fiber', 4, 50100, 30000), angle: 0 }
   ];
-  for (const size of [{ width: 800, height: 530 }, { width: 350, height: 240 }]) {
+  for (const size of [{ width: 800, height: 530 }, { width: 350, height: 240 }, { width: 1500, height: 100 }, { width: 240, height: 760 }]) {
     const fit = V.fitView(elements, size, [{ a: 3, b: 4 }]);
     near(fit.width / fit.height, size.width / size.height);
     const inside = p => assert.ok(p.x > fit.x && p.x < fit.x + fit.width && p.y > fit.y && p.y < fit.y + fit.height);

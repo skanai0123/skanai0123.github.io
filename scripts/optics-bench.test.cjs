@@ -1416,13 +1416,21 @@ test('duplicate and multiply connected ends keep only the first valid fiber pair
   boundedRelay(disabled);
 });
 
-test('fiber link validation is bounded by the exported maximum pair count', () => {
-  assert.equal(O.MAX_FIBER_LINKS, O.MAX_ELEMENTS / 2);
-  const fiberLinks = Array.from({ length: O.MAX_FIBER_LINKS }, () => ({ a: 2, b: 2 }));
+test('fiber link validation reaches a valid pair beyond 40 entries', () => {
+  const fiberLinks = Array.from({ length: 100 }, () => ({ a: 2, b: 2 }));
   fiberLinks.push({ a: 2, b: 3 });
   const result = O.simulate(relayScene(), { fiberLinks });
-  assert.equal(result.fiberTransfers.length, 0); near(detector(result, 2).power, 1);
-  assert.ok(result.warnings.some(warning => warning.includes('接続の上限'))); boundedRelay(result);
+  assert.equal(result.fiberTransfers.length, 5); near(detector(result, 4).power, 1);
+  assert.ok(result.warnings.some(warning => warning.includes('不正な接続'))); boundedRelay(result);
+});
+
+test('ray tracing includes sources and detectors beyond the former 80-component cap', () => {
+  const scene = Array.from({ length: 200 }, (_, i) => part('mirror', i + 1, i * 30, 100));
+  scene.push(part('laser', 201, 100, 300, { beamWidth: 0, rayCount: 1 }), part('screen', 202, 600, 300));
+  const result = O.simulate(scene);
+  near(result.sourcePower, 1); near(detector(result, 202).power, 1);
+  assert.deepEqual(result.segments.map(segment => segment.hitId), [202]);
+  assert.equal(result.truncated, false); assert.deepEqual(result.warnings, []); bounded(result);
 });
 
 test('fiber cycles obey interaction, segment and source-ray limits without double-counting monitored power', () => {

@@ -105,8 +105,11 @@
     return Boolean(target.isContentEditable);
   }
 
+  // Internal history must not impose the external file/clipboard size limit on editing.
+  const snapshot = () => JSON.stringify(scene);
+  const restoreSnapshot = text => S.validateScene(JSON.parse(text));
   function checkpoint() {
-    const text = S.serialize(scene);
+    const text = snapshot();
     if (history[historyIndex]?.text !== text) {
       history = history.slice(0, historyIndex + 1);
       history.push({ text, selectedId, selectedIds: [...selectedIds], activePresetId, edited });
@@ -123,7 +126,7 @@
     if (index < 0 || index >= history.length) return;
     const entry = history[index];
     clearProbe();
-    scene = S.parse(entry.text); setSelection(entry.selectedIds || [entry.selectedId], entry.selectedId); activePresetId = entry.activePresetId; edited = entry.edited;
+    scene = restoreSnapshot(entry.text); setSelection(entry.selectedIds || [entry.selectedId], entry.selectedId); activePresetId = entry.activePresetId; edited = entry.edited;
     historyIndex = index;
     invalidateShare();
     syncControls(); syncInspector(true); render();
@@ -589,7 +592,6 @@
     updateOptions(); renderReadouts(); renderProbe(); renderCoherence(); renderCamera();
     $("element-count").textContent = String(scene.elements.length);
     $("ray-stats").textContent = result.rayCount + " rays · " + result.segments.length + " segments";
-    for (const button of document.querySelectorAll("[data-add]")) button.disabled = scene.elements.length >= O.MAX_ELEMENTS;
     $("trace-warning").hidden = !result.warnings.length;
     $("trace-warning").textContent = result.warnings.join(" ");
   }
@@ -718,7 +720,7 @@
     if (event.button !== 0 || event.isPrimary === false || pending) return;
     const input = event.currentTarget;
     event.preventDefault(); checkpoint(); input.focus({ preventScroll: true });
-    pending = { kind: "range", owner: input, input, pointerId: event.pointerId, before: S.serialize(scene), edited };
+    pending = { kind: "range", owner: input, input, pointerId: event.pointerId, before: snapshot(), edited };
     input.setPointerCapture(event.pointerId); updateInteraction(event);
   });
   $("coherence-phase-slider").addEventListener("lostpointercapture", event => {
@@ -917,7 +919,6 @@
   }
   function addElement(type, at) {
     checkpoint();
-    if (scene.elements.length >= O.MAX_ELEMENTS) { announce("部品は最大" + O.MAX_ELEMENTS + "個までです。"); return; }
     const p = at || freeSpot(), e = { ...O.createElement(type, allocateId(), p.x, p.y), x: p.x, y: p.y };
     scene.elements.push(e); setSelection([e.id]); markEdited(); checkpoint(); syncInspector(); render(); view.focus(e.id);
     announce(label(e) + "を X " + display(e.x) + " / Y " + display(e.y) + " " + scene.unit + " に配置しました。");
@@ -933,7 +934,6 @@
     announce((ids.length>1?ids.length+"個の部品":label(e)) + "を削除しました。「戻す」で復元できます。");
   }
   function insertCopies(sources, links, delta, rename = false) {
-    if (scene.elements.length + sources.length > O.MAX_ELEMENTS) throw new Error("部品は最大" + O.MAX_ELEMENTS + "個までです。");
     const used=new Set(scene.elements.map(e=>e.id)), ids=new Map();
     const copies=sources.map(source=>{
       let id=1; while(used.has(id))id++; used.add(id); ids.set(source.id,id);
@@ -977,7 +977,6 @@
     try {
       if (!event.clipboardData) throw new Error("クリップボードを利用できません。");
       const source = S.parseSelection(event.clipboardData.getData("text/plain"));
-      if (scene.elements.length + source.elements.length > O.MAX_ELEMENTS) throw new Error("部品は最大" + O.MAX_ELEMENTS + "個までです。");
       const delta = V.pasteGroupDelta(source.elements, scene.elements, scene.gridStep, scene.snap);
       if (!delta) throw new Error("配置できる空き位置がありません。グリッドを細かくするか位置吸着を解除してください。");
       const copies=insertCopies(source.elements,source.fiberLinks,delta);
@@ -1041,9 +1040,6 @@
   }
   function switchMoveToCopy(p) {
     if (p.kind !== "move") return true;
-    if (scene.elements.length + p.sources.length > O.MAX_ELEMENTS) {
-      finishInteraction(true); announce("部品は最大" + O.MAX_ELEMENTS + "個までです。"); return false;
-    }
     for (const before of p.before) {
       const member = scene.elements.find(item => item.id === before.id);
       if (member) Object.assign(member, { x: before.x, y: before.y, angle: before.angle });
@@ -1139,7 +1135,7 @@
       }
       rememberSelection();syncInspector();render();
     } else if (p.kind === "range") {
-      if (cancel) { scene = S.parse(p.before); edited = p.edited; }
+      if (cancel) { scene = restoreSnapshot(p.before); edited = p.edited; }
       checkpoint(); syncInspector(cancel); render();
     } else if (p.kind === "pan") {
       bench.classList.remove("is-panning"); if (cancel) view.setView(p.view);
@@ -1172,7 +1168,6 @@
       const e = selected(), p = view.point(event);
       // Modifiers latch once detected. They may already be held here or be pressed during pointer movement.
       const kind = rotating ? "rotate" : copying ? "copy" : "move", sources=selectedElements();
-      if (kind === "copy" && scene.elements.length+sources.length>O.MAX_ELEMENTS) { announce("部品は最大" + O.MAX_ELEMENTS + "個までです。");setSelection(previousIds,previousPrimary);return; }
       pending = { kind, id, owner: bench, pointerId: event.pointerId,
         startX:event.clientX,startY:event.clientY,moved:false,offsetX:p.x-e.x,offsetY:p.y-e.y,anchor:{x:e.x,y:e.y},sources:sources.map(e=>({...e})),
         before:sources.map(e=>({id:e.id,x:e.x,y:e.y,angle:e.angle})),previousIds,previousPrimary,clickIds,shiftKey:event.shiftKey,axis:null,delta:{x:0,y:0} };
@@ -1272,7 +1267,7 @@
     const input = event.target;
     if (input.type !== "range" || input.disabled || event.button !== 0 || event.isPrimary === false || pending) return;
     event.preventDefault(); checkpoint(); input.focus({ preventScroll: true });
-    pending = { kind: "range", owner: input, input, pointerId: event.pointerId, before: S.serialize(scene), edited };
+    pending = { kind: "range", owner: input, input, pointerId: event.pointerId, before: snapshot(), edited };
     input.setPointerCapture(event.pointerId); updateInteraction(event);
   });
   $("parameter-fields").addEventListener("lostpointercapture", event => {
@@ -1433,8 +1428,12 @@
     announce("部品リストのCSVダウンロードを開始しました。設計を再開する場合はJSON保存を使用してください。");
   });
   $("export").addEventListener("click", event => {
-    checkpoint(); download(S.serialize(scene), "application/json;charset=utf-8", ".json", event.currentTarget);
-    announce("設計JSONのダウンロードを開始しました。部品と全パラメーターを保存します。");
+    try {
+      checkpoint(); download(S.serialize(scene), "application/json;charset=utf-8", ".json", event.currentTarget);
+      announce("設計JSONのダウンロードを開始しました。部品と全パラメーターを保存します。");
+    } catch (error) {
+      event.preventDefault(); announce("JSONを保存できませんでした。設計は保持しています。 " + error.message);
+    }
   });
   $("export-svg").addEventListener("click", event => {
     render(); download(view.exportSvg(scene.title), "image/svg+xml;charset=utf-8", ".svg", event.currentTarget);

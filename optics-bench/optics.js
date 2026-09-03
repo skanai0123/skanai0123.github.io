@@ -7,8 +7,7 @@
   // No physical table boundary. Keep a numerical guard (1000 km either side)
   // so coordinates remain precise enough for the existing millimetre model.
   const COORDINATE_LIMIT = 1e9;
-  const EPS = 1e-7, MAX_INTERACTIONS = 40, MAX_ELEMENTS = 80;
-  const MAX_FIBER_LINKS = MAX_ELEMENTS / 2;
+  const EPS = 1e-7, MAX_INTERACTIONS = 40;
   const MAX_SEGMENTS = 12000, MAX_RAYS = 4096, MIN_POWER = 1e-9;
   const TYPES = Object.freeze({
     laser: { label: "レーザー", short: "LAS", color: "#ff8279" },
@@ -401,7 +400,7 @@
   function prepareElements(elements, warnings) {
     if (!Array.isArray(elements)) { warnings.add("素子の配列が不正です。"); return []; }
     const valid = [], ids = new Set();
-    for (const raw of elements.slice(0, MAX_ELEMENTS)) {
+    for (const raw of elements) {
       if (!raw || !Object.prototype.hasOwnProperty.call(TYPES, raw.type) ||
           !["number", "string"].includes(typeof raw.id) ||
           (typeof raw.id === "number" && !Number.isFinite(raw.id)) || ids.has(raw.id) ||
@@ -431,7 +430,6 @@
       ids.add(element.id);
       valid.push(element);
     }
-    if (elements.length > MAX_ELEMENTS) warnings.add(`素子数の上限（${MAX_ELEMENTS}個）を超えた分を除外しました。`);
     return valid;
   }
 
@@ -442,7 +440,7 @@
     const byId = new Map(elements.map(element => [element.id, element]));
     const surfaceById = new Map(surfaces.map(surface => [surface.element.id, surface]));
     const used = new Set();
-    for (const link of links.slice(0, MAX_FIBER_LINKS)) {
+    for (const link of links) {
       if (!link || typeof link !== "object" || Array.isArray(link) ||
           !Object.prototype.hasOwnProperty.call(link, "a") || !Object.prototype.hasOwnProperty.call(link, "b") ||
           Object.keys(link).some(key => key !== "a" && key !== "b") ||
@@ -462,7 +460,6 @@
       if (!a.enabled || !b.enabled) continue;
       pairs.set(a.id, surfaceById.get(b.id)); pairs.set(b.id, surfaceById.get(a.id));
     }
-    if (links.length > MAX_FIBER_LINKS) warnings.add(`ファイバー接続の上限（${MAX_FIBER_LINKS}組）を超えた分を無視しました。`);
     return pairs;
   }
 
@@ -509,7 +506,7 @@
     const minPower = Number.isFinite(options.minPower) ? clamp(options.minPower, 0, 1) : MIN_POWER;
     const segments = [], fiberTransfers = [], detectedPaths = [], queue = [];
     const patternIllumination = new Map(), emittedPatterns = new Set();
-    let rayCount = 0, hitCount = 0, branchCounter = 0, truncated = Array.isArray(elements) && elements.length > MAX_ELEMENTS;
+    let rayCount = 0, hitCount = 0, branchCounter = 0, truncated = false;
     let sourcePower = 0, escapedPower = 0, absorbedPower = 0, detectedPower = 0, discardedPower = 0;
     let clippedByIris = false, clippedByNA = false, clippedByFiberOutput = false, paraxialWarning = false;
 
@@ -918,7 +915,7 @@
     return [-1, 1].some(sign => { const p = add(base, tangent, sign * height); return onArc(p, arc) && onArc(p, other); });
   }
 
-  const api = { WIDTH, HEIGHT, GRID, MARGIN, COORDINATE_LIMIT, MAX_ELEMENTS, MAX_FIBER_LINKS, MAX_INTERACTIONS, MAX_SEGMENTS, MAX_RAYS,
+  const api = { WIDTH, HEIGHT, GRID, MARGIN, COORDINATE_LIMIT, MAX_INTERACTIONS, MAX_SEGMENTS, MAX_RAYS,
     TYPES, DEFAULTS, PARAM_LIMITS, FILTER_MODES, direction, normalizeAngle, snapAngle, position,
     createElement, initialElements, elementBounds, traceBounds, segment, intersect, concaveGeometry, intersectConcave, reflect, refract, traceRay, traceScene, overlapping,
     simulate, sourceStokes, sourceBand, validSourceBand, sourceSpectrum, screenPatternSamples, patternReflectance, SCREEN_PATTERNS,

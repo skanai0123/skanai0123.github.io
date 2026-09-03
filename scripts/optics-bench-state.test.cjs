@@ -96,9 +96,9 @@ test('share snapshots preserve all types, precision, unicode, disabled parts and
   assert.equal((await Q.decode(await Q.encode(S.defaultScene([])))).elements.length,0);
 });
 
-test('share links handle the maximum component count without rounding or exceeding their bound', async () => {
-  const elements=Array.from({length:80},(_,i)=>({...O.createElement('laser',i+1,0,0),x:i*100.123456789,
-    wavelength:400+i,label:'光源 '+i+' 測定用',power:i+0.123456789}));
+test('share links handle 200 components without rounding or exceeding their byte bound', async () => {
+  const elements=Array.from({length:200},(_,i)=>({...O.createElement('laser',i+1,0,0),x:i*100.123456789,
+    wavelength:400+i,label:'光源 '+i+' 測定用',power:i%80+0.123456789}));
   const scene=S.defaultScene(elements),hash=await Q.encode(scene);
   assert.ok(hash.length < Q.MAX_HASH_CHARS);assert.equal(S.serialize(await Q.decode(hash)),S.serialize(scene));
 });
@@ -243,12 +243,13 @@ test('cm, mm and inch conversion never rescales an existing optical system', () 
   assert.throws(() => S.fromDisplay(Number.MAX_VALUE, 'in'));
 });
 
-test('empty scenes and the component cap round trip; excess components are rejected', () => {
+test('empty scenes and 200-component designs round trip without a component count cap', () => {
   assert.deepEqual(S.parse(S.serialize(S.defaultScene())).elements, []);
-  const maximum = S.defaultScene(Array.from({ length: S.MAX_ELEMENTS }, (_, i) => O.createElement('mirror', i + 1, 500, 300)));
-  assert.equal(S.parse(S.serialize(maximum)).elements.length, S.MAX_ELEMENTS);
-  maximum.elements.push(O.createElement('laser', S.MAX_ELEMENTS + 1, 150, 300));
-  assert.throws(() => S.validateScene(maximum), /以下/);
+  const scene = S.defaultScene(Array.from({ length: 200 }, (_, i) => O.createElement('mirror', i + 1, i * 50, 300)));
+  assert.deepEqual(S.parse(S.serialize(scene)), scene);
+  assert.deepEqual(S.parseSelection(S.serializeSelection(scene.elements)).elements, scene.elements);
+  scene.elements[199].x = Infinity;
+  assert.throws(() => S.validateScene(scene), /部品200/);
 });
 
 test('malformed JSON, non-object input, unsupported formats and versions are rejected', () => {
@@ -450,14 +451,14 @@ test('fiber link arrays survive JSON and unit changes as independent copies', ()
   assert.deepEqual(S.validateScene(disabled).fiberLinks, scene.fiberLinks);
 });
 
-test('40 fiber pairs fit the 80-component cap and a 41st link is rejected', () => {
-  const elements = Array.from({ length: S.MAX_ELEMENTS }, (_, index) => O.createElement('fiber', index + 1, 500, 300));
-  const fiberLinks = Array.from({ length: S.MAX_FIBER_LINKS }, (_, index) => ({ a: 2 * index + 1, b: 2 * index + 2 }));
+test('100 fiber pairs round trip while endpoint exclusivity still applies beyond 40 pairs', () => {
+  const elements = Array.from({ length: 200 }, (_, index) => O.createElement('fiber', index + 1, 500, 300));
+  const fiberLinks = Array.from({ length: 100 }, (_, index) => ({ a: 2 * index + 1, b: 2 * index + 2 }));
   const scene = S.defaultScene(elements, { fiberLinks });
   const restored = S.parse(S.serialize(scene));
-  assert.equal(restored.fiberLinks.length, 40);
+  assert.equal(restored.fiberLinks.length, 100);
   assert.deepEqual(restored.fiberLinks, fiberLinks);
-  assert.throws(() => S.validateScene({ ...scene, fiberLinks: [...fiberLinks, { a: 1, b: 2 }] }), /40本以下/);
+  assert.throws(() => S.validateScene({ ...scene, fiberLinks: [...fiberLinks, { a: 199, b: 200 }] }), /1本だけ/);
 });
 
 test('fiber links require distinct real fiber IDs and at most one cable per endpoint', () => {
