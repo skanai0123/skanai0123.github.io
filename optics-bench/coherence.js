@@ -72,7 +72,7 @@
     if (!phases.length) return null;
     const phase = phases.find(e => e.id === selectedPhaseId) || phases[0];
     const fail = message => ({ valid: false, phaseId: phase.id, message, detectors: [] });
-    const active = elements.filter(e => e.enabled), sources = active.filter(e => e.type === "laser" && e.power > 0);
+    const active = elements.filter(e => e.enabled && !O.isAnnotation(e)), sources = active.filter(e => e.type === "laser" && e.power > 0);
     if (active.some(e => !SUPPORTED.has(e.type))) return fail("干渉解析は平行な理想単一モード用です。点光源・白色光源・レンズ・凹面ミラー・対物・ファイバー・ダイクロイック・カメラ・蛍光板には未対応（通常の光線・カメラ像は非干渉で計算を継続）。");
     if (sources.some(e => e.rayCount !== 1 || e.beamWidth !== 0)) return fail("干渉解析ではレーザーの光線サンプル数を1、ビーム直径を0にしてください。1本の主光線で理想空間モードを表します。");
     if (sources.some(e => (e.wavelengthWidth ?? 0) > 0)) return fail("波長幅のある光源の干渉・時間コヒーレンスは未対応です。干渉解析では波長幅を0 nmにしてください。通常の光線・検出・カメラは帯域を分割して計算します。");

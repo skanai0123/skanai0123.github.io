@@ -83,7 +83,7 @@
   }
 
   function opticalHeight(elements) {
-    const radius = elements.reduce((largest, element) => Math.max(largest, displayRadius(element), displayHeightRadius(element)), 0);
+    const radius = elements.filter(e => !O.isAnnotation(e)).reduce((largest, element) => Math.max(largest, displayRadius(element), displayHeightRadius(element)), 0);
     return Math.max(30, radius + 8);
   }
 
@@ -119,6 +119,7 @@
     const title = element => element.label || `${O.TYPES[element.type]?.label || element.type} ${element.id}`;
 
     function draw(scene, result, selectedId, showLabels = true, options = DEFAULT_VIEW) {
+      const labelFactor = (scene.labelScale ?? 100) / 100;
       const view = camera(options), bounds = sceneBounds(scene.elements), axisHeight = opticalHeight(scene.elements);
       const projected = point => project(point, view);
       const worldCorners = [
@@ -136,6 +137,12 @@
       const fitPoints = [...topCorners, ...bottomCorners];
       for (const segment of visibleSegments) fitPoints.push(projected({ ...segment.a, z: axisHeight }), projected({ ...segment.b, z: axisHeight }));
       for (const element of scene.elements) {
+        if (element.type === 'region') continue; // Its bounds already expand the floor corners.
+        if (element.type === 'comment') {
+          const anchor = projected({ ...element, z: 0 }), box = O.commentLayout(element);
+          fitPoints.push({ x: anchor.x - 16, y: anchor.y - 16 }, { x: anchor.x + box.x + box.width + 4, y: anchor.y + box.y + box.height + 4 });
+          continue;
+        }
         const radius = displayRadius(element);
         for (const dx of [-radius, radius]) for (const dy of [-radius, radius]) {
           fitPoints.push(projected({ x: element.x + dx, y: element.y + dy, z: 0 }));
@@ -219,7 +226,8 @@
       const discTypes = new Set(['lens', 'objective', 'iris']);
       const sourceTypes = new Set(['laser', 'point', 'white', 'fiber']);
       const elementLayer = make('g', { 'data-spatial-elements': 'true' });
-      const ordered = [...scene.elements].sort((a, b) => project(b, view).depth - project(a, view).depth || a.id - b.id);
+      const regions = make('g', { 'data-spatial-regions': 'true' });
+      const ordered = [...scene.elements].sort((a, b) => Number(a.type === 'comment') - Number(b.type === 'comment') || project(b, view).depth - project(a, view).depth || a.id - b.id);
       for (const element of ordered) {
         const group = make('g', {
           class: `spatial-element${element.id === selectedId ? ' is-selected' : ''}${element.enabled ? '' : ' is-disabled'}`,
@@ -228,6 +236,22 @@
         });
         group.addEventListener('click', event => { event.stopPropagation?.(); onSelect(element.id); });
         group.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault?.(); onSelect(element.id); } });
+        if (element.type === 'region') {
+          const box=O.regionGeometry(element),color=O.REGION_COLORS[element.regionColor];
+          const offsets=box.width===0?[[0,0],[0,box.height]]:box.height===0?[[0,0],[box.width,0]]:[[0,0],[box.width,0],[box.width,box.height],[0,box.height]];
+          const points=offsets.map(([dx,dy])=>projected({x:element.x+dx,y:element.y+dy,z:.5})),d=pathData(points,Boolean(box.width&&box.height));
+          group.append(make('path',{d,fill:box.width&&box.height?color:'none','fill-opacity':.08,'pointer-events':'none'}),
+            make('path',{d,fill:'none',stroke:color,'stroke-width':element.id===selectedId?2.8:1.6,'stroke-dasharray':'8 6','vector-effect':'non-scaling-stroke','pointer-events':'stroke',class:'spatial-region-border'}),
+            make('text',{x:fmt(points[0].x),y:fmt(points[0].y-8),fill:color,'font-size':13,'font-weight':600,'paint-order':'stroke',stroke:'#17323b','stroke-width':3},Array.from(title(element)).slice(0,16).join('')));
+          regions.append(group); continue;
+        }
+        if (element.type === 'comment') {
+          const anchor = projected({ ...element, z: 0 });
+          group.setAttribute('transform', `translate(${fmt(anchor.x)} ${fmt(anchor.y)})`);
+          group.setAttribute('aria-expanded', String(element.commentDisplay !== 'click' || element.id === selectedId));
+          group.append(V.commentBubble(make, element, element.id === selectedId));
+          elementLayer.append(group); continue;
+        }
         const color = palette[element.type] || '#aab9b5', radius = displayRadius(element), heightRadius = displayHeightRadius(element);
         const tangent = O.direction(finite(element.angle) + 90), centerZ = axisHeight;
         const surfacePoints = (angleOffset = 0) => {
@@ -280,8 +304,8 @@
           group.append(selection);
         }
         if (showLabels) {
-          const labelPoint = projected({ x: element.x, y: element.y, z: centerZ + heightRadius + 12 });
-          group.append(make('text', { x: fmt(labelPoint.x), y: fmt(labelPoint.y), fill: '#d9e8e2', 'font-size': 10, 'text-anchor': 'middle', 'paint-order': 'stroke', stroke: '#17323b', 'stroke-width': 3.5, class: 'spatial-label' }, title(element)));
+          const labelPoint = projected({ x: element.x, y: element.y, z: centerZ + heightRadius + 12 * labelFactor });
+          group.append(make('text', { x: fmt(labelPoint.x), y: fmt(labelPoint.y), fill: '#d9e8e2', 'font-size': 10 * labelFactor, 'text-anchor': 'middle', 'paint-order': 'stroke', stroke: '#17323b', 'stroke-width': 3.5, class: 'spatial-label' }, title(element)));
         }
         elementLayer.append(group);
       }
@@ -290,7 +314,7 @@
         const center = projected({ x: 0, y: 0, z: 20 });
         elementLayer.append(make('text', { x: fmt(center.x), y: fmt(center.y), fill: '#b6cac4', 'font-size': 13, 'text-anchor': 'middle' }, '部品を配置すると3D表示が更新されます'));
       }
-      svg.replaceChildren(table, grid, axes, fibers, rays, elementLayer);
+      svg.replaceChildren(table, grid, axes, regions, fibers, rays, elementLayer);
       return { elements: scene.elements.length, segmentsShown: visibleSegments.length, segmentsTotal: clipped.length, azimuth: view.azimuth, elevation: view.elevation, zoom };
     }
 

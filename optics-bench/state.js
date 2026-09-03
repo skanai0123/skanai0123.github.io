@@ -8,12 +8,15 @@
   const FORMAT = "optics-bench", SCHEMA_VERSION = 2, MAX_BYTES = 256 * 1024;
   const COMPONENT_PREFIX = "Optics Bench component v1\n";
   const SELECTION_PREFIX = "Optics Bench selection v1\n";
-  const DEFAULTS = Object.freeze({ format: FORMAT, schemaVersion: SCHEMA_VERSION, title: "無題の光学系", unit: "cm", gridStep: 10, snap: true, angleSnap: true });
+  const DEFAULTS = Object.freeze({ format: FORMAT, schemaVersion: SCHEMA_VERSION, title: "無題の光学系", unit: "cm", gridStep: 10, snap: true, angleSnap: true, labelScale: 100 });
+  const LABEL_SCALE_LIMITS = Object.freeze({ min: 50, max: 200 });
   const UNITS = Object.freeze({ mm: 1, cm: 10, in: 25.4 });
-  const SCENE_KEYS = new Set(["format", "schemaVersion", "title", "unit", "gridStep", "snap", "angleSnap", "elements", "fiberLinks"]);
+  const SCENE_KEYS = new Set(["format", "schemaVersion", "title", "unit", "gridStep", "snap", "angleSnap", "labelScale", "elements", "fiberLinks"]);
   const FIBER_LINK_KEYS = new Set(["a", "b"]);
   const ELEMENT_KEYS = new Set(["id", "type", "x", "y", "angle", "aperture", "focal", "beamWidth", "wavelength", "wavelengthWidth", "spectralSamples", "power", "rayCount", "divergence", "polarization", "polAngle", "axisAngle", "designWavelength", "opening", "coreDiameter", "na", "transmission", "cutoff", "mode", "phase", "enabled", "label", "pixelCount", "pixelRows", "sensorHeight", "spotSize", "exposure", "autoExposure", "screenHeight", "screenPattern", "filterMode", "bandLow", "bandHigh", "opticalDensity"]);
   const ANGLE_KEYS = new Set(["angle", "polAngle", "axisAngle"]);
+  ELEMENT_KEYS.add("commentText"); ELEMENT_KEYS.add("commentDisplay");
+  for (const key of ["regionWidth", "regionHeight", "regionStyle", "regionColor"]) ELEMENT_KEYS.add(key);
   const NUMERIC_KEYS = ["angle", "aperture", "focal", "beamWidth", "wavelength", "wavelengthWidth", "spectralSamples", "power", "rayCount", "divergence", "polAngle", "axisAngle", "designWavelength", "opening", "coreDiameter", "na", "transmission", "cutoff", "phase", "pixelCount", "pixelRows", "sensorHeight", "spotSize", "exposure", "screenHeight", "bandLow", "bandHigh", "opticalDensity"];
   const POLARIZATIONS = new Set(["linear", "right", "left", "unpolarized"]);
   const MODES = new Set(["longpass", "shortpass"]);
@@ -114,6 +117,31 @@
     if (own(input, "enabled")) element.enabled = boolean(input.enabled, `${name}の有効状態`);
     if (own(input, "autoExposure")) element.autoExposure = boolean(input.autoExposure, `${name}の自動明るさ`);
     if (own(input, "label")) element.label = safeText(input.label, `${name}の名前`, 100);
+    if (["regionWidth", "regionHeight", "regionStyle", "regionColor"].some(key => own(input, key))) {
+      if (type !== "region") fail(`${name}の区切り設定は区切り部品だけに指定できます。`);
+      for (const key of ["regionWidth", "regionHeight"]) if (own(input, key)) {
+        element[key] = number(input[key], `${name}の区切りサイズ（mm）`, O.REGION_SIZE_LIMITS.min, O.REGION_SIZE_LIMITS.max);
+      }
+      for (const [key, choices] of [["regionStyle", O.REGION_STYLES], ["regionColor", O.REGION_COLORS]]) if (own(input, key)) {
+        if (typeof input[key] !== "string" || !own(choices, input[key])) fail(`${name}の区切りの形または色に対応していません。`);
+        element[key] = input[key];
+      }
+    }
+    if (own(input, "commentText") || own(input, "commentDisplay")) {
+      if (type !== "comment") fail(`${name}のコメント設定はコメント部品だけに指定できます。`);
+      if (own(input, "commentText")) {
+        // Rendered only through textContent, never as HTML. Allow line breaks,
+        // tabs and literal angle brackets (e.g. NA < 0.5) in scientific notes.
+        if (typeof input.commentText !== "string" || input.commentText.length > 1000 || /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/u.test(input.commentText)) {
+          fail(`${name}のコメント本文は1000文字以内のテキストで指定してください。`);
+        }
+        element.commentText = input.commentText.replace(/\r\n?/g, "\n");
+      }
+      if (own(input, "commentDisplay")) {
+        if (!["always", "click"].includes(input.commentDisplay)) fail(`${name}のコメント表示方法に対応していません。`);
+        element.commentDisplay = input.commentDisplay;
+      }
+    }
     if (type === "iris" && element.opening > element.aperture) fail(`${name}のアイリス開口は部品径以下にしてください。`);
     if (type === "fiber" && element.coreDiameter > element.aperture) fail(`${name}のファイバーコア径は部品径以下にしてください。`);
     if (type === "concave" && !O.concaveGeometry(element)) fail(`${name}の凹面ミラーはfを正にし、有効径を4f（曲率半径Rの2倍）未満にしてください。`);
@@ -138,6 +166,7 @@
       gridStep: own(input, "gridStep") ? number(input.gridStep, "グリッド間隔（mm）", 1, 254) : defaultGridStep(unit),
       snap: own(input, "snap") ? boolean(input.snap, "グリッド吸着") : DEFAULTS.snap,
       angleSnap: own(input, "angleSnap") ? boolean(input.angleSnap, "角度吸着") : DEFAULTS.angleSnap,
+      labelScale: own(input, "labelScale") ? number(input.labelScale, "素子ラベルサイズ（%）", LABEL_SCALE_LIMITS.min, LABEL_SCALE_LIMITS.max, true) : DEFAULTS.labelScale,
       elements: [],
       fiberLinks: []
     };
@@ -192,7 +221,10 @@
   function documentRecord(scene) {
     // Do not introduce an unused phase key into older ordinary component files.
     // New half-wave/phase types still need a reader that supports those types.
-    return { ...scene, elements: scene.elements.map(element => {
+    const { labelScale, ...recordScene } = scene;
+    // Omit the default so unchanged designs remain readable by older versions.
+    if (labelScale !== DEFAULTS.labelScale) recordScene.labelScale = labelScale;
+    return { ...recordScene, elements: scene.elements.map(element => {
       const record = { ...element };
       // Preserve the old monochromatic record when the new settings are unused.
       if (record.type !== "white" && record.wavelengthWidth === 0) delete record.wavelengthWidth;
@@ -273,6 +305,6 @@
     return validateScene({ ...scene, unit, gridStep: defaultGridStep(unit) });
   }
 
-  return Object.freeze({ FORMAT, SCHEMA_VERSION, COMPONENT_PREFIX, SELECTION_PREFIX, MAX_BYTES, DEFAULTS, defaults: DEFAULTS, UNITS,
+  return Object.freeze({ FORMAT, SCHEMA_VERSION, COMPONENT_PREFIX, SELECTION_PREFIX, MAX_BYTES, DEFAULTS, defaults: DEFAULTS, UNITS, LABEL_SCALE_LIMITS,
     validateScene, parse, serialize, serializeComponent, parseComponent, serializeSelection, parseSelection, defaultScene, unitScale, defaultGridStep, fromDisplay, toDisplay, switchUnit });
 });

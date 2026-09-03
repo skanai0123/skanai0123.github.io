@@ -83,7 +83,17 @@
   }
   function marqueeIds(elements, a, b) {
     const r=marqueeRect(a,b);
-    return elements.filter(e=>e.x>=r.x && e.x<=r.x+r.width && e.y>=r.y && e.y<=r.y+r.height).map(e=>e.id);
+    return elements.filter(e=>{
+      const box=e.type==='region'?O.regionGeometry(e):{width:0,height:0};
+      return e.x>=r.x && e.x+box.width<=r.x+r.width && e.y>=r.y && e.y+box.height<=r.y+r.height;
+    }).map(e=>e.id);
+  }
+  function resizeRegion(element, corner, gridStep, snap = true) {
+    const size=place(corner.x-element.x,corner.y-element.y,gridStep,snap), limits=O.REGION_SIZE_LIMITS;
+    return {
+      regionWidth: element.regionStyle==='vertical'?element.regionWidth:clamp(size.x,limits.min,limits.max),
+      regionHeight: element.regionStyle==='horizontal'?element.regionHeight:clamp(size.y,limits.min,limits.max)
+    };
   }
   // Snap the grabbed anchor once, then clamp one common displacement. Never
   // snap or clamp members separately: off-grid preset spacing must survive.
@@ -161,7 +171,25 @@
       azimuth: kind === 'unpolarized' || kind === 'circular' ? null : (Math.atan2(u, q) * 90 / Math.PI + 180) % 180,
       ellipticity: kind === 'unpolarized' ? null : Math.atan2(v, linear) * 90 / Math.PI };
   }
-  const symbols = { laser:'↦', point:'✦', white:'☀', mirror:'╱', concave:')', lens:'↕', iris:'◉', filter:'F', polarizer:'P', waveplate:'¼', halfwave:'½', phase:'φ', dichroic:'╱', objective:'⌁', fiber:'⊙', blocker:'■', splitter:'◇', pbs:'◈', screen:'▥', camera:'▣', fluorescent:'✺' };
+  const symbols = { laser:'↦', point:'✦', white:'☀', mirror:'╱', concave:')', lens:'↕', iris:'◉', filter:'F', polarizer:'P', waveplate:'¼', halfwave:'½', phase:'φ', dichroic:'╱', objective:'⌁', fiber:'⊙', blocker:'■', splitter:'◇', pbs:'◈', screen:'▥', camera:'▣', fluorescent:'✺', comment:'▤' };
+  function commentBubble(make, element, selected = false, preview = false) {
+    const expanded = preview || element.commentDisplay !== 'click' || selected;
+    const group = make('g', { class: 'comment-bubble', 'data-comment-expanded': String(expanded) });
+    const name = element.label || `コメント ${element.id}`, color = selected ? '#fff3bd' : '#d6b66d';
+    group.append(make('path', { d: 'M -14 -13 H 14 V 9 H 3 L -6 16 V 9 H -14 Z', fill: '#f6dfaa', stroke: color, 'stroke-width': selected ? 3 : 1.5 }),
+      make('text', { x: 0, y: 3, 'text-anchor': 'middle', 'font-size': 15, 'font-weight': 700, fill: '#4d4027' }, '…'));
+    if (expanded) {
+      const box = O.commentLayout(element);
+      group.append(make('path', { d: `M 3 9 L ${box.x + 20} ${box.y} H ${box.x}`, fill: '#fff3d6', stroke: color, 'stroke-width': 1.5 }),
+        make('rect', { x: box.x, y: box.y, width: box.width, height: box.height, rx: 8, fill: '#fff3d6', stroke: color, 'stroke-width': selected ? 2.5 : 1.5 }),
+        make('text', { x: box.x + 12, y: box.y + 22, 'font-size': 13, 'font-weight': 700, fill: '#796039' }, Array.from(name).slice(0, 16).join('') + (Array.from(name).length > 16 ? '…' : '')));
+      const text = make('text', { x: box.x + 12, y: box.y + 44, 'font-size': 16, fill: '#332c20', 'xml:space': 'preserve', class: 'comment-text' });
+      box.lines.forEach((line, index) => text.append(make('tspan', { x: box.x + 12, y: box.y + 44 + index * 22 }, line)));
+      group.append(text);
+    }
+    return group;
+  }
+  symbols.region = '▱';
 
   function create(bench, onViewChange = () => {}) {
     const doc = bench.ownerDocument, ns = 'http://www.w3.org/2000/svg';
@@ -304,13 +332,45 @@
       if (!entry) {
         const node = make('g',isPreview?{class:'optical-element placement-preview'}:{class:'optical-element','data-element-id':e.id,role:'button',tabindex:0});
         entry={node};
-        if(!isPreview){nodes.set(e.id,entry);byId('elements').append(node);}
+        if(!isPreview){nodes.set(e.id,entry);byId(e.type==='region'?'regions':'elements').append(node);}
       }
       const n=entry.node,k=pixel(),half=['laser','point','white'].includes(e.type)?Math.max(18,Math.min(65,e.beamWidth/2+4)):e.aperture/2;
       n.setAttribute('transform',`translate(${e.x} ${e.y})`);
       n.classList.toggle('is-selected',selectedIds.includes(e.id));
       n.classList.toggle('is-primary',e.id===selectedId);
       n.classList.toggle('is-disabled',!e.enabled);
+      n.classList.toggle('is-region',e.type==='region');
+      if (!isPreview) {
+        const layer=byId(e.type==='region'?'regions':'elements');
+        if (n.parentNode!==layer) layer.append(n);
+      }
+      if (e.type==='region') {
+        const box=O.regionGeometry(e), color=O.REGION_COLORS[e.regionColor], chosen=selectedIds.includes(e.id);
+        const d=box.width===0?`M 0 0 V ${box.height}`:box.height===0?`M 0 0 H ${box.width}`:`M 0 0 H ${box.width} V ${box.height} H 0 Z`;
+        n.removeAttribute('aria-expanded'); n.setAttribute('aria-pressed',String(chosen));
+        n.setAttribute('aria-label',`${title(e)}。${O.REGION_STYLES[e.regionStyle]}、表示専用${e.enabled?'':'、無効'}`);
+        // Keep names readable when a large setup is fitted on a small screen.
+        const labelScale=k*Math.min(1,bench.getBoundingClientRect().height/100);
+        const titleWidth=Math.min(box.width||Infinity,220*labelScale,visibleBounds().width*.35);
+        const text=title(e), maxChars=Math.max(1,Math.floor((titleWidth-16*labelScale)/(11*labelScale)));
+        const children=[make('title',{},title(e)),
+          make('path',{d,fill:box.width&&box.height?color:'none','fill-opacity':.06,'pointer-events':'none',class:'region-fill'}),
+          make('path',{d,fill:'none',stroke:color,'stroke-width':chosen?2.8:1.6,'stroke-dasharray':'8 6','vector-effect':'non-scaling-stroke','pointer-events':'none',class:'region-border'}),
+          make('path',{d,fill:'none',stroke:'transparent','stroke-width':12*k,'pointer-events':'stroke',class:'region-hit'}),
+          make('rect',{x:0,y:-20*labelScale,width:titleWidth,height:20*labelScale,rx:3*labelScale,fill:'#142831',stroke:color,'stroke-width':1,'vector-effect':'non-scaling-stroke','pointer-events':'all'}),
+          make('text',{x:8*labelScale,y:-6*labelScale,'font-size':11*labelScale,'font-weight':600,fill:color,'pointer-events':'none'},Array.from(text).length>maxChars?Array.from(text).slice(0,maxChars-1).join('')+'…':text)];
+        if (e.id===selectedId&&!isPreview) children.push(make('rect',{x:box.width-6*k,y:box.height-6*k,width:12*k,height:12*k,rx:2*k,fill:color,stroke:'#f8fff5','stroke-width':1.5,'vector-effect':'non-scaling-stroke','data-resize':e.id,'pointer-events':'all',class:'region-resize-handle'}));
+        n.replaceChildren(...children); return n;
+      }
+      if (e.type === 'comment') {
+        const expanded = isPreview || e.commentDisplay !== 'click' || selectedIds.includes(e.id);
+        n.setAttribute('aria-label', `${title(e)}。${expanded ? '本文表示中' : 'クリックして本文を表示'}${e.enabled ? '' : '、無効'}`);
+        n.setAttribute('aria-pressed', String(selectedIds.includes(e.id)));
+        n.setAttribute('aria-expanded', String(expanded));
+        n.replaceChildren(commentBubble(make, e, selectedIds.includes(e.id), isPreview));
+        return n;
+      }
+      n.removeAttribute('aria-expanded');
       if(!isPreview){const mate=fiberMate(e),kind=e.label&&['splitter','pbs'].includes(e.type)?'、'+O.TYPES[e.type].label:'',front=e.type==='mirror'?`、反射面は ${round(O.normalizeAngle(e.angle+180))} 度側`:'';n.setAttribute('aria-pressed',String(selectedIds.includes(e.id)));n.setAttribute('aria-label',`${title(e)}${kind}。X ${round(e.x)}、Y ${round(e.y)} mm、角度 ${round(e.angle)} 度${front}${e.enabled?'':'、無効'}${mate?'、接続先 '+title(mate):''}`);}
       const sag=e.type==='concave'?O.concaveGeometry(e).sag:0,isBS=['splitter','pbs'].includes(e.type);
       const hitHalf=Math.max(isBS?half+4:12,10*k),ringHalf=isBS?half+8:18;
@@ -323,14 +383,32 @@
         children.push(make('line',{x1:0,y1:0,x2:axis.x*radius,y2:axis.y*radius,class:'rotation-arm'}),make('circle',{cx:axis.x*radius,cy:axis.y*radius,r:5*k,class:'rotation-handle','data-rotate':e.id}));
       }
       if(showLabels||isPreview&&previewLabel){
+        const textPixel=k*(cache?.[0]?.labelScale??100)/100;
         const name=isPreview?previewLabel:!e.label&&['splitter','pbs'].includes(e.type)?`${O.TYPES[e.type].short} ${e.id}`:title(e);
         const axis=O.direction(e.angle),sideLabel=Math.abs(axis.y)>.65&&!['laser','white','splitter','pbs'].includes(e.type),side=e.enabled?1:-1;
         const above=e.type==='concave'||e.type==='fiber'&&fiberMate(e)&&!isPreview;
         const extentY=half*(isBS?Math.max(Math.abs(axis.x),Math.abs(axis.y)):Math.abs(axis.x));
-        const tx=sideLabel?side*(half*Math.abs(axis.y)+14*k):0,ty=sideLabel?-4*k:(above?-1:1)*(extentY+17*k);
+        let tx=sideLabel?side*(half*Math.abs(axis.y)+14*textPixel):0;
+        let ty=sideLabel?-4*textPixel:(above?-1:1)*(extentY+17*textPixel);
         const anchor=sideLabel?(side>0?'start':'end'):'middle';
-        children.push(make('text',{x:tx,y:ty,'text-anchor':anchor,'font-size':11*k,class:'element-name'},name.length>28?name.slice(0,27)+'…':name));
-        if(!isPreview)children.push(make('text',{x:tx,y:ty+14*k,'text-anchor':anchor,'font-size':9*k,class:'element-info'},information(e)));
+        const visible=visibleBounds(), margin=5*k;
+        // Conservative glyph widths keep large labels within narrow viewports.
+        // Do not detach the labels of offscreen parts and pin them to an edge.
+        const textWidth=(text,size)=>Array.from(text).reduce((sum,c)=>sum+(/[\u0020-\u007e]/u.test(c)?.65:1),0)*size;
+        const trim=(text,size)=>{let chars=Array.from(text);if(textWidth(text,size)<=visible.width-2*margin)return text;
+          while(chars.length&&textWidth(chars.join('')+'…',size)>visible.width-2*margin)chars.pop();return chars.join('')+'…';};
+        const nameText=trim(name.length>28?name.slice(0,27)+'…':name,11*textPixel),infoText=trim(isPreview?'':information(e),9*textPixel);
+        if(e.x>=visible.x&&e.x<=visible.x+visible.width){
+          const width=Math.max(textWidth(nameText,11*textPixel),textWidth(infoText,9*textPixel));
+          const left=anchor==='middle'?width/2:anchor==='end'?width:0, right=width-left;
+          tx=clamp(tx,visible.x-e.x+margin+left,visible.x+visible.width-e.x-margin-right);
+        }
+        if(e.y>=visible.y&&e.y<=visible.y+visible.height){
+          const low=visible.y-e.y+24*k+13*textPixel,high=visible.y+visible.height-e.y-margin-(infoText?18:4)*textPixel;
+          if(low<=high)ty=clamp(ty,low,high);
+        }
+        children.push(make('text',{x:tx,y:ty,'text-anchor':anchor,'font-size':11*textPixel,class:'element-name'},nameText));
+        if(!isPreview)children.push(make('text',{x:tx,y:ty+14*textPixel,'text-anchor':anchor,'font-size':9*textPixel,class:'element-info'},infoText));
       }
       n.replaceChildren(...children);
       return n;
@@ -374,6 +452,11 @@
       byId('fiber-links').replaceChildren(...cables);
       for(const [id,entry] of nodes)if(!scene.elements.some(e=>e.id===id)){entry.node.remove();nodes.delete(id);}
       for(const e of scene.elements)drawNode(e,selectedId,showLabels,false,'ここに配置',selectedIds);
+      // Notes stay above physical components; their anchor still snaps to the grid.
+      const notes = scene.elements.filter(e => e.type === 'comment').sort((a,b) => Number(selectedIds.includes(a.id)) - Number(selectedIds.includes(b.id)));
+      const layer = byId('elements'), offset = layer.children.length - notes.length;
+      // Re-appending an already ordered focused node would drop keyboard focus.
+      if (notes.some((e,i) => layer.children[offset+i] !== nodes.get(e.id).node)) for (const e of notes) layer.append(nodes.get(e.id).node);
       const displayed=displaySegments(result.segments),maxPower=Math.max(...displayed.map(s=>s.power),1e-10);
       byId('rays').replaceChildren(...displayed.map(s=>make('line',{x1:s.a.x,y1:s.a.y,x2:s.b.x,y2:s.b.y,stroke:s.color,'stroke-width':1.35,opacity:Math.max(.16,Math.min(.95,Math.sqrt(s.power/maxPower))),'vector-effect':'non-scaling-stroke',...(s.nonvisible?{'stroke-dasharray':'5 5'}:{})})));
       const e=scene.elements.find(item=>item.id===selectedId),guides=[],k=pixel();
@@ -433,7 +516,7 @@
       copy.setAttribute('viewBox',`${area.x} ${area.y} ${area.width} ${area.height}`);
       copy.setAttribute('xmlns',ns);copy.setAttribute('width','1400');copy.setAttribute('height',String(Math.round(1400*area.height/area.width)));
       copy.removeAttribute('tabindex');copy.removeAttribute('class');
-      for(const node of copy.querySelectorAll('.selection-ring,.rotation-handle,.rotation-arm,#placement,.element-hit,#ray-probe,#selection-marquee'))node.remove();
+      for(const node of copy.querySelectorAll('.selection-ring,.rotation-handle,.rotation-arm,.region-resize-handle,.region-hit,#placement,.element-hit,#ray-probe,#selection-marquee'))node.remove();
       for(const node of copy.querySelectorAll('[tabindex]'))node.removeAttribute('tabindex');
       const style=make('style',{},'.element-name{fill:#deebe6;paint-order:stroke;stroke:#142831;stroke-width:4;stroke-linejoin:round}.element-info{fill:#b5cec4;paint-order:stroke;stroke:#142831;stroke-width:3}.is-disabled{opacity:.32}#rulers{fill:#9aafaf;font-family:monospace}text{font-family:Segoe UI,sans-serif}');
       copy.prepend(make('rect',{x:area.x,y:area.y,width:area.width,height:area.height,fill:'#142831'}),style,make('title',{},name));
@@ -443,5 +526,5 @@
       fit:(elements=cache?.[0]?.elements||[],fiberLinks=cache?.[0]?.fiberLinks||[])=>setView(fitView(elements,bench.getBoundingClientRect(),fiberLinks)),
       getView:()=>({...viewport}),setView,zoom:(factor,anchor)=>setView(zoomAt(viewport,factor,anchor||{x:viewport.x+viewport.width/2,y:viewport.y+viewport.height/2})),focus:id=>nodes.get(id)?.node.focus({preventScroll:true}),title };
   }
-  return {BASE_VIEW,MIN_VIEW_WIDTH,MAX_VIEW_WIDTH,snapAngle,place,nudge,pastePosition,marqueeRect,marqueeIds,groupDelta,pasteGroupDelta,zoomAt,clampView,fitView,fiberCablePoints,fiberCablePath,pickSegments,polarizationState,formatWavelength,spectrumLabel,spectrumSwatch,displaySegments,symbols,create};
+  return {BASE_VIEW,MIN_VIEW_WIDTH,MAX_VIEW_WIDTH,snapAngle,place,nudge,pastePosition,marqueeRect,marqueeIds,resizeRegion,groupDelta,pasteGroupDelta,zoomAt,clampView,fitView,fiberCablePoints,fiberCablePath,pickSegments,polarizationState,formatWavelength,spectrumLabel,spectrumSwatch,displaySegments,symbols,commentBubble,create};
 });

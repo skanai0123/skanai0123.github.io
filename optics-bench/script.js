@@ -3,7 +3,7 @@
   const O = window.Optics, S = window.OpticsState, P = window.OpticsPresets, V = window.OpticsView, D = window.OpticsSpatial, C = window.OpticsCoherence, K = window.OpticsCamera, Q = window.OpticsShare;
   const $ = id => document.getElementById(id), bench = $("bench"), view = V.create(bench, () => requestRender());
   const spatial = D.create($("spatial-view"), id => select(id, true));
-  const lengths = new Set(["x", "y", "aperture", "focal", "radius", "beamWidth", "opening", "coreDiameter", "sensorHeight", "spotSize", "screenHeight"]);
+  const lengths = new Set(["x", "y", "aperture", "focal", "radius", "beamWidth", "opening", "coreDiameter", "sensorHeight", "spotSize", "screenHeight", "regionWidth", "regionHeight"]);
   const angles = new Set(["angle", "polAngle", "axisAngle"]);
   const names = {
     x: "X", y: "Y", angle: "配置角度", aperture: "部品径 / 有効径", focal: "焦点距離 f", radius: "曲率半径 R",
@@ -13,7 +13,7 @@
     coreDiameter: "コア直径", na: "開口数 NA", transmission: "透過率 T", cutoff: "境界波長", mode: "透過側", label: "部品名",
     pixelCount: "横の計算画素数", pixelRows: "縦の計算画素数", sensorHeight: "センサー高さ", spotSize: "表示スポット径 FWHM", exposure: "表示ゲイン", filterMode: "フィルター種別",
     screenHeight: "スクリーン高さ", screenPattern: "画像・物体ターゲット",
-    bandLow: "透過帯域の下限", bandHigh: "透過帯域の上限", opticalDensity: "光学濃度 OD"
+    bandLow: "透過帯域の下限", bandHigh: "透過帯域の上限", opticalDensity: "光学濃度 OD", regionWidth: "区切りの幅", regionHeight: "区切りの高さ"
   };
   const num = (v, digits = 6) => Number(v.toFixed(digits));
   const power = v => v === 0 ? "0" : v < 1e-4 ? v.toExponential(2) : String(Number(v.toPrecision(4)));
@@ -59,7 +59,9 @@
   const componentPatternName = value => ({ none: "画像なし", duck: "アヒル", doll: "人形", checker: "市松模様", bars: "青・緑・赤バー" })[value] || value;
   const componentPolarizationName = value => ({ linear: "直線偏光", right: "右円偏光", left: "左円偏光", unpolarized: "無偏光" })[value] || value;
   function componentSpecification(e) {
+    if (e.type === "comment") return (e.commentDisplay === "click" ? "クリック時に表示" : "常に表示") + "; " + e.commentText;
     const length = value => display(value) + " " + scene.unit, diameter = () => "D " + length(e.aperture);
+    if (e.type === "region") return O.REGION_STYLES[e.regionStyle] + "; " + length(e.regionWidth) + " × " + length(e.regionHeight) + "; " + e.regionColor;
     if (isSpectralSource(e)) return `${V.spectrumLabel(e)}; P ${power(e.power)}; ${e.type === "laser" ? "ビーム " + length(e.beamWidth) : "発光角 " + num(e.divergence, 4) + "°"}; ${e.rayCount}本; ${componentPolarizationName(e.polarization)}`;
     if (e.type === "mirror") return `${diameter()}; 反射面 ${num(O.normalizeAngle(e.angle + 180), 4)}°側`;
     if (e.type === "concave") return `${diameter()}; f ${length(e.focal)}; R ${length(2 * e.focal)}`;
@@ -167,10 +169,12 @@
     $("grid-step").min = String(S.toDisplay(1, scene.unit));
     $("grid-step").max = String(S.toDisplay(254, scene.unit));
     $("grid-step").removeAttribute("aria-invalid");
+    syncLabelScale();
     document.querySelectorAll(".display-unit").forEach(n => { n.textContent = scene.unit; });
     if (activePresetId) $("preset").value = activePresetId;
   }
   function bounds(key, e) {
+    if (["regionWidth", "regionHeight"].includes(key)) return { ...O.REGION_SIZE_LIMITS };
     if (key === "x" || key === "y") return { min: -O.COORDINATE_LIMIT, max: O.COORDINATE_LIMIT };
     if (key === "radius") return { min: 2, max: 2 * O.PARAM_LIMITS.focal.max };
     const limits = { ...O.PARAM_LIMITS[key] };
@@ -184,12 +188,14 @@
   }
   function configureInput(input, e) {
     const key = input.dataset.key;
-    if (["label", "enabled", "autoExposure", "polarization", "mode", "filterMode", "screenPattern"].includes(key)) return;
+    if (["regionStyle", "regionColor"].includes(key)) return;
+    if (["label", "enabled", "autoExposure", "polarization", "mode", "filterMode", "screenPattern", "commentText", "commentDisplay"].includes(key)) return;
     const limits = bounds(key, e), length = lengths.has(key);
     input.min = String(length ? S.toDisplay(limits.min, scene.unit) : limits.min);
     input.max = String(length ? S.toDisplay(limits.max, scene.unit) : limits.max);
     input.step = input.type === "range" && angles.has(key) ? String(scene.angleSnap ? 22.5 : 0.1) : ["rayCount", "spectralSamples", "pixelCount", "pixelRows"].includes(key) || (key === "phase" && input.type === "range") ? "1" : key === "opticalDensity" && input.type === "range" ? "0.01" : "any";
-    input.disabled = (key === "polAngle" && e.polarization !== "linear") || (key === "spectralSamples" && e.wavelengthWidth === 0) ||
+    input.disabled = (e.type === "region" && (key === "regionWidth" && e.regionStyle === "vertical" || key === "regionHeight" && e.regionStyle === "horizontal")) ||
+      (key === "polAngle" && e.polarization !== "linear") || (key === "spectralSamples" && e.wavelengthWidth === 0) ||
       (e.type === "screen" && e.screenPattern === "none" && ["screenHeight", "transmission", "divergence", "rayCount"].includes(key)) || Boolean(input.closest("[data-filter-modes]")?.hidden);
   }
   function makeField(key, options = {}) {
@@ -234,6 +240,24 @@
     check.setAttribute("aria-label", "この部品を有効にする"); enabled.append(check, document.createTextNode("この部品を有効にする"));
     fields.append(enabled);
     const position = node("div", "position-fields"); position.append(makeField("x"), makeField("y")); fields.append(position);
+    if (e.type === "region") {
+      fields.append(makeField("regionStyle", { title: "区切りの形", choices: Object.entries(O.REGION_STYLES) }),
+        makeField("regionColor", { title: "区切りの色", choices: [["sage", "緑"], ["blue", "青"], ["amber", "黄"], ["violet", "紫"], ["rose", "赤"], ["gray", "グレー"]] }),
+        makeField("regionWidth"), makeField("regionHeight"),
+        node("p", "param-note", "表示専用の区切りです。名前または境界をドラッグして移動、選択時の右下（線は終点）の四角でサイズ変更できます。X/Yは左上・始点の座標です。"),
+        node("p", "field-hint", "枠内はクリックを通し、光路にも影響しません。枠だけを動かしても中の部品は動きません。一緒に動かす場合は部品と枠を複数選択してください。"));
+      return;
+    }
+    if (e.type === "comment") {
+      const wrap = node("label", "field", "コメント本文"), input = node("textarea", "comment-editor");
+      input.id = "param-commentText"; input.dataset.key = "commentText"; input.maxLength = 1000; input.rows = 6;
+      input.setAttribute("aria-label", "コメント本文"); input.setAttribute("aria-describedby", "comment-hint"); wrap.append(input);
+      fields.append(wrap, makeField("commentDisplay", { title: "本文の表示", choices: [["always", "常に表示"], ["click", "クリック時に表示"]] }),
+        node("p", "param-note", "注釈専用です。光線を遮らず、光路・偏光・カメラの計算には影響しません。"));
+      const hint = node("p", "field-hint", "1000文字まで・改行可。クリック時は選択中だけ本文が開き、選択を外すとマークに戻ります。「ラベル」表示のON/OFFとは独立です。");
+      hint.id = "comment-hint"; fields.append(hint);
+      return;
+    }
     const angleHint = isSource(e) ? "発光方向。0°＝右、90°＝下。" :
       e.type === "fiber" ? "入射する光の進行方向。0°＝右向き入射。接続時の出射は反対向き（＋180°）。" :
       e.type === "concave" ? "頂点の法線。0°は凹面が左向き、180°は右向き。裏面は吸収。" :
@@ -362,12 +386,20 @@
     $("properties").hidden = !e; $("empty-selection").hidden = Boolean(e);
     $("selected-kind").textContent = e ? O.TYPES[e.type].short : "";
     $("selection-summary").textContent = selectedIds.length > 1 ? selectedIds.length + "個選択中 · 主選択：" + label(e) + "。Ctrl＋部品ドラッグでまとめて複製できます。" : e ? "1個選択中 · Ctrl＋ドラッグで複製 · Shift＋クリックで追加・解除" : "空白をドラッグして範囲選択できます。";
+    if (e) $("selection-summary").textContent += " Ctrl+Cでコピー → 別ウィンドウのテーブルでCtrl+V。";
     $("clear-selection").disabled = !selectedIds.length;
     $("select-all").disabled = !scene.elements.length;
     $("duplicate").textContent = selectedIds.length > 1 ? "複製（" + selectedIds.length + "）" : "複製";
     $("delete").textContent = selectedIds.length > 1 ? "削除（" + selectedIds.length + "）" : "削除";
+    $("rotate").disabled = !e || O.isAnnotation(e);
     updateOptions();
     if (!e) return;
+    if (e.type === "region") {
+      for (const [key, hidden] of [["regionWidth", e.regionStyle === "vertical"], ["regionHeight", e.regionStyle === "horizontal"]]) {
+        $("param-" + key).closest("label").hidden = hidden;
+        if (hidden) clearInputError($("param-" + key));
+      }
+    }
     if (e.type === "fiber") syncFiberConnection(e);
     if (isSpectralSource(e)) {
       const count = e.wavelengthWidth > 0 ? e.spectralSamples : 1;
@@ -441,8 +473,9 @@
   }
   function readField(input, e) {
     const key = input.dataset.key;
+    if (["regionStyle", "regionColor"].includes(key)) return input.value;
     if (input.type === "checkbox") return input.checked;
-    if (["label", "polarization", "mode", "filterMode", "screenPattern"].includes(key)) return input.value;
+    if (["label", "polarization", "mode", "filterMode", "screenPattern", "commentText", "commentDisplay"].includes(key)) return input.value;
     let value = Number(input.value);
     if (input.value.trim() === "" || !Number.isFinite(value)) throw new Error((names[key] || key) + "を数値で入力してください。");
     if (lengths.has(key)) value = S.fromDisplay(value, scene.unit);
@@ -953,9 +986,9 @@
       announce((copies.length>1?copies.length+"個の部品":label(copies[0]))+"を複製しました。");
     } catch(error) { announce("複製できませんでした。 "+error.message); }
   }
-  function componentClipboardEvent(event) {
+  function componentClipboardEvent(event, allowTextSelection = false) {
     return !event.defaultPrevented && !pending && !isTextEditing(event.target) &&
-      !isTextEditing(document.activeElement) && !window.getSelection()?.toString();
+      !isTextEditing(document.activeElement) && (allowTextSelection || !window.getSelection()?.toString());
   }
   function copySelected(event, cut = false) {
     if (!componentClipboardEvent(event)) return;
@@ -969,24 +1002,34 @@
     }
     // Only remove the source after the browser has accepted the clipboard data.
     if (cut) deleteSelected();
-    announce((sources.length>1?sources.length+"個の部品":label(e)) + (cut ? "を切り取りました。Ctrl+Vで貼り付け、Ctrl+Zで復元できます。" : "をコピーしました。Ctrl+Vで貼り付けられます。"));
+    announce((sources.length>1?sources.length+"個の部品":label(e)) + (cut ? "を切り取りました。Ctrl+Vで貼り付け、Ctrl+Zで復元できます。" : "をコピーしました。同じ／別ウィンドウの光学テーブルでCtrl+Vを押してください。"));
   }
   function pasteComponent(event) {
-    if (!componentClipboardEvent(event)) return;
-    event.preventDefault();
+    // A stale selection from a blurred input must not block component transfers.
+    // Actual text inputs still own their native paste operation.
+    if (!componentClipboardEvent(event, true)) return;
     try {
       if (!event.clipboardData) throw new Error("クリップボードを利用できません。");
-      const source = S.parseSelection(event.clipboardData.getData("text/plain"));
+      const text = event.clipboardData.getData("text/plain"), normalized = text.replace(/\r?\n/, "\n");
+      if (!normalized.startsWith(S.COMPONENT_PREFIX) && !normalized.startsWith(S.SELECTION_PREFIX)) return;
+      event.preventDefault();
+      const source = S.parseSelection(text);
       const delta = V.pasteGroupDelta(source.elements, scene.elements, scene.gridStep, scene.snap);
       if (!delta) throw new Error("配置できる空き位置がありません。グリッドを細かくするか位置吸着を解除してください。");
       const copies=insertCopies(source.elements,source.fiberLinks,delta);
+      window.getSelection()?.removeAllRanges();
+      const area = view.visibleBounds(), bounds = O.elementBounds(copies);
+      if (bounds.x < area.x || bounds.y < area.y || bounds.x + bounds.width > area.x + area.width || bounds.y + bounds.height > area.y + area.height) {
+        view.fit(copies, scene.fiberLinks);
+      }
       announce((copies.length>1?copies.length+"個の部品":label(copies[0])) + "を貼り付けました。「戻す」で取り消せます。");
     } catch (error) {
+      event.preventDefault();
       announce("貼り付けできませんでした。 " + error.message);
     }
   }
   function rotateSelected(delta = 22.5) {
-    checkpoint(); const e = selected(); if (!e) return;
+    const e = selected(); if (!e || O.isAnnotation(e)) return; checkpoint();
     e.angle = O.normalizeAngle(e.angle + delta); markEdited(); checkpoint(); syncInspector(); render();
     announce("配置角度を " + num(e.angle) + "° にしました。");
   }
@@ -1002,7 +1045,8 @@
     ["光源", ["laser", "white", "point"]],
     ["検出・撮像", ["camera", "screen", "fluorescent"]],
     ["光路", ["mirror", "concave", "lens", "objective", "iris", "blocker", "filter", "dichroic", "splitter", "pbs", "fiber"]],
-    ["偏光・位相", ["polarizer", "waveplate", "halfwave", "phase"]]
+    ["偏光・位相", ["polarizer", "waveplate", "halfwave", "phase"]],
+    ["注釈", ["comment", "region"]]
   ];
   for (const [heading, types] of groups) {
     const group = node("div", "palette-group"); group.append(node("h3", "", heading));
@@ -1062,6 +1106,7 @@
       if (Number.isFinite(step) && step > 0) value = min + Math.round((value - min) / step) * step;
       input.value = String(Math.max(min, Math.min(max, value)));
       if (input.id === "coherence-phase-slider") setPhase(Number(input.value));
+      else if (input.id === "label-scale-slider") applyLabelScale(input);
       else applyField(input);
       return;
     }
@@ -1107,6 +1152,7 @@
       p.delta=V.groupDelta(p.sources,p.anchor,target,scene.gridStep,scene.snap,p.axis);
       for(const before of p.before){const member=scene.elements.find(item=>item.id===before.id);if(member)Object.assign(member,{x:before.x+p.delta.x,y:before.y+p.delta.y});}
     }
+    else if (p.kind === "resize") Object.assign(e, V.resizeRegion(e, {x:point.x-p.resizeOffsetX,y:point.y-p.resizeOffsetY}, scene.gridStep, scene.snap));
     else e.angle = V.snapAngle(Math.atan2(point.y - e.y, point.x - e.x) * 180 / Math.PI, scene.angleSnap);
     syncInspector(); requestRender();
   }
@@ -1136,41 +1182,63 @@
       rememberSelection();syncInspector();render();
     } else if (p.kind === "range") {
       if (cancel) { scene = restoreSnapshot(p.before); edited = p.edited; }
+      if (p.input.id === "label-scale-slider") syncLabelScale();
       checkpoint(); syncInspector(cancel); render();
     } else if (p.kind === "pan") {
       bench.classList.remove("is-panning"); if (cancel) view.setView(p.view);
       else if (!p.moved) inspectPoint(p.point);
     } else {
       const e = scene.elements.find(item => item.id === p.id);
-      const changed=p.before.some(before=>{const member=scene.elements.find(item=>item.id===before.id);return member&&(member.x!==before.x||member.y!==before.y||member.angle!==before.angle);});
+      const changed=p.before.some(before=>{const member=scene.elements.find(item=>item.id===before.id);return member&&["x","y","angle","regionWidth","regionHeight"].some(key=>member[key]!==before[key]);});
       if(cancel){for(const before of p.before){const member=scene.elements.find(item=>item.id===before.id);if(member)Object.assign(member,before);}setSelection(p.previousIds,p.previousPrimary);}
       else if(!p.moved){setSelection(p.clickIds,p.id);rememberSelection();}
       if (!cancel && p.moved && changed) { markEdited(); checkpoint(); }
       syncInspector(); render();
-      if (p.moved) announce(cancel ? "操作を取り消しました。" : !changed ? "移動できる範囲の上限です。" : p.kind === "move" ?
+      if (p.moved) announce(cancel ? "操作を取り消しました。" : !changed ? "変更できる範囲の上限です。" : p.kind === "resize" ? "区切りのサイズを変更しました。" : p.kind === "move" ?
         (p.sources.length>1?p.sources.length+"個の部品":label(e)) + "を移動しました。" : "配置角度を " + num(e.angle) + "° にしました。");
     }
   }
+  function toggleElementFromContextMenu(event) {
+    const target = event.target.closest("[data-element-id],[data-spatial-element-id]");
+    const id = Number(target?.dataset.elementId ?? target?.dataset.spatialElementId);
+    const element = scene.elements.find(item => item.id === id);
+    if (!element) return;
+    event.preventDefault();
+    if (pending) return;
+    checkpoint();
+    setSelection(selectedIds.includes(id) ? selectedIds : [id], id); rememberSelection();
+    element.enabled = !element.enabled;
+    markEdited(); checkpoint(); syncInspector(); render();
+    if (event.currentTarget === bench) view.focus(id);
+    else $("spatial-view").querySelector('[data-spatial-element-id="' + id + '"]')?.focus({ preventScroll: true });
+    announce(label(element) + "を" + (element.enabled ? "有効" : "無効") + "にしました。右クリックでもう一度切り替えられます。");
+  }
+  bench.addEventListener("contextmenu", toggleElementFromContextMenu);
+  $("spatial-view").addEventListener("contextmenu", toggleElementFromContextMenu);
   bench.addEventListener("pointerdown", event => {
     if (event.button !== 0 || event.isPrimary === false || pending) return;
     const target = event.target.closest("[data-element-id]");
-    if (pointerTool === "measure" && !(target && event.ctrlKey)) {
+    const isAnnotation = target && scene.elements.some(e => e.id === Number(target.dataset.elementId) && O.isAnnotation(e));
+    if (pointerTool === "measure" && !isAnnotation && !(target && event.ctrlKey)) {
       event.preventDefault(); window.getSelection()?.removeAllRanges(); measurePoint(view.point(event)); bench.focus({ preventScroll: true }); return;
     }
     event.preventDefault(); checkpoint();
     window.getSelection()?.removeAllRanges();
     if (target) {
       const id = Number(target.dataset.elementId), previousIds=[...selectedIds], previousPrimary=selectedId;
-      const rotating=Boolean(event.target.closest("[data-rotate]")), copying=!rotating&&event.ctrlKey;
+      const resizing=Boolean(event.target.closest("[data-resize]")), rotating=!resizing&&Boolean(event.target.closest("[data-rotate]")), copying=!rotating&&!resizing&&event.ctrlKey;
       const clickIds=event.shiftKey&&!copying?(previousIds.includes(id)?previousIds.filter(i=>i!==id):[...previousIds,id]):[id];
       if(previousIds.includes(id)&&!rotating)setSelection(previousIds,id);else setSelection([...previousIds.filter(i=>event.shiftKey&&!copying),id],id);
       syncInspector();render();view.focus(id);
       const e = selected(), p = view.point(event);
       // Modifiers latch once detected. They may already be held here or be pressed during pointer movement.
-      const kind = rotating ? "rotate" : copying ? "copy" : "move", sources=selectedElements();
+      const kind = resizing ? "resize" : rotating ? "rotate" : copying ? "copy" : "move", sources=selectedElements();
       pending = { kind, id, owner: bench, pointerId: event.pointerId,
         startX:event.clientX,startY:event.clientY,moved:false,offsetX:p.x-e.x,offsetY:p.y-e.y,anchor:{x:e.x,y:e.y},sources:sources.map(e=>({...e})),
-        before:sources.map(e=>({id:e.id,x:e.x,y:e.y,angle:e.angle})),previousIds,previousPrimary,clickIds,shiftKey:event.shiftKey,axis:null,delta:{x:0,y:0} };
+        before:sources.map(e=>({id:e.id,x:e.x,y:e.y,angle:e.angle,...(e.type==='region'?{regionWidth:e.regionWidth,regionHeight:e.regionHeight}:{})})),previousIds,previousPrimary,clickIds,shiftKey:event.shiftKey,axis:null,delta:{x:0,y:0} };
+      if (resizing) {
+        const box=O.regionGeometry(e); pending.resizeOffsetX=p.x-e.x-box.width; pending.resizeOffsetY=p.y-e.y-box.height;
+      }
       if (kind === "copy") {
         pending.links=scene.fiberLinks.filter(l=>selectedIds.includes(l.a)&&selectedIds.includes(l.b)); pending.inside=false;
         bench.classList.add("is-copying"); $("placement-cursor").textContent = label(e) + "の複製をテーブルへ";
@@ -1330,6 +1398,46 @@
   $("zoom-in").addEventListener("click", () => view.zoom(1.25)); $("zoom-out").addEventListener("click", () => view.zoom(1 / 1.25));
   $("fit").addEventListener("click", () => view.fit());
   $("show-labels").addEventListener("change", render);
+  function syncLabelScale() {
+    for (const id of ["label-scale", "label-scale-slider"]) {
+      $(id).value = String(scene.labelScale); $(id).removeAttribute("aria-invalid");
+    }
+    $("label-scale-slider").setAttribute("aria-valuetext", scene.labelScale + "%");
+  }
+  function applyLabelScale(input) {
+    const value = Number(input.value), { min, max } = S.LABEL_SCALE_LIMITS;
+    if (!input.value.trim() || !Number.isInteger(value) || value < min || value > max) {
+      input.setAttribute("aria-invalid", "true"); announce(`素子ラベルサイズは${min}〜${max}%の整数で入力してください。直前の値を使用します。`); return;
+    }
+    if (scene.labelScale !== value) { scene.labelScale = value; markEdited(); requestRender(); }
+    syncLabelScale();
+  }
+  for (const id of ["label-scale", "label-scale-slider"]) {
+    const input = $(id);
+    input.addEventListener("focusin", checkpoint);
+    input.addEventListener("input", () => applyLabelScale(input));
+    for (const event of ["change", "focusout"]) input.addEventListener(event, () => { if (!pending) checkpoint(); });
+  }
+  $("label-scale-slider").addEventListener("pointerdown", event => {
+    if (event.button !== 0 || event.isPrimary === false || pending) return;
+    const input = event.currentTarget;
+    event.preventDefault(); checkpoint(); input.focus({ preventScroll: true });
+    pending = { kind: "range", owner: input, input, pointerId: event.pointerId, before: snapshot(), edited };
+    input.setPointerCapture(event.pointerId); updateInteraction(event);
+  });
+  $("label-scale-slider").addEventListener("lostpointercapture", event => {
+    if (pending?.owner === event.target) finishInteraction(true);
+  });
+  $("label-scale-slider").addEventListener("click", event => event.preventDefault());
+  $("label-scale-slider").addEventListener("keydown", event => {
+    if (pending || event.ctrlKey || event.metaKey || event.altKey) return;
+    const step = { ArrowRight: 1, ArrowUp: 1, ArrowLeft: -1, ArrowDown: -1, PageUp: 10, PageDown: -10 }[event.key];
+    if (step === undefined && event.key !== "Home" && event.key !== "End") return;
+    event.preventDefault(); checkpoint();
+    const { min, max } = S.LABEL_SCALE_LIMITS;
+    event.currentTarget.value = String(event.key === "Home" ? min : event.key === "End" ? max : Math.max(min, Math.min(max, scene.labelScale + step)));
+    applyLabelScale(event.currentTarget); checkpoint();
+  });
   function updateSpatialControl(input, output) {
     output.value = `${Number(input.value)}°`; requestRender();
   }

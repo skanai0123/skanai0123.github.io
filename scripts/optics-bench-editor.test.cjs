@@ -473,6 +473,144 @@ function editorHarness(options = {}) {
   };
 }
 
+test('region inspector supports dimensions in display units, shapes and colors without rotating or moving enclosed optics', async () => {
+  const h=editorHarness(); await h.load([h.element('laser',1,{x:200,y:200}),h.element('region',2,{x:100,y:100})],{unit:'in'}); h.select(2);
+  const source=h.scene().elements[0]; assert.equal(h.get('param-angle'),null); assert.equal(h.get('rotate').disabled,true);
+  const width=h.get('param-regionWidth'); width.value='20'; h.fire('change',width); near(h.selected().regionWidth,508);
+  const height=h.get('param-regionHeight'); height.value='10'; h.fire('change',height); near(h.selected().regionHeight,254);
+  const style=h.get('param-regionStyle'); style.value='horizontal'; h.fire('change',style);
+  assert.equal(h.get('param-regionHeight').closest('label').hidden,true);
+  style.value='vertical'; h.fire('change',style); assert.equal(h.get('param-regionWidth').closest('label').hidden,true);
+  assert.equal(h.get('param-regionHeight').closest('label').hidden,false);
+  const color=h.get('param-regionColor'); color.value='violet'; h.fire('change',color); assert.equal(h.selected().regionColor,'violet');
+  const before=h.scene(); h.key('r',{ctrlKey:false}); assert.deepEqual(h.scene(),before);
+  h.fire('pointerdown',h.component(2),{pointerId:72,clientX:100,clientY:100});
+  h.fire('pointermove',h.document,{pointerId:72,clientX:150,clientY:130});
+  h.fire('pointerup',h.document,{pointerId:72,clientX:150,clientY:130});
+  assert.deepEqual(h.scene().elements[0],source); const moved=h.scene(); assert.notDeepEqual(moved,before);
+  h.key('z'); assert.deepEqual(h.scene(),before); h.key('y'); assert.deepEqual(h.scene(),moved);
+});
+
+test('region resize gestures snap dimensions, preserve anchors and enclosed parts, and cancel or undo atomically', async () => {
+  const h=editorHarness(); await h.load([h.element('region',7,{x:100,y:100}),h.element('lens',8,{x:300,y:200})],{unit:'mm',gridStep:10}); h.select(7);
+  const before=h.scene(); const handle=h.document.createElement('rect'); handle.dataset.resize='7'; h.component(7).append(handle);
+  const drag=(id,x,y)=>{
+    const e=h.selected(); const box=require('../optics-bench/optics.js').regionGeometry(e);
+    h.fire('pointerdown',handle,{pointerId:id,clientX:e.x+box.width+3,clientY:e.y+box.height+2});
+    h.fire('pointermove',h.document,{pointerId:id,clientX:x+3,clientY:y+2});
+  };
+  drag(73,653,471); assert.equal(h.selected().regionWidth,550); assert.equal(h.selected().regionHeight,370);
+  h.fire('pointerup',h.document,{pointerId:73,clientX:656,clientY:473});
+  const after=h.scene(); assert.equal(h.selected().x,100); assert.equal(h.selected().y,100); assert.deepEqual(after.elements[1],before.elements[1]);
+  h.key('z'); assert.deepEqual(h.scene(),before); h.key('y'); assert.deepEqual(h.scene(),after);
+  drag(74,750,600); h.key('Escape'); assert.deepEqual(h.scene(),after);
+  drag(75,750,600); h.fire('pointercancel',h.document,{pointerId:75}); assert.deepEqual(h.scene(),after);
+  h.key('z'); assert.deepEqual(h.scene(),before); h.key('y'); assert.deepEqual(h.scene(),after);
+});
+
+test('region resizing clamps size and only changes the axis used by a divider line', () => {
+  const O=require('../optics-bench/optics.js'),region={...O.createElement('region',1,100,100),x:100.25,y:100.125,regionWidth:400.5,regionHeight:200.25};
+  assert.deepEqual(V.resizeRegion(region,{x:0,y:0},10),{regionWidth:20,regionHeight:20});
+  assert.deepEqual(V.resizeRegion(region,{x:1e10,y:1e10},10),{regionWidth:10000000,regionHeight:10000000});
+  assert.deepEqual(V.resizeRegion({...region,regionStyle:'horizontal'},{x:354.25,y:600},25.4),{regionWidth:254,regionHeight:200.25});
+  assert.deepEqual(V.resizeRegion({...region,regionStyle:'vertical'},{x:600,y:222.25},10,false),{regionWidth:400.5,regionHeight:122.125});
+});
+
+test('comment inspector edits text and display mode, supports undo and keeps textarea shortcuts native', () => {
+  const h = editorHarness(); h.add('comment'); const initial = h.scene(), id = h.selectedId();
+  assert.equal(h.get('param-angle'), null); assert.equal(h.get('param-aperture'), null); assert.equal(h.get('rotate').disabled, true);
+  const input = h.get('param-commentText'); input.focus(); input.value = '結像面\nNA < 0.5';
+  h.fire('input', input); h.fire('change', input);
+  assert.equal(h.selected().commentText, input.value);
+  assert.equal(h.clipboard('copy', '', {}, input).event.defaultPrevented, false);
+  assert.equal(h.clipboard('paste', 'text', {}, input).event.defaultPrevented, false);
+  assert.equal(h.key('z', {}, input).defaultPrevented, false);
+  h.get('bench').focus(); const edited = h.scene(); h.key('z'); assert.deepEqual(h.scene(), initial); h.key('y'); assert.deepEqual(h.scene(), edited);
+  const mode = h.get('param-commentDisplay'); mode.value = 'click'; h.fire('change', mode);
+  assert.equal(h.selected().commentDisplay, 'click');
+  const after = h.scene(); h.key('r', {ctrlKey:false}); assert.deepEqual(h.scene(), after);
+  h.key('z'); assert.equal(h.selected().commentDisplay, 'always'); h.key('y'); assert.equal(h.selected().commentDisplay, 'click');
+  h.click('clear-selection'); h.click('measure-tool');
+  h.fire('pointerdown', h.component(id), {clientX:200,clientY:200}); h.fire('pointerup', h.document, {clientX:200,clientY:200});
+  assert.equal(h.selectedId(), id); assert.equal(h.get('param-commentText').value, '結像面\nNA < 0.5');
+});
+
+test('comment palette drag, group copy to another window, and component list export retain notes', async () => {
+  const h = editorHarness(), target = editorHarness();
+  const button = h.get('palette-buttons').querySelector('[data-add="comment"]');
+  h.fire('pointerdown', button, {pointerId:71,clientX:0,clientY:0});
+  h.fire('pointermove', h.document, {pointerId:71,clientX:210,clientY:180});
+  h.fire('pointerup', h.document, {pointerId:71,clientX:210,clientY:180});
+  assert.equal(h.selected().type, 'comment'); assert.equal(h.selected().x, 210); assert.equal(h.selected().y, 180);
+  const id=h.selectedId(), text=h.get('param-commentText'); text.value='検出位置\n焦点'; h.fire('change',text);
+  h.click('select-all'); const source=h.scene(); const copied=h.clipboard('copy').data.get('text/plain');
+  target.click('new-scene'); target.clipboard('paste',copied);
+  assert.deepEqual(target.scene().elements.map((e,i)=>({...e,id:source.elements[i].id})),source.elements);
+  target.key('z'); assert.equal(target.scene().elements.length,0); target.key('y'); assert.equal(target.scene().elements.length,source.elements.length);
+  h.select(id); h.click('component-list-copy');
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.ok(h.sharedCopies.some(value=>value.includes('検出位置')&&value.includes('焦点')));
+});
+
+test('right-click toggles only the hit component in every pointer tool and supports undo and redo', () => {
+  for (const tool of ['select-tool', 'measure-tool', 'pan-tool']) {
+    const h = editorHarness(), before = h.scene(); h.click(tool);
+    const child = h.document.createElement('path'); h.component(1).append(child);
+    h.fire('pointerdown', child, { button: 2 }); assert.deepEqual(h.scene(), before);
+    const event = h.fire('contextmenu', child, { button: 2 });
+    h.fire('pointerup', h.document, { button: 2 });
+    const off = clone(before); off.elements.find(e => e.id === 1).enabled = false;
+    assert.equal(event.defaultPrevented, true); assert.deepEqual(h.scene(), off);
+    assert.equal(h.selectedId(), 1); assert.equal(h.get('param-enabled').checked, false);
+    assert.equal(h.result().segments.length, 0); assert.match(h.get('element-select').textContent, /無効/);
+    assert.equal(h.get('spatial-view').querySelector('[data-spatial-element-id="1"]').getAttribute('opacity'), '0.34');
+    h.key('z'); assert.deepEqual(h.scene(), before); assert.ok(h.result().segments.length);
+    h.key('y'); assert.deepEqual(h.scene(), off);
+    h.fire('contextmenu', h.component(1), { button: 2 }); assert.deepEqual(h.scene(), before);
+    assert.equal(h.get('param-enabled').checked, true); assert.match(h.get('status').textContent, /を有効にしました/);
+    h.key('z'); assert.deepEqual(h.scene(), off);
+  }
+});
+
+test('right-click preserves a multiple selection while toggling only the hit part in 2D and 3D', () => {
+  const h = editorHarness(), before = h.scene(); h.click('select-all');
+  const ids = h.selectedIds();
+  h.fire('contextmenu', h.component(2), { button: 2 });
+  const off = clone(before); off.elements.find(e => e.id === 2).enabled = false;
+  assert.deepEqual(h.scene(), off); assert.deepEqual(h.selectedIds(), ids); assert.equal(h.selectedId(), 2);
+  const spatialPart = () => h.get('spatial-view').querySelector('[data-spatial-element-id="2"]');
+  const event = h.fire('contextmenu', spatialPart().querySelector('path'), { button: 2 });
+  assert.equal(event.defaultPrevented, true); assert.deepEqual(h.scene(), before);
+  assert.deepEqual(h.selectedIds(), ids); assert.equal(h.document.activeElement, spatialPart());
+  assert.equal(spatialPart().classList.contains('is-disabled'), false);
+  h.key('z'); assert.deepEqual(h.scene(), off); h.key('y'); assert.deepEqual(h.scene(), before);
+});
+
+test('background and input context menus leave the scene, selection and redo intact', () => {
+  const h = editorHarness(); h.add('mirror'); h.key('z');
+  const before = h.scene(), ids = h.selectedIds(); assert.equal(h.get('redo').disabled, false);
+  for (const target of [h.get('bench'), h.get('spatial-view'), h.get('param-label'), h.get('param-angle')]) {
+    assert.equal(h.fire('contextmenu', target, { button: 2 }).defaultPrevented, false);
+    assert.deepEqual(h.scene(), before); assert.deepEqual(h.selectedIds(), ids);
+    assert.equal(h.get('redo').disabled, false);
+  }
+});
+
+test('right-click during a pending move, copy or slider gesture does not toggle or commit the gesture', () => {
+  for (const kind of ['move', 'copy', 'range']) {
+    const h = editorHarness(), before = h.scene(), source = h.selected();
+    const target = kind === 'range' ? h.get('param-angle-slider') : h.component(source.id);
+    h.fire('pointerdown', target, { pointerId: 93, ctrlKey: kind === 'copy', clientX: source.x, clientY: source.y });
+    h.fire('pointermove', h.document, { pointerId: 93, clientX: source.x + 50, clientY: source.y + 30 });
+    const during = h.scene();
+    for (const part of [h.component(1), h.get('spatial-view').querySelector('[data-spatial-element-id="1"]')]) {
+      assert.equal(h.fire('contextmenu', part, { button: 2 }).defaultPrevented, true);
+      assert.deepEqual(h.scene(), during);
+    }
+    h.key('Escape'); assert.deepEqual(h.scene(), before); assert.equal(h.preview(), null);
+  }
+});
+
 test('share button copies a restorable snapshot without consuming undo or redo and invalidates on edits', async () => {
   const Q=require('../optics-bench/share.js'),P=require('../optics-bench/presets.js'),h=editorHarness();
   const linked=P.create('fiber-link');await h.load(linked.elements,{title:'共有する実験',fiberLinks:linked.fiberLinks,unit:'in',gridStep:6.35,snap:false});
@@ -716,6 +854,78 @@ test('SVG ray strokes follow source array order so later sources draw in front',
   draw();assert.deepEqual(colors(),[450,650,532].map(O.wavelengthColor));
 });
 
+test('global label size controls validate, synchronize, save and undo pointer and keyboard edits', async () => {
+  const h=editorHarness(), input=h.get('label-scale'),slider=h.get('label-scale-slider');
+  const before=h.scene(); input.focus(); input.value='150'; h.fire('input',input); h.fire('change',input);
+  assert.equal(h.scene().labelScale,150); assert.equal(slider.value,'150');
+  assert.deepEqual(h.scene().elements,before.elements);
+  assert.ok(h.get('spatial-view').querySelectorAll('.spatial-label').every(n=>Number(n.getAttribute('font-size'))===15));
+  for(const value of ['','49','201','100.5','bad']) {
+    input.value=value; h.fire('input',input); assert.equal(h.scene().labelScale,150); assert.equal(input.getAttribute('aria-invalid'),'true');
+  }
+  h.click('undo'); assert.deepEqual(h.scene(),before); assert.equal(input.value,'100');
+  h.click('redo'); assert.equal(h.scene().labelScale,150); assert.equal(input.getAttribute('aria-invalid'),null);
+  slider.focus(); h.key('End',{ctrlKey:false},slider); assert.equal(h.scene().labelScale,200);
+  h.key('Home',{ctrlKey:false},slider); assert.equal(h.scene().labelScale,50);
+  h.key('ArrowRight',{ctrlKey:false},slider); assert.equal(h.scene().labelScale,51);
+  h.key('z',{},slider); assert.equal(h.scene().labelScale,50);
+  const stable=h.scene();
+  h.fire('pointerdown',slider,{pointerId:701,clientX:192});
+  h.fire('pointermove',h.document,{pointerId:701,clientX:150});
+  h.fire('pointerup',h.document,{pointerId:701,clientX:192});
+  assert.equal(h.scene().labelScale,200); h.key('z',{},slider); assert.deepEqual(h.scene(),stable);
+  h.key('y',{},slider); assert.equal(h.scene().labelScale,200);
+  for(const cancel of ['Escape','pointercancel','lostpointercapture']) {
+    h.fire('pointerdown',slider,{pointerId:702,clientX:8}); assert.equal(h.scene().labelScale,50);
+    if(cancel==='Escape') h.key('Escape',{ctrlKey:false},slider);
+    else h.fire(cancel,cancel==='pointercancel'?h.document:slider,{pointerId:702});
+    assert.equal(h.scene().labelScale,200); assert.equal(input.value,'200'); assert.equal(slider.value,'200');
+  }
+  h.get('show-labels').checked=false; h.fire('change',h.get('show-labels'));
+  assert.equal(h.get('spatial-view').querySelectorAll('.spatial-label').length,0);
+  h.get('show-labels').checked=true; h.fire('change',h.get('show-labels'));
+  assert.ok(h.get('spatial-view').querySelectorAll('.spatial-label').every(n=>Number(n.getAttribute('font-size'))===20));
+  h.click('export'); const saved=JSON.parse(await h.downloads.at(-1).text()); assert.equal(saved.labelScale,200);
+  await h.load(before.elements,{labelScale:125}); assert.equal(input.value,'125'); assert.equal(slider.value,'125');
+});
+
+test('global label scaling changes names and specifications together in 2D and SVG while annotations and bodies stay fixed', () => {
+  const O=require('../optics-bench/optics.js'), S=require('../optics-bench/state.js');
+  const {document,bench,view}=drawingHarness();
+  const scene=S.defaultScene([O.createElement('laser',1,100,300),O.createElement('lens',2,450,300),O.createElement('comment',3,600,100),O.createElement('region',4,20,20)]);
+  const result=O.simulate(scene.elements),root=document.getElementById('elements');
+  view.draw(scene,2,result);
+  const names=root.querySelectorAll('.element-name').map(n=>Number(n.getAttribute('font-size')));
+  const infos=root.querySelectorAll('.element-info').map(n=>Number(n.getAttribute('font-size')));
+  const textRecord=n=>({text:n.textContent,font:n.getAttribute('font-size'),x:n.getAttribute('x'),y:n.getAttribute('y')});
+  const note=textRecord(root.querySelector('.comment-text'));
+  const region=textRecord(document.getElementById('regions').querySelector('text'));
+  for(const labelScale of [50,125,200]) {
+    scene.labelScale=labelScale; view.draw(scene,2,result);
+    root.querySelectorAll('.element-name').forEach((n,i)=>near(Number(n.getAttribute('font-size')),names[i]*labelScale/100));
+    root.querySelectorAll('.element-info').forEach((n,i)=>near(Number(n.getAttribute('font-size')),infos[i]*labelScale/100));
+    assert.deepEqual(textRecord(root.querySelector('.comment-text')),note);
+    assert.deepEqual(textRecord(document.getElementById('regions').querySelector('text')),region);
+    const previous=global.XMLSerializer; let exported;
+    global.XMLSerializer=class{serializeToString(node){exported=node;return '<svg/>';}};
+    try { view.exportSvg('labels'); } finally { if(previous===undefined)delete global.XMLSerializer;else global.XMLSerializer=previous; }
+    assert.equal(exported.querySelectorAll('.element-name').length,2);
+    near(Number(exported.querySelector('.element-name').getAttribute('font-size')),names[0]*labelScale/100);
+  }
+  view.draw(scene,2,result,false); assert.equal(root.querySelectorAll('.element-name').length,0);
+  view.draw(scene,2,result,true); assert.equal(root.querySelectorAll('.element-name').length,2);
+  bench.getBoundingClientRect=()=>({width:353,height:179,left:0,top:0,right:353,bottom:179});
+  scene.elements=scene.elements.filter(e=>!O.isAnnotation(e));
+  scene.elements[1].label='画面幅より長いラベル'.repeat(6);
+  view.draw(scene,2,result); view.fit(); const area=view.visibleBounds(),px=view.worldPerPixel();
+  for(const e of scene.elements) for(const n of root.querySelector('[data-element-id="'+e.id+'"]').querySelectorAll('.element-name,.element-info')) {
+    const x=e.x+Number(n.getAttribute('x')),y=e.y+Number(n.getAttribute('y'));
+    assert.ok(x>=area.x&&x<=area.x+area.width);
+    assert.ok(y>=area.y+20*px&&y<=area.y+area.height-5*px,'both baselines stay clear of the rulers and lower edge');
+  }
+  assert.match(root.querySelector('[data-element-id="2"]').querySelector('.element-name').textContent,/…$/);
+});
+
 test('the synchronized spatial preview changes viewpoint and zoom without editing the design', async () => {
   const h=editorHarness(),laser=h.element('laser',1,{x:100,y:300,beamWidth:0,rayCount:1,wavelength:450});
   await h.load([laser,h.element('lens',2,{x:400,y:300}),h.element('mirror',3,{x:650,y:300,angle:45})]);
@@ -771,7 +981,7 @@ test('the beam blocker stays in the optical-path palette group and remains place
   const detection=groups.find(group=>group.children[0].textContent==='検出・撮像');
   const blocker=optical.querySelector('[data-add="blocker"]');
   assert.ok(blocker);assert.equal(detection.querySelector('[data-add="blocker"]'),null);
-  assert.equal(groups.flatMap(group=>group.querySelectorAll('.part-button')).length,21);
+  assert.equal(groups.flatMap(group=>group.querySelectorAll('.part-button')).length,23);
   h.click('new-scene');h.fire('click',blocker);
   assert.equal(h.selected().type,'blocker');assert.match(h.get('status').textContent,/ビームブロッカー/);
 });
@@ -839,6 +1049,64 @@ test('native copy and paste preserve every component parameter while allocating 
   assert.equal(new Set(elements.map(e => e.id)).size, 3);
   assert.equal(new Set(elements.map(e => e.x + ',' + e.y)).size, 3);
   assert.deepEqual(elements[0], source);
+});
+
+test('single, Shift and marquee selections transfer to independent editors with units, settings and fiber links intact', async () => {
+  for (const method of ['single', 'shift', 'marquee']) {
+    const source = editorHarness(), target = editorHarness();
+    await source.load([
+      source.element('laser', 1, { x: 150.125, y: 200.375, wavelength: 450, beamWidth: 5.25, polarization: 'left', label: 'Transfer source' }),
+      source.element('fiber', 2, { x: 350.25, y: 200.375, coreDiameter: .08, na: .22, enabled: false }),
+      source.element('fiber', 3, { x: 650.75, y: 200.375, angle: 180 }),
+      source.element('mirror', 4, { x: 900, y: 500 })
+    ], { unit: 'cm', fiberLinks: [{ a: 2, b: 3 }] });
+    if (method === 'marquee') {
+      source.fire('pointerdown', source.get('bench'), { pointerId: 101, clientX: 100, clientY: 100 });
+      source.fire('pointermove', source.document, { pointerId: 101, clientX: 700, clientY: 300 });
+      source.fire('pointerup', source.document, { pointerId: 101, clientX: 700, clientY: 300 });
+    } else {
+      source.select(method === 'single' ? 2 : 1);
+      if (method === 'shift') for (const id of [2, 3]) {
+        const part = source.scene().elements.find(e => e.id === id);
+        source.fire('pointerdown', source.component(id), { pointerId: id, shiftKey: true, clientX: part.x, clientY: part.y });
+        source.fire('pointerup', source.document, { pointerId: id, shiftKey: true, clientX: part.x, clientY: part.y });
+      }
+    }
+    const selected = source.scene().elements.filter(e => source.selectedIds().includes(e.id)), sourceBefore = source.scene();
+    assert.equal(selected.length, method === 'single' ? 1 : 3);
+    const text = source.clipboard('copy').data.get('text/plain');
+    await target.load([target.element('blocker', 1, { x: selected[0].x, y: selected[0].y })], { title: 'Destination', unit: 'in', gridStep: 25.4 });
+    const before = target.scene(); target.selection('31'); // Text left selected after a field loses focus.
+    const event = target.clipboard('paste', text.replace(/\n/g, '\r\n'));
+    assert.equal(event.event.defaultPrevented, true); assert.equal(target.selectionText(), '');
+    const after = target.scene(), copies = after.elements.slice(1);
+    assert.equal(copies.length, selected.length); assert.deepEqual(after.elements[0], before.elements[0]);
+    assert.equal(after.unit, 'in'); assert.equal(after.gridStep, 25.4); assert.equal(after.title, 'Destination');
+    const delta = { x: copies[0].x - selected[0].x, y: copies[0].y - selected[0].y };
+    for (let i = 0; i < copies.length; i++) {
+      near(copies[i].x - selected[i].x, delta.x); near(copies[i].y - selected[i].y, delta.y);
+      assert.deepEqual({ ...copies[i], id: selected[i].id, x: selected[i].x, y: selected[i].y }, selected[i]);
+    }
+    assert.deepEqual(after.fiberLinks, method === 'single' ? [] : [{ a: copies[1].id, b: copies[2].id }]);
+    assert.deepEqual(target.selectedIds(), copies.map(e => e.id));
+    assert.equal(target.clipboard('copy').event.defaultPrevented, true);
+    target.key('z'); assert.deepEqual(target.scene(), before); target.key('y'); assert.deepEqual(target.scene(), after);
+    assert.deepEqual(source.scene(), sourceBefore);
+  }
+});
+
+test('pasting outside a destination viewport reveals the inserted group without moving the design or adding undo steps', async () => {
+  const O = require('../optics-bench/optics.js'), source = editorHarness(), target = editorHarness();
+  source.click('select-all'); const originals = source.scene().elements, text = source.clipboard('copy').data.get('text/plain');
+  await target.load([target.element('mirror', 1, { x: 50000, y: -20000 })]);
+  const before = target.scene(), viewBefore = target.viewport();
+  target.clipboard('paste', text); const after = target.scene(), copies = after.elements.slice(1), area = target.viewport(), bounds = O.elementBounds(copies);
+  assert.notDeepEqual(area, viewBefore);
+  assert.ok(bounds.x >= area.x && bounds.y >= area.y && bounds.x + bounds.width <= area.x + area.width && bounds.y + bounds.height <= area.y + area.height);
+  assert.deepEqual(after.elements[0], before.elements[0]);
+  assert.deepEqual(copies.map((e, i) => ({ ...e, id: originals[i].id })), originals);
+  target.key('z'); assert.deepEqual(target.scene(), before); target.key('y'); assert.deepEqual(target.scene(), after);
+  const visible = target.viewport(); target.clipboard('paste', text); assert.deepEqual(target.viewport(), visible);
 });
 
 test('successful cut is undoable with selection and all parameters, and paste reuses the vacant position', () => {
@@ -1000,13 +1268,14 @@ test('clipboard repeat, composition, Alt modifiers and already-handled events do
   assert.equal(h.key('d').defaultPrevented, true); assert.equal(h.scene().elements.length, 2);
 });
 
-test('selected page text is left to the native clipboard until the bench clears text selection', () => {
+test('selected page text keeps native copy, cut and ordinary paste until the bench clears text selection', () => {
   const h = editorHarness(); h.click('new-scene'); h.add('mirror'); const before = h.scene();
   const text = h.clipboard('copy').data.get('text/plain'); h.selection('Selected guide text');
-  for (const type of ['copy', 'cut', 'paste']) {
+  for (const type of ['copy', 'cut']) {
     const dispatched = h.clipboard(type, text);
     assert.equal(dispatched.event.defaultPrevented, false); assert.equal(dispatched.data.get('text/plain'), text);
   }
+  assert.equal(h.clipboard('paste', 'ordinary text').event.defaultPrevented, false);
   assert.deepEqual(h.scene(), before);
   h.fire('pointerdown', h.get('bench'), { pointerId: 4, clientX: 100, clientY: 100 });
   assert.equal(h.selectionText(), '');
@@ -1679,12 +1948,14 @@ test('flat mirror drawing and dragging use the reflective surface centre as the 
   assert.deepEqual({ x: h.selected().x, y: h.selected().y }, { x: 150, y: 280 });
 });
 
-test('drag copies preserve complete component records for all twenty-one optical types', async () => {
+test('drag copies preserve complete component records for all optical types and comments', async () => {
   const types = Object.keys(require('../optics-bench/optics.js').TYPES), h = editorHarness();
-  assert.equal(types.length, 21);
+  assert.equal(types.length, 23);
   for (const [index, type] of types.entries()) {
     const source = h.element(type, 31, { angle: 21.3, enabled: false, label: index % 2 ? type + ' component' : '' });
     if (type === 'filter') Object.assign(source,{filterMode:'nd',opticalDensity:1.23,bandLow:450,bandHigh:650,transmission:.7});
+    if (type === 'comment') Object.assign(source,{commentText:'結像位置\nNA < 0.5',commentDisplay:'click'});
+    if (type === 'region') Object.assign(source,{regionWidth:350.25,regionHeight:225.5,regionStyle:'vertical',regionColor:'blue'});
     if (['laser','point','white'].includes(type)) Object.assign(source,{wavelength:550,wavelengthWidth:300,spectralSamples:30});
     await h.load([source], { unit: 'mm', snap: false });
     const before = h.scene();
@@ -1731,11 +2002,67 @@ function drawingHarness() {
   document.getElementById = id => document.querySelector('[id="' + id + '"]');
   const bench = document.createElementNS('', 'svg'); bench.id = 'bench'; document.append(bench);
   for (const id of ['minor-grid', 'major-grid', 'minor-grid-path', 'major-grid-path', 'major-grid-fill', 'rulers',
-    'elements', 'rays', 'ray-probe', 'guides', 'fiber-links', 'zoom-level', 'grid-readout', 'selection-marquee', 'placement', 'table-background', 'table-clip-rect']) {
+    'elements', 'regions', 'rays', 'ray-probe', 'guides', 'fiber-links', 'zoom-level', 'grid-readout', 'selection-marquee', 'placement', 'table-background', 'table-clip-rect']) {
     const node = document.createElementNS('', 'g'); node.id = id; bench.append(node);
   }
   return { document, bench, view: V.create(bench) };
 }
+
+test('regions render behind optics, leave their interiors interactive and export without resize handles', () => {
+  const O=require('../optics-bench/optics.js'),S=require('../optics-bench/state.js');
+  const region={...O.createElement('region',1,-100,200),label:'励起系'},lens=O.createElement('lens',2,100,300);
+  const scene=S.defaultScene([region,lens]),result=O.simulate(scene.elements),h=drawingHarness(),spatial=spatialHarness();
+  h.view.draw(scene,1,result,false); const root=h.bench.querySelector('[data-element-id="1"]');
+  assert.equal(root.parentNode.id,'regions'); assert.equal(root.querySelector('.region-fill').getAttribute('pointer-events'),'none');
+  assert.equal(root.querySelector('.region-hit').getAttribute('pointer-events'),'stroke'); assert.ok(root.querySelector('[data-resize="1"]'));
+  assert.match(root.textContent,/励起系/); assert.equal(root.querySelector('[data-rotate]'),null);
+  assert.deepEqual(V.marqueeIds(scene.elements,{x:0,y:250},{x:200,y:350}),[2]);
+  assert.deepEqual(V.marqueeIds(scene.elements,{x:-100,y:200},{x:300,y:440}),[1,2]);
+  for (const regionStyle of ['area','horizontal','vertical']) {
+    const r={...region,regionStyle}; const bounds=O.elementBounds([r]),fit=V.fitView([r],{width:350,height:220});
+    assert.ok(bounds.x>=fit.x&&bounds.x+bounds.width<=fit.x+fit.width&&bounds.y>=fit.y&&bounds.y+bounds.height<=fit.y+fit.height);
+    for (const size of [{width:350,height:220},{width:1500,height:100},{width:240,height:760}]) {
+      h.bench.getBoundingClientRect=()=>({...size,left:0,top:0,right:size.width,bottom:size.height});
+      h.view.fit([r]); h.view.draw(S.defaultScene([r]),1,result,false);
+      const area=h.view.visibleBounds(),header=h.bench.querySelector('[data-element-id="1"]').querySelector('rect');
+      const x=r.x+Number(header.getAttribute('x')),y=r.y+Number(header.getAttribute('y'));
+      assert.ok(x>=area.x&&x+Number(header.getAttribute('width'))<=area.x+area.width&&y>=area.y&&y+Number(header.getAttribute('height'))<=area.y+area.height,regionStyle+' '+JSON.stringify(size));
+    }
+    spatial.view.draw(S.defaultScene([r,lens]),result,1,false);
+    assert.ok(spatial.svg.querySelector('[data-spatial-regions]').querySelector('[data-spatial-element-id="1"]'));
+    assert.equal(D.opticalHeight([r,lens]),D.opticalHeight([lens]));
+  }
+  const previous=global.XMLSerializer;let exported;
+  global.XMLSerializer=class{serializeToString(node){exported=node;return '<svg/>';}};
+  try {h.view.exportSvg('区切り');assert.ok(exported.querySelector('.region-border'));assert.equal(exported.querySelector('[data-resize]'),null);assert.equal(exported.querySelector('.region-hit'),null);}
+  finally {if(previous===undefined)delete global.XMLSerializer;else global.XMLSerializer=previous;}
+  h.view.draw(S.defaultScene([{...lens,id:1}]),1,result);assert.equal(h.bench.querySelector('[data-element-id="1"]').parentNode.id,'elements');
+});
+
+test('comment bubbles expand on selection, ignore global labels, wrap text safely and fit in 2D and 3D', () => {
+  const O=require('../optics-bench/optics.js'),S=require('../optics-bench/state.js');
+  const note={...O.createElement('comment',7,100,100),commentText:'結像面\n<script>alert(1)</script> & 🦆\n'+ 'あ'.repeat(40),commentDisplay:'click'};
+  const scene=S.defaultScene([note]),result=O.simulate(scene.elements), h=drawingHarness(), spatial=spatialHarness();
+  const body=()=>h.bench.querySelector('[data-element-id="7"]');
+  h.view.draw(scene,null,result,false,[]);
+  assert.equal(body().getAttribute('aria-expanded'),'false'); assert.equal(body().querySelector('.comment-text'),null);
+  h.view.draw(scene,7,result,false,[7]);
+  assert.equal(body().getAttribute('aria-expanded'),'true'); assert.ok(body().querySelectorAll('tspan').length>3);
+  assert.equal(body().querySelector('script'),null); assert.equal(body().querySelector('[data-rotate]'),null);
+  assert.equal(body().querySelector('.comment-text').textContent,note.commentText.replace(/\n/g,''));
+  h.view.draw(scene,null,result,false,[]); assert.equal(body().getAttribute('aria-expanded'),'false');
+  note.commentDisplay='always'; const always=S.defaultScene([note]); h.view.draw(always,null,result,false,[]);
+  assert.equal(body().getAttribute('aria-expanded'),'true');
+  const fit=V.fitView([note],{width:350,height:400}),box=O.elementBounds([note]);
+  assert.ok(box.x>=fit.x&&box.y>=fit.y&&box.x+box.width<=fit.x+fit.width&&box.y+box.height<=fit.y+fit.height);
+  spatial.view.draw(scene,result,null,false); assert.equal(spatial.svg.querySelector('.comment-text'),null);
+  spatial.view.draw(scene,result,7,false); assert.ok(spatial.svg.querySelector('.comment-text'));
+  assert.equal(D.opticalHeight([note]),D.opticalHeight([]));
+  const previous=global.XMLSerializer; let exported;
+  global.XMLSerializer=class{serializeToString(node){exported=node;return '<svg/>';}};
+  try { for (const view of [h.view,spatial.view]) { view.exportSvg('注釈'); assert.ok(exported.querySelector('.comment-text')); assert.equal(exported.querySelector('script'),null); } }
+  finally { if(previous===undefined)delete global.XMLSerializer;else global.XMLSerializer=previous; }
+});
 
 test('fit includes remote rotated bodies, disabled components and fiber control points at desktop, mobile and extreme aspect ratios', () => {
   const O = require('../optics-bench/optics.js');

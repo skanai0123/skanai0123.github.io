@@ -29,12 +29,70 @@ test('new 5 mm lasers serialize explicitly while legacy omitted widths remain 12
 });
 const endAt = (segment, x, y) => Math.abs(segment.b.x - x) < 1e-7 && Math.abs(segment.b.y - y) < 1e-7;
 
+test('global label scale preserves legacy defaults and round-trips files and shared links without altering optics', async () => {
+  const original=basic(), legacy=JSON.parse(S.serialize(original));
+  assert.equal(original.labelScale,100); assert.ok(!Object.hasOwn(legacy,'labelScale'));
+  assert.equal(S.parse(JSON.stringify(legacy)).labelScale,100);
+  for(const labelScale of [50,125,200]) {
+    const scene=S.defaultScene(original.elements,{labelScale});
+    assert.deepEqual(S.parse(S.serialize(scene)),scene);
+    assert.deepEqual(await Q.decode(await Q.encode(scene)),scene);
+    assert.equal(S.switchUnit(scene,'in').labelScale,labelScale);
+    assert.deepEqual(simulate(scene),simulate(original));
+  }
+  for(const labelScale of [49,201,100.5,NaN,Infinity,'100',null]) assert.throws(()=>S.defaultScene([],{labelScale}),/ラベルサイズ/);
+});
+
 test('compressed share links round-trip every preset with exact settings and smaller payloads', async () => {
   for (const preset of P.list) {
     const scene = P.create(preset.id), before = S.serialize(scene), hash = await Q.encode(scene);
     assert.match(hash, /^#ob1=[A-Za-z0-9_-]+$/); assert.ok(hash.length < before.length);
     assert.equal(S.serialize(await Q.decode(hash)), before, preset.id); assert.equal(S.serialize(scene), before);
   }
+});
+
+test('comments retain multiline Unicode and display modes in files, shared links and both clipboard formats', async () => {
+  for (const commentDisplay of ['always', 'click']) {
+    const note = { ...O.createElement('comment', 9, -125.5, 300), label: '焦点面', commentText: 'ここにCCD\nNA < 0.5 & f > 0\nアヒル 🦆', commentDisplay };
+    const scene = S.defaultScene([note]);
+    assert.deepEqual(S.parse(S.serialize(scene)), scene);
+    assert.deepEqual(await Q.decode(await Q.encode(scene)), scene);
+    assert.deepEqual(S.parseComponent(S.serializeComponent(note)), note);
+    assert.deepEqual(S.parseSelection(S.serializeSelection([note, basic().elements[0]], [])), { elements: [note, basic().elements[0]], fiberLinks: [] });
+  }
+  const note = O.createElement('comment', 1, 0, 0);
+  assert.equal(S.validateScene(S.defaultScene([{...note, commentText:'a\r\nb\rc'}])).elements[0].commentText, 'a\nb\nc');
+  for (const extra of [{commentDisplay:'html'}, {commentText:42}, {commentText:'a'.repeat(1001)}, {commentText:'bad\u0000'}]) {
+    assert.throws(() => S.defaultScene([{...note,...extra}]), /コメント/);
+  }
+  assert.throws(() => S.defaultScene([{...basic().elements[0],commentText:'invalid type'}]), /コメント部品/);
+  assert.ok(!S.serialize(basic()).includes('commentText'), 'ordinary designs retain their existing fields');
+});
+
+test('annotations overlapping interferometer parts leave the interference analysis unchanged', () => {
+  const scene = P.create('quantum-eraser'), before = simulate(scene);
+  const annotated = S.defaultScene([...scene.elements, {...O.createElement('comment', 999, scene.elements[0].x, scene.elements[0].y),commentText:'経路情報を消去'},
+    {...O.createElement('region', 1000, scene.elements[1].x, scene.elements[1].y),label:'干渉計'}]);
+  const trace = simulate(annotated);
+  assert.deepEqual(trace, before);
+  assert.deepEqual(C.analyze(annotated.elements, trace), C.analyze(scene.elements, before));
+  assert.equal(C.analyze(annotated.elements, trace).valid, true);
+});
+
+test('regions retain size, shape, color and name through files, share links and clipboard records', async () => {
+  for (const regionStyle of Object.keys(O.REGION_STYLES)) for (const regionColor of Object.keys(O.REGION_COLORS)) {
+    const region={...O.createElement('region',9,-100.25,200.125),regionWidth:625.5,regionHeight:318.25,regionStyle,regionColor,label:'励起系 🦆',enabled:false};
+    const scene=S.defaultScene([basic().elements[0],region],{unit:'in',gridStep:25.4});
+    assert.deepEqual(S.parse(S.serialize(scene)),scene);
+    assert.deepEqual(await Q.decode(await Q.encode(scene)),scene);
+    assert.deepEqual(S.parseComponent(S.serializeComponent(region)),region);
+    assert.deepEqual(S.parseSelection(S.serializeSelection(scene.elements,[])),{elements:scene.elements,fiberLinks:[]});
+  }
+  assert.ok(!S.serialize(basic()).includes('regionWidth'));
+  for (const extra of [{regionWidth:19},{regionHeight:10000001},{regionWidth:Infinity},{regionHeight:'20'},{regionColor:'url(#bad)'},{regionStyle:'__proto__'}]) {
+    assert.throws(()=>S.defaultScene([{...O.createElement('region',1,0,0),...extra}]),/区切り/);
+  }
+  assert.throws(()=>S.defaultScene([{...basic().elements[0],regionColor:'blue'}]),/区切り部品/);
 });
 
 test('source bandwidth and sampling survive design, component and compressed-link round trips', async () => {

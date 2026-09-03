@@ -296,7 +296,7 @@ test('numerical coordinate guards reject unsafe input and invalid view bounds ca
 
 test('all supported part defaults are accepted by the physical simulator', () => {
   const types = ['laser', 'point', 'white', 'mirror', 'concave', 'lens', 'iris', 'filter', 'polarizer', 'waveplate',
-    'dichroic', 'objective', 'fiber', 'blocker', 'splitter', 'pbs', 'screen', 'camera', 'fluorescent', 'halfwave', 'phase'];
+    'dichroic', 'objective', 'fiber', 'blocker', 'splitter', 'pbs', 'screen', 'camera', 'fluorescent', 'halfwave', 'phase', 'comment', 'region'];
   assert.deepEqual(Object.keys(O.TYPES).sort(), types.sort());
   for (const type of types) {
     const result = O.simulate([part('laser', 1, 100, 300), part(type, 2, 400, 300)]);
@@ -304,6 +304,16 @@ test('all supported part defaults are accepted by the physical simulator', () =>
     bounded(result);
   }
   assert.throws(() => O.createElement('__proto__', 1, 100, 100), /Unknown/);
+});
+
+test('annotations never block, split, overlap or extend traced optical paths', () => {
+  const elements = [part('laser', 1, 100, 300), part('lens', 2, 400, 300), part('camera', 3, 800, 300)];
+  const notes = [part('comment', 4, 400, 300), part('comment', 5, 600, 300), part('comment', 6, 1e7, -1e7),
+    part('region', 7, 100, 300), {...part('region',8,400,300),regionStyle:'vertical'}, {...part('region',9,-1e7,1e7),regionStyle:'horizontal'}];
+  assert.deepEqual(O.simulate([...elements, ...notes]), O.simulate(elements));
+  assert.deepEqual(O.traceScene([...elements, ...notes]), O.traceScene(elements));
+  assert.equal(O.overlapping([...elements, ...notes]), false);
+  assert.equal(O.simulate(notes).segments.length, 0);
 });
 
 test('new components use the requested centimetre-scale optical defaults', () => {

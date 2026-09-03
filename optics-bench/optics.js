@@ -30,7 +30,9 @@
     pbs: { label: "偏光BS（PBS）", short: "PBS", color: "#f7b6c7" },
     screen: { label: "スクリーン / 検出器", short: "DET", color: "#95e1bf" },
     camera: { label: "カメラ", short: "CAM", color: "#f1c992" },
-    fluorescent: { label: "蛍光板", short: "FL", color: "#dfff79" }
+    fluorescent: { label: "蛍光板", short: "FL", color: "#dfff79" },
+    comment: { label: "コメント", short: "NOTE", color: "#f4d58b" },
+    region: { label: "区切り", short: "AREA", color: "#8acfc1" }
   });
   const PARAM_LIMITS = Object.freeze({
     angle: { min: 0, max: 360 }, polAngle: { min: 0, max: 360 }, axisAngle: { min: 0, max: 360 },
@@ -67,8 +69,14 @@
     splitter: { angle: 45, aperture: 36 }, pbs: { angle: 45, aperture: 36 },
     blocker: { aperture: 100 }, screen: { aperture: 100, screenHeight: 100, screenPattern: "none", transmission: 1 }, camera: { aperture: 24, sensorHeight: 18, pixelRows: 192, spotSize: 1 },
     fluorescent: { aperture: 100, wavelength: 600, cutoff: 550, transmission: 0.6, rayCount: 21, divergence: 360 },
-    filter: { aperture: 25.4, transmission: 1 }
+    filter: { aperture: 25.4, transmission: 1 },
+    comment: { commentText: "コメントを入力", commentDisplay: "always" },
+    region: { regionWidth: 400, regionHeight: 240, regionStyle: "area", regionColor: "sage" }
   };
+  const isAnnotation = element => ["comment", "region"].includes(element.type);
+  const REGION_COLORS = Object.freeze({ sage: "#8acfc1", blue: "#8cbfe8", amber: "#e9c17a", violet: "#bfaaeb", rose: "#e8a8b5", gray: "#b9c7cc" });
+  const REGION_STYLES = Object.freeze({ area: "エリア枠", horizontal: "横の区切り線", vertical: "縦の区切り線" });
+  const REGION_SIZE_LIMITS = Object.freeze({ min: 20, max: 10000000 });
   const isSource = element => ["laser", "point", "white"].includes(element.type);
   const isSpectralSource = element => ["laser", "point", "white"].includes(element.type);
   const isPatternScreen = element => element.type === "screen" && element.screenPattern !== "none";
@@ -278,10 +286,44 @@
     return values.length ? Math.max(0, Math.min(...values)) : 0;
   }
 
+  // Shared geometry for annotation fitting and SVG rendering. Text is plain
+  // Unicode; count wide characters conservatively without a browser dependency.
+  function commentLayout(element) {
+    const lines = [];
+    for (const paragraph of (element.commentText || "（本文なし）").replace(/\t/g, "    ").split("\n")) {
+      let line = "", width = 0;
+      for (const character of paragraph) {
+        const advance = /^[\x20-\x7e]$/.test(character) && !/[MW@%&]/.test(character) ? 0.7 : 1;
+        if (width + advance > 16) { lines.push(line); line = ""; width = 0; }
+        line += character; width += advance;
+      }
+      lines.push(line);
+    }
+    return { x: 18, y: 18, width: 280, height: 44 + lines.length * 22, lines };
+  }
+
+  function regionGeometry(element) {
+    const width = element.regionStyle === "vertical" ? 0 : element.regionWidth;
+    const height = element.regionStyle === "horizontal" ? 0 : element.regionHeight;
+    return { width, height, titleWidth: element.regionStyle === "vertical" ? 220 : Math.min(width, 250) };
+  }
+
   function elementBounds(elements) {
     if (!elements.length) return { x: 0, y: 0, width: WIDTH, height: HEIGHT };
     let left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity;
     for (const e of elements) {
+      if (e.type === "region") {
+        const box = regionGeometry(e);
+        left = Math.min(left, e.x - 20); right = Math.max(right, e.x + Math.max(box.width, box.titleWidth) + 20);
+        top = Math.min(top, e.y - 44); bottom = Math.max(bottom, e.y + box.height + 20);
+        continue;
+      }
+      if (e.type === "comment") {
+        const box = commentLayout(e);
+        left = Math.min(left, e.x - 16); right = Math.max(right, e.x + box.x + box.width + 4);
+        top = Math.min(top, e.y - 16); bottom = Math.max(bottom, e.y + box.y + box.height + 4);
+        continue;
+      }
       // Conservative rotation-independent envelope of the body and source fan.
       const sag = e.type === "concave" ? concaveGeometry(e)?.sag || 0 : 0;
       const radius = Math.max(40, Math.hypot(e.aperture / 2, sag) + 20, isSource(e) ? e.beamWidth / 2 + 8 : 0);
@@ -494,7 +536,7 @@
   // Laser samples a uniform-width beam. No Fresnel phase or branch interference.
   function simulate(elements, options = {}) {
     const warnings = new Set();
-    const prepared = prepareElements(elements, warnings), scene = prepared.filter(element => element.enabled);
+    const prepared = prepareElements(elements, warnings), scene = prepared.filter(element => element.enabled && !isAnnotation(element));
     const extent = traceBounds(scene, options.viewBounds);
     const surfaces = scene.filter(element => !isSource(element)).map(opticalSurface);
     const fiberPairs = prepareFiberLinks(options.fiberLinks, prepared, surfaces, warnings);
@@ -804,7 +846,7 @@
   function traceRay(origin, directionVector, elements, maxInteractions = MAX_INTERACTIONS) {
     let current = { ...origin }, ray = unit(directionVector), lastIndex = -1;
     const points = [{ ...current }], hits = [];
-    const surfaces = elements.filter(element => !isSource(element) && element.enabled !== false)
+    const surfaces = elements.filter(element => !isSource(element) && !isAnnotation(element) && element.enabled !== false)
       .map(opticalSurface);
     let paraxialWarning = false;
     for (let count = 0; count < maxInteractions; count++) {
@@ -852,7 +894,7 @@
   }
 
   function overlapping(elements) {
-    const active = elements.filter(element => element.enabled !== false);
+    const active = elements.filter(element => element.enabled !== false && !isAnnotation(element));
     for (let i = 0; i < active.length; i++) {
       for (let j = i + 1; j < active.length; j++) {
         const a = active[i], b = active[j];
@@ -916,8 +958,8 @@
   }
 
   const api = { WIDTH, HEIGHT, GRID, MARGIN, COORDINATE_LIMIT, MAX_INTERACTIONS, MAX_SEGMENTS, MAX_RAYS,
-    TYPES, DEFAULTS, PARAM_LIMITS, FILTER_MODES, direction, normalizeAngle, snapAngle, position,
-    createElement, initialElements, elementBounds, traceBounds, segment, intersect, concaveGeometry, intersectConcave, reflect, refract, traceRay, traceScene, overlapping,
+    TYPES, DEFAULTS, PARAM_LIMITS, FILTER_MODES, REGION_COLORS, REGION_STYLES, REGION_SIZE_LIMITS, isAnnotation, regionGeometry, direction, normalizeAngle, snapAngle, position,
+    createElement, initialElements, commentLayout, elementBounds, traceBounds, segment, intersect, concaveGeometry, intersectConcave, reflect, refract, traceRay, traceScene, overlapping,
     simulate, sourceStokes, sourceBand, validSourceBand, sourceSpectrum, screenPatternSamples, patternReflectance, SCREEN_PATTERNS,
     polarize, retard, wavelengthColor, filterTransmission };
   if (typeof module === "object" && module.exports) module.exports = api;
