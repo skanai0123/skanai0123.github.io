@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Random Walk Lab — N次元のランダムウォークと拡散の指数</title>
+  <meta name="description" content="1次元から100次元のランダムウォークをシミュレーション。距離と時間の両対数グラフ、実測のべき指数、軌跡から、RMS距離が時間の1/2乗に比例する様子を調べます。">
+  <link rel="icon" href="../shared/icons/numerical%20simulation.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../shared/back-to-hub.css">
+  <link rel="stylesheet" href="styles.css?v=1.0.0">
+  <script defer src="../shared/back-to-hub.js"></script>
+  <script defer src="simulation.js?v=1.0.0"></script>
+  <script defer src="script.js?v=1.0.0"></script>
+</head>
+<body data-page-version="1.0.0" data-page-updated="2026-09-14" data-page-copyright="© 2026 skanai">
+  <a class="skip-link" href="#settings-form">シミュレーションの設定へ</a>
+  <main class="page-shell">
+    <header class="page-header">
+      <a class="wordmark" href="./" aria-label="Random Walk Lab ホーム">
+        <svg viewBox="0 0 36 36" aria-hidden="true"><path d="M5 26h9V15h9V8h8"/><circle cx="5" cy="26" r="3"/><circle cx="31" cy="8" r="3"/></svg>
+        <span>Random Walk <b>Lab</b></span>
+      </a>
+      <span class="header-note">確率を、目で見る実験室</span>
+    </header>
+    <section class="intro" aria-labelledby="page-title">
+      <div class="eyebrow"><span aria-hidden="true"></span> EXPERIMENT 01 <span class="eyebrow-divider">/</span> RANDOM WALK &amp; DIFFUSION</div>
+      <h1 id="page-title">ランダムな一歩が、<br class="mobile-break">つくる法則。</h1>
+      <p class="intro-copy">距離は、時間の何乗で広がる？ <strong>1次元からN次元</strong>まで、<br class="desktop-break">たくさんの軌跡を重ねて、その指数を確かめよう。</p>
+      <div class="intro-formula" aria-label="RMS距離は時間の1/2乗に比例する"><span>r<sub>RMS</sub> ∝ t<sup>α</sup></span><span class="intro-formula-note">次元を変えて、α を観察</span></div>
+    </section>
+    <div class="lab-layout">
+      <aside class="controls-panel" aria-labelledby="settings-title">
+        <div class="panel-heading"><span class="section-number">01</span><h2 id="settings-title">実験の設定</h2></div>
+        <form id="settings-form" novalidate>
+          <div class="field">
+            <label for="dimensions">空間の次元 <span>N</span></label>
+            <div class="number-with-unit"><input id="dimensions" name="dimensions" type="number" min="1" max="100" step="1" value="2" inputmode="numeric" required aria-describedby="dimension-hint"><span>次元</span></div>
+            <div class="dimension-presets" aria-label="次元のプリセット">
+              <button type="button" data-dims="1" aria-pressed="false">1D</button><button type="button" data-dims="2" aria-pressed="true">2D</button><button type="button" data-dims="3" aria-pressed="false">3D</button><button type="button" data-dims="10" aria-pressed="false">10D</button>
+            </div>
+            <p id="dimension-hint" class="field-hint">1〜100次元。距離は全次元で計算。</p>
+          </div>
+          <div class="field">
+            <label for="walkers">粒子数 <span>アンサンブル</span></label>
+            <select id="walkers" name="walkers"><option value="128">128 粒子</option><option value="512" selected>512 粒子</option><option value="2048">2,048 粒子</option><option value="4096">4,096 粒子</option></select>
+            <p class="field-hint">多いほど、統計のばらつきが減ります。</p>
+          </div>
+          <div class="field">
+            <label for="steps">ステップ数 <span>時間の長さ</span></label>
+            <input id="steps" name="steps" type="number" min="100" max="20000" step="1" value="2000" inputmode="numeric" required aria-describedby="steps-hint">
+            <p id="steps-hint" class="field-hint">100〜20,000。粒子数との積は2,000万まで。</p>
+          </div>
+          <div class="field seed-field">
+            <label for="seed">乱数シード <span>再現用</span></label>
+            <div class="seed-row"><input id="seed" name="seed" type="number" min="0" max="4294967295" step="1" value="42" inputmode="numeric" required><button id="new-seed" class="icon-button" type="button" title="新しい乱数シード" aria-label="新しい乱数シード"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 3h5v5M3 17l5-5m5-5 3-3h5M3 7h3l12 13h3M16 20h5v-5"/></svg></button></div>
+          </div>
+          <div id="settings-error" class="error-message" role="alert" hidden></div>
+          <button id="run-button" class="primary-button" type="submit"><span aria-hidden="true">▶</span> この設定で実行</button>
+          <div class="secondary-actions"><button id="pause-button" type="button" disabled>一時停止</button><button id="reset-button" type="button">リセット</button></div>
+          <p id="settings-note" class="field-hint settings-note" aria-live="polite">設定の変更後は、実行ボタンで反映します。</p>
+        </form>
+        <div class="run-progress">
+          <div class="status-row"><span id="run-status" role="status">実験を準備中</span><span id="progress-text">0 / 2,000</span></div>
+          <progress id="progress" max="2000" value="0" aria-label="シミュレーションの進行状況"></progress>
+          <div class="model-label"><span aria-hidden="true"></span> 独立・等確率・1歩の長さ = 1</div>
+        </div>
+      </aside>
+      <div class="results-panel">
+        <section class="summary-grid" aria-label="実験の主要な結果">
+          <article class="summary-card exponent-card">
+            <div class="summary-label">実測のべき指数 <span class="small-alpha">α</span><span id="metric-badge" class="metric-badge">RMS</span></div>
+            <output id="exponent" class="big-number">—</output><p id="scaling-statement">距離 ∝ 時間<sup>α</sup></p>
+          </article>
+          <article class="summary-card theory-card">
+            <div class="summary-label">理論の指数 <span class="theory-chip">NORMAL DIFFUSION</span></div>
+            <div id="theory-expression" class="theory-expression">0.5 <span>= 1/2</span></div><p id="theory-note">次元によらず、時間の平方根で広がる。</p>
+          </article>
+          <article class="summary-card distance-card">
+            <div id="distance-label" class="summary-label">現在のRMS距離</div>
+            <div class="distance-value"><output id="distance" class="big-number">—</output><span id="distance-unit">歩長</span></div>
+            <p><span><span id="step-label">0</span> ステップ</span><span class="dot-separator">·</span><span><span id="walkers-label">512</span> 粒子</span><span class="dimension-chip" id="active-dimension">2D</span></p>
+          </article>
+        </section>
+        <section class="chart-card scaling-card" aria-labelledby="scaling-title">
+          <div class="chart-heading">
+            <div><div class="section-kicker">SCALING LAW</div><h2 id="scaling-title">時間と距離の関係</h2><p id="chart-subtitle">両対数グラフでは、直線の傾きがべき指数 α です。</p></div>
+            <div class="chart-switches">
+              <div class="segmented-control" role="group" aria-label="縦軸の量"><button type="button" data-metric="rms" aria-pressed="true">RMS距離</button><button type="button" data-metric="msd" aria-pressed="false">MSD</button></div>
+              <div class="segmented-control small-segment" role="group" aria-label="グラフの目盛"><button type="button" data-scale="log" aria-pressed="true">両対数</button><button type="button" data-scale="linear" aria-pressed="false">線形</button></div>
+            </div>
+          </div>
+          <div class="chart-legend" aria-label="グラフの凡例"><span><i class="legend-line measured" aria-hidden="true"></i>シミュレーション</span><span><i class="legend-line theoretical" aria-hidden="true"></i>理論値</span><span><i class="legend-line fitted" aria-hidden="true"></i>フィット</span></div>
+          <div class="chart-wrap">
+            <svg id="scaling-chart" viewBox="0 0 800 340" role="img" aria-labelledby="scaling-title chart-svg-desc"><desc id="chart-svg-desc">時間に対する距離のシミュレーション結果、理論値、フィットを表示します。</desc></svg>
+            <div id="chart-tooltip" class="chart-tooltip" hidden></div>
+          </div>
+          <div class="fit-controls">
+            <div class="fit-range"><span class="fit-label">フィット範囲</span><label for="fit-start" class="sr-only">フィットの開始時刻</label><input id="fit-start" type="number" min="1" max="20000" step="1" value="40" inputmode="numeric"><span class="range-dash">—</span><label for="fit-end" class="sr-only">フィットの終了時刻</label><input id="fit-end" type="number" min="2" max="20000" step="1" value="2000" inputmode="numeric"><span class="fit-unit">ステップ</span></div>
+            <span id="fit-quality" class="fit-quality">R² = —</span>
+          </div>
+          <p id="fit-note" class="chart-footnote">正の時刻・値を両対数で直線回帰します。R²は当てはまりの指標で、指数の信頼区間ではありません。</p>
+          <p class="chart-footnote fit-caution">R²は直線への当てはまりの指標です。指数の信頼区間を表すものではありません。</p>
+        </section>
+        <section class="chart-card trajectory-card" aria-labelledby="trajectory-title">
+          <div class="chart-heading">
+            <div><div class="section-kicker">INDIVIDUAL PATHS</div><h2 id="trajectory-title">一歩ずつ、軌跡をたどる</h2><p>個々の粒子の揺らぎと、集団の広がり。</p></div>
+            <div class="projection-control"><label for="projection">表示</label><select id="projection"><option value="plane">2D投影</option><option value="space">3D投影</option></select></div>
+          </div>
+          <div class="trajectory-content">
+            <div class="trajectory-plot"><svg id="trajectory-chart" viewBox="0 0 590 310" role="img" aria-label="最大8粒子のランダムウォークの軌跡"></svg></div>
+            <div class="trajectory-aside"><span class="path-symbol" aria-hidden="true">↝</span><strong>一つの軌跡は、<br>いつも気まぐれ。</strong><p>原点へ戻ることも、<br>遠ざかることも。<br>法則はたくさんの粒子を<br>平均すると見えてきます。</p><p id="projection-note" class="projection-note">最初の8粒子を表示。高次元では最初の2〜3軸に投影します。距離の統計は全次元を使います。</p></div>
+          </div>
+          <p class="chart-footnote">最初の8粒子の軌跡を表示。長い軌跡は描画点を間引き、点の間を直線で結びます。</p>
+          <div class="scrubber-row"><label for="time-scrubber">観察する時刻</label><span>t = <output id="scrubber-label" for="time-scrubber">0</output></span><button id="latest-button" class="text-button" type="button">最新へ <span aria-hidden="true">→</span></button></div>
+          <input id="time-scrubber" class="time-scrubber" type="range" min="0" max="2000" step="1" value="0" aria-label="軌跡を観察する時刻">
+        </section>
+      </div>
+    </div>
+    <section class="learning-section" aria-labelledby="learning-title">
+      <div class="learning-heading"><span class="section-number">02</span><h2 id="learning-title">この実験の読み方</h2><span class="learning-rule" aria-hidden="true"></span></div>
+      <div class="learning-grid">
+        <article><span class="learning-icon" aria-hidden="true">↗</span><h3>「距離」は原点からの距離</h3><p>毎ステップ、N本の軸から1本を等確率で選び、正か負へ1だけ進みます。粒子は原点から出発し、壁・偏り・粒子間の相互作用はありません。歩いた経路の総延長とは区別します。</p></article>
+        <article><span class="learning-icon math-icon" aria-hidden="true">√</span><h3>平均の取り方で、指数が変わる</h3><p><strong>MSD = 平均(r²)</strong> は時間 t に比例し、指数は1。<strong>RMS = √平均(r²)</strong> は √t に比例し、指数は1/2です。この実験では1ステップを時間1、1歩の長さを1とします。</p></article>
+        <article><span class="learning-icon math-icon" aria-hidden="true">N</span><h3>次元を増やしても、指数は同じ</h3><p>1歩の全長がいつも1なので、どの次元でも MSD = t、RMS = √t。有限の粒子数では実測値が揺らぎます。粒子数やシード、フィット範囲を変えて確かめてみましょう。</p></article>
+      </div>
+    </section>
+    <footer class="page-footer">
+      <div><span class="footer-wordmark">Random Walk Lab</span><p>計算はこのブラウザー内で実行されます。<a href="README.md">モデル・計算方法・参考文献</a></p></div>
+      <button id="download-button" class="download-button" type="button" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/></svg> 計算結果をCSVで保存</button>
+    </footer>
+  </main>
+  <noscript><p class="noscript-message">このシミュレーションにはJavaScriptが必要です。ブラウザーの設定でJavaScriptを有効にしてください。</p></noscript>
+</body>
+</html>
