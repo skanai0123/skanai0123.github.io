@@ -1,6 +1,7 @@
 (function () {
   'use strict';
   const Core = window.RandomWalkCore;
+  const View = window.RandomWalkView;
   const $ = id => document.getElementById(id);
   const NS = 'http://www.w3.org/2000/svg';
   const colors = ['#287451', '#ca8243', '#5688a0', '#9074a1', '#8a9750', '#bc6973', '#47796e', '#af9c55'];
@@ -13,6 +14,21 @@
   let followLatest = true;
   let lastPaint = -Infinity;
   let plot = null;
+  let viewFrame = 0;
+  let viewPlaying = false;
+  let viewPhase = 0;
+  let lastViewPaint = 0;
+  const comparisons = [];
+  let comparisonId = 0;
+  const comparisonColors = ['#7865a7', '#bd6854', '#3f879a', '#ad8c30'];
+  const presets = {
+    normal: { model: 'lattice', dims: 2, walkers: 512, steps: 2000 },
+    diffusion: { model: 'independent', dims: 10, walkers: 512, steps: 2000 },
+    drift: { model: 'biased', dims: 3, walkers: 512, steps: 2000, bias: .3 },
+    persistence: { model: 'persistent', dims: 3, walkers: 512, steps: 2000, persistence: .95 },
+    confined: { model: 'confined', dims: 2, walkers: 512, steps: 4000, radius: 6 },
+    selfAvoiding: { model: 'selfAvoiding', dims: 2, walkers: 128, steps: 500 }
+  };
 
   function element(tag, attrs = {}, content) {
     const node = document.createElementNS(NS, tag);
@@ -29,14 +45,33 @@
     return points.map((point, i) => `${i ? 'L' : 'M'}${x(point).toFixed(2)},${y(point).toFixed(2)}`).join(' ');
   }
   function metricName() { return metric === 'rms' ? 'RMS距離' : '平均二乗変位'; }
-  function theory(t) { return metric === 'rms' ? Math.sqrt(t) : t; }
+  function theory(t) {
+    const msd = Core.theoreticalMSD(t, simulation.config);
+    return msd === null ? null : metric === 'rms' ? Math.sqrt(msd) : msd;
+  }
   function setPressed(selector, selected, key) {
     document.querySelectorAll(selector).forEach(button => button.setAttribute('aria-pressed', String(button.dataset[key] === String(selected))));
   }
   function configuration() {
-    return Core.validateConfig({ dims: $('dimensions').valueAsNumber, walkers: Number($('walkers').value), steps: $('steps').valueAsNumber, seed: $('seed').valueAsNumber, stepLength: 1 });
+    const model = $('model').value;
+    return Core.validateConfig({ dims: $('dimensions').valueAsNumber, walkers: Number($('walkers').value), steps: $('steps').valueAsNumber, seed: $('seed').valueAsNumber, stepLength: 1,
+      model, bias: model === 'biased' ? $('bias').valueAsNumber : .3,
+      persistence: model === 'persistent' ? $('persistence').valueAsNumber : .85,
+      radius: model === 'confined' ? $('radius').valueAsNumber : 10 });
+  }
+  function updateModelFields() {
+    const model = $('model').value;
+    $('bias-field').hidden = model !== 'biased';
+    $('persistence-field').hidden = model !== 'persistent';
+    $('radius-field').hidden = model !== 'confined';
+    $('bias').disabled = model !== 'biased';
+    $('persistence').disabled = model !== 'persistent';
+    $('radius').disabled = model !== 'confined';
+    try { $('model-description').textContent = Core.modelInfo(configuration()).description; }
+    catch (error) { $('model-description').textContent = error.message; }
   }
   function dirtySettings() {
+    updateModelFields();
     setPressed('[data-dims]', $('dimensions').value, 'dims');
     let dirty = true;
     try {
@@ -47,16 +82,16 @@
   }
   function updateProjection() {
     const dims = simulation.config.dims;
-    $('projection').disabled = dims < 3;
-    const planeOption = $('projection').options?.[0];
+    $('projection').disabled = false;
+    const planeOption = Array.from($('projection').options || []).find(option => option.value === 'plane');
     if (planeOption) planeOption.textContent = dims === 1 ? '1D表示' : '2D投影';
-    if (dims < 3) $('projection').value = 'plane';
-    const space = $('projection').value === 'space' && dims >= 3;
-    $('projection-note').textContent = dims === 1
-      ? '1次元：横軸は時刻、縦軸は位置 x₁。最初の8粒子を表示。'
-      : space
-        ? `${dims}次元のうち x₁・x₂・x₃ を3D投影。距離の集計には全${dims}次元・全粒子を使用。`
-        : `${dims}次元のうち x₁・x₂ の平面を表示。距離の集計には全${dims}次元・全粒子を使用。`;
+    const mode = $('projection').value;
+    const rotatable = mode === 'tour' || mode === 'space';
+    $('view-controls').hidden = !rotatable;
+    if (!rotatable) stopView();
+    $('projection-note').textContent = dims === 1 ? '1次元：横軸は時刻、縦軸は位置 x₁。最初の8粒子を表示。'
+      : `${dims}次元のうち x₁・x₂ の平面を表示。距離の集計には全${dims}次元・全粒子を使用。`;
+    $('view-note').textContent = rotatable ? '角度や投影を動かして観察できます。画面上の長さはN次元の距離そのものではありません。' : '';
   }
   function fitResult() {
     const start = $('fit-start').valueAsNumber;
@@ -70,11 +105,13 @@
   }
   function renderSummary(fitting) {
     const current = simulation.snapshot();
+    const info = Core.modelInfo(simulation.config);
     $('metric-badge').textContent = metric === 'rms' ? 'RMS' : 'MSD';
     $('exponent').textContent = fitting.fit ? fitting.fit.exponent.toFixed(3) : '—';
-    $('scaling-statement').textContent = fitting.fit ? `${metricName()} ∝ 時間の ${fitting.fit.exponent.toFixed(3)} 乗` : 'フィットに必要なデータを待っています';
-    $('theory-expression').innerHTML = metric === 'rms' ? '0.5 <span>= 1/2</span>' : '1.0 <span>= 1</span>';
-    $('theory-note').textContent = metric === 'rms' ? '次元を変えても、指数は 1/2。' : '距離を二乗すると、時間に比例。';
+    $('scaling-statement').textContent = fitting.fit ? `この範囲：${metricName()} ∝ t の ${fitting.fit.exponent.toFixed(3)} 乗` : 'フィットに必要なデータを待っています';
+    const expected = info.exponentRMS;
+    $('theory-expression').textContent = expected === null ? (simulation.config.model === 'confined' ? '飽和' : simulation.config.model === 'selfAvoiding' ? '—' : '可変') : (expected * (metric === 'rms' ? 1 : 2)).toFixed(1);
+    $('theory-note').textContent = info.theoryNote + (metric === 'msd' ? ' MSDの指数はRMSの2倍です。' : '');
     $('distance-label').textContent = `計算済み時刻の${metricName()}`;
     $('distance').textContent = number(current[metric]);
     $('distance-unit').textContent = metric === 'rms' ? '歩幅' : '歩幅²';
@@ -89,8 +126,28 @@
     $('progress-text').textContent = `${Math.round(current.t / simulation.config.steps * 100)}%`;
     $('run-status').textContent = simulation.done ? '計算完了' : running ? '計算中' : current.t === 0 ? '実行待ち' : '一時停止中';
     $('pause-button').textContent = running ? '一時停止' : '再開';
-    $('pause-button').disabled = simulation.done || current.t === 0 && !running;
+    $('pause-button').disabled = simulation.done;
     $('download-button').disabled = simulation.points.length < 2;
+    $('pin-result').disabled = !simulation.done || !fitting.fit || comparisons.length >= 4;
+    $('clear-comparisons').disabled = comparisons.length === 0;
+    $('dimension-summary').textContent = `${info.name} / 全${simulation.config.dims}座標を計算` + (simulation.config.model === 'selfAvoiding' ? ` / 動ける粒子 ${current.activeCount} / ${simulation.config.walkers}（停止した粒子も平均に含む）` : '');
+  }
+  function renderComparisons() {
+    const container = $('comparison-list');
+    container.replaceChildren();
+    comparisons.forEach(saved => {
+      const row = document.createElement('div'); row.className = 'comparison-row';
+      row.style.borderLeftColor = saved.color;
+      const label = document.createElement('span');
+      const fitted = Core.fitPowerLaw(saved.points, metric, saved.start, saved.end);
+      const parameter = saved.config.model === 'biased' ? `b=${saved.config.bias}` : saved.config.model === 'persistent' ? `p=${saved.config.persistence}` : saved.config.model === 'confined' ? `R=${saved.config.radius}` : '';
+      label.textContent = `${Core.modelInfo(saved.config).name}${parameter ? ` (${parameter})` : ''} · ${saved.config.dims}D · ${number(saved.config.walkers, 0)}試行 · seed ${saved.config.seed} · ${number(saved.config.steps, 0)}歩 · フィット ${number(saved.start, 0)}〜${number(saved.end, 0)}歩 · α ${fitted ? fitted.exponent.toFixed(3) : '—'}`;
+      row.appendChild(label);
+      const remove = document.createElement('button'); remove.type = 'button'; remove.textContent = '×';
+      remove.setAttribute('aria-label', `${label.textContent} の比較を削除`);
+      remove.addEventListener('click', () => { comparisons.splice(comparisons.findIndex(item => item.id === saved.id), 1); renderComparisons(); render(); });
+      row.appendChild(remove); container.appendChild(row);
+    });
   }
   function ticks(max, logarithmic, min = 0) {
     if (logarithmic) {
@@ -115,13 +172,14 @@
     svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
     svg.replaceChildren();
     add(svg, 'title', { id: 'chart-svg-title' }, `時間と${metricName()}の${scale === 'log' ? '両対数' : '線形'}グラフ`);
-    add(svg, 'desc', { id: 'chart-svg-desc' }, `緑の実測、灰色の理論、黄土色のフィット。${fitting.fit ? `実測指数${fitting.fit.exponent.toFixed(3)}、` : ''}理論指数${metric === 'rms' ? '0.5' : '1'}。`);
+    add(svg, 'desc', { id: 'chart-svg-desc' }, `${Core.modelInfo(simulation.config).name}。緑の実測、灰色の理論（定義される場合）、黄土色のフィット。${fitting.fit ? `実測指数${fitting.fit.exponent.toFixed(3)}。` : ''}比較データ${comparisons.length}件。`);
     const left = 56, right = width - 22, top = 29, bottom = height - 43;
     const logarithmic = scale === 'log';
     const data = simulation.points.filter(point => !logarithmic || point.t > 0 && point[metric] > 0);
-    const maxT = simulation.config.steps;
-    const yMax = Math.max(theory(maxT) * 1.25, ...data.map(point => point[metric] * 1.12));
-    const yMin = logarithmic ? Math.min(0.8, ...data.map(point => point[metric] * 0.8)) : 0;
+    const maxT = Math.max(simulation.config.steps, ...comparisons.map(item => item.config.steps));
+    const allPoints = data.concat(...comparisons.map(item => item.points.filter(point => !logarithmic || point.t > 0 && point[metric] > 0)));
+    const yMax = Math.max(1, (theory(simulation.config.steps) || 0) * 1.25, ...allPoints.map(point => point[metric] * 1.12));
+    const yMin = logarithmic ? Math.min(0.8, ...allPoints.map(point => point[metric] * 0.8)) : 0;
     const x = t => left + (logarithmic ? Math.log10(Math.max(1, t)) / Math.log10(maxT) : t / maxT) * (right - left);
     const y = value => bottom - (logarithmic ? (Math.log10(Math.max(yMin, value)) - Math.log10(yMin)) / (Math.log10(yMax) - Math.log10(yMin)) : value / yMax) * (bottom - top);
     plot = { x, y, left, right, top, bottom, width, height, data };
@@ -140,10 +198,14 @@
     add(grid, 'text', { x: left, y: 14, class: 'chart-title' }, `${metricName()} (${metric === 'rms' ? '歩幅' : '歩幅²'})`);
     add(grid, 'text', { x: (left + right) / 2, y: height - 5, 'text-anchor': 'middle', class: 'chart-title' }, `時間 t (step)${logarithmic ? '・対数軸' : ''}`);
     const theoryPoints = Array.from({ length: 150 }, (_, i) => {
-      const t = logarithmic ? Math.exp(Math.log(maxT) * i / 149) : maxT * i / 149;
+      const t = logarithmic ? Math.exp(Math.log(simulation.config.steps) * i / 149) : simulation.config.steps * i / 149;
       return { t, value: theory(t) };
+    }).filter(point => point.value !== null && (!logarithmic || point.value > 0));
+    if (theoryPoints.length) add(svg, 'path', { d: linePath(theoryPoints, point => x(point.t), point => y(point.value)), class: 'theory-line' });
+    comparisons.forEach(saved => {
+      const points = saved.points.filter(point => !logarithmic || point.t > 0 && point[metric] > 0);
+      add(svg, 'path', { d: linePath(points, point => x(point.t), point => y(point[metric])), fill: 'none', stroke: saved.color, 'stroke-width': 1.8, 'stroke-opacity': .85, 'data-comparison': saved.id });
     });
-    add(svg, 'path', { d: linePath(theoryPoints, point => x(point.t), point => y(point.value)), class: 'theory-line' });
     if (data.length) add(svg, 'path', { d: linePath(data, point => x(point.t), point => y(point[metric])), class: 'measured-line' });
     if (fitting.fit) {
       const start = Math.max(1, fitting.start), end = Math.min(simulation.step, fitting.end);
@@ -173,6 +235,13 @@
     $('time-scrubber').disabled = latest === 0;
     $('latest-button').disabled = index === latest;
     const dims = simulation.config.dims;
+    const mode = $('projection').value;
+    svg.setAttribute('data-view-mode', mode);
+    if (mode !== 'plane' && View) {
+      const result = View.render(svg, simulation, { mode, index, yaw: Number($('yaw').value) * Math.PI / 180, pitch: Number($('pitch').value) * Math.PI / 180, phase: viewPhase });
+      $('projection-note').textContent = result.note;
+      return;
+    }
     const space = dims >= 3 && $('projection').value === 'space';
     const visible = paths.map(path => path.slice(0, index + 1));
     add(svg, 'title', {}, `${dims}次元の代表8粒子、時刻${time}ステップの${space ? '3D投影' : '軌跡'}`);
@@ -240,7 +309,9 @@
   function tick(now) {
     if (!running) return;
     const deadline = performance.now() + 8;
-    const chunk = Math.max(1, Math.floor(18000 / simulation.config.walkers));
+    const { model, dims, walkers } = simulation.config;
+    const cost = model === 'independent' || model === 'gaussian' ? dims : model === 'selfAvoiding' ? 2 * dims * dims : 1;
+    const chunk = Math.max(1, Math.floor(18000 / (walkers * cost)));
     const end = Math.min(simulation.config.steps, simulation.step + Math.ceil(simulation.config.steps / 120));
     do { simulation.advance(Math.min(chunk, end - simulation.step)); } while (simulation.step < end && performance.now() < deadline);
     if (simulation.done) running = false;
@@ -252,9 +323,11 @@
     try { config = keepConfig && simulation ? simulation.config : configuration(); }
     catch (error) { $('settings-error').textContent = error.message; $('settings-error').hidden = false; return; }
     cancelAnimationFrame(frame);
+    stopView(); viewPhase = 0;
     $('settings-error').hidden = true;
     simulation = Core.createSimulation(config);
     followLatest = true;
+    $('projection').value = config.dims >= 4 ? 'tour' : config.dims === 3 ? 'space' : 'plane';
     $('fit-start').value = Math.max(1, Math.round(config.steps * .02));
     $('fit-end').value = config.steps;
     $('fit-start').max = config.steps;
@@ -267,7 +340,14 @@
     if (running) frame = requestAnimationFrame(tick);
   }
   $('settings-form').addEventListener('submit', event => { event.preventDefault(); start(); });
-  ['dimensions', 'walkers', 'steps', 'seed'].forEach(id => $(id).addEventListener('input', dirtySettings));
+  ['dimensions', 'walkers', 'steps', 'seed', 'model', 'bias', 'persistence', 'radius'].forEach(id => $(id).addEventListener('input', dirtySettings));
+  $('model').addEventListener('change', dirtySettings);
+  document.querySelectorAll('[data-preset]').forEach(button => button.addEventListener('click', () => {
+    const config = presets[button.dataset.preset];
+    if (!config) return;
+    Object.entries(config).forEach(([key, value]) => { $(key === 'dims' ? 'dimensions' : key).value = value; });
+    updateModelFields(); start();
+  }));
   document.querySelectorAll('[data-dims]').forEach(button => button.addEventListener('click', () => {
     $('dimensions').value = button.dataset.dims;
     dirtySettings();
@@ -290,6 +370,7 @@
     metric = button.dataset.metric;
     setPressed('[data-metric]', metric, 'metric');
     $('chart-tooltip').hidden = true;
+    renderComparisons();
     render();
   }));
   document.querySelectorAll('[data-scale]').forEach(button => button.addEventListener('click', () => {
@@ -300,6 +381,32 @@
   }));
   ['fit-start', 'fit-end'].forEach(id => $(id).addEventListener('input', render));
   $('projection').addEventListener('change', () => { updateProjection(); renderTrajectories(); });
+  ['yaw', 'pitch'].forEach(id => $(id).addEventListener('input', () => { renderTrajectories(); }));
+  function stopView() {
+    viewPlaying = false; cancelAnimationFrame(viewFrame);
+    $('tour-toggle').textContent = '回転する'; $('tour-toggle').setAttribute('aria-pressed', 'false');
+  }
+  function animateView(now) {
+    if (!viewPlaying) return;
+    if (now - lastViewPaint >= 40) {
+      $('yaw').value = ((Number($('yaw').value) + 1.2 + 180) % 360) - 180;
+      if ($('projection').value === 'tour') viewPhase += .012;
+      renderTrajectories(); lastViewPaint = now;
+    }
+    viewFrame = requestAnimationFrame(animateView);
+  }
+  $('tour-toggle').addEventListener('click', () => {
+    if (viewPlaying) stopView();
+    else { viewPlaying = true; $('tour-toggle').textContent = '回転を止める'; $('tour-toggle').setAttribute('aria-pressed', 'true'); viewFrame = requestAnimationFrame(animateView); }
+  });
+  $('pin-result').addEventListener('click', () => {
+    if (!simulation.done || comparisons.length >= 4) return;
+    const fitting = fitResult();
+    if (!fitting.fit) return;
+    comparisons.push({ id: ++comparisonId, config: simulation.config, points: simulation.points.slice(), start: fitting.start, end: fitting.end, color: comparisonColors.find(color => !comparisons.some(item => item.color === color)) });
+    renderComparisons(); render();
+  });
+  $('clear-comparisons').addEventListener('click', () => { comparisons.length = 0; renderComparisons(); render(); });
   $('time-scrubber').addEventListener('input', () => { followLatest = false; renderTrajectories(); });
   $('latest-button').addEventListener('click', () => { followLatest = true; renderTrajectories(); });
   $('scaling-chart').addEventListener('pointermove', event => {
@@ -312,7 +419,8 @@
     const nearest = plot.data.reduce((best, point) => Math.abs(plot.x(point.t) - local.x) < Math.abs(plot.x(best.t) - local.x) ? point : best);
     const marker = $('hover-point');
     marker.setAttribute('cx', plot.x(nearest.t)); marker.setAttribute('cy', plot.y(nearest[metric])); marker.setAttribute('visibility', 'visible');
-    $('chart-tooltip').textContent = `t = ${number(nearest.t, 0)} step\n${metricName()} = ${number(nearest[metric], 4)}\n理論 = ${number(theory(nearest.t), 4)}`;
+    const reference = theory(nearest.t);
+    $('chart-tooltip').textContent = `t = ${number(nearest.t, 0)} step\n${metricName()} = ${number(nearest[metric], 4)}` + (reference === null ? '\nこのモデルの理論曲線は未設定' : `\n理論 = ${number(reference, 4)}`);
     $('chart-tooltip').hidden = false;
   });
   $('scaling-chart').addEventListener('pointerleave', () => { $('chart-tooltip').hidden = true; $('hover-point')?.setAttribute('visibility', 'hidden'); });
@@ -320,7 +428,7 @@
     const url = URL.createObjectURL(new Blob(['\uFEFF', Core.toCSV(simulation)], { type: 'text/csv;charset=utf-8' }));
     const link = document.createElement('a');
     link.href = url;
-    link.download = `random-walk-${simulation.config.dims}d-seed${simulation.config.seed}-t${simulation.step}.csv`;
+    link.download = `random-walk-${simulation.config.model}-${simulation.config.dims}d-seed${simulation.config.seed}-t${simulation.step}.csv`;
     document.body.appendChild(link); link.click(); link.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   });
